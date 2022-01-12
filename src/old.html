@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tables</title>
+
+        <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+        <script id="user-script" type="text/javascript"></script>
+
+        <script type="text/babel">
+            const TableHeadRow = ({ columns }) => (
+                <tr>
+                    {columns.map(column => (
+                        <td key={column.id}>{column.header}</td>
+                    ))}
+                </tr>
+            )
+
+            const TableBodyRow = ({ columns, row }) => (
+                <tr>
+                    {columns.map(column => (
+                        <td key={column.id}>{column.body(row)}</td>
+                    ))}
+                </tr>
+            )
+
+            const TableBody = ({ columns, data }) =>
+                data.map(row => (
+                    <TableBodyRow key={row.id} columns={columns} row={row}/>
+                ))
+
+            const Table = ({ columns, data }) => (
+                <table>
+                    <thead>
+                        <TableHeadRow columns={columns}/>
+                    </thead>
+                    <tbody>
+                        <TableBody columns={columns} data={data}/>
+                    </tbody>
+                </table>
+            )
+
+            const EditableTableBodyRow = ({ columns, row, onChange }) => (
+                <tr>
+                    {columns.map(column => (
+                        <td key={column.id}>
+                            {column.body(row, true, onChange)}
+                        </td>
+                    ))}
+                </tr>
+            )
+
+            const EditableTableBody = ({ columns, data, onChange }) =>
+                data.map(row => (
+                    <EditableTableBodyRow
+                        key={row.id}
+                        columns={columns}
+                        row={row}
+                        onChange={onChange}
+                        />
+                ))
+                
+            const EditableTable = ({ columns, data, onChange }) => (
+                <table>
+                    <thead>
+                        <TableHeadRow columns={columns}/>
+                    </thead>
+                    <tbody>
+                        <EditableTableBody columns={columns} data={data} onChange={onChange}/>
+                    </tbody>
+                </table>
+            )
+
+            const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditColumn, onClose, onChange }) => (
+                <tr>
+                    {columns.map(column => (
+                        <td
+                            key={column.id}
+                            onDoubleClick={event => {
+                                event.preventDefault()
+                                onEditColumn(column.id)
+                            }}
+                            onBlur={() => {
+                                event.stopPropagation()
+                                console.log('blur', column.id)
+                                column.id === editedColumn && onClose()
+                            }}
+                            >
+                            {column.body(row, column.id === editedColumn, onChange)}
+                        </td>
+                    ))}
+                </tr>
+            )
+
+            const SingleEditableTableBody = ({ columns, data, edited, onEdit, onChange }) =>
+                data.map(row => (
+                    <SingleEditableTableBodyRow
+                        key={row.id}
+                        columns={columns}
+                        row={row}
+                        editedColumn={edited && edited.row === row.id && edited.column}
+                        onEditColumn={columnId => onEdit({ row: row.id, column: columnId })}
+                        onClose={() => onEdit(null)}
+                        onChange={onChange}
+                    />
+                ))
+
+            const SingleEditableTable = ({ columns, data, edited, onEdit, onChange }) => (
+                <table>
+                    <thead>
+                        <TableHeadRow columns={columns}/>
+                    </thead>
+                    <tbody>
+                        <SingleEditableTableBody
+                            columns={columns}
+                            data={data}
+                            edited={edited}
+                            onEdit={onEdit}
+                            onChange={onChange}
+                            />
+                    </tbody>
+                </table>
+            )
+
+            const TableSummary = ({ columns, data }) => (
+                <tr>
+                    {columns.map(column => (
+                        <td key={column.id}>
+                            {column.summary(data)}
+                        </td>
+                    ))}
+                </tr>
+            )
+
+
+            const exampleData = [
+                { id: 0, name: "Ford", size: 10000, isCool: false },
+                { id: 1, name: "VW", size: 20000, isCool: false },
+                { id: 2, name: "Mercedes Benz", size: 30000, isCool: false },
+                { id: 3, name: "Audi", size: 40000, isCool: false },
+            ]
+
+            const recordField = name => ({
+                get: record => record[name],
+                update: (newValue, record) => ({ ...record, [name]: newValue }),
+            })
+
+            const summaries = {
+                count: field => data => data.filter(field.get).length,
+                sum: field => data => data.map(field.get).reduce((a, b) => a + b),
+            }
+
+            const fieldTypes = {
+                text: field => (row, isEditing, onChange) =>
+                    isEditing ? (
+                        <input
+                            type="text"
+                            value={field.get(row)}
+                            onChange={event => {
+                                onChange(field.update(event.target.value, row))
+                            }}
+                            />
+                    ) : (
+                        field.get(row)
+                    ),
+                number: field => (row, isEditing, onChange) =>
+                    isEditing ? (
+                        <input
+                            type="number"
+                            value={field.get(row)}
+                            onChange={event => {
+                                onChange(field.update(event.target.value | 0, row))
+                            }}
+                            />
+                    ) : (
+                        field.get(row)
+                    ),
+                bool: field => (row, isEditing, onChange) => (
+                    <input
+                        type="checkbox"
+                        checked={field.get(row)}
+                        onChange={event => {
+                            onChange && onChange(field.update(!!event.target.checked, row))
+                        }}
+                        />
+                ),
+            }
+
+            const dataColumns = [
+                {
+                    id: 0,
+                    header: "Name",
+                    body: fieldTypes.text(recordField('name')),
+                    summary: summaries.count(recordField('name'))
+                },
+                {
+                    id: 1,
+                    header: "Size",
+                    body: fieldTypes.number(recordField('size')),
+                    summary: summaries.sum(recordField('size')),
+                },
+            ]
+
+            const REPL = () => {
+                const [code, setCode] = React.useState("")
+                const [compiled, setCompiled] = React.useState("")
+
+                const compiledUserCode = new Function(compiled)
+
+                const babelOptions = {
+                    presets: ['react'],
+                    parserOpts: { allowReturnOutsideFunction: true },
+                }
+
+                return (
+                    <div>
+                        <textarea
+                            value={code}
+                            onChange={event => { setCode(event.target.value) }}
+                            />
+                        <button onClick={() => {
+                            const c = Babel.transform(code, babelOptions).code
+                            setCompiled(c)
+                        }}>
+                            Run
+                        </button>
+                        {compiledUserCode()}
+                    </div>
+                )
+            }
+
+            const App = () => {
+                const [edited, setEdited] = React.useState(null)
+                const [data, setData] = React.useState(exampleData)
+                const [columns, setColumns] = React.useState([])
+                const [newColumn, setNewColumn] = React.useState(null)
+
+                const onChange = updatedRow =>
+                    setData(
+                        data.map(row =>
+                            row.id === updatedRow.id ? updatedRow : row
+                        )
+                    )
+
+                const addRow = () => {
+                    setData([ ...data, { id: data.length } ])
+                }
+
+                return (
+                    <React.Fragment>
+                        <h1>Tables</h1>
+
+                        <table>
+                            <thead>
+                                <TableHeadRow columns={dataColumns} />
+                            </thead>
+                            <tbody>
+                                <SingleEditableTableBody
+                                    columns={dataColumns}
+                                    data={data}
+                                    edited={edited}
+                                    onEdit={setEdited}
+                                    onChange={onChange}
+                                    />
+                            </tbody>
+                        </table>
+                        <button onClick={addRow}>+</button>
+                        <button onClick={() => { setNewColumn("") }}>+Text</button>
+
+                        {newColumn !== null && (
+                            <div>
+                                <input
+                                    type="text"
+                                    value={newColumn}
+                                    onChange={event => {
+                                        setNewColumn(event.target.value)
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        setColumns([
+                                            ...columns,
+                                            {
+                                                id: columns.length,
+                                                header: newColumn,
+                                                body: fieldTypes.text(recordField(newColumn)),
+                                            }
+                                        ])
+                                        setNewColumn(null)
+                                    }}
+                                    >
+                                    add
+                                </button>
+                            </div>
+                        )}
+
+                        <REPL />
+
+                    </React.Fragment>
+                )
+            }
+
+            const container = document.getElementById("app")
+            ReactDOM.render(<App />, container)
+        </script>
+    </head>
+    <body>
+        <div id="app"></div>
+    </body>
+</html>
