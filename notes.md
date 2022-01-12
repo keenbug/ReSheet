@@ -59,3 +59,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - monaco? (~VSCode) https://github.com/Microsoft/monaco-editor
     - CodeMirror? https://github.com/codemirror/CodeMirror
     
+
+# Used Technologies
+
+Babel - https://old.babeljs.io/docs/usage/api/#options
+Fontawesome - https://fontawesome.com/v5.15/icons?d=gallery
+              https://fontawesome.com/v5.15/how-to-use/on-the-web/using-with/react
+Tailwindcss - https://tailwindcss.com/docs/utility-first
+              https://tailwindcomponents.com/cheatsheet/
+CodeJar
+PrismJS
+ReactJS

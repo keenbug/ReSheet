@@ -4,12 +4,12 @@ import * as Babel from '@babel/core'
 import BabelReact from '@babel/preset-react'
 import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
-import 'prismjs/themes/prism.css'
-import styled from 'styled-components'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
+import { subUpdateArray, subUpdate, classed, nextElem } from './utils'
 
+import 'prismjs/themes/prism.css'
 
 /**************** Dynamic Code Execution **************/
 
@@ -49,31 +49,16 @@ const runExpr = (code, env) => {
     }
 }
 
-const mergeRefs = (...refs) => inst => 
-    refs.forEach(ref => {
-        if (typeof ref === 'function') {
-            ref(inst);
-        } else if (ref) {
-            ref.current = inst;
-        }
-    })
 
-
-const CodeContent = styled.code`
-    min-width: 20em;
-    min-height: 1em;
-    display: block;
-    border: 1px solid transparent;
-    border-radius: 3px;
-
-    :hover {
-        background-color: #fafafa;
-        border: 1px solid #eee;
-    }
+const CodeContent = classed('code')`
+    block
+    min-w-48 min-h-1
+    rounded
+    hover:bg-gray-100 focus:bg-gray-100
 `
 
 
-const CodeEditor = ({ code, onUpdate, onRun }) => {
+const CodeEditor = ({ code, onUpdate }) => {
     const ref = useCodeJar({
         code,
         onUpdate,
@@ -83,14 +68,7 @@ const CodeEditor = ({ code, onUpdate, onRun }) => {
         },
     })
 
-    const onKeyPress = event => {
-        if (event.key === 'Enter' && event.metaKey) {
-            event.preventDefault()
-            onRun()
-        }
-    }
-
-    return <pre><CodeContent ref={ref} onKeyPress={onKeyPress} /></pre>
+    return <pre><CodeContent ref={ref} /></pre>
 }
 
 class ErrorBoundary extends React.Component {
@@ -123,15 +101,15 @@ class ErrorBoundary extends React.Component {
     }
 }
 
-const ExprValue = ({ value }) => {
-    if (typeof value === 'function') {
-        return (
-            <ErrorBoundary>
-                {React.createElement(value, null, null)}
-            </ErrorBoundary>
-        )
-    }
-    else if (React.isValidElement(value)) {
+const ValueView = ({ value }) => {
+    // if (typeof value === 'function') {
+    //     return (
+    //         <ErrorBoundary>
+    //             {React.createElement(value, null, null)}
+    //         </ErrorBoundary>
+    //     )
+    // }
+    /* else */ if (React.isValidElement(value)) {
         return <ErrorBoundary>{value}</ErrorBoundary>
     }
     else if (value instanceof Error) {
@@ -154,82 +132,125 @@ const REPL_MODES = ['both', 'result', 'code']
 const REPL_ICON = {
     both: (
         <React.Fragment>
-            <FontAwesomeIcon icon={solidIcons.faCode} />
+            <FontAwesomeIcon size="xs" icon={solidIcons.faCode} />
             <br />
-            <FontAwesomeIcon icon={solidIcons.faPlay} />
+            <FontAwesomeIcon size="xs" icon={solidIcons.faPlay} />
         </React.Fragment>
     ),
-    result: <FontAwesomeIcon icon={solidIcons.faPlay} />,
-    code: <FontAwesomeIcon icon={solidIcons.faCode} />,
+    result: <FontAwesomeIcon size="xs" icon={solidIcons.faPlay} />,
+    code: <FontAwesomeIcon size="xs" icon={solidIcons.faCode} />,
 }
 
-const nextElem = (elem, allElems) => {
-    const elemIdx = allElems.findIndex(e => e === elem)
-    const nextElemIdx = (elemIdx + 1) % allElems.length
-    return allElems[nextElemIdx]
+const REPLLine = classed('div')`flex flex-row space-x-2`
+
+const REPLContent = classed('div')`flex flex-col`
+
+const REPLModeButton = classed('button')`
+    text-slate-500
+    hover:text-slate-600
+    active:text-slate-700
+
+    hover:bg-gray-200
+    active:bg-gray-300
+
+    transition-colors
+
+    w-7
+    leading-6
+
+    rounded
+`
+
+const REPLMode = ({ mode, onUpdate }) =>
+    <REPLModeButton
+        onClick={() => onUpdate(nextElem(mode, REPL_MODES))}
+    >
+        {REPL_ICON[mode]}
+    </REPLModeButton>
+
+
+const TextInput = ({ value, onUpdate }) => {
+    const ref = React.useRef(null)
+    React.useEffect(() => {
+        if (ref.current.innerText !== value) {
+            ref.current.innerText = value
+        }
+    })
+    const onInput = event => {
+        onUpdate(event.target.innerText)
+    }
+    return <span contentEditable ref={ref} onInput={onInput} className="focus:bg-gray-100" />
 }
 
-const REPLLine = styled.div`
-    display: flex;
-    flex-direction: row;
-    gap: 5px;
-`
 
-const REPLContent = styled.div`
-    display: flex;
-    flex-direction: column;
-`
-
-const REPLModeButton = styled.button`
-    background-color: transparent;
-    color: #BBB;
-
-    width: 25px;
-    line-height: 200%;
-
-    border-width: 0;
-    border-radius: 5px;
-
-    padding: 0;
-    margin: 0;
-    border: 0;
-
-    transition: background-color .1s, color .1s;
-
-    :hover {
-        background-color: #f4f4f4;
-        color: #444;
-    }
-    :active {
-        background-color: #DDD;
-        color: #333;
-    }
-`
-
-const REPL = ({ code, onUpdate, onEnter }) => {
+const REPLDef = ({ def, onUpdate }) => {
     const [mode, setMode] = React.useState(REPL_MODES[0])
-    const [result, setResult] = React.useState([null])
 
-    useEffect(() => {
-        setResult([runExpr(code, { React, styled })])
-    }, [code])
+    const onUpdateExpr = expr => {
+        onUpdate({ ...def, expr })
+        setTimeout(() => {
+            const result = runExpr(expr, { React })
+            onUpdate(def => ({ ...def, result }))
+        })
+    }
 
-    const switchMode = () => {
-        setMode(nextElem(mode, REPL_MODES))
+    const onUpdateName = name => {
+        onUpdate(def => ({ ...def, name: name.trim() }))
     }
 
     return (
         <REPLLine>
-            <REPLModeButton onClick={switchMode}>{REPL_ICON[mode]}</REPLModeButton>
+            <REPLMode mode={mode} onUpdate={setMode} />
             <REPLContent>
+                <div><TextInput value={def.name} onUpdate={onUpdateName} /> =</div>
                 {mode !== 'result' &&
-                    <CodeEditor code={code} onUpdate={onUpdate} onRun={onEnter} />
+                    <CodeEditor code={def.expr} onUpdate={onUpdateExpr} />
                 }
                 {mode !== 'code' &&
-                    <ExprValue value={result[0]} />
+                    <ValueView value={def.result} />
                 }
             </REPLContent>
         </REPLLine>
+    )
+}
+
+
+const localEnv = env =>
+    env.reduce((obj, def) => (obj[def.name] = def.result, obj), {})
+
+
+const REPL = ({ code, onUpdate }) => {
+    const [mode, setMode] = React.useState(REPL_MODES[0])
+
+    const onUpdateExpr = expr => {
+        onUpdate({ ...code, expr })
+        setTimeout(() => {
+            const result = runExpr(expr, { React, ...localEnv(code.env) })
+            onUpdate(code => ({ ...code, result }))
+        })
+    }
+
+    return (
+        <div className="space-y-4">
+            {code.env.map((def, idx) =>
+                <REPLDef
+                    key={idx}
+                    def={def}
+                    onUpdate={subUpdateArray(idx, subUpdate('env', onUpdate))}
+                />
+            )}
+            <REPLLine>
+                <REPLMode mode={mode} onUpdate={setMode} />
+                <REPLContent>
+                    {mode !== 'result' &&
+                        <CodeEditor code={code.expr} onUpdate={onUpdateExpr} />
+                    }
+                    {mode !== 'code' &&
+                        <ValueView value={code.result} />
+                    }
+                </REPLContent>
+            </REPLLine>
+        </div>
     )
 }
 
@@ -269,33 +290,12 @@ const App = ({ state, onUpdate }) => {
         <React.Fragment>
             <button onClick={() => setMode(nextElem(mode, APP_MODES))}>{mode}</button>
             {mode === 'app' ?
-                <div>
-                    {state.cmds.map(
-                        (cmd, idx) =>
-                            <REPL
-                                key={idx}
-                                code={cmd}
-                                onUpdate={newCmd =>
-                                    onUpdate({
-                                        ...state,
-                                        cmds: state.cmds.map((cmd, i) => i === idx ? newCmd : cmd),
-                                    })
-                                }
-                                onEnter={() => {}}
-                                />
-                    )}
+                <ErrorBoundary>
                     <REPL
                         code={state.code}
-                        onUpdate={code => onUpdate({ ...state, code })}
-                        onEnter={() => {
-                            onUpdate({
-                                ...state,
-                                cmds: [ ...state.cmds, state.code ],
-                                code: "",
-                            })
-                        }}
-                        />
-                </div>
+                        onUpdate={subUpdate('code', onUpdate)}
+                    />
+                </ErrorBoundary>
             :
                 <StateEditor state={state} onUpdate={onUpdate} />
             }
@@ -304,27 +304,39 @@ const App = ({ state, onUpdate }) => {
 }
 
 let state = { code: "" }
+
 try {
     const storedState = localStorage.getItem('state')
     if (storedState) {
         state = JSON.parse(storedState)
     }
 } catch (e) {}
+
 function updateStore() {
     localStorage.setItem('state', JSON.stringify(state))
     setTimeout(updateStore, 10 * 1000)
 }
+
 updateStore()
 
 const container = document.getElementById("app")
-function renderApp() {
-    const onUpdate = newState => {
-        state = newState
-        renderApp()
+
+function updateState(newState) {
+    if (typeof newState === 'function') {
+        state = newState(state)
     }
+    else {
+        state = newState
+    }
+    console.log('update', state)
+    renderApp()
+}
+
+function renderApp() {
     ReactDOM.render(
-        <App state={state} onUpdate={onUpdate} />,
+        <App state={state} onUpdate={updateState} />,
         container,
     )
 }
+
 renderApp()
