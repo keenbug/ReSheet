@@ -50,6 +50,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 # Future
 
 * REPL
+    * console-feed?
     * Addable dependencies?
         * Transpile with Babel?
         * Bundle? Every Lib needs to be specially bundled?

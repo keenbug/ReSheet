@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { subUpdateArray, subUpdate, classed, nextElem } from './utils'
+import Inspector, { ObjectRootLabel, ObjectLabel } from 'react-inspector'
 
 import 'prismjs/themes/prism.css'
 
@@ -101,32 +102,13 @@ class ErrorBoundary extends React.Component {
     }
 }
 
-const ValueView = ({ value }) => {
-    // if (typeof value === 'function') {
-    //     return (
-    //         <ErrorBoundary>
-    //             {React.createElement(value, null, null)}
-    //         </ErrorBoundary>
-    //     )
-    // }
-    /* else */ if (React.isValidElement(value)) {
+const ValueInspector = ({ value }) => {
+    if (React.isValidElement(value)) {
         return <ErrorBoundary>{value}</ErrorBoundary>
     }
-    else if (value instanceof Error) {
-        return (
-            <React.Fragment>
-                <h3>{value.name}</h3>
-                <pre>{value.message}</pre>
-            </React.Fragment>
-        )
-    }
-    else if (value && typeof value === 'object') {
-        return <pre>{"{" + Object.keys(value).join(", ") + "}"}</pre>
-    }
-    else {
-        return <pre>{value + ""}</pre>
-    }
+    return <div><Inspector data={value} /></div>
 }
+
 
 const REPL_MODES = ['both', 'result', 'code']
 const REPL_ICON = {
@@ -140,10 +122,6 @@ const REPL_ICON = {
     result: <FontAwesomeIcon size="xs" icon={solidIcons.faPlay} />,
     code: <FontAwesomeIcon size="xs" icon={solidIcons.faCode} />,
 }
-
-const REPLLine = classed('div')`flex flex-row space-x-2`
-
-const REPLContent = classed('div')`flex flex-col`
 
 const REPLModeButton = classed('button')`
     text-slate-500
@@ -169,19 +147,30 @@ const REPLMode = ({ mode, onUpdate }) =>
     </REPLModeButton>
 
 
-const TextInput = ({ value, onUpdate }) => {
+const TextInput = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
     React.useEffect(() => {
         if (ref.current.innerText !== value) {
+            console.log('setting text', ref.current.innerText, value)
             ref.current.innerText = value
         }
     })
     const onInput = event => {
-        onUpdate(event.target.innerText)
+        const { innerText, innerHTML } = event.target
+        const text = String(innerText)
+        const html = String(innerHTML).replaceAll("&nbsp;", " ")
+        if (html !== innerText) {
+            console.log('removing markup')
+            event.target.innerHTML = innerText
+        }
+        onUpdate(innerText)
     }
-    return <span contentEditable ref={ref} onInput={onInput} className="focus:bg-gray-100" />
+    return <span contentEditable ref={ref} onInput={onInput} {...props} />
 }
 
+
+const REPLLine = classed('div')`flex flex-row space-x-2`
+const REPLContent = classed('div')`flex flex-col space-y-2`
 
 const REPLDef = ({ def, onUpdate }) => {
     const [mode, setMode] = React.useState(REPL_MODES[0])
@@ -200,14 +189,22 @@ const REPLDef = ({ def, onUpdate }) => {
 
     return (
         <REPLLine>
+            <div className="self-center text-slate-700">
+                const&nbsp;
+                <TextInput
+                    className="focus:bg-gray-100 outline-none p-0.5 rounded"
+                    value={def.name}
+                    onUpdate={onUpdateName}
+                />
+                &nbsp;=
+            </div>
             <REPLMode mode={mode} onUpdate={setMode} />
             <REPLContent>
-                <div><TextInput value={def.name} onUpdate={onUpdateName} /> =</div>
                 {mode !== 'result' &&
                     <CodeEditor code={def.expr} onUpdate={onUpdateExpr} />
                 }
                 {mode !== 'code' &&
-                    <ValueView value={def.result} />
+                    <ValueInspector value={def.result} />
                 }
             </REPLContent>
         </REPLLine>
@@ -223,7 +220,8 @@ const REPL = ({ code, onUpdate }) => {
     const [mode, setMode] = React.useState(REPL_MODES[0])
 
     const onUpdateExpr = expr => {
-        onUpdate({ ...code, expr })
+        console.log('update expr', code)
+        onUpdate(code => ({ ...code, expr }))
         setTimeout(() => {
             const result = runExpr(expr, { React, ...localEnv(code.env) })
             onUpdate(code => ({ ...code, result }))
@@ -246,7 +244,7 @@ const REPL = ({ code, onUpdate }) => {
                         <CodeEditor code={code.expr} onUpdate={onUpdateExpr} />
                     }
                     {mode !== 'code' &&
-                        <ValueView value={code.result} />
+                        <ValueInspector value={code.result} />
                     }
                 </REPLContent>
             </REPLLine>
@@ -328,7 +326,6 @@ function updateState(newState) {
     else {
         state = newState
     }
-    console.log('update', state)
     renderApp()
 }
 

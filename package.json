@@ -23,6 +23,7 @@
     "react": "17",
     "react-codejar": "^1.1.2",
     "react-dom": "17",
+    "react-inspector": "^5.1.1",
     "styled-components": "^5.3.3"
   }
 }
