@@ -93,7 +93,7 @@ class ErrorBoundary extends React.Component {
                 <React.Fragment>
                     <h3>An error occurred in your component</h3>
                     <h4>{this.state.caughtError.name}</h4>
-                    <pre>{this.state.caughtError.message}</pre>
+                    <pre className="break-normal">{this.state.caughtError.message}</pre>
                 </React.Fragment>
             )
         }
@@ -149,9 +149,8 @@ const REPLMode = ({ mode, onUpdate }) =>
 
 const TextInput = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         if (ref.current.innerText !== value) {
-            console.log('setting text', ref.current.innerText, value)
             ref.current.innerText = value
         }
     })
@@ -159,11 +158,10 @@ const TextInput = ({ value, onUpdate, ...props }) => {
         const { innerText, innerHTML } = event.target
         const text = String(innerText)
         const html = String(innerHTML).replaceAll("&nbsp;", " ")
-        if (html !== innerText) {
-            console.log('removing markup')
+        if (html !== text) {
             event.target.innerHTML = innerText
         }
-        onUpdate(innerText)
+        onUpdate(text)
     }
     return <span contentEditable ref={ref} onInput={onInput} {...props} />
 }
@@ -176,11 +174,7 @@ const REPLDef = ({ def, onUpdate }) => {
     const [mode, setMode] = React.useState(REPL_MODES[0])
 
     const onUpdateExpr = expr => {
-        onUpdate({ ...def, expr })
-        setTimeout(() => {
-            const result = runExpr(expr, { React })
-            onUpdate(def => ({ ...def, result }))
-        })
+        onUpdate(def => ({ ...def, expr }))
     }
 
     const onUpdateName = name => {
@@ -190,7 +184,7 @@ const REPLDef = ({ def, onUpdate }) => {
     return (
         <REPLLine>
             <div className="self-center text-slate-700">
-                const&nbsp;
+                {/* const&nbsp; */}
                 <TextInput
                     className="focus:bg-gray-100 outline-none p-0.5 rounded"
                     value={def.name}
@@ -198,34 +192,39 @@ const REPLDef = ({ def, onUpdate }) => {
                 />
                 &nbsp;=
             </div>
-            <REPLMode mode={mode} onUpdate={setMode} />
+            <REPL code={def} onUpdate={onUpdate} />
+            {/* <REPLMode mode={mode} onUpdate={setMode} />
             <REPLContent>
                 {mode !== 'result' &&
                     <CodeEditor code={def.expr} onUpdate={onUpdateExpr} />
                 }
                 {mode !== 'code' &&
-                    <ValueInspector value={def.result} />
+                    <ValueInspector value={runExpr(def.expr, { React })} />
                 }
-            </REPLContent>
+            </REPLContent> */}
         </REPLLine>
     )
 }
 
 
 const localEnv = env =>
-    env.reduce((obj, def) => (obj[def.name] = def.result, obj), {})
-
+    env.reduce((obj, def) => (obj[def.name] = runExpr(def.expr, { React }), obj), {})
 
 const REPL = ({ code, onUpdate }) => {
     const [mode, setMode] = React.useState(REPL_MODES[0])
 
     const onUpdateExpr = expr => {
-        console.log('update expr', code)
         onUpdate(code => ({ ...code, expr }))
-        setTimeout(() => {
-            const result = runExpr(expr, { React, ...localEnv(code.env) })
-            onUpdate(code => ({ ...code, result }))
-        })
+    }
+
+    const onAddDef = () => {
+        onUpdate(code => ({
+            ...code,
+            env: [
+                ...code.env,
+                { name: "", expr: "", env: [] }
+            ]
+        }))
     }
 
     return (
@@ -237,6 +236,7 @@ const REPL = ({ code, onUpdate }) => {
                     onUpdate={subUpdateArray(idx, subUpdate('env', onUpdate))}
                 />
             )}
+            <button className="w-6 h-6 rounded hover:bg-slate-200" onClick={onAddDef}>+</button>
             <REPLLine>
                 <REPLMode mode={mode} onUpdate={setMode} />
                 <REPLContent>
@@ -244,7 +244,7 @@ const REPL = ({ code, onUpdate }) => {
                         <CodeEditor code={code.expr} onUpdate={onUpdateExpr} />
                     }
                     {mode !== 'code' &&
-                        <ValueInspector value={code.result} />
+                        <ValueInspector value={runExpr(code.expr, { React, ...localEnv(code.env) })} />
                     }
                 </REPLContent>
             </REPLLine>
@@ -281,8 +281,13 @@ const StateEditor = ({ state, onUpdate }) => {
 
 const APP_MODES = [ 'app', 'state' ]
 
-const App = ({ state, onUpdate }) => {
+const App = () => {
+    const [state, onUpdate] = React.useState(JSON.parse(localStorage.getItem('state') ?? "{}"))
     const [mode, setMode] = React.useState(APP_MODES[0])
+
+    React.useEffect(() => {
+        localStorage.setItem('state', JSON.stringify(state))
+    }, [state])
 
     return (
         <React.Fragment>
@@ -301,39 +306,9 @@ const App = ({ state, onUpdate }) => {
     )
 }
 
-let state = { code: "" }
-
-try {
-    const storedState = localStorage.getItem('state')
-    if (storedState) {
-        state = JSON.parse(storedState)
-    }
-} catch (e) {}
-
-function updateStore() {
-    localStorage.setItem('state', JSON.stringify(state))
-    setTimeout(updateStore, 10 * 1000)
-}
-
-updateStore()
-
 const container = document.getElementById("app")
 
-function updateState(newState) {
-    if (typeof newState === 'function') {
-        state = newState(state)
-    }
-    else {
-        state = newState
-    }
-    renderApp()
-}
-
-function renderApp() {
-    ReactDOM.render(
-        <App state={state} onUpdate={updateState} />,
-        container,
-    )
-}
-
-renderApp()
+ReactDOM.render(
+    <App />,
+    container,
+)
