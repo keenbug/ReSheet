@@ -7,21 +7,12 @@ import Prism from 'prismjs'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
-import { subUpdateArray, subUpdate, classed, nextElem } from './utils'
+import { TextInput, subUpdate, classed, nextElem, onMetaEnter } from './utils'
 import Inspector, { ObjectRootLabel, ObjectLabel } from 'react-inspector'
 
 import 'prismjs/themes/prism.css'
 
 /**************** Dynamic Code Execution **************/
-
-const highlightJS = editor => {
-    const text = editor.textContent
-    editor.innerHTML = Prism.highlight(
-        text,
-        Prism.languages.javascript,
-        'javascript'
-    )
-}
 
 const runExpr = (code, env) => {
     if (!code) {
@@ -50,6 +41,48 @@ const runExpr = (code, env) => {
     }
 }
 
+const localEnv = (def, globalEnv) => {
+    if (!def) { return globalEnv }
+    const env = localEnv(def.env, globalEnv)
+    const defResult = runExpr(def.expr, env)
+    return ({ ...env, [def.name]: defResult })
+}
+
+const isVarNameFree = (name, def) =>
+    def ?
+        def.name !== name && isVarNameFree(name, def.env)
+    :
+        true
+
+
+const findNextFreeTempVarName = def => {
+    for (let i = 0; i < Number.MAX_SAFE_INTEGER; i++) {
+        if (isVarNameFree('$' + i, def)) {
+            return '$' + i
+        }
+    }
+    return '$$'
+}
+
+const addNewDef = code => ({
+    name: code.name.length > 0 ? code.name : findNextFreeTempVarName(code.env),
+    expr: code.expr,
+    mode: code.mode,
+    env: code.env,
+})
+
+
+const highlightJS = editor => {
+    const text = editor.textContent
+    editor.innerHTML = Prism.highlight(
+        text,
+        Prism.languages.javascript,
+        'javascript'
+    )
+}
+
+
+/**************** Code Editor *****************/
 
 const CodeContent = classed('code')`
     block
@@ -59,7 +92,7 @@ const CodeContent = classed('code')`
 `
 
 
-const CodeEditor = ({ code, onUpdate }) => {
+const CodeEditor = ({ code, onUpdate, ...props }) => {
     const ref = useCodeJar({
         code,
         onUpdate,
@@ -69,7 +102,17 @@ const CodeEditor = ({ code, onUpdate }) => {
         },
     })
 
-    return <pre><CodeContent ref={ref} /></pre>
+    return <pre><CodeContent ref={ref} {...props} /></pre>
+}
+
+
+/**************** Value Viewer *****************/
+
+const ValueInspector = ({ value }) => {
+    if (React.isValidElement(value)) {
+        return <ErrorBoundary>{value}</ErrorBoundary>
+    }
+    return <div><Inspector data={value} /></div>
 }
 
 class ErrorBoundary extends React.Component {
@@ -102,13 +145,8 @@ class ErrorBoundary extends React.Component {
     }
 }
 
-const ValueInspector = ({ value }) => {
-    if (React.isValidElement(value)) {
-        return <ErrorBoundary>{value}</ErrorBoundary>
-    }
-    return <div><Inspector data={value} /></div>
-}
 
+/**************** REPL *****************/
 
 const REPL_MODES = ['both', 'result', 'code']
 const REPL_ICON = {
@@ -141,114 +179,66 @@ const REPLModeButton = classed('button')`
 
 const REPLMode = ({ mode, onUpdate }) =>
     <REPLModeButton
-        onClick={() => onUpdate(nextElem(mode, REPL_MODES))}
+        onClick={() => onUpdate(mode => nextElem(mode, REPL_MODES))}
     >
         {REPL_ICON[mode]}
     </REPLModeButton>
 
 
-const TextInput = ({ value, onUpdate, ...props }) => {
-    const ref = React.useRef(null)
-    React.useLayoutEffect(() => {
-        if (ref.current.innerText !== value) {
-            ref.current.innerText = value
-        }
-    })
-    const onInput = event => {
-        const { innerText, innerHTML } = event.target
-        const text = String(innerText)
-        const html = String(innerHTML).replaceAll("&nbsp;", " ")
-        if (html !== text) {
-            event.target.innerHTML = innerText
-        }
-        onUpdate(text)
-    }
-    return <span contentEditable ref={ref} onInput={onInput} {...props} />
-}
-
 
 const REPLLine = classed('div')`flex flex-row space-x-2`
-const REPLContent = classed('div')`flex flex-col space-y-2`
-
-const REPLDef = ({ def, onUpdate }) => {
-    const [mode, setMode] = React.useState(REPL_MODES[0])
-
-    const onUpdateExpr = expr => {
-        onUpdate(def => ({ ...def, expr }))
-    }
-
-    const onUpdateName = name => {
-        onUpdate(def => ({ ...def, name: name.trim() }))
-    }
-
-    return (
-        <REPLLine>
-            <div className="self-center text-slate-700">
-                {/* const&nbsp; */}
-                <TextInput
-                    className="focus:bg-gray-100 outline-none p-0.5 rounded"
-                    value={def.name}
-                    onUpdate={onUpdateName}
-                />
-                &nbsp;=
-            </div>
-            <REPL code={def} onUpdate={onUpdate} />
-            {/* <REPLMode mode={mode} onUpdate={setMode} />
-            <REPLContent>
-                {mode !== 'result' &&
-                    <CodeEditor code={def.expr} onUpdate={onUpdateExpr} />
-                }
-                {mode !== 'code' &&
-                    <ValueInspector value={runExpr(def.expr, { React })} />
-                }
-            </REPLContent> */}
-        </REPLLine>
-    )
-}
+const REPLContent = classed('div')`flex flex-col space-y-1`
 
 
-const localEnv = env =>
-    env.reduce((obj, def) => (obj[def.name] = runExpr(def.expr, { React }), obj), {})
 
 const REPL = ({ code, onUpdate }) => {
-    const [mode, setMode] = React.useState(REPL_MODES[0])
-
     const onUpdateExpr = expr => {
         onUpdate(code => ({ ...code, expr }))
     }
 
-    const onAddDef = () => {
+    const onNewExpr = () => {
         onUpdate(code => ({
             ...code,
-            env: [
-                ...code.env,
-                { name: "", expr: "", env: [] }
-            ]
+            expr: "",
+            mode: 'both',
+            env: addNewDef(code),
         }))
     }
 
     return (
-        <div className="space-y-4">
-            {code.env.map((def, idx) =>
-                <REPLDef
-                    key={idx}
-                    def={def}
-                    onUpdate={subUpdateArray(idx, subUpdate('env', onUpdate))}
+        <React.Fragment>
+            {code.env &&
+                <REPL
+                    code={code.env}
+                    onUpdate={subUpdate('env', onUpdate)}
                 />
-            )}
-            <button className="w-6 h-6 rounded hover:bg-slate-200" onClick={onAddDef}>+</button>
+            }
             <REPLLine>
-                <REPLMode mode={mode} onUpdate={setMode} />
+                <REPLMode mode={code.mode} onUpdate={subUpdate('mode', onUpdate)} />
                 <REPLContent>
-                    {mode !== 'result' &&
-                        <CodeEditor code={code.expr} onUpdate={onUpdateExpr} />
+                    { code.name.length > 0 &&
+                        <div className="self-start text-slate-500 font-light text-xs -mb-1">
+                            <TextInput
+                                className="hover:bg-gray-200 hover:text-slate-700 focus:bg-gray-200 focus:text-slate-700 outline-none p-0.5 rounded"
+                                value={code.name}
+                                onUpdate={subUpdate('name', onUpdate)}
+                            />
+                            &nbsp;=
+                        </div>
                     }
-                    {mode !== 'code' &&
-                        <ValueInspector value={runExpr(code.expr, { React, ...localEnv(code.env) })} />
+                    {code.mode !== 'result' &&
+                        <CodeEditor
+                            code={code.expr}
+                            onUpdate={onUpdateExpr}
+                            onKeyPress={onMetaEnter(onNewExpr)}
+                        />
+                    }
+                    {code.mode !== 'code' &&
+                        <ValueInspector value={runExpr(code.expr, localEnv(code.env, { React }))} />
                     }
                 </REPLContent>
             </REPLLine>
-        </div>
+        </React.Fragment>
     )
 }
 
@@ -294,10 +284,12 @@ const App = () => {
             <button onClick={() => setMode(nextElem(mode, APP_MODES))}>{mode}</button>
             {mode === 'app' ?
                 <ErrorBoundary>
-                    <REPL
-                        code={state.code}
-                        onUpdate={subUpdate('code', onUpdate)}
-                    />
+                    <div className="flex flex-col space-y-4">
+                        <REPL
+                            code={state.code}
+                            onUpdate={subUpdate('code', onUpdate)}
+                        />
+                    </div>
                 </ErrorBoundary>
             :
                 <StateEditor state={state} onUpdate={onUpdate} />

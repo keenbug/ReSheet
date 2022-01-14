@@ -10,9 +10,30 @@ export const nextElem = (elem, allElems) => {
 export const onMetaEnter = func => event => {
     if (event.key === 'Enter' && event.metaKey) {
         event.preventDefault()
-        func()
+        func(event)
     }
 }
+
+
+export const TextInput = ({ value, onUpdate, ...props }) => {
+    const ref = React.useRef(null)
+    React.useLayoutEffect(() => {
+        if (ref.current.innerText !== value) {
+            ref.current.innerText = value
+        }
+    })
+    const onInput = event => {
+        const { innerText, innerHTML } = event.target
+        const text = String(innerText)
+        const html = String(innerHTML).replaceAll("&nbsp;", " ")
+        if (html !== text) {
+            event.target.innerHTML = innerText
+        }
+        onUpdate(text)
+    }
+    return <span contentEditable ref={ref} onInput={onInput} {...props} />
+}
+
 
 
 export const interpolate = (strings, interpolations, props) => {

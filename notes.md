@@ -29,8 +29,8 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] How to style in React? (styled?)
         - yep
     - [ ] Style Table
-    - [ ] Style REPL
-        * WIP
+    - [x] Style REPL
+        * Done to a certain degree. Move on
 * User REPL
     - [x] Make a big single-Code version
     - [x] Save Code
@@ -38,12 +38,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] find out when a value is a React Component
         * Maybe subclass/instance of some React Class?
             * React.isValidElement(value)
-    - [ ] Make it multi-line:
+    - [x] Make it multi-line:
         - [x] each line switchable
-        - [ ] can be saved in a variable
-    - [ ] Add local Definitions
+        - [x] can be saved in a variable
+    - [x] Add local Definitions
     - [ ] Make it a big single-Code version again
         - [ ] Extend modes to be: live code, code, app, state
+            - [ ] add state to code
+            - [ ] change from modes to individual visibility toggles
             - [ ] show app and code myself
 
 
