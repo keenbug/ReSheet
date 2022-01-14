@@ -12,6 +12,8 @@ import Inspector from 'react-inspector'
 
 import 'prismjs/themes/prism.css'
 
+import * as tables from './tables'
+
 /**************** User Code Execution **************/
 
 const runExpr = (code, env) => {
@@ -70,6 +72,21 @@ const addNewDef = code => ({
     ui: { ...code.ui, isNameVisible: true },
 })
 
+const defaultCodeUI = {
+    isEnvVisible: true,
+    isNameVisible: false,
+    isCodeVisible: true,
+    isResultVisible: true,
+    isStateVisible: false,
+}
+
+const emptyCode = {
+    name: "",
+    expr: "",
+    ui: defaultCodeUI,
+    state: null,
+    env: null,
+}
 
 const highlightJS = editor => {
     const text = editor.textContent
@@ -110,6 +127,15 @@ const CodeEditor = ({ code, onUpdate, ...props }) => {
 const ValueInspector = ({ value }) => {
     if (React.isValidElement(value)) {
         return <ErrorBoundary>{value}</ErrorBoundary>
+    }
+    if (value instanceof Error) {
+        return (
+            <div>
+                <h1>{value.name}</h1>
+                <pre className="overflow-x-scroll">{value.message}</pre>
+                <Inspector data={value} />
+            </div>
+        )
     }
     return <div><Inspector data={value} /></div>
 }
@@ -162,7 +188,7 @@ class ErrorBoundary extends React.Component {
                 <div>
                     <h3>An error occurred in your component</h3>
                     <h4>{this.state.caughtError.name}</h4>
-                    <pre className="break-normal">{this.state.caughtError.message}</pre>
+                    <pre className="overflow-x-scroll">{this.state.caughtError.message}</pre>
                     <button onClick={this.retry.bind(this)}>Retry</button>
                 </div>
             )
@@ -176,24 +202,27 @@ class ErrorBoundary extends React.Component {
 /**************** REPL *****************/
 
 const ToggleButton = classed('button')`
-    text-slate-500
-    hover:text-slate-600
-    active:text-slate-700
+    text-left
+    text-slate-600
 
-    hover:bg-gray-200
-    active:bg-gray-300
+    hover:bg-gray-200 hover:text-slate-600
+    focus:bg-gray-300 focus:text-slate-700
 
-    h-7 w-7
-    rounded
     transition-colors
+
+    outline-none
+    h-7 px-1 space-x-1
 `
 
-const IconToggleButton = ({ isActive, icon, iconDisabled, onUpdate }) => (
+const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUpdate, label="" }) => (
     <ToggleButton
-        className={isActive ? "" : "text-slate-300"}
+        className={(className ?? "") + (isActive ? "" : " text-slate-400")}
         onClick={onUpdate}
     >
-        <FontAwesomeIcon size="xs" icon={isActive ? icon : (iconDisabled || icon)} />
+        <div className="inline-block w-5 text-center">
+            <FontAwesomeIcon size="xs" icon={isActive ? icon : (iconDisabled || icon)} />
+        </div>
+        {label && <span>{label}</span>}
     </ToggleButton>
 )
 
@@ -201,23 +230,82 @@ const toggleProperty = propName => obj => (
     { ...obj, [propName]: !obj[propName] }
 )
 
-const REPLUIToggles = ({ ui, onUpdate }) => {
-    const Toggle = ({ propName, icon, iconDisabled }) => (
-        <IconToggleButton
-            isActive={ui[propName]}
-            icon={icon}
-            iconDisabled={iconDisabled}
-            onUpdate={() => onUpdate(toggleProperty(propName))}
-        />
+const MenuHTML = classed('ul')`
+    flex flex-col
+    bg-gray-100
+    shadow
+    rounded
+    items-stretch
+    w-max
+    text-sm
+    overflow-hidden
+`
+
+const REPLUIToggles = ({ ui, onUpdate, onDelete }) => {
+    const [isMenuVisible, setMenuVisible] = React.useState(false)
+
+    const Toggle = ({ propName, icon, iconDisabled, label }) => (
+        console.log('label', label, `${ui[propName] ? "Hide" : "Show"} ${label}`),
+        <li>
+            <IconToggleButton
+                className="w-full"
+                isActive={ui[propName]}
+                icon={icon}
+                iconDisabled={iconDisabled}
+                onUpdate={() => onUpdate(toggleProperty(propName))}
+                label={`${ui[propName] ? "Hide" : "Show"} ${label}`}
+            />
+        </li>
+    )
+
+    const Menu = () => (
+        <MenuHTML
+            className="absolute -right-1 translate-x-full"
+        >
+            <Toggle
+                propName="isNameVisible"
+                icon={solidIcons.faICursor}
+                label="Assignment"
+            />
+            <Toggle
+                propName="isCodeVisible"
+                icon={solidIcons.faCode}
+                label="Code"
+            />
+            <Toggle
+                propName="isResultVisible"
+                icon={solidIcons.faPlay}
+                label="Result"
+            />
+            <Toggle
+                propName="isStateVisible"
+                icon={solidIcons.faHdd}
+                label="State"
+            />
+            <li>
+                <IconToggleButton
+                    className="w-full"
+                    isActive={true}
+                    icon={solidIcons.faTrash}
+                    onUpdate={onDelete}
+                    label="Delete"
+                />
+            </li>
+        </MenuHTML>
     )
 
     return (
-        <div className="flex flex-col shadow-outline">
-            <Toggle propName="isEnvVisible" icon={solidIcons.faFolderOpen} iconDisabled={solidIcons.faFolder} />
-            <Toggle propName="isNameVisible" icon={solidIcons.faICursor} />
-            <Toggle propName="isCodeVisible" icon={solidIcons.faCode} />
-            <Toggle propName="isResultVisible" icon={solidIcons.faPlay} />
-            <Toggle propName="isStateVisible" icon={solidIcons.faHdd} />
+        <div
+        >
+            <div className="relative">
+                {isMenuVisible && <Menu />}
+            </div>
+            <button
+                className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                onClick={() => setMenuVisible(visible => !visible)}
+            >
+                <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
+            </button>
         </div>
     )
 }
@@ -227,27 +315,28 @@ const REPLUIToggles = ({ ui, onUpdate }) => {
 const REPLLine = classed('div')`flex flex-row space-x-2`
 const REPLContent = classed('div')`flex flex-col space-y-1 flex-1`
 
-const defaultCodeUI = {
-    isEnvVisible: true,
-    isNameVisible: false,
-    isCodeVisible: true,
-    isResultVisible: true,
-    isStateVisible: true,
-}
+const VarNameInput = classed(TextInput)`
+    hover:bg-gray-200 hover:text-slate-700
+    focus:bg-gray-200 focus:text-slate-700
+    outline-none
+    p-0.5 -ml-0.5
+    rounded
+`
 
-const REPL = ({ code, onUpdate }) => {
+const REPL = ({ code, onUpdate, env }) => {
     const onUpdateExpr = expr => {
         onUpdate(code => ({ ...code, expr }))
     }
 
     const onNewExpr = () => {
         onUpdate(code => ({
-            name: "",
-            expr: "",
-            ui: defaultCodeUI,
-            state: null,
+            ...emptyCode,
             env: addNewDef(code),
         }))
+    }
+
+    const onDelete = () => {
+        onUpdate(code => code.env)
     }
 
     return (
@@ -256,15 +345,15 @@ const REPL = ({ code, onUpdate }) => {
                 <REPL
                     code={code.env}
                     onUpdate={subUpdate('env', onUpdate)}
+                    env={env}
                 />
             }
             <REPLLine>
-                <REPLUIToggles ui={code.ui} onUpdate={subUpdate('ui', onUpdate)} />
+                <REPLUIToggles ui={code.ui} onUpdate={subUpdate('ui', onUpdate)} onDelete={onDelete} />
                 <REPLContent>
-                    { code.ui.isNameVisible &&
+                    {code.ui.isNameVisible &&
                         <div className="self-start text-slate-500 font-light text-xs -mb-1">
-                            <TextInput
-                                className="hover:bg-gray-200 hover:text-slate-700 focus:bg-gray-200 focus:text-slate-700 outline-none p-0.5 rounded"
+                            <VarNameInput
                                 value={code.name}
                                 onUpdate={subUpdate('name', onUpdate)}
                                 placeholder="name"
@@ -281,13 +370,13 @@ const REPL = ({ code, onUpdate }) => {
                     }
                     {code.ui.isResultVisible &&
                         <ValueViewer
-                            value={runExpr(code.expr, localEnv(code.env, GLOBALS))}
+                            value={runExpr(code.expr, localEnv(code.env, env))}
                             state={code.state}
                             onUpdate={subUpdate('state', onUpdate)}
                         />
                     }
                     {code.ui.isStateVisible &&
-                        <StateViewer state={code.state} onUpdate={subUpdate('state', onUpdate)} />
+                        <StateViewer state={code.state} onUpdate={subUpdate('state', onUpdate)} env={localEnv(code.env, env)} />
                     }
                 </REPLContent>
             </REPLLine>
@@ -295,48 +384,43 @@ const REPL = ({ code, onUpdate }) => {
     )
 }
 
-const GLOBALS = { React, Stateful, REPL }
+const GLOBALS = { React, Stateful, REPL, tables, CodeEditor }
 
 
 
 
 /****************** State Viewer ******************/
 
-const StateViewer = ({ state, onUpdate }) => {
+const StateViewer = ({ state, onUpdate, env }) => {
     const [isEditing, setIsEditing] = React.useState(false)
-    const codeRef = React.useRef(null)
-
-    React.useEffect(() => {
-        if (!isEditing) {
-            codeRef.current.innerHTML = Prism.highlight(
-                JSON.stringify(state, null, 2),
-                Prism.languages.javascript,
-                'javascript',
-            )
-        }
-    }, [isEditing, codeRef, state])
 
     if (isEditing) {
         return (
             <StateEditor
                 state={state}
                 onUpdate={onUpdate}
-                onKeyPress={onMetaEnter(() => setIsEditing(false))}
+                onClose={() => setIsEditing(false)}
+                env={env}
             />
         )
     }
     else {
         return (
-            <pre>
-                <code ref={codeRef} onClick={() => setIsEditing(true)}></code>
-            </pre>
+            <div>
+                <button onClick={() => { setIsEditing(true) }}>
+                    <FontAwesomeIcon size="xs" icon={solidIcons.faPen} />
+                </button>
+                <ValueInspector value={state} />
+            </div>
         )
     }
 }
 
-const StateEditor = ({ state, onUpdate, ...props }) => {
+const StateEditor = ({ state, onUpdate, onClose, env }) => {
     const [stateJSON, setStateJSON] = React.useState(JSON.stringify(state, null, 2))
     const [validJSON, setValidJSON] = React.useState(true)
+    const [mode, setMode] = React.useState('json')
+    const [code, setCode] = React.useState({ ...emptyCode, expr: "state" })
 
     useEffect(() => {
         try {
@@ -348,10 +432,34 @@ const StateEditor = ({ state, onUpdate, ...props }) => {
         }
     }, [stateJSON])
 
+    const onSaveComputed = () => {
+        onUpdate(runExpr(code.expr, localEnv(code.env, { ...env, state })))
+        onClose()
+    }
+
     return (
         <div>
-            <CodeEditor code={stateJSON} onUpdate={setStateJSON} {...props} />
-            <p>{validJSON ? "saved" : "invalid JSON"}</p>
+            <div className="w-max mb-0.5 border-b-2 border-gray-300">
+                <ToggleButton className={"w-auto px-1 text-xs font-bold " + (mode === 'json' ? "text-slate-500" : "text-slate-300")} onClick={() => setMode('json')}>JSON</ToggleButton>
+                <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
+            </div>
+            <div>
+                {mode === 'json' &&
+                    <React.Fragment>
+                        <CodeEditor
+                            code={stateJSON} onUpdate={setStateJSON}
+                            onKeyPress={onMetaEnter(onClose)}
+                        />
+                        <p>{validJSON ? "saved" : "invalid JSON"}</p>
+                    </React.Fragment>
+                }
+                {mode === 'code' &&
+                    <React.Fragment>
+                        <REPL code={code} onUpdate={setCode} env={{ ...env, state }} />
+                        <button onClick={onSaveComputed}>Save</button>
+                    </React.Fragment>
+                }
+            </div>
         </div>
     )
 }
@@ -359,26 +467,24 @@ const StateEditor = ({ state, onUpdate, ...props }) => {
 
 /****************** Main Application ******************/
 
-const MenuLine = classed('div')`shadow mb-1 overflow-hidden transition-transform`
-
 const AppContent = ({ code, onUpdate, mode, setMode }) => {
     switch (mode) {
         case 'code':
             return (
                 <ErrorBoundary>
-                    <div className="flex flex-col space-y-4">
-                        <REPL code={code} onUpdate={onUpdate} />
+                    <div className="flex flex-col space-y-4 mb-8">
+                        <REPL code={code} onUpdate={onUpdate} env={GLOBALS} />
                     </div>
                 </ErrorBoundary>
             )
 
         case 'state':
             return (
-                <StateEditor state={state} onUpdate={onUpdate} />
+                <StateViewer state={code.state} onUpdate={subUpdate('state', onUpdate)} env={GLOBALS} />
             )
         
         case 'app':
-        case 'full-browser':
+        case 'full-window':
             return (
                 <ValueViewer
                     value={runExpr(code.expr, localEnv(code.env, { ...GLOBALS, setMode }))}
@@ -390,12 +496,14 @@ const AppContent = ({ code, onUpdate, mode, setMode }) => {
         default:
             return (
                 <div>
-                    <p>How did this happen? Invalid mode in AppContent: {mode}</p>
+                    <p>Invalid mode in AppContent: {mode}</p>
                     <button onClick={() => setMode('code')}>Switch to Code</button>
                 </div>
             )
     }
 }
+
+const MenuLine = classed('div')`shadow mb-1`
 
 const App = () => {
     const [state, onUpdate] = React.useState(JSON.parse(localStorage.getItem('state') ?? "{}"))
@@ -407,11 +515,13 @@ const App = () => {
 
     return (
         <React.Fragment>
-            <MenuLine className={mode === 'full-browser' ? "-translate-y-full" : ""}>
-                <IconToggleButton isActive={mode === 'app'} icon={solidIcons.faPlay} onUpdate={() => setMode('app')} />
-                <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
-                <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
-            </MenuLine>
+            {mode !== 'full-window' &&
+                <MenuLine>
+                    <IconToggleButton isActive={mode === 'app'} icon={solidIcons.faPlay} onUpdate={() => setMode('app')} />
+                    <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
+                    <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
+                </MenuLine>
+            }
             <AppContent
                 code={state.code} onUpdate={subUpdate('code', onUpdate)}
                 mode={mode} setMode={setMode}

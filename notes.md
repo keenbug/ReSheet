@@ -31,6 +31,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Style Table
     - [x] Style REPL
         * Done to a certain degree. Move on
+    - [ ] Style Value Inspector: Theme? (search in docs)
+    * General
+        - [ ] indicate active Tabs with bottom-border (like menu:{app,code,state} and state-editor:{json,code})
+        - [ ] improve button discoverability (visual indicator for buttons)
+        - [ ] improve differentiation of state editor (draw inspiration from inline js/html editors: JSFiddle etc)
 * User REPL
     - [x] Make a big single-Code version
     - [x] Save Code
@@ -47,8 +52,15 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
             - [x] add state to code
             - [x] change from modes to individual visibility toggles
             - [x] show app and code myself
+    - [ ] Clean up Code
+    - [ ] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
+    - [ ] Properly transpile JS Expressions (instead of Statements) with Babel
+    - [ ] Always add variable names
+    - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
+    - [ ] Add backup states / undo history
 * Work on Tables/Spreadsheets again
-
+    * Use REPL to change available columns
+        * Step-by-step: Improve columns Definition
 
 # Future
 

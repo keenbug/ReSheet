@@ -19,10 +19,8 @@ const TextInputHTML = styled.span`
     ${({ placeholder }) =>
         placeholder ?
             css`
-                &:empty:before {
+                &:empty:after {
                     content: "${placeholder}";
-                    width: 0;
-                    overflow-x: visible;
                     color: #aaa;
                 }
             `

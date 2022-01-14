@@ -1,8 +1,9 @@
 import React from 'react'
+import { subUpdate } from './utils'
 
 /***************** Table Components *******************/
 
-const TableHeadRow = ({ columns }) => (
+export const TableHeadRow = ({ columns }) => (
     <tr>
         {columns.map(column => (
             <td key={column.id}>{column.header}</td>
@@ -10,7 +11,7 @@ const TableHeadRow = ({ columns }) => (
     </tr>
 )
 
-const TableBodyRow = ({ columns, row }) => (
+export const TableBodyRow = ({ columns, row }) => (
     <tr>
         {columns.map(column => (
             <td key={column.id}>{column.body(row)}</td>
@@ -18,12 +19,13 @@ const TableBodyRow = ({ columns, row }) => (
     </tr>
 )
 
-const TableBody = ({ columns, data }) =>
+export const TableBody = ({ columns, data }) => (
     data.map(row => (
         <TableBodyRow key={row.id} columns={columns} row={row}/>
     ))
+)
 
-const Table = ({ columns, data }) => (
+export const Table = ({ columns, data }) => (
     <table>
         <thead>
             <TableHeadRow columns={columns}/>
@@ -34,7 +36,7 @@ const Table = ({ columns, data }) => (
     </table>
 )
 
-const EditableTableBodyRow = ({ columns, row, onChange }) => (
+export const EditableTableBodyRow = ({ columns, row, onChange }) => (
     <tr>
         {columns.map(column => (
             <td key={column.id}>
@@ -44,7 +46,7 @@ const EditableTableBodyRow = ({ columns, row, onChange }) => (
     </tr>
 )
 
-const EditableTableBody = ({ columns, data, onChange }) =>
+export const EditableTableBody = ({ columns, data, onChange }) => (
     data.map(row => (
         <EditableTableBodyRow
             key={row.id}
@@ -53,8 +55,9 @@ const EditableTableBody = ({ columns, data, onChange }) =>
             onChange={onChange}
             />
     ))
+)
     
-const EditableTable = ({ columns, data, onChange }) => (
+export const EditableTable = ({ columns, data, onChange }) => (
     <table>
         <thead>
             <TableHeadRow columns={columns}/>
@@ -65,7 +68,7 @@ const EditableTable = ({ columns, data, onChange }) => (
     </table>
 )
 
-const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditColumn, onClose, onChange }) => (
+export const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditColumn, onClose, onChange }) => (
     <tr>
         {columns.map(column => (
             <td
@@ -84,7 +87,7 @@ const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditColumn, 
     </tr>
 )
 
-const SingleEditableTableBody = ({ columns, data, edited, onEdit, onChange }) =>
+export const SingleEditableTableBody = ({ columns, data, edited, onEdit, onChange }) =>
     data.map(row => (
         <SingleEditableTableBodyRow
             key={row.id}
@@ -97,7 +100,7 @@ const SingleEditableTableBody = ({ columns, data, edited, onEdit, onChange }) =>
         />
     ))
 
-const SingleEditableTable = ({ columns, data, edited, onEdit, onChange }) => (
+export const SingleEditableTable = ({ columns, data, edited, onEdit, onChange }) => (
     <table>
         <thead>
             <TableHeadRow columns={columns}/>
@@ -114,7 +117,7 @@ const SingleEditableTable = ({ columns, data, edited, onEdit, onChange }) => (
     </table>
 )
 
-const TableSummary = ({ columns, data }) => (
+export const TableSummary = ({ columns, data }) => (
     <tr>
         {columns.map(column => (
             <td key={column.id}>
@@ -129,7 +132,7 @@ const TableSummary = ({ columns, data }) => (
 
 /**************** Generic Table Stuff ****************/
 
-const recordField = name => ({
+export const recordField = name => ({
     get: record => record[name],
     update: (newValue, record) => ({ ...record, [name]: newValue }),
 })
@@ -151,7 +154,7 @@ const useFocusIfEditing = isEditing => {
     return ref
 }
 
-const fieldTypes = {
+export const fieldTypes = {
     text: field => (row, isEditing, onChange) => {
         const ref = useFocusIfEditing(isEditing)
 
@@ -246,14 +249,14 @@ const newGenericColumn = CodeEditor => ({
 
 /******************* Example ******************/
 
-const exampleData = [
+export const exampleData = [
     { id: 0, name: "Ford", size: 10000 },
     { id: 1, name: "VW", size: 20000 },
     { id: 2, name: "Mercedes Benz", size: 30000 },
     { id: 3, name: "Audi", size: 40000 },
 ]
 
-const dataColumns = [
+export const dataColumns = [
     {
         id: 0,
         header: "Name",
@@ -268,11 +271,23 @@ const dataColumns = [
     },
 ]
 
-export const TablesExample = ({ CodeEditor }) => {
-    const [edited, setEdited] = React.useState(null)
-    const [data, setData] = React.useState(exampleData)
-    const [columns, setColumns] = React.useState(dataColumns)
-    const [newColumn, setNewColumn] = React.useState(null)
+export const exampleInit = {
+    edited: null,
+    data: exampleData,
+    columns: dataColumns,
+    newColumn: null,
+}
+
+export const TablesExample = ({ state, onUpdate, CodeEditor }) => {
+    const { edited, data, columns, newColumn } = state
+    const setEdited = subUpdate('edited', onUpdate)
+    const setData = subUpdate('data', onUpdate)
+    const setColumns = subUpdate('columns', onUpdate)
+    const setNewColumn = subUpdate('newColumn', onUpdate)
+    // const [edited, setEdited] = React.useState(null)
+    // const [data, setData] = React.useState(exampleData)
+    // const [columns, setColumns] = React.useState(dataColumns)
+    // const [newColumn, setNewColumn] = React.useState(null)
 
     const onChange = updatedRow =>
         setData(
@@ -304,8 +319,8 @@ export const TablesExample = ({ CodeEditor }) => {
             <button onClick={addRow}>+</button>
             <button onClick={() => {
                 setNewColumn({
-                    state: newGenericColumn.init,
-                    column: newGenericColumn,
+                    state: newGenericColumn(CodeEditor).init,
+                    column: newGenericColumn(CodeEditor),
                 })
             }}>
                 Add Column
