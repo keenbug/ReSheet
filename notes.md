@@ -42,11 +42,12 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - [x] each line switchable
         - [x] can be saved in a variable
     - [x] Add local Definitions
-    - [ ] Make it a big single-Code version again
-        - [ ] Extend modes to be: live code, code, app, state
-            - [ ] add state to code
-            - [ ] change from modes to individual visibility toggles
-            - [ ] show app and code myself
+    - [x] Make it a big single-Code version again
+        - [x] Extend modes to be: live code, code, app, state
+            - [x] add state to code
+            - [x] change from modes to individual visibility toggles
+            - [x] show app and code myself
+* Work on Tables/Spreadsheets again
 
 
 # Future

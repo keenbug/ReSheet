@@ -1,4 +1,5 @@
 import React from 'react'
+import styled, { css } from 'styled-components'
 
 export const nextElem = (elem, allElems) => {
     const elemIdx = allElems.findIndex(e => e === elem)
@@ -14,6 +15,21 @@ export const onMetaEnter = func => event => {
     }
 }
 
+const TextInputHTML = styled.span`
+    ${({ placeholder }) =>
+        placeholder ?
+            css`
+                &:empty:before {
+                    content: "${placeholder}";
+                    width: 0;
+                    overflow-x: visible;
+                    color: #aaa;
+                }
+            `
+        :
+            ''
+    }
+`
 
 export const TextInput = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
@@ -31,7 +47,7 @@ export const TextInput = ({ value, onUpdate, ...props }) => {
         }
         onUpdate(text)
     }
-    return <span contentEditable ref={ref} onInput={onInput} {...props} />
+    return <TextInputHTML contentEditable ref={ref} onInput={onInput} {...props} />
 }
 
 
@@ -60,7 +76,7 @@ export const classed = elem => (strings, ...interpolations) =>
             {
                 ...props,
                 ref,
-                className: `${props.className ?? ""} ${interpolate(strings, interpolations, props)}`,
+                className: `${interpolate(strings, interpolations, props)} ${props.className ?? ""}`,
             }
         )
     )
