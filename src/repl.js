@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react'
-import * as Babel from '@babel/core'
-import BabelReact from '@babel/preset-react'
+import * as babel from '@babel/core'
+import babelReact from '@babel/preset-react'
+import * as babelParser from '@babel/parser'
 import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { ValueViewer } from './value'
-import { IconToggleButton, TextInput, classed, onMetaEnter } from './ui'
+import { ValueViewer, ValueInspector, uninitializedAppState } from './value'
+import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
 import { subUpdate } from './utils'
 
 
@@ -18,16 +19,27 @@ export const runExpr = (code, env) => {
         return
     }
     try {
-        // for error messages matching the user code, transform without the return first
-        Babel.transform(code, { presets: [BabelReact] })
+        const exprAst = babelParser.parseExpression(code, { plugins: [ "jsx" ] })
+        const programAst = {
+            type: 'Program',
+            interpreter: null,
+            sourceType: 'script',
+            body: [
+                {
+                    type: "ReturnStatement",
+                    argument: exprAst,
+                },
+            ],
+            directives: [],
+        }
 
-        const transformedCode = Babel.transform(
-            `return (${code})`,
+        const { code: transformedCode } = babel.transformFromAstSync(
+            programAst,
+            code,
             {
-                presets: [BabelReact],
-                parserOpts: { allowReturnOutsideFunction: true },
+                presets: [babelReact],
             },
-        ).code
+        )
 
         const exprFunc = new Function(
             ...Object.keys(env),
@@ -81,11 +93,11 @@ export const emptyCode = {
     name: "",
     expr: "",
     ui: defaultCodeUI,
-    state: null,
+    state: uninitializedAppState,
     env: null,
 }
 
-const highlightJS = editor => {
+export const highlightJS = editor => {
     const text = editor.textContent
     editor.innerHTML = Prism.highlight(
         text,
@@ -93,6 +105,7 @@ const highlightJS = editor => {
         'javascript'
     )
 }
+
 
 
 /**************** Code Editor *****************/
@@ -105,7 +118,7 @@ const CodeContent = classed('code')`
 `
 
 
-const CodeEditor = ({ code, onUpdate, ...props }) => {
+export const CodeEditor = ({ code, onUpdate, ...props }) => {
     const ref = useCodeJar({
         code,
         onUpdate,
@@ -117,6 +130,7 @@ const CodeEditor = ({ code, onUpdate, ...props }) => {
 
     return <pre><CodeContent ref={ref} {...props} /></pre>
 }
+
 
 
 /**************** REPL *****************/
@@ -136,7 +150,7 @@ const MenuHTML = classed('ul')`
     overflow-hidden
 `
 
-const REPLUIToggles = ({ ui, onUpdate, onDelete }) => {
+const REPLUIToggles = ({ ui, onUpdate, onReset, onDelete }) => {
     const [isMenuVisible, setMenuVisible] = React.useState(false)
 
     const Toggle = ({ propName, icon, iconDisabled, label }) => (
@@ -176,6 +190,15 @@ const REPLUIToggles = ({ ui, onUpdate, onDelete }) => {
                 icon={solidIcons.faHdd}
                 label="State"
             />
+            <li>
+                <IconToggleButton
+                    className="w-full"
+                    isActive={true}
+                    icon={solidIcons.faStepBackward}
+                    onUpdate={onReset}
+                    label="Reset App (data)"
+                />
+            </li>
             <li>
                 <IconToggleButton
                     className="w-full"
@@ -222,15 +245,30 @@ export const REPL = ({ code, onUpdate, env }) => {
         onUpdate(code => ({ ...code, expr }))
     }
 
-    const onNewExpr = () => {
-        onUpdate(code => ({
-            ...emptyCode,
-            env: addNewDef(code),
-        }))
+    const onCmdInsert = event => {
+        if (event.shiftKey) {
+            onUpdate(code => ({
+                ...code,
+                env: addNewDef({
+                    ...emptyCode,
+                    env: code.env
+                }),
+            }))
+        }
+        else {
+            onUpdate(code => ({
+                ...emptyCode,
+                env: addNewDef(code),
+            }))
+        }
     }
 
     const onDelete = () => {
         onUpdate(code => code.env)
+    }
+
+    const onReset = () => {
+        onUpdate(code => ({ ...code, state: uninitializedAppState }))
     }
 
     return (
@@ -243,7 +281,11 @@ export const REPL = ({ code, onUpdate, env }) => {
                 />
             }
             <REPLLine>
-                <REPLUIToggles ui={code.ui} onUpdate={subUpdate('ui', onUpdate)} onDelete={onDelete} />
+                <REPLUIToggles
+                    ui={code.ui}
+                    onUpdate={subUpdate('ui', onUpdate)}
+                    onDelete={onDelete} onReset={onReset}
+                />
                 <REPLContent>
                     {code.ui.isNameVisible &&
                         <div className="self-start text-slate-500 font-light text-xs -mb-1">
@@ -259,7 +301,7 @@ export const REPL = ({ code, onUpdate, env }) => {
                         <CodeEditor
                             code={code.expr}
                             onUpdate={onUpdateExpr}
-                            onKeyPress={onMetaEnter(onNewExpr)}
+                            onKeyPress={onMetaEnter(onCmdInsert)}
                         />
                     }
                     {code.ui.isResultVisible &&
@@ -275,5 +317,92 @@ export const REPL = ({ code, onUpdate, env }) => {
                 </REPLContent>
             </REPLLine>
         </React.Fragment>
+    )
+}
+
+
+
+
+/****************** State Viewer ******************/
+
+export const StateViewer = ({ state, onUpdate, env }) => {
+    const [isEditing, setIsEditing] = React.useState(false)
+
+    if (isEditing) {
+        return (
+            <StateEditor
+                state={state}
+                onUpdate={onUpdate}
+                onClose={() => setIsEditing(false)}
+                env={env}
+            />
+        )
+    }
+    else {
+        return (
+            <div>
+                <button onClick={() => { setIsEditing(true) }}>
+                    <FontAwesomeIcon size="xs" icon={solidIcons.faPen} />
+                </button>
+                <ValueInspector value={state} />
+            </div>
+        )
+    }
+}
+
+export const StateEditor = ({ state, onUpdate, onClose, env }) => {
+    const [stateJSON, setStateJSON] = React.useState(JSON.stringify(state, null, 2))
+    const [validJSON, setValidJSON] = React.useState(true)
+    const [mode, setMode] = React.useState('json')
+    const [code, setCode] = React.useState({ ...emptyCode, expr: "state" })
+
+    useEffect(() => {
+        try {
+            onUpdate(JSON.parse(stateJSON))
+            setValidJSON(true)
+        }
+        catch (e) {
+            setValidJSON(false)
+        }
+    }, [stateJSON])
+
+    const onSaveComputed = () => {
+        onUpdate(runExpr(code.expr, localEnv(code.env, { ...env, state })))
+        onClose()
+    }
+
+    return (
+        <div>
+            <div className="w-max mb-0.5 border-b-2 border-gray-300">
+                <ToggleButton
+                    className={"w-auto px-1 text-xs font-bold " + (mode === 'json' ? "text-slate-500" : "text-slate-300")}
+                    onClick={() => setMode('json')}
+                >
+                    JSON
+                </ToggleButton>
+                <IconToggleButton
+                    isActive={mode === 'code'}
+                    icon={solidIcons.faCode}
+                    onUpdate={() => setMode('code')}
+                />
+            </div>
+            <div>
+                {mode === 'json' &&
+                    <React.Fragment>
+                        <CodeEditor
+                            code={stateJSON} onUpdate={setStateJSON}
+                            onKeyPress={onMetaEnter(onClose)}
+                        />
+                        <p>{validJSON ? "saved" : "invalid JSON"}</p>
+                    </React.Fragment>
+                }
+                {mode === 'code' &&
+                    <React.Fragment>
+                        <REPL code={code} onUpdate={setCode} env={{ ...env, state }} />
+                        <button onClick={onSaveComputed}>Save</button>
+                    </React.Fragment>
+                }
+            </div>
+        </div>
     )
 }

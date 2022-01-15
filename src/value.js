@@ -5,11 +5,30 @@ import { catchAll } from './utils'
 
 
 const appTypeSymbol = Symbol('appType')
-export const createApp = callback => ({
+export const uninitializedAppState = Symbol('uninitializedAppState')
+
+export const createApp = (callback, initialData=uninitializedAppState) => ({
     $$type: appTypeSymbol,
+    initialData,
     callback,
 })
 export const isApp = value => value?.$$type === appTypeSymbol
+export const runApp = (state, setState, app) => {
+    const data = state === uninitializedAppState ? app.initialData : state
+    const setData = update => (
+        typeof update === 'function' ?
+            setState(state => update(
+                state === uninitializedAppState ?
+                    app.initialData
+                :
+                    state
+            ))
+        :
+            setState(update)
+    )
+    return app.callback({ data, setData })
+}
+
 
 
 /**************** Value Viewer *****************/
@@ -33,7 +52,7 @@ export const ValueInspector = ({ value }) => {
 
 export const ValueViewer = ({ value, state, setState }) => {
     if (isApp(value)) {
-        return <ValueInspector value={catchAll(() => value.callback({ data: state, setData: setState }))} />
+        return <ValueInspector value={catchAll(() => runApp(state, setState, value))} />
     }
     return <ValueInspector value={value} />
 }

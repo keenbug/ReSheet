@@ -1,101 +1,16 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
 import { REPL } from './repl'
-import { ValueInspector, ErrorBoundary } from './value'
+import { ValueViewer, StateViewer, ErrorBoundary } from './value'
 import stdLibrary from './std-library'
-import { IconToggleButton, classed, onMetaEnter } from './ui'
+import { IconToggleButton, classed } from './ui'
 import { subUpdate } from './utils'
 
 
-
-/****************** State Viewer ******************/
-
-const StateViewer = ({ state, onUpdate, env }) => {
-    const [isEditing, setIsEditing] = React.useState(false)
-
-    if (isEditing) {
-        return (
-            <StateEditor
-                state={state}
-                onUpdate={onUpdate}
-                onClose={() => setIsEditing(false)}
-                env={env}
-            />
-        )
-    }
-    else {
-        return (
-            <div>
-                <button onClick={() => { setIsEditing(true) }}>
-                    <FontAwesomeIcon size="xs" icon={solidIcons.faPen} />
-                </button>
-                <ValueInspector value={state} />
-            </div>
-        )
-    }
-}
-
-const StateEditor = ({ state, onUpdate, onClose, env }) => {
-    const [stateJSON, setStateJSON] = React.useState(JSON.stringify(state, null, 2))
-    const [validJSON, setValidJSON] = React.useState(true)
-    const [mode, setMode] = React.useState('json')
-    const [code, setCode] = React.useState({ ...emptyCode, expr: "state" })
-
-    useEffect(() => {
-        try {
-            onUpdate(JSON.parse(stateJSON))
-            setValidJSON(true)
-        }
-        catch (e) {
-            setValidJSON(false)
-        }
-    }, [stateJSON])
-
-    const onSaveComputed = () => {
-        onUpdate(runExpr(code.expr, localEnv(code.env, { ...env, state })))
-        onClose()
-    }
-
-    return (
-        <div>
-            <div className="w-max mb-0.5 border-b-2 border-gray-300">
-                <ToggleButton
-                    className={"w-auto px-1 text-xs font-bold " + (mode === 'json' ? "text-slate-500" : "text-slate-300")}
-                    onClick={() => setMode('json')}
-                >
-                    JSON
-                </ToggleButton>
-                <IconToggleButton
-                    isActive={mode === 'code'}
-                    icon={solidIcons.faCode}
-                    onUpdate={() => setMode('code')}
-                />
-            </div>
-            <div>
-                {mode === 'json' &&
-                    <React.Fragment>
-                        <CodeEditor
-                            code={stateJSON} onUpdate={setStateJSON}
-                            onKeyPress={onMetaEnter(onClose)}
-                        />
-                        <p>{validJSON ? "saved" : "invalid JSON"}</p>
-                    </React.Fragment>
-                }
-                {mode === 'code' &&
-                    <React.Fragment>
-                        <REPL code={code} onUpdate={setCode} env={{ ...env, state }} />
-                        <button onClick={onSaveComputed}>Save</button>
-                    </React.Fragment>
-                }
-            </div>
-        </div>
-    )
-}
 
 
 /****************** Main Application ******************/
@@ -105,7 +20,7 @@ const AppContent = ({ code, onUpdate, mode, setMode }) => {
         case 'code':
             return (
                 <ErrorBoundary>
-                    <div className="flex flex-col space-y-4 mb-8">
+                    <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
                         <REPL code={code} onUpdate={onUpdate} env={stdLibrary} />
                     </div>
                 </ErrorBoundary>

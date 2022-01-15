@@ -23,11 +23,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] simplify tables.fieldTypes: assume always recordFields as field
     - [x] Add module for libraries/imports that should be made available in the REPL env (~globals)
     - [x] Rename Stateful to App, rename props state => data, onUpdate => setData
-- [ ] App data/state initialization
-- [ ] Test if you can theme sub-elements with styled-components (~ `styled.div'& h1 { font-size: ... }'`)
-- [ ] Insert Code Block before
-- [ ] Properly transpile expressions
-- [ ] State Editor (un)linkable
+- [x] App data/state initialization
+- [x] Test if you can theme sub-elements with styled-components (~ `styled.div'& h1 { font-size: ... }'`)
+    * Yes, but styled-components complains about dynamic creation of a styled component (during every evaluation)
+        => leads to rerenders with less performance, but that's expected with the evaluation
+- [x] Insert Code Block before
+- [x] Properly transpile expressions
+- [ ] Work on Spreadsheets
+    - [ ] Easier columns API
 
 
 # Current
@@ -50,8 +53,6 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - [ ] indicate active Tabs with bottom-border (like menu:{app,code,state} and state-editor:{json,code})
         - [ ] improve button discoverability (visual indicator for buttons)
         - [ ] improve differentiation of state editor (draw inspiration from inline js/html editors: JSFiddle etc)
-    * Style/Theme Editor?
-        * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
 * User REPL
     - [x] Make a big single-Code version
     - [x] Save Code
@@ -68,10 +69,10 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
             - [x] add state to code
             - [x] change from modes to individual visibility toggles
             - [x] show app and code myself
-    - [ ] Clean up Code
-    - [ ] Add initial data field to Apps (formerly Statefuls) (default state to Symbol('uninitializedData'))
-    - [ ] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
-    - [ ] Properly transpile JS Expressions (instead of Statements) with Babel
+    - [x] Clean up Code
+    - [x] Add initial data field to Apps (formerly Statefuls) (default state to Symbol('uninitializedData'))
+    - [x] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
+    - [x] Properly transpile JS Expressions (instead of Statements) with Babel
     - [ ] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [ ] Add backup states / undo history
@@ -82,6 +83,10 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Future
 
+* Style-/Theme-Editor?
+    * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
+* Change (Context) Menus to "Commander Prompts"
+    * Mixture of Sublime's/Atom's/VSCode's "Command Palette", Notion's Context Menus/Commands and iOS's long press "Context Menu"s/Previews
 * REPL
     * console-feed?
     * Addable dependencies?
@@ -96,11 +101,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Used Technologies
 
-Babel - https://old.babeljs.io/docs/usage/api/#options
+Babel - https://babeljs.io/docs/en/babel-core
+        https://babeljs.io/docs/en/babel-parser
+        https://github.com/babel/babel/blob/main/packages/babel-parser/ast/spec.md
 Fontawesome - https://fontawesome.com/v5.15/icons?d=gallery
               https://fontawesome.com/v5.15/how-to-use/on-the-web/using-with/react
 Tailwindcss - https://tailwindcss.com/docs/utility-first
               https://tailwindcomponents.com/cheatsheet/
+react-inspector - https://www.npmjs.com/package/react-inspector
 CodeJar
 PrismJS
 ReactJS
