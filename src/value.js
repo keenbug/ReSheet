@@ -4,12 +4,12 @@ import Inspector from 'react-inspector'
 import { catchAll } from './utils'
 
 
-const stateful = Symbol('stateful')
-export const Stateful = callback => ({
-    $$type: stateful,
+const appTypeSymbol = Symbol('appType')
+export const createApp = callback => ({
+    $$type: appTypeSymbol,
     callback,
 })
-export const isStateful = value => value?.$$type === stateful
+export const isApp = value => value?.$$type === appTypeSymbol
 
 
 /**************** Value Viewer *****************/
@@ -31,9 +31,9 @@ export const ValueInspector = ({ value }) => {
 }
 
 
-export const ValueViewer = ({ value, state, onUpdate }) => {
-    if (isStateful(value)) {
-        return <ValueInspector value={catchAll(() => value.callback({ state, onUpdate }))} />
+export const ValueViewer = ({ value, state, setState }) => {
+    if (isApp(value)) {
+        return <ValueInspector value={catchAll(() => value.callback({ data: state, setData: setState }))} />
     }
     return <ValueInspector value={value} />
 }

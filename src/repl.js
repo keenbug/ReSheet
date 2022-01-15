@@ -140,7 +140,6 @@ const REPLUIToggles = ({ ui, onUpdate, onDelete }) => {
     const [isMenuVisible, setMenuVisible] = React.useState(false)
 
     const Toggle = ({ propName, icon, iconDisabled, label }) => (
-        console.log('label', label, `${ui[propName] ? "Hide" : "Show"} ${label}`),
         <li>
             <IconToggleButton
                 className="w-full"
@@ -267,7 +266,7 @@ export const REPL = ({ code, onUpdate, env }) => {
                         <ValueViewer
                             value={runExpr(code.expr, localEnv(code.env, env))}
                             state={code.state}
-                            onUpdate={subUpdate('state', onUpdate)}
+                            setState={subUpdate('state', onUpdate)}
                         />
                     }
                     {code.ui.isStateVisible &&

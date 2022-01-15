@@ -19,10 +19,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [ ] Clean up Code
+- [x] Clean up Code
     - [x] simplify tables.fieldTypes: assume always recordFields as field
     - [x] Add module for libraries/imports that should be made available in the REPL env (~globals)
-    - [ ] Rename Stateful to App, rename props state => data, onUpdate => setData
+    - [x] Rename Stateful to App, rename props state => data, onUpdate => setData
+- [ ] App data/state initialization
 - [ ] Test if you can theme sub-elements with styled-components (~ `styled.div'& h1 { font-size: ... }'`)
 - [ ] Insert Code Block before
 - [ ] Properly transpile expressions
@@ -68,6 +69,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
             - [x] change from modes to individual visibility toggles
             - [x] show app and code myself
     - [ ] Clean up Code
+    - [ ] Add initial data field to Apps (formerly Statefuls) (default state to Symbol('uninitializedData'))
     - [ ] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
     - [ ] Properly transpile JS Expressions (instead of Statements) with Babel
     - [ ] Always add variable names

@@ -4,7 +4,7 @@ import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 
 import { REPL } from './repl'
-import { Stateful } from './value'
+import { createApp } from './value'
 import * as tables from './tables'
 import { TextInput } from './utils'
 
@@ -16,5 +16,5 @@ export default {
     TextInput,
     tables,
     REPL,
-    Stateful
+    App: createApp,
 }
