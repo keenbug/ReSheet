@@ -1,5 +1,4 @@
 import React from 'react'
-import { subUpdate } from './utils'
 
 /***************** Table Components *******************/
 
@@ -137,11 +136,6 @@ export const recordField = name => ({
     update: (newValue, record) => ({ ...record, [name]: newValue }),
 })
 
-const summaries = {
-    count: field => data => data.filter(field.get).length,
-    sum: field => data => data.map(field.get).reduce((a, b) => a + b),
-}
-
 const useFocusIfEditing = isEditing => {
     const ref = React.useRef(null)
 
@@ -154,95 +148,58 @@ const useFocusIfEditing = isEditing => {
     return ref
 }
 
-export const fieldTypes = {
-    text: field => (row, isEditing, onChange) => {
-        const ref = useFocusIfEditing(isEditing)
+export const columns = {
+    text: fieldName => (row, isEditing, onChange) => {
+        const onUpdate = event => {
+            onChange(row => ({ ...row, [fieldName]: event.target.value + "" }))
+        }
 
         if (isEditing) {
             return (
                 <input
-                    ref={ref}
+                    autoFocus
                     type="text"
-                    value={field.get(row)}
-                    onChange={event => {
-                        onChange(field.update(event.target.value, row))
-                    }}
+                    value={row[fieldName]}
+                    onChange={onUpdate}
                     />
             )
         }
         else {
-            return field.get(row)
+            return row[fieldName]
         }
     },
-    number: field => (row, isEditing, onChange) => {
-        const ref = useFocusIfEditing(isEditing)
+    number: fieldName => (row, isEditing, onChange) => {
+        const onUpdate = event => {
+            onChange(row => ({ ...row, [fieldName]: event.target.value | 0 }))
+        }
 
         if (isEditing) {
             return (
                 <input
-                    ref={ref}
+                    autoFocus
                     type="number"
-                    value={field.get(row)}
-                    onChange={event => {
-                        onChange(field.update(event.target.value | 0, row))
-                    }}
+                    value={row[fieldName]}
+                    onChange={onUpdate}
                     />
             )
         }
         else {
-            return field.get(row)
+            return row[fieldName]
         }
     },
-    bool: field => (row, isEditing, onChange) => (
-        <input
-            type="checkbox"
-            checked={field.get(row)}
-            onChange={event => {
-                onChange && onChange(field.update(!!event.target.checked, row))
-            }}
-            />
-    ),
-}
-
-// Only as an example, can be created with newGenericColumn
-const newBoolColumn = {
-    init: "",
-    view: (state, update) => (
-        <input
-            type="text"
-            value={state}
-            onChange={event => {
-                update(event.target.value)
-            }}
-        />
-    ),
-    onAdd: (id, state) => ({
-        id,
-        header: state,
-        body: fieldTypes.bool(recordField(state)),
-    }),
-}
-
-const newGenericColumn = CodeEditor => ({
-    init: { name: "", code: "" },
-    view: (state, update) => (
-        <React.Fragment>
+    bool: fieldName => (row, isEditing, onChange) => {
+        const onUpdate = event => {
+            onChange(row => ({ ...row, [fieldName]: !!event.target.checked }))
+        }
+        return (
             <input
-                type="text"
-                value={state.name}
-                onChange={event => {
-                    update({ ...state, name: event.target.value})
-                }}
+                type="checkbox"
+                checked={row[fieldName]}
+                onChange={onUpdate}
             />
-            <CodeEditor code={state.code} onUpdate={code => update({ ...state, code })} />
-        </React.Fragment>
-    ),
-    onAdd: (id, state) => ({
-        id,
-        header: state.name,
-        body: runExpr(state.code, { React, fieldTypes, recordField })
-    }),
-})
+        )
+    },
+}
 
 
 
@@ -260,91 +217,40 @@ export const dataColumns = [
     {
         id: 0,
         header: "Name",
-        body: fieldTypes.text(recordField('name')),
-        summary: summaries.count(recordField('name'))
+        body: columns.text('name'),
     },
     {
         id: 1,
         header: "Size",
-        body: fieldTypes.number(recordField('size')),
-        summary: summaries.sum(recordField('size')),
+        body: columns.number('size'),
     },
 ]
 
-export const exampleInit = {
-    edited: null,
-    data: exampleData,
-    columns: dataColumns,
-    newColumn: null,
-}
-
-export const TablesExample = ({ state, onUpdate, CodeEditor }) => {
-    const { edited, data, columns, newColumn } = state
-    const setEdited = subUpdate('edited', onUpdate)
-    const setData = subUpdate('data', onUpdate)
-    const setColumns = subUpdate('columns', onUpdate)
-    const setNewColumn = subUpdate('newColumn', onUpdate)
-    // const [edited, setEdited] = React.useState(null)
-    // const [data, setData] = React.useState(exampleData)
-    // const [columns, setColumns] = React.useState(dataColumns)
-    // const [newColumn, setNewColumn] = React.useState(null)
+export const TablesExample = ({ state, onUpdate }) => {
+    const data = state
+    const [edited, setEdited] = React.useState(null)
 
     const onChange = updatedRow =>
-        setData(
+        onUpdate(
             data.map(row =>
                 row.id === updatedRow.id ? updatedRow : row
             )
         )
 
-    const addRow = () => {
-        setData([ ...data, { id: data.length } ])
-    }
-
     return (
-        <React.Fragment>
-            <table>
-                <thead>
-                    <TableHeadRow columns={columns} />
-                </thead>
-                <tbody>
-                    <SingleEditableTableBody
-                        columns={columns}
-                        data={data}
-                        edited={edited}
-                        onEdit={setEdited}
-                        onChange={onChange}
-                        />
-                </tbody>
-            </table>
-            <button onClick={addRow}>+</button>
-            <button onClick={() => {
-                setNewColumn({
-                    state: newGenericColumn(CodeEditor).init,
-                    column: newGenericColumn(CodeEditor),
-                })
-            }}>
-                Add Column
-            </button>
-
-            {newColumn !== null && (
-                <div>
-                    {newColumn.column.view(
-                        newColumn.state,
-                        newState => setNewColumn({ ...newColumn, state: newState }),
-                    )}
-                    <button
-                        onClick={() => {
-                            setColumns([
-                                ...columns,
-                                newColumn.column.onAdd(columns.length, newColumn.state),
-                            ])
-                            setNewColumn(null)
-                        }}
-                        >
-                        add
-                    </button>
-                </div>
-            )}
-        </React.Fragment>
+        <table>
+            <thead>
+                <TableHeadRow columns={columns} />
+            </thead>
+            <tbody>
+                <SingleEditableTableBody
+                    columns={dataColumns}
+                    data={data}
+                    edited={edited}
+                    onEdit={setEdited}
+                    onChange={onChange}
+                    />
+            </tbody>
+        </table>
     )
 }

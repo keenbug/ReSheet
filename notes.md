@@ -17,6 +17,18 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - cells can be nested in cells
 
 
+# Steps
+
+- [ ] Clean up Code
+    - [x] simplify tables.fieldTypes: assume always recordFields as field
+    - [x] Add module for libraries/imports that should be made available in the REPL env (~globals)
+    - [ ] Rename Stateful to App, rename props state => data, onUpdate => setData
+- [ ] Test if you can theme sub-elements with styled-components (~ `styled.div'& h1 { font-size: ... }'`)
+- [ ] Insert Code Block before
+- [ ] Properly transpile expressions
+- [ ] State Editor (un)linkable
+
+
 # Current
 
 * Dynamic Tables
@@ -32,10 +44,13 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Style REPL
         * Done to a certain degree. Move on
     - [ ] Style Value Inspector: Theme? (search in docs)
+    - [ ] Add CSS class(es) with nice default styles for HTML elements (h1, table, p, button, input, ...)
     * General
         - [ ] indicate active Tabs with bottom-border (like menu:{app,code,state} and state-editor:{json,code})
         - [ ] improve button discoverability (visual indicator for buttons)
         - [ ] improve differentiation of state editor (draw inspiration from inline js/html editors: JSFiddle etc)
+    * Style/Theme Editor?
+        * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
 * User REPL
     - [x] Make a big single-Code version
     - [x] Save Code
@@ -58,6 +73,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [ ] Add backup states / undo history
+    - [ ] Add completion: Special input (rather search), searches env, and can select properties
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition

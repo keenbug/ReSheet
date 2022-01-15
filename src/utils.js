@@ -1,54 +1,17 @@
-import React from 'react'
-import styled, { css } from 'styled-components'
+export const catchAll = (fn, onError = e => e) => {
+    try {
+        return fn()
+    }
+    catch (e) {
+        return onError(e)
+    }
+}
 
 export const nextElem = (elem, allElems) => {
     const elemIdx = allElems.findIndex(e => e === elem)
     const nextElemIdx = (elemIdx + 1) % allElems.length
     return allElems[nextElemIdx]
 }
-
-
-export const onMetaEnter = func => event => {
-    if (event.key === 'Enter' && event.metaKey) {
-        event.preventDefault()
-        func(event)
-    }
-}
-
-const TextInputHTML = styled.span`
-    ${({ placeholder }) =>
-        placeholder ?
-            css`
-                &:empty:after {
-                    content: "${placeholder}";
-                    color: #aaa;
-                }
-            `
-        :
-            ''
-    }
-`
-
-export const TextInput = ({ value, onUpdate, ...props }) => {
-    const ref = React.useRef(null)
-    React.useLayoutEffect(() => {
-        if (ref.current.innerText !== value) {
-            ref.current.innerText = value
-        }
-    })
-    const onInput = event => {
-        const { innerText, innerHTML } = event.target
-        const text = String(innerText)
-        const html = String(innerHTML).replaceAll("&nbsp;", " ")
-        if (html !== text) {
-            event.target.innerHTML = innerText
-        }
-        onUpdate(text)
-    }
-    return <TextInputHTML contentEditable ref={ref} onInput={onInput} {...props} />
-}
-
-
 
 export const interpolate = (strings, interpolations, props) => {
     const computedInterpolations = interpolations.map(interpolation => {
@@ -66,18 +29,6 @@ export const interpolate = (strings, interpolations, props) => {
         "",
     )
 }
-
-export const classed = elem => (strings, ...interpolations) =>
-    React.forwardRef((props, ref) =>
-        React.createElement(
-            elem,
-            {
-                ...props,
-                ref,
-                className: `${interpolate(strings, interpolations, props)} ${props.className ?? ""}`,
-            }
-        )
-    )
 
 export const updateArray = (updateIdx, newValue, array) =>
     array.map((value, idx) => idx === updateIdx ? newValue : value)
