@@ -29,8 +29,21 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         => leads to rerenders with less performance, but that's expected with the evaluation
 - [x] Insert Code Block before
 - [x] Properly transpile expressions
+- [x] Work on Spreadsheets
+    - [x] Easier columns API
+    - [x] Bug: Cells not editable (anymore)
+- [x] improve performance
+    - [x] Precompute expressions and cache results
+- [ ] Bug: Moving computation of the expressions into a cache broke multiple things
+    1. Errors in the Component Tree won't be handled by the corresponding REPL Line('s ErrorBoundary)
+    2. The initial (after the page load) computation takes place in the initialization of a useState Hook for the code state. After that, computations are triggered during an update. That scrambles up the order (and presence) of Hooks.
+    * Ideas
+        * Always createElement the results (to encapsulate hooks in there). Problem: I need the raw values to put them in the environment and give access to them in other expressions.
+- [ ] REPL: Always add variable names
 - [ ] Work on Spreadsheets
-    - [ ] Easier columns API
+    - [ ] Simpler columns definition
+    - [ ] Add focus (edit -> focus + isEditing)
+    - [ ] Add "global" edit line (like excel)
 
 
 # Current
@@ -76,10 +89,12 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [ ] Add backup states / undo history
-    - [ ] Add completion: Special input (rather search), searches env, and can select properties
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition
+            * Simpler columns definition
+            * Add focus (edit -> focus + isEditing)
+            * Add "global" edit line (like excel)
 
 # Future
 
@@ -88,6 +103,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 * Change (Context) Menus to "Commander Prompts"
     * Mixture of Sublime's/Atom's/VSCode's "Command Palette", Notion's Context Menus/Commands and iOS's long press "Context Menu"s/Previews
 * REPL
+    * Add completion: Special input (rather search), searches env and can select properties
     * console-feed?
     * Addable dependencies?
         * Transpile with Babel?
@@ -112,3 +128,9 @@ react-inspector - https://www.npmjs.com/package/react-inspector
 CodeJar
 PrismJS
 ReactJS
+
+
+# Interesting Technologies
+
+Kaboom - fast & fun JS game programming library
+https://kaboomjs.com

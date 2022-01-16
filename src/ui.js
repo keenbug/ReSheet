@@ -44,21 +44,26 @@ const TextInputHTML = styled.span`
     }
 `
 
+const space = String.fromCharCode(32)
+const fixedWidth = String.fromCharCode(160)
+const spaceToFixedWidth = str => str.replaceAll(space, fixedWidth)
+const fixedWidthToSpace = str => str.replaceAll(fixedWidth, space)
+
 export const TextInput = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
     React.useLayoutEffect(() => {
-        if (ref.current.innerText !== value) {
-            ref.current.innerText = value
+        if (spaceToFixedWidth(ref.current.innerText) !== spaceToFixedWidth(value)) {
+            ref.current.innerText = spaceToFixedWidth(value)
         }
     })
     const onInput = event => {
         const { innerText, innerHTML } = event.target
-        const text = String(innerText)
-        const html = String(innerHTML).replaceAll("&nbsp;", " ")
+        const text = spaceToFixedWidth(innerText)
+        const html = spaceToFixedWidth(innerHTML.replaceAll("&nbsp;", fixedWidth))
         if (html !== text) {
-            event.target.innerHTML = innerText
+            event.target.innerHTML = text
         }
-        onUpdate(text)
+        onUpdate(fixedWidthToSpace(text))
     }
     return <TextInputHTML contentEditable ref={ref} onInput={onInput} {...props} />
 }

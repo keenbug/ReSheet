@@ -11,19 +11,17 @@ import * as babelParser from '@babel/parser'
 import { REPL } from './repl'
 import { createApp } from './value'
 import * as tables from './tables'
-import { classed } from './ui'
-import { TextInput } from './utils'
+import * as ui from './ui'
 
 export default {
     React,
     FontAwesomeIcon,
     faSolid,
     faRegular,
-    TextInput,
     tables,
     REPL,
     App: createApp,
-    classed,
+    ui,
     styled,
     babel,
     babelReact,

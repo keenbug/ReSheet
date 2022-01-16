@@ -7,7 +7,7 @@ import Prism from 'prismjs'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { ValueViewer, ValueInspector, uninitializedAppState } from './value'
+import { ValueViewer, ValueInspector, initialAppState } from './value'
 import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
 import { subUpdate } from './utils'
 
@@ -52,37 +52,53 @@ export const runExpr = (code, env) => {
     }
 }
 
-export const localEnv = (def, globalEnv) => {
-    if (!def) { return globalEnv }
-    const env = localEnv(def.env, globalEnv)
-    const defResult = runExpr(def.expr, env)
-    return ({ ...env, [def.name]: defResult })
+const cacheToEnv = (cache, globalEnv) => {
+    if (!cache) { return globalEnv }
+    const prevEnv = cacheToEnv(cache.prev, globalEnv)
+    const name = cache.name.length > 0 ? cache.name : ('$' + cache.id)
+    return ({
+        ...prevEnv,
+        [name]: cache.result
+    })
 }
 
-const isVarNameFree = (name, def) =>
-    def ?
-        def.name !== name && isVarNameFree(name, def.env)
-    :
-        true
+export const precompute = (code, cache, globalEnv) => {
+    if (!code) { return null }
+    if (cache && code.id === cache.id && code.lastUpdate < cache.lastUpdate) { return cache }
+    const cachedPrev = precompute(code.prev, cache?.prev, globalEnv)
+    const cachedResult = runExpr(code.expr, cacheToEnv(cachedPrev, globalEnv))
+    return ({
+        id: code.id,
+        name: code.name,
+        result: cachedResult,
+        prev: cachedPrev,
+        lastUpdate: Date.now(),
+    })
+}
 
-
-const findNextFreeTempVarName = def => {
-    for (let i = 0; i < Number.MAX_SAFE_INTEGER; i++) {
-        if (isVarNameFree('$' + i, def)) {
-            return '$' + i
-        }
+export const useCachedCodeState = (init, globalEnv) => {
+    const updateCode = (code, cache) => ({ code, cache: precompute(code, cache, globalEnv) })
+    const [cachedCode, setCachedCode] = React.useState(
+        typeof init === 'function' ?
+            () => updateCode(init(), null)
+        :
+            updateCode(init, null)
+    )
+    const setCode = update => {
+        setCachedCode(({ code, cache }) => {
+            const newCode = typeof update === 'function' ? update(code) : update
+            return updateCode(newCode, cache)
+        })
     }
-    return '$$'
+    return [cachedCode, setCode]
 }
 
-const addNewDef = code => ({
+const showName = code => ({
     ...code,
-    name: code.name.length > 0 ? code.name : findNextFreeTempVarName(code.env),
     ui: { ...code.ui, isNameVisible: true },
 })
 
 export const defaultCodeUI = {
-    isEnvVisible: true,
     isNameVisible: false,
     isCodeVisible: true,
     isResultVisible: true,
@@ -93,8 +109,8 @@ export const emptyCode = {
     name: "",
     expr: "",
     ui: defaultCodeUI,
-    state: uninitializedAppState,
-    env: null,
+    state: initialAppState,
+    prev: null,
 }
 
 export const highlightJS = editor => {
@@ -112,7 +128,7 @@ export const highlightJS = editor => {
 
 const CodeContent = classed('code')`
     block
-    min-w-48 min-h-1
+    min-h-1
     rounded
     hover:bg-gray-100 focus:bg-gray-100
 `
@@ -212,8 +228,7 @@ const REPLUIToggles = ({ ui, onUpdate, onReset, onDelete }) => {
     )
 
     return (
-        <div
-        >
+        <div>
             <div className="relative">
                 {isMenuVisible && <Menu />}
             </div>
@@ -240,44 +255,68 @@ const VarNameInput = classed(TextInput)`
     rounded
 `
 
-export const REPL = ({ code, onUpdate, env }) => {
+const createCounter = (count = 0) => () => count++
+
+// FIXME: Rather use an explicitly created instance
+const exprIdCounter = createCounter()
+
+export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
     const onUpdateExpr = expr => {
-        onUpdate(code => ({ ...code, expr }))
+        const lastUpdate = Date.now()
+        onUpdate(code => ({ ...code, lastUpdate, expr }))
     }
 
     const onCmdInsert = event => {
+        const lastUpdate = Date.now()
         if (event.shiftKey) {
             onUpdate(code => ({
                 ...code,
-                env: addNewDef({
+                lastUpdate,
+                prev: showName({
                     ...emptyCode,
-                    env: code.env
+                    id: exprIdCounter(),
+                    lastUpdate,
+                    prev: code.prev
                 }),
             }))
         }
         else {
             onUpdate(code => ({
                 ...emptyCode,
-                env: addNewDef(code),
+                id: exprIdCounter(),
+                lastUpdate,
+                prev: showName(code),
             }))
         }
     }
 
     const onDelete = () => {
-        onUpdate(code => code.env)
+        onUpdate(code => code.prev || emptyCode)
     }
 
     const onReset = () => {
-        onUpdate(code => ({ ...code, state: uninitializedAppState }))
+        onUpdate(code => ({ ...code, state: initialAppState }))
+    }
+
+    const updatePrev = update => {
+        onUpdate(code => {
+            const newPrev = update(code.prev)
+            return {
+                ...code,
+                lastUpdate: newPrev.lastUpdate,
+                prev: newPrev,
+            }
+        })
     }
 
     return (
         <React.Fragment>
-            {code.ui.isEnvVisible && code.env &&
+            {code.prev &&
                 <REPL
-                    code={code.env}
-                    onUpdate={subUpdate('env', onUpdate)}
-                    env={env}
+                    code={code.prev}
+                    onUpdate={updatePrev}
+                    cache={cache.prev}
+                    globalEnv={globalEnv}
                 />
             }
             <REPLLine>
@@ -292,7 +331,7 @@ export const REPL = ({ code, onUpdate, env }) => {
                             <VarNameInput
                                 value={code.name}
                                 onUpdate={subUpdate('name', onUpdate)}
-                                placeholder="name"
+                                placeholder={'$' + code.id}
                             />
                             &nbsp;=
                         </div>
@@ -306,13 +345,17 @@ export const REPL = ({ code, onUpdate, env }) => {
                     }
                     {code.ui.isResultVisible &&
                         <ValueViewer
-                            value={runExpr(code.expr, localEnv(code.env, env))}
+                            value={cache.result}
                             state={code.state}
                             setState={subUpdate('state', onUpdate)}
                         />
                     }
                     {code.ui.isStateVisible &&
-                        <StateViewer state={code.state} onUpdate={subUpdate('state', onUpdate)} env={localEnv(code.env, env)} />
+                        <StateViewer
+                            state={code.state}
+                            onUpdate={subUpdate('state', onUpdate)}
+                            env={cacheToEnv(cache.prev, globalEnv)}
+                        />
                     }
                 </REPLContent>
             </REPLLine>
@@ -354,7 +397,9 @@ export const StateEditor = ({ state, onUpdate, onClose, env }) => {
     const [stateJSON, setStateJSON] = React.useState(JSON.stringify(state, null, 2))
     const [validJSON, setValidJSON] = React.useState(true)
     const [mode, setMode] = React.useState('json')
-    const [code, setCode] = React.useState({ ...emptyCode, expr: "state" })
+    const globalEnv = { ...env, state }
+    const initCode = { ...emptyCode, expr: "state" }
+    const [{ code, cache }, setCode] = useCachedCodeState(initCode, globalEnv)
 
     useEffect(() => {
         try {
@@ -366,8 +411,8 @@ export const StateEditor = ({ state, onUpdate, onClose, env }) => {
         }
     }, [stateJSON])
 
-    const onSaveComputed = () => {
-        onUpdate(runExpr(code.expr, localEnv(code.env, { ...env, state })))
+    const onSaveComputed = newState => () => {
+        onUpdate(newState)
         onClose()
     }
 
@@ -398,8 +443,13 @@ export const StateEditor = ({ state, onUpdate, onClose, env }) => {
                 }
                 {mode === 'code' &&
                     <React.Fragment>
-                        <REPL code={code} onUpdate={setCode} env={{ ...env, state }} />
-                        <button onClick={onSaveComputed}>Save</button>
+                        <REPL
+                            code={code}
+                            onUpdate={setCode}
+                            cache={cache}
+                            globalEnv={globalEnv}
+                        />
+                        <button onClick={onSaveComputed(cache.result)}>Save</button>
                     </React.Fragment>
                 }
             </div>

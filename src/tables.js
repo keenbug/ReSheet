@@ -67,6 +67,22 @@ export const EditableTable = ({ columns, data, onChange }) => (
     </table>
 )
 
+const subRowUpdate = (id, update) => subUpdate => {
+    update(data =>
+        data.map(row =>
+            row.id === id ? (
+                typeof subUpdate === 'function' ?
+                    subUpdate(row)
+                :
+                    subUpdate
+            )
+            : (
+                row
+            )
+        )
+    )
+}
+
 export const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditColumn, onClose, onChange }) => (
     <tr>
         {columns.map(column => (
@@ -80,7 +96,7 @@ export const SingleEditableTableBodyRow = ({ columns, row, editedColumn, onEditC
                     column.id === editedColumn && onClose()
                 }}
                 >
-                {column.body(row, column.id === editedColumn, onChange)}
+                {column.body(row, column.id === editedColumn, subRowUpdate(row.id, onChange))}
             </td>
         ))}
     </tr>
@@ -226,21 +242,13 @@ export const dataColumns = [
     },
 ]
 
-export const TablesExample = ({ state, onUpdate }) => {
-    const data = state
+export const TablesExample = ({ data, setData }) => {
     const [edited, setEdited] = React.useState(null)
-
-    const onChange = updatedRow =>
-        onUpdate(
-            data.map(row =>
-                row.id === updatedRow.id ? updatedRow : row
-            )
-        )
 
     return (
         <table>
             <thead>
-                <TableHeadRow columns={columns} />
+                <TableHeadRow columns={dataColumns} />
             </thead>
             <tbody>
                 <SingleEditableTableBody
@@ -248,7 +256,7 @@ export const TablesExample = ({ state, onUpdate }) => {
                     data={data}
                     edited={edited}
                     onEdit={setEdited}
-                    onChange={onChange}
+                    onChange={setData}
                     />
             </tbody>
         </table>
