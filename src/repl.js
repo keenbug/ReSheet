@@ -52,10 +52,10 @@ export const runExpr = (code, env) => {
     }
 }
 
-const cacheToEnv = (cache, globalEnv) => {
+export const cacheToEnv = (code, cache, globalEnv) => {
     if (!cache) { return globalEnv }
-    const prevEnv = cacheToEnv(cache.prev, globalEnv)
-    const name = cache.name.length > 0 ? cache.name : ('$' + cache.id)
+    const prevEnv = cacheToEnv(code.prev, cache.prev, globalEnv)
+    const name = code.name.length > 0 ? code.name : ('$' + code.id)
     return ({
         ...prevEnv,
         [name]: cache.result
@@ -66,13 +66,14 @@ export const precompute = (code, cache, globalEnv) => {
     if (!code) { return null }
     if (cache && code.id === cache.id && code.lastUpdate < cache.lastUpdate) { return cache }
     const cachedPrev = precompute(code.prev, cache?.prev, globalEnv)
-    const cachedResult = runExpr(code.expr, cacheToEnv(cachedPrev, globalEnv))
+    const currentEnv = cacheToEnv(code.prev, cachedPrev, globalEnv)
+    const cachedResult = runExpr(code.expr, { $$internals: { code, cache, currentEnv, globalEnv }, ...currentEnv })
     return ({
         id: code.id,
         name: code.name,
         result: cachedResult,
         prev: cachedPrev,
-        lastUpdate: Date.now(),
+        lastUpdate: performance.now(),
     })
 }
 
@@ -112,6 +113,8 @@ export const emptyCode = {
     state: initialAppState,
     prev: null,
 }
+
+export const newCode = (attrs = {}) => ({ id: Date.now(), lastUpdate: performance.now(), ...emptyCode, ...attrs })
 
 export const highlightJS = editor => {
     const text = editor.textContent
@@ -255,26 +258,31 @@ const VarNameInput = classed(TextInput)`
     rounded
 `
 
-const createCounter = (count = 0) => () => count++
+export const createCounter = (count = 0) => () => count++
 
 // FIXME: Rather use an explicitly created instance
-const exprIdCounter = createCounter()
+export const exprIdCounter = createCounter()
 
 export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
     const onUpdateExpr = expr => {
-        const lastUpdate = Date.now()
+        const lastUpdate = performance.now()
         onUpdate(code => ({ ...code, lastUpdate, expr }))
     }
 
+    const onUpdateName = name => {
+        const lastUpdate = performance.now()
+        onUpdate(code => ({ ...code, lastUpdate, name }))
+    }
+
     const onCmdInsert = event => {
-        const lastUpdate = Date.now()
+        const lastUpdate = performance.now()
         if (event.shiftKey) {
             onUpdate(code => ({
                 ...code,
                 lastUpdate,
                 prev: showName({
                     ...emptyCode,
-                    id: exprIdCounter(),
+                    id: Date.now(),
                     lastUpdate,
                     prev: code.prev
                 }),
@@ -283,7 +291,7 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
         else {
             onUpdate(code => ({
                 ...emptyCode,
-                id: exprIdCounter(),
+                id: Date.now(),
                 lastUpdate,
                 prev: showName(code),
             }))
@@ -330,7 +338,7 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
                         <div className="self-start text-slate-500 font-light text-xs -mb-1">
                             <VarNameInput
                                 value={code.name}
-                                onUpdate={subUpdate('name', onUpdate)}
+                                onUpdate={onUpdateName}
                                 placeholder={'$' + code.id}
                             />
                             &nbsp;=

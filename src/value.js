@@ -28,7 +28,8 @@ export const runApp = (state, setState, app) => {
         :
             setState(update)
     )
-    return app.callback({ data, setData })
+    console.log('app', app)
+    return React.createElement(app.callback, { data, setData })
 }
 
 
@@ -37,7 +38,11 @@ export const runApp = (state, setState, app) => {
 
 export const ValueInspector = ({ value }) => {
     if (React.isValidElement(value)) {
-        return <ErrorBoundary>{value}</ErrorBoundary>
+        return (
+            <ErrorBoundary title="There was an error in your React element">
+                {React.createElement(() => value)}
+            </ErrorBoundary>
+        )
     }
     if (value instanceof Error) {
         return (
@@ -52,17 +57,15 @@ export const ValueInspector = ({ value }) => {
 }
 
 
-export const AppView = ({ app, state, setState }) => {
-    const App = () => runApp(state, setState, app)
-    return <ErrorBoundary><App /></ErrorBoundary>
-}
-
-
 export const ValueViewer = ({ value, state, setState }) => {
     if (isApp(value)) {
-        return catchAll(
-            () => <AppView app={value} state={state} setState={setState} />,
-            error => <ValueInspector value={error} />,
+        return (
+            <ErrorBoundary title="There was an error in your App">
+                {catchAll(
+                    () => React.createElement(() => runApp(value, state, setState)),
+                    error => <ValueInspector value={error} />
+                )}
+            </ErrorBoundary>
         )
     }
     return <ValueInspector value={value} />
@@ -92,7 +95,7 @@ export class ErrorBoundary extends React.Component {
         if (this.state.caughtError) {
             return (
                 <div>
-                    <h3>An error occurred in your component</h3>
+                    <h3>{this.props.title}</h3>
                     <h4>{this.state.caughtError.name}</h4>
                     <p>{this.state.caughtError.message}</p>
                     <button onClick={this.retry.bind(this)}>Retry</button>

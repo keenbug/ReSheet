@@ -19,26 +19,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [x] Clean up Code
-    - [x] simplify tables.fieldTypes: assume always recordFields as field
-    - [x] Add module for libraries/imports that should be made available in the REPL env (~globals)
-    - [x] Rename Stateful to App, rename props state => data, onUpdate => setData
-- [x] App data/state initialization
-- [x] Test if you can theme sub-elements with styled-components (~ `styled.div'& h1 { font-size: ... }'`)
-    * Yes, but styled-components complains about dynamic creation of a styled component (during every evaluation)
-        => leads to rerenders with less performance, but that's expected with the evaluation
-- [x] Insert Code Block before
-- [x] Properly transpile expressions
-- [x] Work on Spreadsheets
-    - [x] Easier columns API
-    - [x] Bug: Cells not editable (anymore)
-- [x] improve performance
-    - [x] Precompute expressions and cache results
-- [ ] Bug: Moving computation of the expressions into a cache broke multiple things
+- [x] Bug: Moving computation of the expressions into a cache broke multiple things
     1. Errors in the Component Tree won't be handled by the corresponding REPL Line('s ErrorBoundary)
     2. The initial (after the page load) computation takes place in the initialization of a useState Hook for the code state. After that, computations are triggered during an update. That scrambles up the order (and presence) of Hooks.
     * Ideas
         * Always createElement the results (to encapsulate hooks in there). Problem: I need the raw values to put them in the environment and give access to them in other expressions.
+        * Use a dedicated React instance to render user-code react?
+    * I don't know all the things I did anymore, but one very important thing was to wrap ReactElements in a createElement(() => element) call, which fixed the ErrorBoundary problems.
+- [ ] "App"s don't work anymore. App() seems to produce a function instead of { callback: () => ..., init: ... }
 - [ ] REPL: Always add variable names
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition
@@ -89,6 +77,8 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [ ] Add backup states / undo history
+- Misc
+    - use dangerouslySetInnerHTML
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition

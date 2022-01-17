@@ -19,7 +19,7 @@ const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
     switch (mode) {
         case 'code':
             return (
-                <ErrorBoundary>
+                <ErrorBoundary title="There was an Error in the REPL">
                     <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
                         <REPL
                             code={code}
@@ -59,7 +59,7 @@ const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
 const MenuLine = classed('div')`shadow mb-1`
 
 const App = () => {
-    const loadSavedCode = () => JSON.parse(localStorage.getItem('code')) ?? emptyCode
+    const loadSavedCode = () => JSON.parse(localStorage.getItem('code')) ?? { ...emptyCode, id: Date.now() }
     const [{ code, cache }, setCode] = useCachedCodeState(loadSavedCode, stdLibrary)
     const [mode, setMode] = React.useState('code')
 

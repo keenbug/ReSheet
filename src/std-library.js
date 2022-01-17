@@ -8,8 +8,8 @@ import * as babel from '@babel/core'
 import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 
-import { REPL } from './repl'
-import { createApp } from './value'
+import * as repl from './repl'
+import * as value from './value'
 import * as tables from './tables'
 import * as ui from './ui'
 
@@ -18,12 +18,15 @@ export default {
     FontAwesomeIcon,
     faSolid,
     faRegular,
-    tables,
-    REPL,
-    App: createApp,
-    ui,
     styled,
+
     babel,
     babelReact,
     babelParser,
+
+    tables,
+    ui,
+    repl,
+    App: value.createApp,
+    value,
 }
