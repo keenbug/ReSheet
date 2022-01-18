@@ -34,7 +34,7 @@ const TextInputHTML = styled.span`
     ${({ placeholder }) =>
         placeholder ?
             css`
-                & :empty :after {
+                &:empty:before {
                     content: "${placeholder}";
                     color: #aaa;
                 }
@@ -58,7 +58,7 @@ export const TextInput = ({ value, onUpdate, ...props }) => {
     })
     const onInput = event => {
         const { innerText, innerHTML } = event.target
-        const text = spaceToFixedWidth(innerText)
+        const text = spaceToFixedWidth(innerText.replaceAll('\n', ''))
         const html = spaceToFixedWidth(innerHTML.replaceAll("&nbsp;", fixedWidth))
         if (html !== text) {
             event.target.innerHTML = text

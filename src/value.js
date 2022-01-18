@@ -28,7 +28,6 @@ export const runApp = (state, setState, app) => {
         :
             setState(update)
     )
-    console.log('app', app)
     return React.createElement(app.callback, { data, setData })
 }
 
@@ -36,10 +35,31 @@ export const runApp = (state, setState, app) => {
 
 /**************** Value Viewer *****************/
 
+export const ErrorInspector = ({ error }) => {
+    const [showError, setShowError] = React.useState(false)
+    if (showError) {
+        return (
+            <ErrorBoundary
+                title="There was an error displaying the error"
+                viewError={error => <ErrorInspector error={error} />}>
+                <Inspector data={error} />
+            </ErrorBoundary>
+        )
+    }
+    else {
+        return (
+            <button onClick={() => setShowError(true)}>Inspect Error</button>
+        )
+    }
+}
+
 export const ValueInspector = ({ value }) => {
     if (React.isValidElement(value)) {
         return (
-            <ErrorBoundary title="There was an error in your React element">
+            <ErrorBoundary
+                title="There was an error in your React element"
+                viewError={error => <ErrorInspector error={error} />}
+            >
                 {React.createElement(() => value)}
             </ErrorBoundary>
         )
@@ -60,9 +80,12 @@ export const ValueInspector = ({ value }) => {
 export const ValueViewer = ({ value, state, setState }) => {
     if (isApp(value)) {
         return (
-            <ErrorBoundary title="There was an error in your App">
+            <ErrorBoundary
+                title="There was an error in your App"
+                viewError={error => <ErrorInspector error={error} />}
+            >
                 {catchAll(
-                    () => React.createElement(() => runApp(value, state, setState)),
+                    () => React.createElement(() => runApp(state, setState, value)),
                     error => <ValueInspector value={error} />
                 )}
             </ErrorBoundary>
@@ -98,7 +121,10 @@ export class ErrorBoundary extends React.Component {
                     <h3>{this.props.title}</h3>
                     <h4>{this.state.caughtError.name}</h4>
                     <p>{this.state.caughtError.message}</p>
-                    <button onClick={this.retry.bind(this)}>Retry</button>
+                    <div><button onClick={this.retry.bind(this)}>Retry</button></div>
+                    {this.props.viewError &&
+                        <div>{this.props.viewError(this.state.caughtError)}</div>
+                    }
                 </div>
             )
         }

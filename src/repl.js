@@ -52,6 +52,28 @@ export const runExpr = (code, env) => {
     }
 }
 
+export const getCodeById = (id, code) => {
+    if (!code) {
+        return null
+    }
+    if (code.id === id) {
+        return code
+    }
+    return getCodeById(id, code.prev)
+}
+
+export const getNextId = code => after => {
+    for (
+        let id = after ? (after + 1) : 0;
+        id < Number.MAX_SAFE_INTEGER;
+        id++
+    ) {
+        if (!getCodeById(id, code)) {
+            return id
+        }
+    }
+}
+
 export const cacheToEnv = (code, cache, globalEnv) => {
     if (!cache) { return globalEnv }
     const prevEnv = cacheToEnv(code.prev, cache.prev, globalEnv)
@@ -77,21 +99,26 @@ export const precompute = (code, cache, globalEnv) => {
     })
 }
 
+export const updateCache = (code, cache, globalEnv) => ({
+    code,
+    cache: precompute(code, cache, globalEnv),
+})
+
+export const updateCachedCode = (setCachedCode, globalEnv) => update => {
+    setCachedCode(({ code, cache }) => {
+        const newCode = typeof update === 'function' ? update(code) : update
+        return updateCache(newCode, cache, globalEnv)
+    })
+}
+
 export const useCachedCodeState = (init, globalEnv) => {
-    const updateCode = (code, cache) => ({ code, cache: precompute(code, cache, globalEnv) })
     const [cachedCode, setCachedCode] = React.useState(
         typeof init === 'function' ?
-            () => updateCode(init(), null)
+            () => updateCache(init(), null, globalEnv)
         :
-            updateCode(init, null)
+            updateCache(init, null, globalEnv)
     )
-    const setCode = update => {
-        setCachedCode(({ code, cache }) => {
-            const newCode = typeof update === 'function' ? update(code) : update
-            return updateCode(newCode, cache)
-        })
-    }
-    return [cachedCode, setCode]
+    return [cachedCode, updateCachedCode(setCachedCode, globalEnv)]
 }
 
 const showName = code => ({
@@ -114,7 +141,12 @@ export const emptyCode = {
     prev: null,
 }
 
-export const newCode = (attrs = {}) => ({ id: Date.now(), lastUpdate: performance.now(), ...emptyCode, ...attrs })
+export const newCode = (attrs = {}) => ({
+    id: getNextId(attrs.prev)(),
+    lastUpdate: performance.now(),
+    ...emptyCode,
+    ...attrs,
+})
 
 export const highlightJS = editor => {
     const text = editor.textContent
@@ -263,7 +295,7 @@ export const createCounter = (count = 0) => () => count++
 // FIXME: Rather use an explicitly created instance
 export const exprIdCounter = createCounter()
 
-export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
+export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
     const onUpdateExpr = expr => {
         const lastUpdate = performance.now()
         onUpdate(code => ({ ...code, lastUpdate, expr }))
@@ -282,7 +314,7 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
                 lastUpdate,
                 prev: showName({
                     ...emptyCode,
-                    id: Date.now(),
+                    id: nextId(),
                     lastUpdate,
                     prev: code.prev
                 }),
@@ -291,7 +323,7 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
         else {
             onUpdate(code => ({
                 ...emptyCode,
-                id: Date.now(),
+                id: nextId(),
                 lastUpdate,
                 prev: showName(code),
             }))
@@ -321,10 +353,12 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
         <React.Fragment>
             {code.prev &&
                 <REPL
+                    key={code.id}
                     code={code.prev}
                     onUpdate={updatePrev}
                     cache={cache.prev}
                     globalEnv={globalEnv}
+                    nextId={nextId}
                 />
             }
             <REPLLine>
@@ -336,7 +370,7 @@ export const REPL = ({ code, onUpdate, cache, globalEnv }) => {
                 <REPLContent>
                     {code.ui.isNameVisible &&
                         <div className="self-start text-slate-500 font-light text-xs -mb-1">
-                            <VarNameInput
+                            <TextInput // VarNameInput
                                 value={code.name}
                                 onUpdate={onUpdateName}
                                 placeholder={'$' + code.id}

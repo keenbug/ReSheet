@@ -4,7 +4,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { emptyCode, REPL, useCachedCodeState } from './repl'
+import { emptyCode, getNextId, REPL, useCachedCodeState } from './repl'
 import { ValueViewer, StateViewer, ErrorBoundary } from './value'
 import stdLibrary from './std-library'
 import { IconToggleButton, classed } from './ui'
@@ -15,7 +15,7 @@ import { catchAll, subUpdate } from './utils'
 
 /****************** Main Application ******************/
 
-const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
+const AppContent = ({ code, cache, setCode, mode, setMode }) => {
     switch (mode) {
         case 'code':
             return (
@@ -23,10 +23,11 @@ const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
                     <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
                         <REPL
                             code={code}
-                            onUpdate={onUpdate}
+                            onUpdate={setCode}
                             cache={cache}
                             globalEnv={stdLibrary}
                             env={stdLibrary}
+                            nextId={getNextId(code)}
                         />
                     </div>
                 </ErrorBoundary>
@@ -34,7 +35,7 @@ const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
 
         case 'state':
             return (
-                <StateViewer state={code.state} onUpdate={subUpdate('state', onUpdate)} env={stdLibrary} />
+                <StateViewer state={code.state} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
             )
         
         case 'app':
@@ -42,7 +43,7 @@ const AppContent = ({ code, cache, onUpdate, mode, setMode }) => {
                 <ValueViewer
                     value={cache.result}
                     state={code.state}
-                    onUpdate={subUpdate('state', onUpdate)}
+                    setState={subUpdate('state', setCode)}
                 />
             )
 
@@ -75,7 +76,7 @@ const App = () => {
                 <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
             </MenuLine>
             <AppContent
-                code={code} cache={cache} onUpdate={setCode}
+                code={code} cache={cache} setCode={setCode}
                 mode={mode} setMode={setMode}
             />
         </React.Fragment>

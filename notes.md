@@ -26,8 +26,17 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         * Always createElement the results (to encapsulate hooks in there). Problem: I need the raw values to put them in the environment and give access to them in other expressions.
         * Use a dedicated React instance to render user-code react?
     * I don't know all the things I did anymore, but one very important thing was to wrap ReactElements in a createElement(() => element) call, which fixed the ErrorBoundary problems.
-- [ ] "App"s don't work anymore. App() seems to produce a function instead of { callback: () => ..., init: ... }
-- [ ] REPL: Always add variable names
+- [x] "App"s don't work anymore. App() seems to produce a function instead of { callback: () => ..., init: ... }
+- [x] REPL: Always add variable names
+- [x] "Play Mode" doesn't work
+- [x] Use incremental id's instead of timestamps
+- [ ] Use incremental "versions" instead of performance.now for lastUpdate
+- [ ] Switch to useReducer for Code
+- [ ] Bug: Repl run in the Repl has weird focusing behavior:
+    - Grabs focus when editing elsewhere
+    - Caret jumps to beginning when editing Code in the inner Repl
+    - CodeJar throws errors
+    - maybe updating code and recreating the dom and reconciliation is the problem
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition
     - [ ] Add focus (edit -> focus + isEditing)
