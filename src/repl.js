@@ -86,7 +86,7 @@ export const cacheToEnv = (code, cache, globalEnv) => {
 
 export const precompute = (code, cache, globalEnv) => {
     if (!code) { return null }
-    if (cache && code.id === cache.id && code.lastUpdate < cache.lastUpdate) { return cache }
+    if (cache && code.id === cache.id && code.revision === cache.revision) { return cache }
     const cachedPrev = precompute(code.prev, cache?.prev, globalEnv)
     const currentEnv = cacheToEnv(code.prev, cachedPrev, globalEnv)
     const cachedResult = runExpr(code.expr, { $$internals: { code, cache, currentEnv, globalEnv }, ...currentEnv })
@@ -95,7 +95,7 @@ export const precompute = (code, cache, globalEnv) => {
         name: code.name,
         result: cachedResult,
         prev: cachedPrev,
-        lastUpdate: performance.now(),
+        revision: code.revision,
     })
 }
 
@@ -139,11 +139,11 @@ export const emptyCode = {
     ui: defaultCodeUI,
     state: initialAppState,
     prev: null,
+    cachedResult: 0,
 }
 
 export const newCode = (attrs = {}) => ({
     id: getNextId(attrs.prev)(),
-    lastUpdate: performance.now(),
     ...emptyCode,
     ...attrs,
 })
@@ -201,7 +201,7 @@ const MenuHTML = classed('ul')`
     overflow-hidden
 `
 
-const REPLUIToggles = ({ ui, onUpdate, onReset, onDelete }) => {
+const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
     const [isMenuVisible, setMenuVisible] = React.useState(false)
 
     const Toggle = ({ propName, icon, iconDisabled, label }) => (
@@ -241,6 +241,24 @@ const REPLUIToggles = ({ ui, onUpdate, onReset, onDelete }) => {
                 icon={solidIcons.faHdd}
                 label="State"
             />
+            <li>
+                <IconToggleButton
+                    className="w-full"
+                    isActive={true}
+                    icon={solidIcons.faChevronUp}
+                    onUpdate={onInsertBefore}
+                    label="Insert before"
+                />
+            </li>
+            <li>
+                <IconToggleButton
+                    className="w-full"
+                    isActive={true}
+                    icon={solidIcons.faChevronDown}
+                    onUpdate={onInsertAfter}
+                    label="Insert after"
+                />
+            </li>
             <li>
                 <IconToggleButton
                     className="w-full"
@@ -290,43 +308,42 @@ const VarNameInput = classed(TextInput)`
     rounded
 `
 
-export const createCounter = (count = 0) => () => count++
-
-// FIXME: Rather use an explicitly created instance
-export const exprIdCounter = createCounter()
 
 export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
     const onUpdateExpr = expr => {
-        const lastUpdate = performance.now()
-        onUpdate(code => ({ ...code, lastUpdate, expr }))
+        onUpdate(code => ({ ...code, revision: code.revision + 1, expr }))
     }
 
     const onUpdateName = name => {
-        const lastUpdate = performance.now()
-        onUpdate(code => ({ ...code, lastUpdate, name }))
+        onUpdate(code => ({ ...code, revision: code.revision + 1, name }))
+    }
+
+    const onInsertBefore = () => {
+        onUpdate(code => ({
+            ...code,
+            revision: code.revision + 1,
+            prev: showName({
+                ...emptyCode,
+                id: nextId(),
+                prev: code.prev
+            }),
+        }))
+    }
+
+    const onInsertAfter = () => {
+        onUpdate(code => ({
+            ...emptyCode,
+            id: nextId(),
+            prev: showName(code),
+        }))
     }
 
     const onCmdInsert = event => {
-        const lastUpdate = performance.now()
         if (event.shiftKey) {
-            onUpdate(code => ({
-                ...code,
-                lastUpdate,
-                prev: showName({
-                    ...emptyCode,
-                    id: nextId(),
-                    lastUpdate,
-                    prev: code.prev
-                }),
-            }))
+            onInsertBefore()
         }
         else {
-            onUpdate(code => ({
-                ...emptyCode,
-                id: nextId(),
-                lastUpdate,
-                prev: showName(code),
-            }))
+            onInsertAfter()
         }
     }
 
@@ -343,7 +360,7 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
             const newPrev = update(code.prev)
             return {
                 ...code,
-                lastUpdate: newPrev.lastUpdate,
+                revision: code.revision + 1,
                 prev: newPrev,
             }
         })
@@ -365,12 +382,13 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
                 <REPLUIToggles
                     ui={code.ui}
                     onUpdate={subUpdate('ui', onUpdate)}
+                    onInsertBefore={onInsertBefore} onInsertAfter={onInsertAfter}
                     onDelete={onDelete} onReset={onReset}
                 />
                 <REPLContent>
                     {code.ui.isNameVisible &&
                         <div className="self-start text-slate-500 font-light text-xs -mb-1">
-                            <TextInput // VarNameInput
+                            <VarNameInput
                                 value={code.name}
                                 onUpdate={onUpdateName}
                                 placeholder={'$' + code.id}

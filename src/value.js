@@ -13,7 +13,7 @@ export const createApp = (callback, initialData=initialAppState) => ({
     callback,
 })
 export const isApp = value => value?.$$type === appTypeSymbol
-export const runApp = (state, setState, app) => {
+export const AppRunner = ({ state, setState, app }) => {
     const data = state === initialAppState ? app.initialData : state
     const setData = update => (
         typeof update === 'function' ?
@@ -85,7 +85,7 @@ export const ValueViewer = ({ value, state, setState }) => {
                 viewError={error => <ErrorInspector error={error} />}
             >
                 {catchAll(
-                    () => React.createElement(() => runApp(state, setState, value)),
+                    () => <AppRunner app={value} state={state} setState={setState} />,
                     error => <ValueInspector value={error} />
                 )}
             </ErrorBoundary>

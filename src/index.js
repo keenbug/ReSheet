@@ -4,8 +4,8 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { emptyCode, getNextId, REPL, useCachedCodeState } from './repl'
-import { ValueViewer, StateViewer, ErrorBoundary } from './value'
+import { newCode, getNextId, REPL, StateViewer, useCachedCodeState } from './repl'
+import { ValueViewer, ErrorBoundary } from './value'
 import stdLibrary from './std-library'
 import { IconToggleButton, classed } from './ui'
 import { catchAll, subUpdate } from './utils'
@@ -60,7 +60,7 @@ const AppContent = ({ code, cache, setCode, mode, setMode }) => {
 const MenuLine = classed('div')`shadow mb-1`
 
 const App = () => {
-    const loadSavedCode = () => JSON.parse(localStorage.getItem('code')) ?? { ...emptyCode, id: Date.now() }
+    const loadSavedCode = () => JSON.parse(localStorage.getItem('code')) ?? newCode()
     const [{ code, cache }, setCode] = useCachedCodeState(loadSavedCode, stdLibrary)
     const [mode, setMode] = React.useState('code')
 

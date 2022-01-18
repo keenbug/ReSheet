@@ -34,7 +34,7 @@ const TextInputHTML = styled.span`
     ${({ placeholder }) =>
         placeholder ?
             css`
-                &:empty:before {
+                &:empty:after {
                     content: "${placeholder}";
                     color: #aaa;
                 }

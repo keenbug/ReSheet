@@ -30,13 +30,16 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 - [x] REPL: Always add variable names
 - [x] "Play Mode" doesn't work
 - [x] Use incremental id's instead of timestamps
-- [ ] Use incremental "versions" instead of performance.now for lastUpdate
-- [ ] Switch to useReducer for Code
+- [x] Use incremental "versions" instead of performance.now for lastUpdate
 - [ ] Bug: Repl run in the Repl has weird focusing behavior:
     - Grabs focus when editing elsewhere
     - Caret jumps to beginning when editing Code in the inner Repl
     - CodeJar throws errors
     - maybe updating code and recreating the dom and reconciliation is the problem
+        - yep, fixed by not using anonymous functions as elements in createElement
+        - but still having the recreation effect when generating the ReplApp in a function
+            - timing bug?
+- [ ] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition
     - [ ] Add focus (edit -> focus + isEditing)
@@ -83,11 +86,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Add initial data field to Apps (formerly Statefuls) (default state to Symbol('uninitializedData'))
     - [x] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
     - [x] Properly transpile JS Expressions (instead of Statements) with Babel
-    - [ ] Always add variable names
+    - [x] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [ ] Add backup states / undo history
-- Misc
-    - use dangerouslySetInnerHTML
+* Cleanup
+    - [ ] use dangerouslySetInnerHTML in TextInput?
+    - [ ] Switch to useReducer for Code State
+    - [ ] Make Code a flat list instead of linking via prev?
+    - [ ] Merge cached result into Code again?
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition
