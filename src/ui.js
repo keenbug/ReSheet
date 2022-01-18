@@ -65,7 +65,7 @@ export const TextInput = ({ value, onUpdate, ...props }) => {
         }
         onUpdate(fixedWidthToSpace(text))
     }
-    return <TextInputHTML contentEditable ref={ref} onInput={onInput} {...props} />
+    return <TextInputHTML contentEditable="plaintext-only" ref={ref} onInput={onInput} {...props} />
 }
 
 

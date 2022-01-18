@@ -139,7 +139,7 @@ export const emptyCode = {
     ui: defaultCodeUI,
     state: initialAppState,
     prev: null,
-    cachedResult: 0,
+    revision: 0,
 }
 
 export const newCode = (attrs = {}) => ({
@@ -311,7 +311,14 @@ const VarNameInput = classed(TextInput)`
 
 export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
     const onUpdateExpr = expr => {
-        onUpdate(code => ({ ...code, revision: code.revision + 1, expr }))
+        onUpdate(code => {
+            console.log('update expr', code.expr === expr, code.expr, expr)
+            return ({
+                ...code,
+                revision: code.revision + (code.expr === expr ? 0 : 1),
+                expr,
+            })
+        })
     }
 
     const onUpdateName = name => {
@@ -400,7 +407,7 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
                         <CodeEditor
                             code={code.expr}
                             onUpdate={onUpdateExpr}
-                            onKeyPress={onMetaEnter(onCmdInsert)}
+                            // onKeyPress={onMetaEnter(onCmdInsert)}
                         />
                     }
                     {code.ui.isResultVisible &&
