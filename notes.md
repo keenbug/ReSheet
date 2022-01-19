@@ -21,8 +21,8 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 - [x] Use incremental id's instead of timestamps
 - [x] Use incremental "versions" instead of performance.now for lastUpdate
-- [ ] Slim (KISS) down every thing.
-- [ ] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
+- [x] Slim (KISS) down every thing.
+- [x] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
 - [ ] Add option to use state/data instead of the expr result
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition

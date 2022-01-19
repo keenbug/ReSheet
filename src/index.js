@@ -34,7 +34,7 @@ const AppContent = ({ code, setCode, mode, setMode }) => {
 
         case 'state':
             return (
-                <StateViewer state={code} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
+                <StateViewer state={code.state} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
             )
         
         case 'app':

@@ -166,7 +166,7 @@ const toggleProperty = propName => obj => (
     { ...obj, [propName]: !obj[propName] }
 )
 
-const MenuHTML = classed('ul')`
+const MenuHTML = classed('div')`
     flex flex-col
     bg-gray-100
     shadow
@@ -175,13 +175,21 @@ const MenuHTML = classed('ul')`
     w-max
     text-sm
     overflow-hidden
+    z-10
+    outline-none
 `
 
 const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
     const [isMenuVisible, setMenuVisible] = React.useState(false)
+    const menuRef = React.useRef(null)
 
-    const Toggle = ({ propName, icon, iconDisabled, label }) => (
-        <li>
+    React.useEffect(() => {
+        if (menuRef.current && isMenuVisible) {
+            menuRef.current.focus()
+        }
+    })
+
+    const Toggle = ({ propName, icon, iconDisabled, label, ...props }) => (
             <IconToggleButton
                 className="w-full"
                 isActive={ui[propName]}
@@ -189,13 +197,27 @@ const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, o
                 iconDisabled={iconDisabled}
                 onUpdate={() => onUpdate(toggleProperty(propName))}
                 label={`${ui[propName] ? "Hide" : "Show"} ${label}`}
+                {...props}
             />
-        </li>
     )
+
+    const dismissMenu = event => {
+        if (!event.relatedTarget) {
+            setMenuVisible(false)
+            return
+        }
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+            setMenuVisible(false)
+            return
+        }
+    }
 
     const Menu = () => (
         <MenuHTML
-            className="absolute -right-1 translate-x-full"
+            className={`absolute -right-1 translate-x-full ${isMenuVisible ? '' : 'hidden'}`}
+            onBlur={dismissMenu}
+            ref={menuRef}
+            tabIndex={-1}
         >
             <Toggle
                 propName="isNameVisible"
@@ -217,53 +239,45 @@ const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, o
                 icon={solidIcons.faHdd}
                 label="State"
             />
-            <li>
-                <IconToggleButton
-                    className="w-full"
-                    isActive={true}
-                    icon={solidIcons.faChevronUp}
-                    onUpdate={onInsertBefore}
-                    label="Insert before"
-                />
-            </li>
-            <li>
-                <IconToggleButton
-                    className="w-full"
-                    isActive={true}
-                    icon={solidIcons.faChevronDown}
-                    onUpdate={onInsertAfter}
-                    label="Insert after"
-                />
-            </li>
-            <li>
-                <IconToggleButton
-                    className="w-full"
-                    isActive={true}
-                    icon={solidIcons.faStepBackward}
-                    onUpdate={onReset}
-                    label="Reset App (data)"
-                />
-            </li>
-            <li>
-                <IconToggleButton
-                    className="w-full"
-                    isActive={true}
-                    icon={solidIcons.faTrash}
-                    onUpdate={onDelete}
-                    label="Delete"
-                />
-            </li>
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faChevronUp}
+                onUpdate={onInsertBefore}
+                label="Insert before"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faChevronDown}
+                onUpdate={onInsertAfter}
+                label="Insert after"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faStepBackward}
+                onUpdate={onReset}
+                label="Reset App (data)"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faTrash}
+                onUpdate={onDelete}
+                label="Delete"
+            />
         </MenuHTML>
     )
 
     return (
         <div>
             <div className="relative">
-                {isMenuVisible && <Menu />}
+                <Menu />
             </div>
             <button
                 className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                onClick={() => setMenuVisible(visible => !visible)}
+                onClick={() => { setMenuVisible(visible => !visible) }}
             >
                 <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
             </button>

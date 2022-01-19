@@ -84,10 +84,11 @@ export const ToggleButton = classed('button')`
     h-7 px-1 space-x-1
 `
 
-export const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUpdate, label="" }) => (
+export const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUpdate, label="", ...props }) => (
     <ToggleButton
         className={(className ?? "") + (isActive ? "" : " text-slate-400")}
         onClick={onUpdate}
+        {...props}
     >
         <div className="inline-block w-5 text-center">
             <FontAwesomeIcon size="xs" icon={isActive ? icon : (iconDisabled || icon)} />
