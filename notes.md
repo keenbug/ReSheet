@@ -19,27 +19,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [x] Bug: Moving computation of the expressions into a cache broke multiple things
-    1. Errors in the Component Tree won't be handled by the corresponding REPL Line('s ErrorBoundary)
-    2. The initial (after the page load) computation takes place in the initialization of a useState Hook for the code state. After that, computations are triggered during an update. That scrambles up the order (and presence) of Hooks.
-    * Ideas
-        * Always createElement the results (to encapsulate hooks in there). Problem: I need the raw values to put them in the environment and give access to them in other expressions.
-        * Use a dedicated React instance to render user-code react?
-    * I don't know all the things I did anymore, but one very important thing was to wrap ReactElements in a createElement(() => element) call, which fixed the ErrorBoundary problems.
-- [x] "App"s don't work anymore. App() seems to produce a function instead of { callback: () => ..., init: ... }
-- [x] REPL: Always add variable names
-- [x] "Play Mode" doesn't work
 - [x] Use incremental id's instead of timestamps
 - [x] Use incremental "versions" instead of performance.now for lastUpdate
-- [ ] Bug: Repl run in the Repl has weird focusing behavior:
-    - Grabs focus when editing elsewhere
-    - Caret jumps to beginning when editing Code in the inner Repl
-    - CodeJar throws errors
-    - maybe updating code and recreating the dom and reconciliation is the problem
-        - yep, fixed by not using anonymous functions as elements in createElement
-        - but still having the recreation effect when generating the ReplApp in a function
-            - timing bug?
+- [ ] Slim (KISS) down every thing.
 - [ ] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
+- [ ] Add option to use state/data instead of the expr result
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition
     - [ ] Add focus (edit -> focus + isEditing)
@@ -94,6 +78,18 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Switch to useReducer for Code State
     - [ ] Make Code a flat list instead of linking via prev?
     - [ ] Merge cached result into Code again?
+* Fixes
+    - [ ] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
+        - Grabs focus when editing elsewhere
+        - Caret jumps to beginning when editing Code in the inner Repl
+        - CodeJar throws errors
+        - maybe updating code and recreating the dom and reconciliation is the problem
+            - yep, fixed by not using anonymous functions as elements in createElement
+            - but still having the recreation effect when generating the ReplApp in a function
+                - timing bug? Is not consistent
+                - NaN bug. (revision was not set)
+        - is there a react reconciliation debugger? Something in React DevTools?
+    - [ ] Try other Code Editor? Maybe CodeJar or react-codejar is the culprit? OTOH, there are still weird bugs that are definitely independent from the editor
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition
@@ -103,6 +99,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Future
 
+* Switch to TypeScript. Maybe TS could be run in the browser - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
 * Style-/Theme-Editor?
     * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
 * Change (Context) Menus to "Commander Prompts"

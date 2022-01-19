@@ -4,7 +4,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { newCode, getNextId, REPL, StateViewer, useCachedCodeState } from './repl'
+import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode } from './repl'
 import { ValueViewer, ErrorBoundary } from './value'
 import stdLibrary from './std-library'
 import { IconToggleButton, classed } from './ui'
@@ -15,7 +15,7 @@ import { catchAll, subUpdate } from './utils'
 
 /****************** Main Application ******************/
 
-const AppContent = ({ code, cache, setCode, mode, setMode }) => {
+const AppContent = ({ code, setCode, mode, setMode }) => {
     switch (mode) {
         case 'code':
             return (
@@ -24,7 +24,6 @@ const AppContent = ({ code, cache, setCode, mode, setMode }) => {
                         <REPL
                             code={code}
                             onUpdate={setCode}
-                            cache={cache}
                             globalEnv={stdLibrary}
                             env={stdLibrary}
                             nextId={getNextId(code)}
@@ -35,13 +34,13 @@ const AppContent = ({ code, cache, setCode, mode, setMode }) => {
 
         case 'state':
             return (
-                <StateViewer state={code.state} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
+                <StateViewer state={code} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
             )
         
         case 'app':
             return (
                 <ValueViewer
-                    value={cache.result}
+                    value={code.cachedResult}
                     state={code.state}
                     setState={subUpdate('state', setCode)}
                 />
@@ -60,9 +59,11 @@ const AppContent = ({ code, cache, setCode, mode, setMode }) => {
 const MenuLine = classed('div')`shadow mb-1`
 
 const App = () => {
-    const loadSavedCode = () => JSON.parse(localStorage.getItem('code')) ?? newCode()
-    const [{ code, cache }, setCode] = useCachedCodeState(loadSavedCode, stdLibrary)
+    const loadSavedCode = () => precompute(JSON.parse(localStorage.getItem('code')) ?? emptyCode, stdLibrary, true)
+    const [code, setCode] = React.useState(loadSavedCode)
     const [mode, setMode] = React.useState('code')
+
+    const setCodeAndCompute = updateCode(setCode, stdLibrary)
 
     React.useEffect(() => {
         localStorage.setItem('code', JSON.stringify(code))
@@ -76,7 +77,7 @@ const App = () => {
                 <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
             </MenuLine>
             <AppContent
-                code={code} cache={cache} setCode={setCode}
+                code={code} setCode={setCodeAndCompute}
                 mode={mode} setMode={setMode}
             />
         </React.Fragment>

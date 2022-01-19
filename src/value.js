@@ -8,11 +8,11 @@ const appTypeSymbol = Symbol('appType')
 export const initialAppState = Symbol('initialAppState')
 
 export const createApp = (callback, initialData=initialAppState) => ({
-    $$type: appTypeSymbol,
+    $$typeof: appTypeSymbol,
     initialData,
     callback,
 })
-export const isApp = value => value?.$$type === appTypeSymbol
+export const isApp = value => value?.$$typeof === appTypeSymbol
 export const AppRunner = ({ state, setState, app }) => {
     const data = state === initialAppState ? app.initialData : state
     const setData = update => (

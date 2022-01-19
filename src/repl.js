@@ -53,12 +53,8 @@ export const runExpr = (code, env) => {
 }
 
 export const getCodeById = (id, code) => {
-    if (!code) {
-        return null
-    }
-    if (code.id === id) {
-        return code
-    }
+    if (!code) { return null }
+    if (code.id === id) { return code }
     return getCodeById(id, code.prev)
 }
 
@@ -74,87 +70,58 @@ export const getNextId = code => after => {
     }
 }
 
-export const cacheToEnv = (code, cache, globalEnv) => {
-    if (!cache) { return globalEnv }
-    const prevEnv = cacheToEnv(code.prev, cache.prev, globalEnv)
+export const localEnv = (code, globalEnv) => {
+    if (!code) { return globalEnv }
     const name = code.name.length > 0 ? code.name : ('$' + code.id)
-    return ({
-        ...prevEnv,
-        [name]: cache.result
-    })
+    return {
+        ...localEnv(code.prev, globalEnv),
+        [name]: code.cachedResult,
+    }
 }
 
-export const precompute = (code, cache, globalEnv) => {
+export const precompute = (code, globalEnv, force=false) => {
     if (!code) { return null }
-    if (cache && code.id === cache.id && code.revision === cache.revision) { return cache }
-    const cachedPrev = precompute(code.prev, cache?.prev, globalEnv)
-    const currentEnv = cacheToEnv(code.prev, cachedPrev, globalEnv)
-    const cachedResult = runExpr(code.expr, { $$internals: { code, cache, currentEnv, globalEnv }, ...currentEnv })
-    return ({
-        id: code.id,
-        name: code.name,
-        result: cachedResult,
-        prev: cachedPrev,
-        revision: code.revision,
-    })
-}
-
-export const updateCache = (code, cache, globalEnv) => ({
-    code,
-    cache: precompute(code, cache, globalEnv),
-})
-
-export const updateCachedCode = (setCachedCode, globalEnv) => update => {
-    setCachedCode(({ code, cache }) => {
-        const newCode = typeof update === 'function' ? update(code) : update
-        return updateCache(newCode, cache, globalEnv)
-    })
-}
-
-export const useCachedCodeState = (init, globalEnv) => {
-    const [cachedCode, setCachedCode] = React.useState(
-        typeof init === 'function' ?
-            () => updateCache(init(), null, globalEnv)
-        :
-            updateCache(init, null, globalEnv)
+    const prev = precompute(code.prev, globalEnv, force)
+    if (prev === code.prev && !code.invalidated && !force) { return code }
+    const currentEnv = localEnv(prev, globalEnv)
+    const cachedResult = runExpr(
+        code.expr,
+        {
+            $$internals: { prev, currentEnv, globalEnv },
+            ...currentEnv
+        }
     )
-    return [cachedCode, updateCachedCode(setCachedCode, globalEnv)]
+    return {
+        ...code,
+        cachedResult,
+        invalidated: false,
+        prev,
+    }
 }
 
-const showName = code => ({
-    ...code,
-    ui: { ...code.ui, isNameVisible: true },
-})
+export const updateCode = (setCode, globalEnv) => update => {
+    setCode(code => precompute(
+        typeof update === 'function' ? update(code) : update,
+        globalEnv,
+    ))
+}
 
 export const defaultCodeUI = {
-    isNameVisible: false,
+    isNameVisible: true,
     isCodeVisible: true,
     isResultVisible: true,
     isStateVisible: false,
 }
 
 export const emptyCode = {
+    id: 0,
     name: "",
     expr: "",
     ui: defaultCodeUI,
     state: initialAppState,
     prev: null,
-    revision: 0,
-}
-
-export const newCode = (attrs = {}) => ({
-    id: getNextId(attrs.prev)(),
-    ...emptyCode,
-    ...attrs,
-})
-
-export const highlightJS = editor => {
-    const text = editor.textContent
-    editor.innerHTML = Prism.highlight(
-        text,
-        Prism.languages.javascript,
-        'javascript'
-    )
+    cachedResult: null,
+    invalidated: true,
 }
 
 
@@ -180,6 +147,15 @@ export const CodeEditor = ({ code, onUpdate, ...props }) => {
     })
 
     return <pre><CodeContent ref={ref} {...props} /></pre>
+}
+
+export const highlightJS = editor => {
+    const text = editor.textContent
+    editor.innerHTML = Prism.highlight(
+        text,
+        Prism.languages.javascript,
+        'javascript'
+    )
 }
 
 
@@ -309,31 +285,27 @@ const VarNameInput = classed(TextInput)`
 `
 
 
-export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
+export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
     const onUpdateExpr = expr => {
-        onUpdate(code => {
-            console.log('update expr', code.expr === expr, code.expr, expr)
-            return ({
-                ...code,
-                revision: code.revision + (code.expr === expr ? 0 : 1),
-                expr,
-            })
-        })
+        onUpdate(code => ({
+            ...code,
+            invalidated: true,
+            expr,
+        }))
     }
 
     const onUpdateName = name => {
-        onUpdate(code => ({ ...code, revision: code.revision + 1, name }))
+        onUpdate(code => ({ ...code, name }))
     }
 
     const onInsertBefore = () => {
         onUpdate(code => ({
             ...code,
-            revision: code.revision + 1,
-            prev: showName({
+            prev: {
                 ...emptyCode,
                 id: nextId(),
                 prev: code.prev
-            }),
+            },
         }))
     }
 
@@ -341,7 +313,7 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
         onUpdate(code => ({
             ...emptyCode,
             id: nextId(),
-            prev: showName(code),
+            prev: code,
         }))
     }
 
@@ -365,11 +337,7 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
     const updatePrev = update => {
         onUpdate(code => {
             const newPrev = update(code.prev)
-            return {
-                ...code,
-                revision: code.revision + 1,
-                prev: newPrev,
-            }
+            return { ...code, prev: newPrev }
         })
     }
 
@@ -380,7 +348,6 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
                     key={code.id}
                     code={code.prev}
                     onUpdate={updatePrev}
-                    cache={cache.prev}
                     globalEnv={globalEnv}
                     nextId={nextId}
                 />
@@ -407,12 +374,12 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
                         <CodeEditor
                             code={code.expr}
                             onUpdate={onUpdateExpr}
-                            // onKeyPress={onMetaEnter(onCmdInsert)}
+                            onKeyPress={onMetaEnter(onCmdInsert)}
                         />
                     }
                     {code.ui.isResultVisible &&
                         <ValueViewer
-                            value={cache.result}
+                            value={code.cachedResult}
                             state={code.state}
                             setState={subUpdate('state', onUpdate)}
                         />
@@ -421,7 +388,7 @@ export const REPL = ({ code, onUpdate, cache, nextId, globalEnv }) => {
                         <StateViewer
                             state={code.state}
                             onUpdate={subUpdate('state', onUpdate)}
-                            env={cacheToEnv(cache.prev, globalEnv)}
+                            env={localEnv(code.prev, globalEnv)}
                         />
                     }
                 </REPLContent>
@@ -466,7 +433,9 @@ export const StateEditor = ({ state, onUpdate, onClose, env }) => {
     const [mode, setMode] = React.useState('json')
     const globalEnv = { ...env, state }
     const initCode = { ...emptyCode, expr: "state" }
-    const [{ code, cache }, setCode] = useCachedCodeState(initCode, globalEnv)
+    const [code, setCode] = React.useState(() => precompute(initCode, globalEnv))
+
+    const setCodeAndCompute = updateCode(setCode, globalEnv)
 
     useEffect(() => {
         try {
@@ -512,11 +481,10 @@ export const StateEditor = ({ state, onUpdate, onClose, env }) => {
                     <React.Fragment>
                         <REPL
                             code={code}
-                            onUpdate={setCode}
-                            cache={cache}
+                            onUpdate={setCodeAndCompute}
                             globalEnv={globalEnv}
                         />
-                        <button onClick={onSaveComputed(cache.result)}>Save</button>
+                        <button onClick={onSaveComputed(code.cachedResult)}>Save</button>
                     </React.Fragment>
                 }
             </div>
