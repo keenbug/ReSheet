@@ -12,6 +12,7 @@ import * as repl from './repl'
 import * as value from './value'
 import * as tables from './tables'
 import * as ui from './ui'
+import * as utils from './utils'
 
 export default {
     React,
@@ -29,4 +30,5 @@ export default {
     repl,
     App: value.createApp,
     value,
+    utils,
 }

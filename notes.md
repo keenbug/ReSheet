@@ -23,7 +23,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 - [x] Use incremental "versions" instead of performance.now for lastUpdate
 - [x] Slim (KISS) down every thing.
 - [x] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
-- [ ] Add option to use state/data instead of the expr result
+- [x] Add option to use state/data instead of the expr result
 - [ ] Work on Spreadsheets
     - [ ] Simpler columns definition
     - [ ] Add focus (edit -> focus + isEditing)
@@ -72,12 +72,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Properly transpile JS Expressions (instead of Statements) with Babel
     - [x] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
+    - [x] Add Save/Load
+    - [ ] Make automatic code execution disable-able
     - [ ] Add backup states / undo history
 * Cleanup
     - [ ] use dangerouslySetInnerHTML in TextInput?
     - [ ] Switch to useReducer for Code State
     - [ ] Make Code a flat list instead of linking via prev?
-    - [ ] Merge cached result into Code again?
+    - [x] Merge cached result into Code again?
 * Fixes
     - [ ] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
         - Grabs focus when editing elsewhere

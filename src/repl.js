@@ -9,7 +9,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { ValueViewer, ValueInspector, initialAppState } from './value'
 import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
-import { subUpdate } from './utils'
+import { nextElem, subUpdate } from './utils'
 
 
 /**************** User Code Execution **************/
@@ -23,7 +23,7 @@ export const runExpr = (code, env) => {
         const programAst = {
             type: 'Program',
             interpreter: null,
-            sourceType: 'script',
+            sourceType: 'module',
             body: [
                 {
                     type: "ReturnStatement",
@@ -72,10 +72,9 @@ export const getNextId = code => after => {
 
 export const localEnv = (code, globalEnv) => {
     if (!code) { return globalEnv }
-    const name = code.name.length > 0 ? code.name : ('$' + code.id)
     return {
         ...localEnv(code.prev, globalEnv),
-        [name]: code.cachedResult,
+        [getName(code)]: code.usageMode === 'use-result' ? code.cachedResult : code.state,
     }
 }
 
@@ -99,12 +98,50 @@ export const precompute = (code, globalEnv, force=false) => {
     }
 }
 
+export const stripCachedResult = code => (
+    code ?
+        {
+            ...code,
+            prev: stripCachedResult(code.prev),
+            cachedResult: null,
+        }
+    :
+        null
+)
+
+const getOrDefault = (fieldName, input, defaults) =>
+    input.hasOwnProperty(fieldName) ? input[fieldName] : defaults[fieldName]
+
+export const rebuildCodeUIOptions = options => ({
+    isNameVisible: getOrDefault('isNameVisible', options, defaultCodeUI),
+    isCodeVisible: getOrDefault('isCodeVisible', options, defaultCodeUI),
+    isResultVisible: getOrDefault('isResultVisible', options, defaultCodeUI),
+    isStateVisible: getOrDefault('isStateVisible', options, defaultCodeUI),
+})
+
+export const rebuildCode = ({ id, name, expr, ui, state, usageMode, prev }) => {
+    const rebuiltPrev = prev && rebuildCode(prev)
+    return {
+        id: id || getNextId(rebuiltPrev)(),
+        name: name || "",
+        expr: expr || "",
+        ui: typeof ui === 'object' ? rebuildCodeUIOptions(ui) : defaultCodeUI,
+        state,
+        usageMode: usageMode || USAGE_MODES[0],
+        cachedResult: null,
+        invalidated: true,
+        prev: rebuiltPrev,
+    }
+}
+
 export const updateCode = (setCode, globalEnv) => update => {
     setCode(code => precompute(
         typeof update === 'function' ? update(code) : update,
         globalEnv,
     ))
 }
+
+export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
 export const defaultCodeUI = {
     isNameVisible: true,
@@ -119,9 +156,23 @@ export const emptyCode = {
     expr: "",
     ui: defaultCodeUI,
     state: initialAppState,
+    usageMode: USAGE_MODES[0],
     prev: null,
     cachedResult: null,
     invalidated: true,
+}
+
+export const getDefaultName = code => '$' + code.id
+export const getName = code => code.name.length > 0 ? code.name : getDefaultName(code)
+
+export const concatCode = (code, prevCode) =>
+    code === null ? prevCode : { ...code, prev: concatCode(code.prev, prevCode) }
+
+export const reindexCode = (code, nextId) => {
+    if (!code) { return null }
+    const prev = reindexCode(code.prev, nextId)
+    const id = prev ? nextId(prev.id) : nextId()
+    return { ...code, id, prev }
 }
 
 
@@ -179,7 +230,7 @@ const MenuHTML = classed('div')`
     outline-none
 `
 
-const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
+const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
     const [isMenuVisible, setMenuVisible] = React.useState(false)
     const menuRef = React.useRef(null)
 
@@ -256,6 +307,13 @@ const REPLUIToggles = ({ ui, onUpdate, onInsertBefore, onInsertAfter, onReset, o
             <IconToggleButton
                 className="w-full"
                 isActive={true}
+                icon={solidIcons.faDollarSign}
+                onUpdate={onSwitchUsageMode}
+                label={`Save ${usageMode === 'use-result' ? "code result" : "app data"} in ${name}`}
+                />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
                 icon={solidIcons.faStepBackward}
                 onUpdate={onReset}
                 label="Reset App (data)"
@@ -306,6 +364,16 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
             invalidated: true,
             expr,
         }))
+    }
+
+    const switchUsageMode = () => {
+        onUpdate(code => {
+            console.log('usage mode', code.usageMode, nextElem(code.usageMode, USAGE_MODES))
+            return ({
+            ...code,
+            invalidated: true,
+            usageMode: nextElem(code.usageMode, USAGE_MODES),
+        })})
     }
 
     const onUpdateName = name => {
@@ -370,6 +438,9 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
                 <REPLUIToggles
                     ui={code.ui}
                     onUpdate={subUpdate('ui', onUpdate)}
+                    name={getName(code)}
+                    usageMode={code.usageMode}
+                    onSwitchUsageMode={switchUsageMode}
                     onInsertBefore={onInsertBefore} onInsertAfter={onInsertAfter}
                     onDelete={onDelete} onReset={onReset}
                 />
@@ -379,7 +450,7 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
                             <VarNameInput
                                 value={code.name}
                                 onUpdate={onUpdateName}
-                                placeholder={'$' + code.id}
+                                placeholder={getDefaultName(code)}
                             />
                             &nbsp;=
                         </div>
