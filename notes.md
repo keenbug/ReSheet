@@ -19,15 +19,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [x] Use incremental id's instead of timestamps
-- [x] Use incremental "versions" instead of performance.now for lastUpdate
-- [x] Slim (KISS) down every thing.
-- [x] Dismiss Menu on focusout/bur: Check if new focus is inside the menu
 - [x] Add option to use state/data instead of the expr result
-- [ ] Work on Spreadsheets
-    - [ ] Simpler columns definition
-    - [ ] Add focus (edit -> focus + isEditing)
-    - [ ] Add "global" edit line (like excel)
+- [x] use headlessui
+- [x] make auto-run disable-able
+- [x] import js files
+- [ ] switch repl to dispatch pattern instead of update-/set-*
 
 
 # Current
@@ -80,6 +76,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [ ] Switch to useReducer for Code State
     - [ ] Make Code a flat list instead of linking via prev?
     - [x] Merge cached result into Code again?
+    - [x] headless-ui (e.g. for context menus)
 * Fixes
     - [ ] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
         - Grabs focus when editing elsewhere
@@ -113,6 +110,9 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         * Transpile with Babel?
         * Bundle? Every Lib needs to be specially bundled?
             * Can npm/yarn be executed in the browser?
+* Collaboration?
+    * yJS
+    * Messaging via Matrix?
 
 * Other Code Editor?
     - monaco? (~VSCode) https://github.com/Microsoft/monaco-editor
@@ -128,6 +128,7 @@ Fontawesome - https://fontawesome.com/v5.15/icons?d=gallery
               https://fontawesome.com/v5.15/how-to-use/on-the-web/using-with/react
 Tailwindcss - https://tailwindcss.com/docs/utility-first
               https://tailwindcomponents.com/cheatsheet/
+headlessui - https://headlessui.dev
 react-inspector - https://www.npmjs.com/package/react-inspector
 CodeJar
 PrismJS

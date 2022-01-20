@@ -15,6 +15,17 @@ export const onMetaEnter = func => event => {
 
 
 
+export const classes = classDict =>
+    Object.keys(classDict).reduce(
+        (classStr, className) =>
+            classDict[className] ?
+                className + ' ' + classStr
+            :
+                classStr
+        ,
+        ""
+    )
+
 export const classed = elem => (strings, ...interpolations) =>
     React.forwardRef((props, ref) =>
         React.createElement(

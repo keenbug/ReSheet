@@ -4,10 +4,10 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode, stripCachedResult, rebuildCode, concatCode, reindexCode } from './repl'
+import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode, stripCachedResult, rebuildCode, concatCode, reindexCode, parseJsCode, linkCodes } from './repl'
 import { ValueViewer, ErrorBoundary } from './value'
 import stdLibrary from './std-library'
-import { IconToggleButton, classed } from './ui'
+import { IconToggleButton, classed, TextInput } from './ui'
 import { catchAll, subUpdate } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
@@ -89,15 +89,42 @@ const UploadLabel = classed('label')`
     h-7 px-1 space-x-1
 `
 
-const DownloadButton = ({ code }) => {
+const DownloadButton = ({ code, name }) => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stripCachedResult(code)));
 
     return (
-        <DownloadButtonHTML className="self-end" href={dataStr} download="Code.json">
+        <DownloadButtonHTML className="self-end" href={dataStr} download={`${name}.json`}>
             <div className="inline-block w-5 text-center">
                 <FontAwesomeIcon size="xs" icon={solidIcons.faSave} />
             </div>
         </DownloadButtonHTML>
+    )
+}
+
+const ImportButton = ({ setCode }) => {
+    const uploadFile = event => {
+        event.target.files[0].text()
+            .then(content => {
+                setCode(code => {
+                    const importedCode = reindexCode(linkCodes(parseJsCode(content).reverse()), getNextId(code))
+                    return precompute(
+                        concatCode(
+                            importedCode,
+                            code,
+                        ),
+                        stdLibrary,
+                        true,
+                    )
+                })
+            })
+    }
+    return (
+        <UploadLabel>
+            <div className="inline-block w-5 text-center">
+                <FontAwesomeIcon size="xs" icon={solidIcons.faFileImport} />
+            </div>
+            <input className="hidden" type="file" onChange={uploadFile} />
+        </UploadLabel>
     )
 }
 
@@ -156,10 +183,20 @@ const DeleteButton = ({ setCode }) => {
     )
 }
 
+const NameInput = classed(TextInput)`
+    self-center
+    text-slate-600
+    hover:bg-gray-200 hover:text-slate-700
+    focus:bg-gray-200 focus:text-slate-700
+    p-0.5 -ml-0.5
+    rounded
+`
+
 const App = () => {
     const loadSavedCode = () => precompute(rebuildCode(JSON.parse(localStorage.getItem('code')) ?? emptyCode), stdLibrary, true)
     const [code, setCode] = React.useState(loadSavedCode)
     const [mode, setMode] = React.useState('code')
+    const [name, setName] = React.useState('Code')
 
     const setCodeAndCompute = updateCode(setCode, stdLibrary)
 
@@ -174,9 +211,11 @@ const App = () => {
                 <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
                 <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
                 <Spacer />
+                <NameInput value={name} onUpdate={setName} />
                 <DeleteButton setCode={setCode} />
+                <ImportButton setCode={setCode} />
                 <UploadButton setCode={setCode} />
-                <DownloadButton code={code} />
+                <DownloadButton code={code} name={name} />
             </MenuLine>
             <AppContent
                 code={code} setCode={setCodeAndCompute}

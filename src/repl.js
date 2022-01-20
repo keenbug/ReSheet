@@ -1,13 +1,15 @@
-import React, { useEffect } from 'react'
-import * as babel from '@babel/core'
-import babelReact from '@babel/preset-react'
-import * as babelParser from '@babel/parser'
-import { useCodeJar } from 'react-codejar'
-import Prism from 'prismjs'
+import React from 'react'
+import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
+import * as babel from '@babel/core'
+import babelReact from '@babel/preset-react'
+import * as babelParser from '@babel/parser'
+import babelGenerator from '@babel/generator'
+
 import { ValueViewer, ValueInspector, initialAppState } from './value'
+import { EditableCode } from './code-editor'
 import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
 import { nextElem, subUpdate } from './utils'
 
@@ -119,7 +121,8 @@ export const rebuildCodeUIOptions = options => ({
     isStateVisible: getOrDefault('isStateVisible', options, defaultCodeUI),
 })
 
-export const rebuildCode = ({ id, name, expr, ui, state, usageMode, prev }) => {
+export const rebuildCode = code => {
+    const { id, name, expr, ui, state, usageMode, autorun, prev } = code
     const rebuiltPrev = prev && rebuildCode(prev)
     return {
         id: id || getNextId(rebuiltPrev)(),
@@ -130,6 +133,7 @@ export const rebuildCode = ({ id, name, expr, ui, state, usageMode, prev }) => {
         usageMode: usageMode || USAGE_MODES[0],
         cachedResult: null,
         invalidated: true,
+        autorun: code.hasOwnProperty('autorun') ? code.autorun : true,
         prev: rebuiltPrev,
     }
 }
@@ -160,6 +164,7 @@ export const emptyCode = {
     prev: null,
     cachedResult: null,
     invalidated: true,
+    autorun: true,
 }
 
 export const getDefaultName = code => '$' + code.id
@@ -167,6 +172,8 @@ export const getName = code => code.name.length > 0 ? code.name : getDefaultName
 
 export const concatCode = (code, prevCode) =>
     code === null ? prevCode : { ...code, prev: concatCode(code.prev, prevCode) }
+
+export const linkCodes = codes => codes.reduceRight((prev, cur) => concatCode(cur, prev), null)
 
 export const reindexCode = (code, nextId) => {
     if (!code) { return null }
@@ -177,171 +184,42 @@ export const reindexCode = (code, nextId) => {
 
 
 
-/**************** Code Editor *****************/
 
-const CodeContent = classed('code')`
-    block
-    min-h-1
-    rounded
-    hover:bg-gray-100 focus:bg-gray-100
-`
+/**************** JS Importer *****************/
 
-
-export const CodeEditor = ({ code, onUpdate, ...props }) => {
-    const ref = useCodeJar({
-        code,
-        onUpdate,
-        highlight: highlightJS,
-        options: {
-            tab: "  ",
-        },
-    })
-
-    return <pre><CodeContent ref={ref} {...props} /></pre>
+export const parseJsCode = code => {
+    const ast = babelParser.parse(code, { sourceType: 'module', plugins: [ 'jsx' ] })
+    return ast.program.body.map(parseJsAstNode)
 }
 
-export const highlightJS = editor => {
-    const text = editor.textContent
-    editor.innerHTML = Prism.highlight(
-        text,
-        Prism.languages.javascript,
-        'javascript'
-    )
+export const parseJsAstNode = node => {
+    if (node.type === 'ExportNamedDeclaration') {
+        return {
+            ...emptyCode,
+            name: node.declaration.declarations[0].id.name,
+            expr: babelGenerator(node.declaration.declarations[0].init).code,
+        }
+    }
+    else if (node.type === 'VariableDeclaration') {
+        return {
+            ...emptyCode,
+            name: node.declarations[0].id.name,
+            expr: babelGenerator(node.declarations[0].init).code,
+        }
+    }
+    else {
+        return {
+            ...emptyCode,
+            expr: babelGenerator(node).code,
+        }
+    }
 }
+
+
 
 
 
 /**************** REPL *****************/
-
-const toggleProperty = propName => obj => (
-    { ...obj, [propName]: !obj[propName] }
-)
-
-const MenuHTML = classed('div')`
-    flex flex-col
-    bg-gray-100
-    shadow
-    rounded
-    items-stretch
-    w-max
-    text-sm
-    overflow-hidden
-    z-10
-    outline-none
-`
-
-const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
-    const [isMenuVisible, setMenuVisible] = React.useState(false)
-    const menuRef = React.useRef(null)
-
-    React.useEffect(() => {
-        if (menuRef.current && isMenuVisible) {
-            menuRef.current.focus()
-        }
-    })
-
-    const Toggle = ({ propName, icon, iconDisabled, label, ...props }) => (
-            <IconToggleButton
-                className="w-full"
-                isActive={ui[propName]}
-                icon={icon}
-                iconDisabled={iconDisabled}
-                onUpdate={() => onUpdate(toggleProperty(propName))}
-                label={`${ui[propName] ? "Hide" : "Show"} ${label}`}
-                {...props}
-            />
-    )
-
-    const dismissMenu = event => {
-        if (!event.relatedTarget) {
-            setMenuVisible(false)
-            return
-        }
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-            setMenuVisible(false)
-            return
-        }
-    }
-
-    const Menu = () => (
-        <MenuHTML
-            className={`absolute -right-1 translate-x-full ${isMenuVisible ? '' : 'hidden'}`}
-            onBlur={dismissMenu}
-            ref={menuRef}
-            tabIndex={-1}
-        >
-            <Toggle
-                propName="isNameVisible"
-                icon={solidIcons.faICursor}
-                label="Assignment"
-            />
-            <Toggle
-                propName="isCodeVisible"
-                icon={solidIcons.faCode}
-                label="Code"
-            />
-            <Toggle
-                propName="isResultVisible"
-                icon={solidIcons.faPlay}
-                label="Result"
-            />
-            <Toggle
-                propName="isStateVisible"
-                icon={solidIcons.faHdd}
-                label="State"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faChevronUp}
-                onUpdate={onInsertBefore}
-                label="Insert before"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faChevronDown}
-                onUpdate={onInsertAfter}
-                label="Insert after"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faDollarSign}
-                onUpdate={onSwitchUsageMode}
-                label={`Save ${usageMode === 'use-result' ? "code result" : "app data"} in ${name}`}
-                />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faStepBackward}
-                onUpdate={onReset}
-                label="Reset App (data)"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faTrash}
-                onUpdate={onDelete}
-                label="Delete"
-            />
-        </MenuHTML>
-    )
-
-    return (
-        <div>
-            <div className="relative">
-                <Menu />
-            </div>
-            <button
-                className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                onClick={() => { setMenuVisible(visible => !visible) }}
-            >
-                <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
-            </button>
-        </div>
-    )
-}
 
 
 
@@ -357,11 +235,28 @@ const VarNameInput = classed(TextInput)`
 `
 
 
+export const setFields = newFields => object => ({ ...object, ...newFields })
+
+export const mapCode = (fn, code) => code && ({
+    ...fn(code),
+    prev: mapCode(fn, code.prev),
+})
+
+export const updateCodeWithId = (id, update) => code =>
+    mapCode(
+        code => code.id === id ? update(code) : code,
+        code,
+    )
+
+export const setCodeExpr = (id, expr) =>
+    updateCodeWithId(id, setFields({ expr }))
+
+
 export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
     const onUpdateExpr = expr => {
         onUpdate(code => ({
             ...code,
-            invalidated: true,
+            invalidated: code.autorun,
             expr,
         }))
     }
@@ -371,13 +266,41 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
             console.log('usage mode', code.usageMode, nextElem(code.usageMode, USAGE_MODES))
             return ({
             ...code,
-            invalidated: true,
+            invalidated: code.autorun,
             usageMode: nextElem(code.usageMode, USAGE_MODES),
         })})
     }
 
     const onUpdateName = name => {
         onUpdate(code => ({ ...code, name }))
+    }
+
+    const onUpdateState = update => {
+        onUpdate(code => ({
+            ...code,
+            state: typeof update === 'function' ? update(code.state) : update,
+            invalidated: code.usageMode === 'use-data' ? code.autorun : code.invalidated,
+        }))
+    }
+
+    const onSwitchAutorun = () => {
+        onUpdate(code => ({ ...code, autorun: !code.autorun }))
+    }
+
+    const onRun = () => {
+        onUpdate(code => ({ ...code, invalidated: true }))
+    }
+
+    const onKeyPress = event => {
+        onMetaEnter(onCmdInsert)(event)
+        if (event.altKey && event.key === 'Enter') {
+            if (event.shiftKey) {
+                onSwitchAutorun()
+            }
+            else {
+                onRun()
+            }
+        }
     }
 
     const onInsertBefore = () => {
@@ -446,35 +369,41 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
                 />
                 <REPLContent>
                     {code.ui.isNameVisible &&
-                        <div className="self-start text-slate-500 font-light text-xs -mb-1">
-                            <VarNameInput
-                                value={code.name}
-                                onUpdate={onUpdateName}
-                                placeholder={getDefaultName(code)}
-                            />
-                            &nbsp;=
+                        <div className="flex self-stretch space-x-2 pr-2 -mb-1 text-slate-500 font-light text-xs">
+                            <div>
+                                <VarNameInput
+                                    value={code.name}
+                                    onUpdate={onUpdateName}
+                                    placeholder={getDefaultName(code)}
+                                />
+                                &nbsp;=
+                            </div>
+                            <div className="flex-1" />
+                            <button onClick={onSwitchAutorun}>
+                                {code.autorun || "No "}
+                                Autorun
+                            </button>
+                            <button onClick={onRun}>
+                                Run
+                            </button>
                         </div>
                     }
                     {code.ui.isCodeVisible &&
-                        <CodeEditor
+                        <EditableCode
                             code={code.expr}
                             onUpdate={onUpdateExpr}
-                            onKeyPress={onMetaEnter(onCmdInsert)}
+                            onKeyPress={onKeyPress}
                         />
                     }
                     {code.ui.isResultVisible &&
                         <ValueViewer
                             value={code.cachedResult}
                             state={code.state}
-                            setState={subUpdate('state', onUpdate)}
+                            setState={onUpdateState}
                         />
                     }
                     {code.ui.isStateVisible &&
-                        <StateViewer
-                            state={code.state}
-                            onUpdate={subUpdate('state', onUpdate)}
-                            env={localEnv(code.prev, globalEnv)}
-                        />
+                        <ValueInspector value={code.state} />
                     }
                 </REPLContent>
             </REPLLine>
@@ -485,94 +414,111 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
 
 
 
-/****************** State Viewer ******************/
 
-export const StateViewer = ({ state, onUpdate, env }) => {
-    const [isEditing, setIsEditing] = React.useState(false)
+/****************** REPL Popover ******************/
 
-    if (isEditing) {
-        return (
-            <StateEditor
-                state={state}
-                onUpdate={onUpdate}
-                onClose={() => setIsEditing(false)}
-                env={env}
+const toggleProperty = propName => obj => (
+    { ...obj, [propName]: !obj[propName] }
+)
+
+const PopoverPanelStyled = classed(Popover.Panel)`
+    flex flex-col
+    bg-gray-100
+    shadow
+    rounded
+    items-stretch
+    w-max
+    text-sm
+    overflow-hidden
+    z-10
+    outline-none
+`
+
+const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
+    const Toggle = ({ propName, icon, iconDisabled, label, ...props }) => (
+            <IconToggleButton
+                className="w-full"
+                isActive={ui[propName]}
+                icon={icon}
+                iconDisabled={iconDisabled}
+                onUpdate={() => onUpdate(toggleProperty(propName))}
+                label={`${ui[propName] ? "Hide" : "Show"} ${label}`}
+                {...props}
             />
-        )
-    }
-    else {
-        return (
-            <div>
-                <button onClick={() => { setIsEditing(true) }}>
-                    <FontAwesomeIcon size="xs" icon={solidIcons.faPen} />
-                </button>
-                <ValueInspector value={state} />
-            </div>
-        )
-    }
-}
+    )
 
-export const StateEditor = ({ state, onUpdate, onClose, env }) => {
-    const [stateJSON, setStateJSON] = React.useState(JSON.stringify(state, null, 2))
-    const [validJSON, setValidJSON] = React.useState(true)
-    const [mode, setMode] = React.useState('json')
-    const globalEnv = { ...env, state }
-    const initCode = { ...emptyCode, expr: "state" }
-    const [code, setCode] = React.useState(() => precompute(initCode, globalEnv))
-
-    const setCodeAndCompute = updateCode(setCode, globalEnv)
-
-    useEffect(() => {
-        try {
-            onUpdate(JSON.parse(stateJSON))
-            setValidJSON(true)
-        }
-        catch (e) {
-            setValidJSON(false)
-        }
-    }, [stateJSON])
-
-    const onSaveComputed = newState => () => {
-        onUpdate(newState)
-        onClose()
-    }
+    const Menu = () => (
+        <PopoverPanelStyled
+            className="absolute -right-1 translate-x-full"
+        >
+            <Toggle
+                propName="isNameVisible"
+                icon={solidIcons.faICursor}
+                label="Assignment"
+            />
+            <Toggle
+                propName="isCodeVisible"
+                icon={solidIcons.faCode}
+                label="Code"
+            />
+            <Toggle
+                propName="isResultVisible"
+                icon={solidIcons.faPlay}
+                label="Result"
+            />
+            <Toggle
+                propName="isStateVisible"
+                icon={solidIcons.faHdd}
+                label="State"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faChevronUp}
+                onUpdate={onInsertBefore}
+                label="Insert before"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faChevronDown}
+                onUpdate={onInsertAfter}
+                label="Insert after"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faDollarSign}
+                onUpdate={onSwitchUsageMode}
+                label={`Save ${usageMode === 'use-result' ? "code result" : "app data"} in ${name}`}
+                />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faStepBackward}
+                onUpdate={onReset}
+                label="Reset App (data)"
+            />
+            <IconToggleButton
+                className="w-full"
+                isActive={true}
+                icon={solidIcons.faTrash}
+                onUpdate={onDelete}
+                label="Delete"
+            />
+        </PopoverPanelStyled>
+    )
 
     return (
         <div>
-            <div className="w-max mb-0.5 border-b-2 border-gray-300">
-                <ToggleButton
-                    className={"w-auto px-1 text-xs font-bold " + (mode === 'json' ? "text-slate-500" : "text-slate-300")}
-                    onClick={() => setMode('json')}
+            <Popover className="relative">
+                <Menu />
+                <Popover.Button
+                    className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                 >
-                    JSON
-                </ToggleButton>
-                <IconToggleButton
-                    isActive={mode === 'code'}
-                    icon={solidIcons.faCode}
-                    onUpdate={() => setMode('code')}
-                />
-            </div>
-            <div>
-                {mode === 'json' &&
-                    <React.Fragment>
-                        <CodeEditor
-                            code={stateJSON} onUpdate={setStateJSON}
-                            onKeyPress={onMetaEnter(onClose)}
-                        />
-                        <p>{validJSON ? "saved" : "invalid JSON"}</p>
-                    </React.Fragment>
-                }
-                {mode === 'code' &&
-                    <React.Fragment>
-                        <REPL
-                            code={code}
-                            onUpdate={setCodeAndCompute}
-                            globalEnv={globalEnv}
-                        />
-                        <button onClick={onSaveComputed(code.cachedResult)}>Save</button>
-                    </React.Fragment>
-                }
-            </div>
+                    <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
+                </Popover.Button>
+            </Popover>
         </div>
     )
 }
