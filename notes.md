@@ -5,16 +5,16 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Ideas
 
-- There are cells, describing a "unit" of data (corresponding to cells in excel or lines/whatever in notion)
-    - every cell can be switched between 3 different states:
+- There are blocks, describing a "unit" of data (corresponding to cells in excel or lines/whatever in notion)
+    - every block can be switched between 3 different states:
         - view: display the user data (e.g. a paragraph of text)
         - edit: change user data (e.g. a paragraph of text in a small text editor)
         - code: change the underlying code
-    - a cell consists of
+    - a block consists of
         - data: the user (editable) data
         - code: determining the cells behaviour and view in the view and edit state
         - (interactive state: volatile state that is not persisted and can be lost because of user actions. Only used for the UI. Does not contain data the user explicitly wants to persist)
-    - cells can be nested in cells
+    - blocks can be nested in blocks
 
 
 # Steps
