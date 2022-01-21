@@ -16,7 +16,7 @@ import * as tables from './tables'
 import * as ui from './ui'
 import * as utils from './utils'
 
-export default {
+const library = {
     React,
     FontAwesomeIcon,
     faSolid,
@@ -38,3 +38,5 @@ export default {
     value,
     utils,
 }
+
+export default { stdLibrary: library, ...library }

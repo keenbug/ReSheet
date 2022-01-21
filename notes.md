@@ -23,6 +23,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 - [x] use headlessui
 - [x] make auto-run disable-able
 - [x] import js files
+- [ ] map import statements in imported js if possible
 - [ ] switch repl to dispatch pattern instead of update-/set-*
 
 
@@ -98,11 +99,12 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Future
 
-* Switch to TypeScript. Maybe TS could be run in the browser - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
+* Switch to TypeScript? Maybe TS could be run in the browser - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
 * Style-/Theme-Editor?
     * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
 * Change (Context) Menus to "Commander Prompts"
     * Mixture of Sublime's/Atom's/VSCode's "Command Palette", Notion's Context Menus/Commands and iOS's long press "Context Menu"s/Previews
+* PWA
 * REPL
     * Add completion: Special input (rather search), searches env and can select properties
     * console-feed?

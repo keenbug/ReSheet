@@ -192,6 +192,36 @@ export const parseJsCode = code => {
     return ast.program.body.map(parseJsAstNode)
 }
 
+export const IMPORT_MAPPINGS = {
+    "react": `stdLibrary.React`,
+    "@headlessui/react": `stdLibrary.headlessui`,
+    "@fortawesome/react-fontawesome": `{ FontAwesomeIcon: stdLibrary.FontAwesomeIcon }`,
+    "@fortawesome/free-solid-svg-icons": `stdLibrary.faSolid`,
+    "@fortawesome/free-regular-svg-icons": `stdLibrary.faRegular`,
+    "@babel/core": `stdLibrary.babel.core`,
+    "@babel/preset-react": `stdLibrary.babel.react`,
+    "@babel/parser": `stdLibrary.babel.parser`,
+    "@babel/generator": `stdLibrary.babel.generator`,
+    "./repl": `stdLibrary.repl`,
+    "./value": `stdLibrary.value`,
+    "./ui": `stdLibrary.ui`,
+    "./utils": `stdLibrary.utils,`
+}
+
+export const mapImport = source => (
+    IMPORT_MAPPINGS[source] || `import(${JSON.stringify(source)})`
+)
+
+export const mapImportSpecifier = specifier => {
+    const pattern = babelGenerator(specifier).code
+    if (specifier.type === 'ImportDefaultSpecifier') {
+        return pattern
+    }
+    else {
+        return `{ ${pattern} }`
+    }
+}
+
 export const parseJsAstNode = node => {
     if (node.type === 'ExportNamedDeclaration') {
         return {
@@ -205,6 +235,13 @@ export const parseJsAstNode = node => {
             ...emptyCode,
             name: node.declarations[0].id.name,
             expr: babelGenerator(node.declarations[0].init).code,
+        }
+    }
+    else if (node.type === 'ImportDeclaration') {
+        return {
+            ...emptyCode,
+            name: mapImportSpecifier(node.specifiers[0]),
+            expr: mapImport(node.source.value)
         }
     }
     else {
