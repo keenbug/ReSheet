@@ -10,8 +10,8 @@ import babelGenerator from '@babel/generator'
 
 import { ValueViewer, ValueInspector, initialBlockState } from './value'
 import { EditableCode } from './code-editor'
-import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
-import { nextElem, subUpdate } from './utils'
+import { IconToggleButton, TextInput, classed, onMetaEnter } from './ui'
+import { nextElem, runUpdate } from './utils'
 
 
 /**************** User Code Execution **************/
@@ -60,7 +60,7 @@ export const getCodeById = (id, code) => {
     return getCodeById(id, code.prev)
 }
 
-export const getNextId = code => after => {
+export const getNextId = (code, after) => {
     for (
         let id = after ? (after + 1) : 0;
         id < Number.MAX_SAFE_INTEGER;
@@ -114,21 +114,21 @@ export const stripCachedResult = code => (
 const getOrDefault = (fieldName, input, defaults) =>
     input.hasOwnProperty(fieldName) ? input[fieldName] : defaults[fieldName]
 
-export const rebuildCodeUIOptions = options => ({
-    isNameVisible: getOrDefault('isNameVisible', options, defaultCodeUI),
-    isCodeVisible: getOrDefault('isCodeVisible', options, defaultCodeUI),
+export const sanitizeCodeUIOptions = options => ({
+    isNameVisible:   getOrDefault('isNameVisible',   options, defaultCodeUI),
+    isCodeVisible:   getOrDefault('isCodeVisible',   options, defaultCodeUI),
     isResultVisible: getOrDefault('isResultVisible', options, defaultCodeUI),
-    isStateVisible: getOrDefault('isStateVisible', options, defaultCodeUI),
+    isStateVisible:  getOrDefault('isStateVisible',  options, defaultCodeUI),
 })
 
-export const rebuildCode = code => {
-    const { id, name, expr, ui, state, usageMode, autorun, prev } = code
-    const rebuiltPrev = prev && rebuildCode(prev)
+export const sanitizeCode = code => {
+    const { id, name, expr, ui, state, usageMode, prev } = code
+    const rebuiltPrev = prev && sanitizeCode(prev)
     return {
-        id: id || getNextId(rebuiltPrev)(),
+        id: id || getNextId(rebuiltPrev),
         name: name || "",
         expr: expr || "",
-        ui: typeof ui === 'object' ? rebuildCodeUIOptions(ui) : defaultCodeUI,
+        ui: typeof ui === 'object' ? sanitizeCodeUIOptions(ui) : defaultCodeUI,
         state,
         usageMode: usageMode || USAGE_MODES[0],
         cachedResult: null,
@@ -136,13 +136,6 @@ export const rebuildCode = code => {
         autorun: code.hasOwnProperty('autorun') ? code.autorun : true,
         prev: rebuiltPrev,
     }
-}
-
-export const updateCode = (setCode, globalEnv) => update => {
-    setCode(code => precompute(
-        typeof update === 'function' ? update(code) : update,
-        globalEnv,
-    ))
 }
 
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
@@ -176,10 +169,10 @@ export const codeList = code =>
     :
         []
 
-export const concatCode = (code, prevCode) =>
-    code === null ? prevCode : { ...code, prev: concatCode(code.prev, prevCode) }
+export const appendCode = (code, prevCode) =>
+    code === null ? prevCode : { ...code, prev: appendCode(code.prev, prevCode) }
 
-export const linkCodes = codes => codes.reduceRight((prev, cur) => concatCode(cur, prev), null)
+export const concatCode = codes => codes.reduceRight((prev, cur) => appendCode(cur, prev), null)
 
 export const reindexCode = (code, nextId) => {
     if (!code) { return null }
@@ -287,61 +280,119 @@ const VarNameInput = classed(TextInput)`
 `
 
 
-export const setFields = newFields => object => ({ ...object, ...newFields })
-
-export const mapCode = (fn, code) => code && ({
-    ...fn(code),
-    prev: mapCode(fn, code.prev),
-})
-
-export const updateCodeWithId = (id, update) => code =>
-    mapCode(
-        code => code.id === id ? update(code) : code,
-        code,
+export const updateCodeWithId = (id, update, code) =>
+    code && (
+        code.id === id ?
+            update(code)
+        : (
+            { ...code, prev: updateCodeWithId(id, update, code.prev) }
+        )
     )
 
-export const setCodeExpr = (id, expr) =>
-    updateCodeWithId(id, setFields({ expr }))
-
-
-export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
-    const onUpdateExpr = expr => {
-        onUpdate(code => ({
+export const setCodeExpr = (id, expr, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({
             ...code,
-            invalidated: code.autorun,
             expr,
-        }))
-    }
+            invalidated: code.autorun
+        }),
+        wholeCode,
+    )
 
-    const switchUsageMode = () => {
-        onUpdate(code => {
-            console.log('usage mode', code.usageMode, nextElem(code.usageMode, USAGE_MODES))
-            return ({
+export const switchUsageMode = (id, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({
             ...code,
             invalidated: code.autorun,
             usageMode: nextElem(code.usageMode, USAGE_MODES),
-        })})
-    }
+        }),
+        wholeCode,
+    )
 
-    const onUpdateName = name => {
-        onUpdate(code => ({ ...code, name }))
-    }
+export const setName = (id, name, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...code, name }),
+        wholeCode,
+    )
 
-    const onUpdateState = update => {
-        onUpdate(code => ({
+export const updateState = (id, stateUpdate, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({
             ...code,
-            state: typeof update === 'function' ? update(code.state) : update,
             invalidated: code.usageMode === 'use-data' ? code.autorun : code.invalidated,
-        }))
-    }
+            state: runUpdate(stateUpdate, code.state),
+        }),
+        wholeCode,
+    )
 
-    const onSwitchAutorun = () => {
-        onUpdate(code => ({ ...code, autorun: !code.autorun }))
-    }
+export const switchAutorun = (id, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...code, autorun: !code.autorun }),
+        wholeCode,
+    )
 
-    const onRun = () => {
-        onUpdate(code => ({ ...code, invalidated: true }))
-    }
+export const runCode = (id, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...code, invalidated: true }),
+        wholeCode,
+    )
+
+export const insertBeforeCode = (id, insert, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...code, prev: { ...insert, id: getNextId(wholeCode), prev: code.prev } }),
+        wholeCode,
+    )
+
+export const insertAfterCode = (id, insert, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...insert, id: getNextId(wholeCode), prev: code }),
+        wholeCode,
+    )
+
+export const deleteCode = (id, wholeCode) =>
+    id === wholeCode.id ?
+        (wholeCode.prev || emptyCode)
+    :
+        updateCodeWithId(
+            id,
+            code => code.prev,
+            wholeCode,
+        )
+
+export const resetStateCode = (id, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({
+            ...code,
+            invalidated: code.usageMode === 'use-data' ? code.autorun : code.invalidated,
+            state: initialBlockState
+        }),
+        wholeCode,
+    )
+
+export const updateUIOption = (id, uiUpdater, wholeCode) =>
+    updateCodeWithId(
+        id,
+        code => ({ ...code, ui: uiUpdater(code.ui) }),
+        wholeCode,
+    )
+
+
+export const REPL = ({ code, dispatch }) => {
+    const onUpdateExpr    = expr        => dispatch(setCodeExpr,      code.id, expr)
+    const onUpdateState   = stateUpdate => dispatch(updateState,      code.id, stateUpdate)
+    const onSwitchAutorun = ()          => dispatch(switchAutorun,    code.id)
+    const onRun           = ()          => dispatch(runCode,          code.id)
+    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, emptyCode)
+    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, emptyCode)
 
     const onKeyPress = event => {
         onMetaEnter(onCmdInsert)(event)
@@ -355,25 +406,6 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
         }
     }
 
-    const onInsertBefore = () => {
-        onUpdate(code => ({
-            ...code,
-            prev: {
-                ...emptyCode,
-                id: nextId(),
-                prev: code.prev
-            },
-        }))
-    }
-
-    const onInsertAfter = () => {
-        onUpdate(code => ({
-            ...emptyCode,
-            id: nextId(),
-            prev: code,
-        }))
-    }
-
     const onCmdInsert = event => {
         if (event.shiftKey) {
             onInsertBefore()
@@ -383,76 +415,22 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
         }
     }
 
-    const onDelete = () => {
-        onUpdate(code => code.prev || emptyCode)
-    }
-
-    const onReset = () => {
-        onUpdate(code => ({ ...code, state: initialBlockState }))
-    }
-
-    const updatePrev = update => {
-        onUpdate(code => {
-            const newPrev = update(code.prev)
-            return { ...code, prev: newPrev }
-        })
-    }
-
     return (
         <React.Fragment>
             {code.prev &&
-                <REPL
-                    key={code.id}
-                    code={code.prev}
-                    onUpdate={updatePrev}
-                    globalEnv={globalEnv}
-                    nextId={nextId}
-                />
+                <REPL code={code.prev} dispatch={dispatch} />
             }
-            <REPLLine>
-                <REPLUIToggles
-                    ui={code.ui}
-                    onUpdate={subUpdate('ui', onUpdate)}
-                    name={getName(code)}
-                    usageMode={code.usageMode}
-                    onSwitchUsageMode={switchUsageMode}
-                    onInsertBefore={onInsertBefore} onInsertAfter={onInsertAfter}
-                    onDelete={onDelete} onReset={onReset}
-                />
+            <REPLLine key={code.id}>
+                <REPLUIToggles code={code} dispatch={dispatch} />
                 <REPLContent>
                     {code.ui.isNameVisible &&
-                        <div className="flex self-stretch space-x-2 pr-2 -mb-1 text-slate-500 font-light text-xs">
-                            <div>
-                                <VarNameInput
-                                    value={code.name}
-                                    onUpdate={onUpdateName}
-                                    placeholder={getDefaultName(code)}
-                                />
-                                &nbsp;=
-                            </div>
-                            <div className="flex-1" />
-                            <button onClick={onSwitchAutorun}>
-                                {code.autorun || "No "}
-                                Autorun
-                            </button>
-                            <button onClick={onRun}>
-                                Run
-                            </button>
-                        </div>
+                        <AssignmentLine code={code} dispatch={dispatch} />
                     }
                     {code.ui.isCodeVisible &&
-                        <EditableCode
-                            code={code.expr}
-                            onUpdate={onUpdateExpr}
-                            onKeyPress={onKeyPress}
-                        />
+                        <EditableCode code={code.expr} onUpdate={onUpdateExpr} onKeyPress={onKeyPress} />
                     }
                     {code.ui.isResultVisible &&
-                        <ValueViewer
-                            value={code.cachedResult}
-                            state={code.state}
-                            setState={onUpdateState}
-                        />
+                        <ValueViewer value={code.cachedResult} state={code.state} setState={onUpdateState} />
                     }
                     {code.ui.isStateVisible &&
                         <ValueInspector value={code.state} />
@@ -464,14 +442,39 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
 }
 
 
+export const AssignmentLine = ({ code, dispatch }) => {
+    const onUpdateName    = name => dispatch(setName,       code.id, name)
+    const onSwitchAutorun = ()   => dispatch(switchAutorun, code.id)
+    const onRun           = ()   => dispatch(runCode,       code.id)
+
+    return (
+        <div className="flex self-stretch space-x-2 pr-2 -mb-1 text-slate-500 font-light text-xs">
+            <div>
+                <VarNameInput
+                    value={code.name}
+                    onUpdate={onUpdateName}
+                    placeholder={getDefaultName(code)}
+                />
+                &nbsp;=
+            </div>
+
+            <div className="flex-1" />
+
+            <button onClick={onSwitchAutorun}>
+                {code.autorun || "No "}
+                Autorun
+            </button>
+            <button onClick={onRun}>
+                Run
+            </button>
+        </div>
+    )
+}
+
 
 
 
 /****************** REPL Popover ******************/
-
-const toggleProperty = propName => obj => (
-    { ...obj, [propName]: !obj[propName] }
-)
 
 const PopoverPanelStyled = classed(Popover.Panel)`
     flex flex-col
@@ -486,78 +489,49 @@ const PopoverPanelStyled = classed(Popover.Panel)`
     outline-none
 `
 
-const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onInsertBefore, onInsertAfter, onReset, onDelete }) => {
-    const Toggle = ({ propName, icon, iconDisabled, label, ...props }) => (
+const REPLUIToggles = ({ code, dispatch }) => {
+    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, emptyCode)
+    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, emptyCode)
+    const onReset           = () => dispatch(resetStateCode,   code.id)
+    const onSwitchUsageMode = () => dispatch(switchUsageMode,  code.id)
+    const onDelete          = () => dispatch(deleteCode,       code.id)
+
+    const Toggle = ({ propName, icon, iconDisabled, label, ...props }) => {
+        const onToggle = () =>
+            dispatch(
+                updateUIOption,
+                code.id,
+                ui => ({ ...ui, [propName]: !ui[propName] }),
+            )
+
+        return (
             <IconToggleButton
                 className="w-full"
-                isActive={ui[propName]}
+                isActive={code.ui[propName]}
                 icon={icon}
                 iconDisabled={iconDisabled}
-                onUpdate={() => onUpdate(toggleProperty(propName))}
-                label={`${ui[propName] ? "Hide" : "Show"} ${label}`}
+                onUpdate={onToggle}
+                label={`${code.ui[propName] ? "Hide" : "Show"} ${label}`}
                 {...props}
             />
+        )
+    }
+    
+    const Button = props => (
+        <IconToggleButton className="w-full" isActive={true} {...props} />
     )
 
     const Menu = () => (
-        <PopoverPanelStyled
-            className="absolute -right-1 translate-x-full"
-        >
-            <Toggle
-                propName="isNameVisible"
-                icon={solidIcons.faICursor}
-                label="Assignment"
-            />
-            <Toggle
-                propName="isCodeVisible"
-                icon={solidIcons.faCode}
-                label="Code"
-            />
-            <Toggle
-                propName="isResultVisible"
-                icon={solidIcons.faPlay}
-                label="Result"
-            />
-            <Toggle
-                propName="isStateVisible"
-                icon={solidIcons.faHdd}
-                label="State"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faChevronUp}
-                onUpdate={onInsertBefore}
-                label="Insert before"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faChevronDown}
-                onUpdate={onInsertAfter}
-                label="Insert after"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faDollarSign}
-                onUpdate={onSwitchUsageMode}
-                label={`Save ${usageMode === 'use-result' ? "code result" : "block data"} in ${name}`}
-                />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faStepBackward}
-                onUpdate={onReset}
-                label="Reset Block (data)"
-            />
-            <IconToggleButton
-                className="w-full"
-                isActive={true}
-                icon={solidIcons.faTrash}
-                onUpdate={onDelete}
-                label="Delete"
-            />
+        <PopoverPanelStyled className="absolute -right-1 translate-x-full">
+            <Toggle propName="isNameVisible"     icon={solidIcons.faICursor}      label="Assignment"         />
+            <Toggle propName="isCodeVisible"     icon={solidIcons.faCode}         label="Code"               />
+            <Toggle propName="isResultVisible"   icon={solidIcons.faPlay}         label="Result"             />
+            <Toggle propName="isStateVisible"    icon={solidIcons.faHdd}          label="State"              />
+            <Button onUpdate={onInsertBefore}    icon={solidIcons.faChevronUp}    label="Insert before"      />
+            <Button onUpdate={onInsertAfter}     icon={solidIcons.faChevronDown}  label="Insert after"       />
+            <Button onUpdate={onSwitchUsageMode} icon={solidIcons.faDollarSign}   label={`Save ${code.usageMode === 'use-result' ? "code result" : "block data"} in ${getName(code)}`} />
+            <Button onUpdate={onReset}           icon={solidIcons.faStepBackward} label="Reset Block (data)" />
+            <Button onUpdate={onDelete}          icon={solidIcons.faTrash}        label="Delete"             />
         </PopoverPanelStyled>
     )
 
@@ -565,9 +539,7 @@ const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onIns
         <div>
             <Popover className="relative">
                 <Menu />
-                <Popover.Button
-                    className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                >
+                <Popover.Button className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                     <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
                 </Popover.Button>
             </Popover>

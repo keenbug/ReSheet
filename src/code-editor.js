@@ -16,17 +16,17 @@ const CodeContent = classed('code')`
 `
 
 
-export const EditableCode = ({ code, onUpdate, highlight, ...props }) => {
+export const EditableCode = ({ code, onUpdate, highlight, className, ...props }) => {
     const [isEditing, setEditing] = React.useState(false)
 
     const stopEditing = () => { setEditing(false) }
     const startEditing = () => { setEditing(true) }
 
     if (isEditing) {
-        return <CodeEditor code={code} onUpdate={onUpdate} highlight={highlight} onBlur={stopEditing} {...props} />
+        return <CodeEditor code={code} onUpdate={onUpdate} highlight={highlight} onBlur={stopEditing} className={className} {...props} />
     }
     else {
-        return <CodeView code={code} onClick={startEditing} highlight={highlight} {...props} />
+        return <CodeView code={code} onClick={startEditing} highlight={highlight} className={'cursor-text ' + className} {...props} />
     }
 }
 
@@ -36,7 +36,8 @@ export const CodeView = ({ code, highlight = highlightJS, ...props }) => {
 
     React.useEffect(() => {
         if (ref.current) {
-            highlight(ref.current, code)
+            ref.current.textContent = code
+            highlight(ref.current)
         }
     }, [code, ref.current])
 
@@ -57,8 +58,8 @@ export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }
     return <pre><CodeContent ref={ref} {...props} /></pre>
 }
 
-export const highlightJS = (editor, code) => {
-    const text = code || editor.textContent
+export const highlightJS = editor => {
+    const text = editor.textContent
     editor.innerHTML = Prism.highlight(
         text,
         Prism.languages.javascript,

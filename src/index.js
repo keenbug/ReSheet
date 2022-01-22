@@ -4,11 +4,11 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode, stripCachedResult, rebuildCode, concatCode, reindexCode, parseJsCode, linkCodes, exportJsCode } from './repl'
-import { ValueViewer, ErrorBoundary } from './value'
+import { getNextId, REPL, precompute, emptyCode, stripCachedResult, sanitizeCode, appendCode, reindexCode, parseJsCode, concatCode, exportJsCode } from './repl'
+import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
 import stdLibrary, { LIBRARY_MAPPINGS } from './std-library'
 import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
-import { catchAll, subUpdate } from './utils'
+import { catchAll, runUpdate, subUpdate } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
@@ -16,26 +16,20 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 /****************** Main Application ******************/
 
-const AppContent = ({ code, setCode, mode, setMode }) => {
+const AppContent = ({ code, setCode, dispatchCode, mode, setMode }) => {
     switch (mode) {
         case 'code':
             return (
                 <ErrorBoundary title="There was an Error in the REPL">
                     <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
-                        <REPL
-                            code={code}
-                            onUpdate={setCode}
-                            globalEnv={stdLibrary}
-                            env={stdLibrary}
-                            nextId={getNextId(code)}
-                        />
+                        <REPL code={code} dispatch={dispatchCode} />
                     </div>
                 </ErrorBoundary>
             )
 
         case 'state':
             return (
-                <StateViewer state={code} onUpdate={subUpdate('state', setCode)} env={stdLibrary} />
+                <ValueInspector value={code} />
             )
         
         case 'app':
@@ -112,13 +106,13 @@ const ImportButton = ({ setCode }) => {
         const content = await file.text()
         setCode(code => {
             const importedCode = reindexCode(
-                linkCodes(
+                concatCode(
                     parseJsCode(content, LIBRARY_MAPPINGS).reverse()
                 ),
-                getNextId(code)
+                after => getNextId(code, after)
             )
             return precompute(
-                concatCode(
+                appendCode(
                     importedCode,
                     code,
                 ),
@@ -151,12 +145,12 @@ const ExportButton = ({ name, code }) => (
 const UploadButton = ({ setCode }) => {
     const loadFile = async file => {
         const content = await file.text()
-        const newCode = rebuildCode(JSON.parse(content))
+        const newCode = sanitizeCode(JSON.parse(content))
         setCode(code =>
             precompute(
-                concatCode(
+                appendCode(
                     newCode,
-                    reindexCode(code, getNextId(newCode)),
+                    reindexCode(code, after => getNextId(newCode, after)),
                 ),
                 stdLibrary,
                 true,
@@ -212,12 +206,21 @@ const NameInput = classed(TextInput)`
 `
 
 const App = () => {
-    const loadSavedCode = () => precompute(rebuildCode(JSON.parse(localStorage.getItem('code')) ?? emptyCode), stdLibrary, true)
+    const loadSavedCode = () => precompute(sanitizeCode(JSON.parse(localStorage.getItem('code')) ?? emptyCode), stdLibrary, true)
     const [code, setCode] = React.useState(loadSavedCode)
     const [mode, setMode] = React.useState('code')
     const [name, setName] = React.useState('Code')
 
-    const setCodeAndCompute = updateCode(setCode, stdLibrary)
+    const setCodeAndCompute = update => {
+        setCode(code => precompute(
+            runUpdate(update, code),
+            stdLibrary,
+        ))
+    }
+    const dispatchCode = (action, ...args) => {
+        console.log('dispatchCode', action, ...args)
+        setCodeAndCompute(code => action(...args, code))
+    }
 
     React.useEffect(() => {
         localStorage.setItem('code', JSON.stringify(stripCachedResult(code)))
@@ -238,7 +241,7 @@ const App = () => {
                 <DownloadButton code={code} name={name} />
             </MenuLine>
             <AppContent
-                code={code} setCode={setCodeAndCompute}
+                code={code} setCode={setCodeAndCompute} dispatchCode={dispatchCode}
                 mode={mode} setMode={setMode}
             />
         </React.Fragment>
