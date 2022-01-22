@@ -160,15 +160,25 @@ export const stateComponent = state => _ => state
 
 export const emptyCode = createEntity(
     stateComponent({
+        expr: "",
+    }),
+    stateComponent({
         id: 0,
         name: "",
-        expr: "",
-        ui: defaultCodeUI,
-        state: initialBlockState,
-        usageMode: USAGE_MODES[0],
         prev: null,
+    }),
+    stateComponent({
         cachedResult: null,
         invalidated: true,
+    }),
+    stateComponent({
+        state: initialBlockState,
+        usageMode: USAGE_MODES[0],
+    }),
+    stateComponent({
+        ui: defaultCodeUI,
+    }),
+    stateComponent({
         autorun: true,
     }),
 )
