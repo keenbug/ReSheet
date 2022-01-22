@@ -147,18 +147,31 @@ export const defaultCodeUI = {
     isStateVisible: false,
 }
 
-export const emptyCode = {
-    id: 0,
-    name: "",
-    expr: "",
-    ui: defaultCodeUI,
-    state: initialBlockState,
-    usageMode: USAGE_MODES[0],
-    prev: null,
-    cachedResult: null,
-    invalidated: true,
-    autorun: true,
-}
+export const createEntity = (...components) =>
+    components.reduce(
+        (entity, component) => ({
+            ...entity,
+            ...component(entity)
+        }),
+        {},
+    )
+
+export const stateComponent = state => _ => state
+
+export const emptyCode = createEntity(
+    stateComponent({
+        id: 0,
+        name: "",
+        expr: "",
+        ui: defaultCodeUI,
+        state: initialBlockState,
+        usageMode: USAGE_MODES[0],
+        prev: null,
+        cachedResult: null,
+        invalidated: true,
+        autorun: true,
+    }),
+)
 
 export const getDefaultName = code => '$' + code.id
 export const getName = code => code.name.length > 0 ? code.name : getDefaultName(code)
