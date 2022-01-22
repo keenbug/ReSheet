@@ -30,43 +30,32 @@ export const interpolate = (strings, interpolations, props) => {
     )
 }
 
+export const runUpdate = (update, oldValue) =>
+    typeof update === 'function' ? update(oldValue) : update
+
 export const updateArray = (updateIdx, newValue, array) =>
     array.map((value, idx) => idx === updateIdx ? newValue : value)
 
 export const subUpdateArray = (idx, update) => newValue => {
-    if (typeof newValue === 'function') {
-        update(bigValue => updateArray(idx, newValue(bigValue[idx]), bigValue))
-    }
-    else {
-        update(bigValue => updateArray(idx, newValue, bigValue))
-    }
+    update(bigValue => updateArray(idx, runUpdate(newValue, bigValue[idx]), bigValue))
 }
 
 export const subUpdate = (fieldName, update) => newValue => {
-    if (typeof newValue === 'function') {
-        update(bigValue => ({
-            ...bigValue,
-            [fieldName]: newValue(bigValue[fieldName]),
-        }))
-    }
-    else {
-        update(bigValue => ({
-            ...bigValue,
-            [fieldName]: newValue,
-        }))
-    }
+    update(bigValue => ({
+        ...bigValue,
+        [fieldName]: runUpdate(newValue, bigValue[fieldName]),
+    }))
 }
 
-export const logUpdate = update => newValue => {
-    if (typeof newValue === 'function') {
-        update(oldValue => {
-            const updatedValue = newValue(oldValue)
-            console.log('functional update', oldValue, newValue)
-            return updatedValue
-        })
-    }
-    else {
-        console.log('constant update', newValue)
-        update(newValue)
-    }
+export const logUpdate = (msg = '', update) => newValue => {
+    update(oldValue => {
+        const updatedValue = runUpdate(newValue, oldValue)
+        console.log(`update ${msg}`, oldValue, updatedValue)
+        return updatedValue
+    })
+}
+
+export const logV = (msg = '', value) => {
+    console.log(msg, value)
+    return value
 }

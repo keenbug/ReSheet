@@ -12,34 +12,31 @@ const CodeContent = classed('code')`
     block
     rounded
     hover:bg-gray-100 focus:bg-gray-100
+    break-word
 `
 
 
-export const EditableCode = ({ code, onUpdate, ...props }) => {
+export const EditableCode = ({ code, onUpdate, highlight, ...props }) => {
     const [isEditing, setEditing] = React.useState(false)
 
     const stopEditing = () => { setEditing(false) }
     const startEditing = () => { setEditing(true) }
 
     if (isEditing) {
-        return <CodeEditor code={code} onUpdate={onUpdate} onBlur={stopEditing} {...props} />
+        return <CodeEditor code={code} onUpdate={onUpdate} highlight={highlight} onBlur={stopEditing} {...props} />
     }
     else {
-        return <CodeView code={code} onClick={startEditing} {...props} />
+        return <CodeView code={code} onClick={startEditing} highlight={highlight} {...props} />
     }
 }
 
 
-export const CodeView = ({ code, ...props }) => {
+export const CodeView = ({ code, highlight = highlightJS, ...props }) => {
     const ref = React.useRef(null)
 
     React.useEffect(() => {
         if (ref.current) {
-            ref.current.innerHTML = Prism.highlight(
-                code,
-                Prism.languages.javascript,
-                'javascript',
-            )
+            highlight(ref.current, code)
         }
     }, [code, ref.current])
 
@@ -47,11 +44,11 @@ export const CodeView = ({ code, ...props }) => {
 }
 
 
-export const CodeEditor = ({ code, onUpdate, ...props }) => {
+export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }) => {
     const ref = useCodeJar({
         code,
         onUpdate,
-        highlight: highlightJS,
+        highlight,
         options: {
             tab: "  ",
         },
@@ -60,8 +57,8 @@ export const CodeEditor = ({ code, onUpdate, ...props }) => {
     return <pre><CodeContent ref={ref} {...props} /></pre>
 }
 
-export const highlightJS = editor => {
-    const text = editor.textContent
+export const highlightJS = (editor, code) => {
+    const text = code || editor.textContent
     editor.innerHTML = Prism.highlight(
         text,
         Prism.languages.javascript,

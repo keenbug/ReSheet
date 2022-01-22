@@ -29,9 +29,16 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 - [x] make auto-run disable-able
 - [x] import js files
 - [x] map import statements in imported js if possible
-- [ ] implement Text Block
-    - [ ] implement Block Combinator, a React Component that properly executes Blocks in its children
+- [x] implement Text Block
+    - [x] implement Block Combinator, a React Component that properly executes Blocks in its children
+        - ugly, maybe implement another approach some time
 - [ ] switch repl to dispatch pattern instead of update-/set-*
+    - Components:
+        - Compute: { code, run(env) }
+        - Cache: Compute -> { cachedResult, run(env) }
+        - Autorun: Compute, Cache -> { invalidated, autorun, setCode(code) }
+    - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
+- [ ] Refactor REPL Code stuff into custom entity-component pattern
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block

@@ -90,16 +90,21 @@ const LoadFileButtonStyled = classed(LoadFileButton)`
 `
 
 const DownloadButton = ({ code, name }) => (
-    <SaveFileButtonStyled
-        className="self-end"
-        mimeType="text/json"
-        textContent={JSON.stringify(stripCachedResult(code))}
-        filename={name + '.json'}
-    >
-        <div className="inline-block w-5 text-center">
-            <FontAwesomeIcon size="xs" icon={solidIcons.faSave} />
-        </div>
-    </SaveFileButtonStyled>
+    catchAll(
+        () => (
+            <SaveFileButtonStyled
+                className="self-end"
+                mimeType="text/json"
+                textContent={JSON.stringify(stripCachedResult(code))}
+                filename={name + '.json'}
+            >
+                <div className="inline-block w-5 text-center">
+                    <FontAwesomeIcon size="xs" icon={solidIcons.faSave} />
+                </div>
+            </SaveFileButtonStyled>
+        ),
+        () => <FontAwesomeIcon size="xs" icon={solidIcons.faExclamationTriangle} />,
+    )
 )
 
 const ImportButton = ({ setCode }) => {
