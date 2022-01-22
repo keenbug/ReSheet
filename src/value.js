@@ -1,26 +1,26 @@
 import React from 'react'
-import Inspector from 'react-inspector'
+import Inspector, { ObjectRootLabel, ObjectLabel } from 'react-inspector'
 
 import { catchAll } from './utils'
 
 
-const appTypeSymbol = Symbol('appType')
-export const initialAppState = Symbol('initialAppState')
+const blockTypeSymbol = Symbol('blockType')
+export const initialBlockState = Symbol('initialBlockState')
 
-export const createApp = (callback, initialData=initialAppState) => ({
-    $$typeof: appTypeSymbol,
+export const createBlock = (callback, initialData=initialBlockState) => ({
+    $$typeof: blockTypeSymbol,
     initialData,
     callback,
 })
-export const isApp = value => value?.$$typeof === appTypeSymbol
-export const AppRunner = ({ state, setState, app }) => {
-    const data = state === initialAppState ? app.initialData : state
+export const isBlock = value => value?.$$typeof === blockTypeSymbol
+export const BlockRunner = ({ state, setState, block }) => {
+    const data = state === initialBlockState ? block.initialData : state
     const setData = update => (
         typeof update === 'function' ?
             setState(state =>
                 update(
-                    state === initialAppState ?
-                        app.initialData
+                    state === initialBlockState ?
+                        block.initialData
                     :
                         state
                 )
@@ -28,7 +28,7 @@ export const AppRunner = ({ state, setState, app }) => {
         :
             setState(update)
     )
-    return React.createElement(app.callback, { data, setData })
+    return React.createElement(block.callback, { data, setData })
 }
 
 
@@ -53,6 +53,13 @@ export const ErrorInspector = ({ error }) => {
     }
 }
 
+export const inspectorNodeRenderer = ({ expanded, depth, ...props }) => (
+    expanded && depth > 0 ?
+        <ObjectLabel {...props} />
+    :
+        <ObjectRootLabel {...props} />
+)
+
 export const ValueInspector = ({ value }) => {
     if (React.isValidElement(value)) {
         return (
@@ -73,19 +80,19 @@ export const ValueInspector = ({ value }) => {
             </div>
         )
     }
-    return <div><Inspector data={value} /></div>
+    return <div><Inspector data={value} expandLevel={1} nodeRenderer={inspectorNodeRenderer} /></div>
 }
 
 
 export const ValueViewer = ({ value, state, setState }) => {
-    if (isApp(value)) {
+    if (isBlock(value)) {
         return (
             <ErrorBoundary
-                title="There was an error in your App"
+                title="There was an error in your Block"
                 viewError={error => <ErrorInspector error={error} />}
             >
                 {catchAll(
-                    () => <AppRunner app={value} state={state} setState={setState} />,
+                    () => <BlockRunner block={value} state={state} setState={setState} />,
                     error => <ValueInspector value={error} />
                 )}
             </ErrorBoundary>

@@ -4,10 +4,10 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode, stripCachedResult, rebuildCode, concatCode, reindexCode, parseJsCode, linkCodes } from './repl'
+import { getNextId, REPL, StateViewer, precompute, emptyCode, updateCode, stripCachedResult, rebuildCode, concatCode, reindexCode, parseJsCode, linkCodes, exportJsCode } from './repl'
 import { ValueViewer, ErrorBoundary } from './value'
-import stdLibrary from './std-library'
-import { IconToggleButton, classed, TextInput } from './ui'
+import stdLibrary, { LIBRARY_MAPPINGS } from './std-library'
+import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
 import { catchAll, subUpdate } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
@@ -61,7 +61,7 @@ const MenuLine = classed('div')`flex flex-row shadow mb-1 w-full`
 
 const Spacer = classed('div')`flex-1`
 
-const DownloadButtonHTML = classed('a')`
+const SaveFileButtonStyled = classed(SaveFileButton)`
     block
     text-left
     text-slate-600
@@ -75,7 +75,7 @@ const DownloadButtonHTML = classed('a')`
     h-7 px-1 space-x-1
 `
 
-const UploadLabel = classed('label')`
+const LoadFileButtonStyled = classed(LoadFileButton)`
     cursor-pointer
     text-left
     text-slate-600
@@ -89,73 +89,86 @@ const UploadLabel = classed('label')`
     h-7 px-1 space-x-1
 `
 
-const DownloadButton = ({ code, name }) => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stripCachedResult(code)));
-
-    return (
-        <DownloadButtonHTML className="self-end" href={dataStr} download={`${name}.json`}>
-            <div className="inline-block w-5 text-center">
-                <FontAwesomeIcon size="xs" icon={solidIcons.faSave} />
-            </div>
-        </DownloadButtonHTML>
-    )
-}
+const DownloadButton = ({ code, name }) => (
+    <SaveFileButtonStyled
+        className="self-end"
+        mimeType="text/json"
+        textContent={JSON.stringify(stripCachedResult(code))}
+        filename={name + '.json'}
+    >
+        <div className="inline-block w-5 text-center">
+            <FontAwesomeIcon size="xs" icon={solidIcons.faSave} />
+        </div>
+    </SaveFileButtonStyled>
+)
 
 const ImportButton = ({ setCode }) => {
-    const uploadFile = event => {
-        event.target.files[0].text()
-            .then(content => {
-                setCode(code => {
-                    const importedCode = reindexCode(linkCodes(parseJsCode(content).reverse()), getNextId(code))
-                    return precompute(
-                        concatCode(
-                            importedCode,
-                            code,
-                        ),
-                        stdLibrary,
-                        true,
-                    )
-                })
-            })
+    const importJavascriptFile = async file => {
+        const content = await file.text()
+        setCode(code => {
+            const importedCode = reindexCode(
+                linkCodes(
+                    parseJsCode(content, LIBRARY_MAPPINGS).reverse()
+                ),
+                getNextId(code)
+            )
+            return precompute(
+                concatCode(
+                    importedCode,
+                    code,
+                ),
+                stdLibrary,
+                true,
+            )
+        })
     }
     return (
-        <UploadLabel>
+        <LoadFileButtonStyled onLoad={importJavascriptFile}>
             <div className="inline-block w-5 text-center">
                 <FontAwesomeIcon size="xs" icon={solidIcons.faFileImport} />
             </div>
-            <input className="hidden" type="file" onChange={uploadFile} />
-        </UploadLabel>
+        </LoadFileButtonStyled>
     )
 }
 
+const ExportButton = ({ name, code }) => (
+    <SaveFileButtonStyled
+        mimeType="text/javascript"
+        textContent={exportJsCode(code)}
+        filename={name + '.js'}
+    >
+        <div className="inline-block w-5 text-center">
+            <FontAwesomeIcon size="xs" icon={solidIcons.faFileExport} />
+        </div>
+    </SaveFileButtonStyled>
+)
+
 const UploadButton = ({ setCode }) => {
-    const uploadFile = event => {
-        event.target.files[0].text()
-            .then(content => {
-                const newCode = rebuildCode(JSON.parse(content))
-                setCode(code =>
-                    precompute(
-                        concatCode(
-                            newCode,
-                            reindexCode(code, getNextId(newCode)),
-                        ),
-                        stdLibrary,
-                        true,
-                    )
-                )
-            })
+    const loadFile = async file => {
+        const content = await file.text()
+        const newCode = rebuildCode(JSON.parse(content))
+        setCode(code =>
+            precompute(
+                concatCode(
+                    newCode,
+                    reindexCode(code, getNextId(newCode)),
+                ),
+                stdLibrary,
+                true,
+            )
+        )
     }
     return (
-        <UploadLabel>
+        <LoadFileButtonStyled onLoad={loadFile}>
             <div className="inline-block w-5 text-center">
                 <FontAwesomeIcon size="xs" icon={solidIcons.faFolderOpen} />
             </div>
-            <input className="hidden" type="file" onChange={uploadFile} />
-        </UploadLabel>
+        </LoadFileButtonStyled>
     )
 }
 
 const DeleteButtonHTML = classed('button')`
+    block
     text-left
     text-slate-600
 
@@ -185,6 +198,7 @@ const DeleteButton = ({ setCode }) => {
 
 const NameInput = classed(TextInput)`
     self-center
+    text-sm
     text-slate-600
     hover:bg-gray-200 hover:text-slate-700
     focus:bg-gray-200 focus:text-slate-700
@@ -214,6 +228,7 @@ const App = () => {
                 <NameInput value={name} onUpdate={setName} />
                 <DeleteButton setCode={setCode} />
                 <ImportButton setCode={setCode} />
+                <ExportButton code={code} name={name} />
                 <UploadButton setCode={setCode} />
                 <DownloadButton code={code} name={name} />
             </MenuLine>

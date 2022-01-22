@@ -107,3 +107,29 @@ export const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUp
         {label && <span>{label}</span>}
     </ToggleButton>
 )
+
+
+
+export const LoadFileButton = ({ onLoad, children, ...props }) => {
+    const loadFile = event => {
+        onLoad(event.target.files[0])
+    }
+
+    return (
+        <label {...props}>
+            {children}
+            <input className="hidden" type="file" onChange={loadFile} />
+        </label>
+    )
+}
+
+
+export const SaveFileButton = ({ mimeType, textContent, filename, children, ...props }) => {
+    const dataStr = `data:${mimeType};charset=utf-8,${encodeURIComponent(textContent)}`
+
+    return (
+        <a href={dataStr} download={filename} {...props}>
+            {children}
+        </a>
+    )
+}

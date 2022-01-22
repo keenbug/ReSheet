@@ -11,12 +11,36 @@ import * as babelParser from '@babel/parser'
 import * as babelGenerator from '@babel/generator'
 
 import * as repl from './repl'
+import * as codeEditor from './code-editor'
 import * as value from './value'
 import * as tables from './tables'
+import * as blocks from './blocks'
 import * as ui from './ui'
 import * as utils from './utils'
 
-const library = {
+export const LIBRARY_MAPPINGS = {
+    "react":                                `$stdLibrary.React`,
+    "@headlessui/react":                    `$stdLibrary.headlessui`,
+    "@fortawesome/react-fontawesome":       `{ FontAwesomeIcon: $stdLibrary.FontAwesomeIcon }`,
+    "@fortawesome/free-solid-svg-icons":    `$stdLibrary.faSolid`,
+    "@fortawesome/free-regular-svg-icons":  `$stdLibrary.faRegular`,
+    "@babel/core":                          `$stdLibrary.babel.core`,
+    "@babel/preset-react":                  `$stdLibrary.babel.react`,
+    "@babel/parser":                        `$stdLibrary.babel.parser`,
+    "@babel/generator":                     `$stdLibrary.babel.generator`,
+    "./repl":                               `$stdLibrary.repl`,
+    "./code-editor":                        `$stdLibrary.codeEditor`,
+    "./value":                              `$stdLibrary.value`,
+    "./tables":                             `$stdLibrary.tables`,
+    "./blocks":                             `$stdLibrary.blocks`,
+    "./ui":                                 `$stdLibrary.ui`,
+    "./utils":                              `$stdLibrary.utils`,
+}
+
+
+export const library = {
+    $LIBRARY_MAPPINGS: LIBRARY_MAPPINGS,
+
     React,
     FontAwesomeIcon,
     faSolid,
@@ -31,12 +55,14 @@ const library = {
         generator: babelGenerator,
     },
 
+    blocks,
     tables,
     ui,
     repl,
-    App: value.createApp,
+    codeEditor,
+    Block: value.createBlock,
     value,
     utils,
 }
 
-export default { stdLibrary: library, ...library }
+export default { $stdLibrary: library, React }

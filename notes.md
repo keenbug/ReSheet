@@ -15,6 +15,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - code: determining the cells behaviour and view in the view and edit state
         - (interactive state: volatile state that is not persisted and can be lost because of user actions. Only used for the UI. Does not contain data the user explicitly wants to persist)
     - blocks can be nested in blocks
+- At first, there is a "built-in" "Command Block", which selects which Block to use
+    - Blocks:
+        - Compute Block (JS, former REPL)
+        - Sheet Block (List of Blocks, Layouting possibilities like in Notion)
+        - Text Block (Parses Content as JSX)
 
 
 # Steps
@@ -23,8 +28,16 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 - [x] use headlessui
 - [x] make auto-run disable-able
 - [x] import js files
-- [ ] map import statements in imported js if possible
+- [x] map import statements in imported js if possible
+- [ ] implement Text Block
+    - [ ] implement Block Combinator, a React Component that properly executes Blocks in its children
 - [ ] switch repl to dispatch pattern instead of update-/set-*
+- [ ] implement Command Block
+    - [ ] Extend and Split REPL
+        - [ ] Command Block
+            - [ ] Add completion
+        - [ ] Compute Block
+            - former REPL
 
 
 # Current

@@ -8,7 +8,7 @@ import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 import babelGenerator from '@babel/generator'
 
-import { ValueViewer, ValueInspector, initialAppState } from './value'
+import { ValueViewer, ValueInspector, initialBlockState } from './value'
 import { EditableCode } from './code-editor'
 import { IconToggleButton, ToggleButton, TextInput, classed, onMetaEnter } from './ui'
 import { nextElem, subUpdate } from './utils'
@@ -159,7 +159,7 @@ export const emptyCode = {
     name: "",
     expr: "",
     ui: defaultCodeUI,
-    state: initialAppState,
+    state: initialBlockState,
     usageMode: USAGE_MODES[0],
     prev: null,
     cachedResult: null,
@@ -169,6 +169,12 @@ export const emptyCode = {
 
 export const getDefaultName = code => '$' + code.id
 export const getName = code => code.name.length > 0 ? code.name : getDefaultName(code)
+
+export const codeList = code =>
+    code ?
+        [ code, ...codeList(code.prev) ]
+    :
+        []
 
 export const concatCode = (code, prevCode) =>
     code === null ? prevCode : { ...code, prev: concatCode(code.prev, prevCode) }
@@ -187,42 +193,13 @@ export const reindexCode = (code, nextId) => {
 
 /**************** JS Importer *****************/
 
-export const parseJsCode = code => {
+export const parseJsCode = (code, libMappings) => {
     const ast = babelParser.parse(code, { sourceType: 'module', plugins: [ 'jsx' ] })
-    return ast.program.body.map(parseJsAstNode)
+    return ast.program.body.map(code => parseJsAstNode(code, libMappings))
 }
 
-export const IMPORT_MAPPINGS = {
-    "react": `stdLibrary.React`,
-    "@headlessui/react": `stdLibrary.headlessui`,
-    "@fortawesome/react-fontawesome": `{ FontAwesomeIcon: stdLibrary.FontAwesomeIcon }`,
-    "@fortawesome/free-solid-svg-icons": `stdLibrary.faSolid`,
-    "@fortawesome/free-regular-svg-icons": `stdLibrary.faRegular`,
-    "@babel/core": `stdLibrary.babel.core`,
-    "@babel/preset-react": `stdLibrary.babel.react`,
-    "@babel/parser": `stdLibrary.babel.parser`,
-    "@babel/generator": `stdLibrary.babel.generator`,
-    "./repl": `stdLibrary.repl`,
-    "./value": `stdLibrary.value`,
-    "./ui": `stdLibrary.ui`,
-    "./utils": `stdLibrary.utils,`
-}
-
-export const mapImport = source => (
-    IMPORT_MAPPINGS[source] || `import(${JSON.stringify(source)})`
-)
-
-export const mapImportSpecifier = specifier => {
-    const pattern = babelGenerator(specifier).code
-    if (specifier.type === 'ImportDefaultSpecifier') {
-        return pattern
-    }
-    else {
-        return `{ ${pattern} }`
-    }
-}
-
-export const parseJsAstNode = node => {
+export const parseJsAstNode = (node, libMappings) => {
+    const codeWithoutResult = { ...emptyCode, ui: { ...emptyCode.ui, isResultVisible: false } }
     if (node.type === 'ExportNamedDeclaration') {
         return {
             ...emptyCode,
@@ -239,9 +216,9 @@ export const parseJsAstNode = node => {
     }
     else if (node.type === 'ImportDeclaration') {
         return {
-            ...emptyCode,
-            name: mapImportSpecifier(node.specifiers[0]),
-            expr: mapImport(node.source.value)
+            ...codeWithoutResult,
+            name: mapImportAssignment(node.specifiers),
+            expr: mapImportSource(node.source.value, libMappings)
         }
     }
     else {
@@ -251,6 +228,44 @@ export const parseJsAstNode = node => {
         }
     }
 }
+
+const mapImport = node => (
+  node.local.name === node.imported.name ?
+    node.local.name
+  : (
+    node.imported.name + ': ' + node.local.name
+  )
+)
+
+const mapImportSpecifier = node =>
+  node.type === "ImportDefaultSpecifier" ?
+    `default: ${node.local.name}`
+  : node.type === "ImportSpecifier" ?
+    mapImport(node)
+  :
+    generator(node).code
+
+
+const mapImportAssignment = specifiers =>
+  specifiers[0].type === "ImportNamespaceSpecifier" ?
+    specifiers[0].local.name
+  : (
+    "{ " + specifiers.map(mapImportSpecifier).join(", ") + " }"
+  )
+
+export const mapImportSource = (source, libMappings) => (
+    libMappings[source] || `import(${JSON.stringify(source)})`
+)
+
+
+export const exportJsCode = code =>
+    codeList(code)
+        .map(block =>
+            `const ${getName(block)} = ${block.expr}`
+        )
+        .reverse()
+        .join("\n\n")
+
 
 
 
@@ -373,7 +388,7 @@ export const REPL = ({ code, onUpdate, nextId, globalEnv }) => {
     }
 
     const onReset = () => {
-        onUpdate(code => ({ ...code, state: initialAppState }))
+        onUpdate(code => ({ ...code, state: initialBlockState }))
     }
 
     const updatePrev = update => {
@@ -527,14 +542,14 @@ const REPLUIToggles = ({ ui, onUpdate, name, usageMode, onSwitchUsageMode, onIns
                 isActive={true}
                 icon={solidIcons.faDollarSign}
                 onUpdate={onSwitchUsageMode}
-                label={`Save ${usageMode === 'use-result' ? "code result" : "app data"} in ${name}`}
+                label={`Save ${usageMode === 'use-result' ? "code result" : "block data"} in ${name}`}
                 />
             <IconToggleButton
                 className="w-full"
                 isActive={true}
                 icon={solidIcons.faStepBackward}
                 onUpdate={onReset}
-                label="Reset App (data)"
+                label="Reset Block (data)"
             />
             <IconToggleButton
                 className="w-full"
