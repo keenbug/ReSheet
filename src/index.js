@@ -5,10 +5,10 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import 'prismjs/themes/prism.css'
 
 import { REPL } from './repl'
-import { CodeComponent } from './components'
+import { CodeComponent as CodeBlock } from './components'
 import { parseJsCode, exportJsCode } from './import-export'
 import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
-import stdLibrary, { LIBRARY_MAPPINGS } from './std-library'
+import stdLibrary from './std-library'
 import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
 import { catchAll } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -55,7 +55,7 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
 
 const App = () => {
     const loadSavedCode = () =>
-        CodeComponent.loadFrom(
+        CodeBlock.loadFrom(
             JSON.parse(localStorage.getItem('code'))
                 ?? {}
         )
@@ -165,8 +165,8 @@ const ImportButton = ({ setCode }) => {
         const content = await file.text()
         setCode(code => {
             const importedCode =
-                CodeComponent.fromList(
-                    parseJsCode(content, LIBRARY_MAPPINGS).reverse()
+                CodeBlock.fromList(
+                    parseJsCode(content).reverse()
                 )
                 .reindex(code)
             
@@ -198,7 +198,7 @@ const ExportButton = ({ name, code }) => (
 const UploadButton = ({ setCode }) => {
     const loadFile = async file => {
         const content = await file.text()
-        const newCode = CodeComponent.loadFrom(JSON.parse(content))
+        const newCode = CodeBlock.loadFrom(JSON.parse(content))
         setCode(code =>
             newCode.append(code.reindex(newCode))
                 .forcecomputeAll(stdLibrary)
@@ -230,7 +230,7 @@ const DeleteButtonHTML = classed('button')`
 const DeleteButton = ({ setCode }) => {
     const onDelete = () => {
         if (window.confirm("Sure you want to delete everything?")) {
-            setCode(CodeComponent.precomputeAll(stdLibrary))
+            setCode(CodeBlock.precomputeAll(stdLibrary))
         }
     }
     return (

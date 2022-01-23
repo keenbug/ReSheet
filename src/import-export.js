@@ -4,12 +4,12 @@ import generate from '@babel/generator'
 
 /**************** JS Importer *****************/
 
-export const parseJsCode = (code, libMappings) => {
+export const parseJsCode = code => {
     const ast = parse(code, { sourceType: 'module', plugins: [ 'jsx' ] })
-    return ast.program.body.map(code => parseJsAstNode(code, libMappings))
+    return ast.program.body.map(parseJsAstNode)
 }
 
-export const parseJsAstNode = (node, libMappings) => {
+export const parseJsAstNode = node => {
     const codeWithoutResult = CodeComponent.mapFields({ ui: ui => ui.update({ isResultVisible: false }) })
     if (node.type === 'ExportNamedDeclaration') {
         return CodeComponent.update({
@@ -26,7 +26,7 @@ export const parseJsAstNode = (node, libMappings) => {
     else if (node.type === 'ImportDeclaration') {
         return codeWithoutResult.update({
             name: mapImportAssignment(node.specifiers),
-            expr: mapImportSource(node.source.value, libMappings)
+            expr: mapImportSource(node.source.value)
         })
     }
     else {
@@ -60,8 +60,8 @@ const mapImportAssignment = specifiers =>
     "{ " + specifiers.map(mapImportSpecifier).join(", ") + " }"
   )
 
-export const mapImportSource = (source, libMappings) => (
-    libMappings[source] || `import(${JSON.stringify(source)})`
+export const mapImportSource = source => (
+    `$import(${JSON.stringify(source)})`
 )
 
 
