@@ -2,37 +2,58 @@ import { computeExpr } from './compute'
 import { initialBlockState } from './value'
 
 
-export const defaultCodeUI = {
-    isNameVisible: true,
-    isCodeVisible: true,
-    isResultVisible: true,
-    isStateVisible: false,
+export const readonlyProps = values => (
+    Object.fromEntries(
+        Object.entries(values)
+            .map(
+                ([ name, value ]) => [
+                    name,
+                    { value, enumerable: true }
+                ]
+            )
+    )
+)
+
+export const createEntity = (...components) => {
+    const fullComponent = components.reduce(extendComponent)
+    const { props, ...methods } = fullComponent({ props: {} })
+    const properties = readonlyProps(props)
+    return Object.create(methods, properties)
 }
 
-export const combineComponents = (...components) =>
-    components.reduce(
-        (entity, component) => ({
-            ...entity,
-            ...component,
-        }),
-        {},
-    )
+export const extendComponent = (ante, component) => superante => {
+    const { props: anteProps, ...anteMethods } = ante(superante)
+    const { props: compProps, ...compMethods } = component(ante)
 
-export const UtilsComponent = {
+    return {
+        props: { ...anteProps, ...compProps },
+        ...anteMethods,
+        ...compMethods,
+    }
+}
+
+
+export const combineComponents = (...components) =>
+    components.reduce(extendComponent)
+
+
+export const UtilsComponent = () => ({
     applyWhen(cond, fn) {
         if (cond) {
             return fn(this)
         }
-        return this
-    }
-}
-
-export const UpdateComponent = {
-    update(newValues) {
-        return {
-            ...this,
-            ...newValues
+        else {
+            return this
         }
+    }
+})
+
+export const UpdateComponent = () => ({
+    update(newValues) {
+        return Object.create(
+            Object.getPrototypeOf(this),
+            readonlyProps({ ...this, ...newValues }),
+        )
     },
     safeUpdate(newValues) {
         const safeValues = Object.fromEntries(
@@ -54,20 +75,24 @@ export const UpdateComponent = {
             )
         return this.update(newValues)
     }
-}
+})
 
-export const JSExprComponent = {
-    expr: "",
+export const JSExprComponent = () => ({
+    props: {
+        expr: "",
+    },
 
     exec(env) {
         return computeExpr(this.expr, env)
     },
-}
+})
 
-export const CachedComputationComponent = {
-    cachedResult: null,
-    invalidated: true,
-    autorun: true,
+export const CachedComputationComponent = () => ({
+    props: {
+        cachedResult: null,
+        invalidated: true,
+        autorun: true,
+    },
 
     updateExpr(expr) {
         return this
@@ -91,12 +116,14 @@ export const CachedComputationComponent = {
             cachedResult: this.exec(env)
         })
     },
-}
+})
 
-export const EnvironmentComponent = {
-    id: 0,
-    name: "",
-    prev: null,
+export const EnvironmentComponent = () => ({
+    props: {
+        id: 0,
+        name: "",
+        prev: null,
+    },
 
     getDefaultName() {
         return '$' + this.id
@@ -151,9 +178,9 @@ export const EnvironmentComponent = {
             null,
         )
     },
-}
+})
 
-export const CachedEnvironmentComponent = {
+export const CachedEnvironmentComponent = () => ({
     precomputeAll(globalEnv) {
         const prev = this.prev?.precomputeAll(globalEnv)
         const env = prev ? prev.toEnv() : {}
@@ -209,17 +236,26 @@ export const CachedEnvironmentComponent = {
             prev,
         })
     },
-}
+})
 
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
-export const BlockComponent = {
-    state: initialBlockState,
-    usageMode: USAGE_MODES[0],
+export const BlockComponent = () => ({
+    props: {
+        state: initialBlockState,
+        usageMode: USAGE_MODES[0],
+    }
+})
+
+export const defaultCodeUI = {
+    isNameVisible: true,
+    isCodeVisible: true,
+    isResultVisible: true,
+    isStateVisible: false,
 }
 
 
-export const CodeComponent = combineComponents(
+export const CodeComponent = createEntity(
     UtilsComponent,
     UpdateComponent,
     JSExprComponent,
@@ -227,7 +263,9 @@ export const CodeComponent = combineComponents(
     EnvironmentComponent,
     CachedEnvironmentComponent,
     BlockComponent,
-    {
-        ui: combineComponents(UpdateComponent, defaultCodeUI),
-    },
+    () => ({
+        props: {
+            ui: defaultCodeUI,
+        }
+    }),
 )

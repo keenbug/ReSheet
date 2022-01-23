@@ -141,7 +141,7 @@ const DownloadButton = ({ code, name }) => (
             <SaveFileButtonStyled
                 className="self-end"
                 mimeType="text/json"
-                textContent={JSON.stringify(code.stripCachedResult())}
+                textContent={JSON.stringify(code.stripCachedResults())}
                 filename={name + '.json'}
             >
                 <div className="inline-block w-5 text-center">
@@ -149,7 +149,14 @@ const DownloadButton = ({ code, name }) => (
                 </div>
             </SaveFileButtonStyled>
         ),
-        () => <FontAwesomeIcon size="xs" icon={solidIcons.faExclamationTriangle} />,
+        err => {
+            console.error('Download button: Cannot serialize code into json:', err)
+            return (
+                <div className="inline-block w-5 text-center">
+                    <FontAwesomeIcon size="xs" icon={solidIcons.faExclamationTriangle} />
+                </div>
+            )
+        },
     )
 )
 

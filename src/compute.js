@@ -39,6 +39,7 @@ export const transformJSExpr = sourcecode =>
 
 
 export const computeExpr = (code, env) => {
+    if (!code) { return }
     try {
         const exprFunc = new Function(
             ...Object.keys(env),

@@ -3,6 +3,7 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
+import { CodeComponent } from './components'
 import { ValueViewer, ValueInspector, initialBlockState } from './value'
 import { EditableCode } from './code-editor'
 import { IconToggleButton, TextInput, classed, onMetaEnter } from './ui'
@@ -98,7 +99,7 @@ export const updateUIOption = (id, uiUpdater, wholeCode) =>
 /**************** UI *****************/
 
 
-const REPLLine = classed('div')`flex flex-row space-x-2`
+const REPLLineContainer = classed('div')`flex flex-row space-x-2`
 const REPLContent = classed('div')`flex flex-col space-y-1 flex-1`
 
 const VarNameInput = classed(TextInput)`
@@ -110,7 +111,16 @@ const VarNameInput = classed(TextInput)`
 `
 
 
-export const REPL = ({ code, dispatch }) => {
+export const REPL = ({ code, dispatch }) => (
+    <React.Fragment>
+        {code.toList().reverse().map(block =>
+            <REPLLine key={block.id} code={block} dispatch={dispatch} />
+        )}
+    </React.Fragment>
+)
+
+
+export const REPLLine = ({ code, dispatch }) => {
     const onUpdateExpr    = expr        => dispatch(setCodeExpr,      code.id, expr)
     const onUpdateState   = stateUpdate => dispatch(updateState,      code.id, stateUpdate)
     const onSwitchAutorun = ()          => dispatch(switchAutorun,    code.id)
@@ -140,28 +150,23 @@ export const REPL = ({ code, dispatch }) => {
     }
 
     return (
-        <React.Fragment>
-            {code.prev &&
-                <REPL code={code.prev} dispatch={dispatch} />
-            }
-            <REPLLine key={code.id}>
-                <REPLUIToggles code={code} dispatch={dispatch} />
-                <REPLContent>
-                    {code.ui.isNameVisible &&
-                        <AssignmentLine code={code} dispatch={dispatch} />
-                    }
-                    {code.ui.isCodeVisible &&
-                        <EditableCode code={code.expr} onUpdate={onUpdateExpr} onKeyPress={onKeyPress} />
-                    }
-                    {code.ui.isResultVisible &&
-                        <ValueViewer value={code.cachedResult} state={code.state} setState={onUpdateState} />
-                    }
-                    {code.ui.isStateVisible &&
-                        <ValueInspector value={code.state} />
-                    }
-                </REPLContent>
-            </REPLLine>
-        </React.Fragment>
+        <REPLLineContainer key={code.id}>
+            <REPLUIToggles code={code} dispatch={dispatch} />
+            <REPLContent>
+                {code.ui.isNameVisible &&
+                    <AssignmentLine code={code} dispatch={dispatch} />
+                }
+                {code.ui.isCodeVisible &&
+                    <EditableCode code={code.expr} onUpdate={onUpdateExpr} onKeyPress={onKeyPress} />
+                }
+                {code.ui.isResultVisible &&
+                    <ValueViewer value={code.cachedResult} state={code.state} setState={onUpdateState} />
+                }
+                {code.ui.isStateVisible &&
+                    <ValueInspector value={code.state} />
+                }
+            </REPLContent>
+        </REPLLineContainer>
     )
 }
 
