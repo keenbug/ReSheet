@@ -3,7 +3,7 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { CodeComponent } from './components'
+import { CodeBlock } from './components'
 import { ValueViewer, ValueInspector, initialBlockState } from './value'
 import { EditableCode } from './code-editor'
 import { IconToggleButton, TextInput, classed, onMetaEnter } from './ui'
@@ -75,7 +75,7 @@ export const insertAfterCode = (id, insert, wholeCode) =>
 
 export const deleteCode = (id, wholeCode) =>
     id === wholeCode.id ?
-        (wholeCode.prev || CodeComponent)
+        (wholeCode.prev || CodeBlock)
     :
         wholeCode.mapWithId(id, code => code.prev)
 
@@ -125,8 +125,8 @@ export const REPLLine = ({ code, dispatch }) => {
     const onUpdateState   = stateUpdate => dispatch(updateState,      code.id, stateUpdate)
     const onSwitchAutorun = ()          => dispatch(switchAutorun,    code.id)
     const onRun           = ()          => dispatch(runCode,          code.id)
-    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, CodeComponent)
-    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, CodeComponent)
+    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, CodeBlock)
+    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, CodeBlock)
 
     const onKeyPress = event => {
         onMetaEnter(onCmdInsert)(event)
@@ -219,8 +219,8 @@ const PopoverPanelStyled = classed(Popover.Panel)`
 `
 
 const REPLUIToggles = ({ code, dispatch }) => {
-    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, CodeComponent)
-    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, CodeComponent)
+    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, CodeBlock)
+    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, CodeBlock)
     const onReset           = () => dispatch(resetStateCode,   code.id)
     const onSwitchUsageMode = () => dispatch(switchUsageMode,  code.id)
     const onDelete          = () => dispatch(deleteCode,       code.id)

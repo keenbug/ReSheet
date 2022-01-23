@@ -15,29 +15,63 @@ export const readonlyProps = values => (
 )
 
 export const createEntity = (...components) => {
-    const fullComponent = components.reduce(extendComponent)
-    const { props, ...methods } = fullComponent({ props: {} })
+    const { props, ...methods } = components.reduce(CombinedComponent)
     const properties = readonlyProps(props)
     return Object.create(methods, properties)
 }
 
-export const extendComponent = (ante, component) => superante => {
-    const { props: anteProps, ...anteMethods } = ante(superante)
-    const { props: compProps, ...compMethods } = component(ante)
+export const combineComponents = (
+    { props: firstProps, ...firstMethods},
+    { props: secondProps, ...secondMethods }
+) => ({
+        props: { ...firstProps, ...secondProps },
+        ...firstMethods,
+        ...secondMethods,
+    })
+
+export const extendComponent = (component, extender) => {
+    const { props: componentProps, ...componentMethods } = component
+    const { props: extenderProps, ...extenderMethods } = extender(component)
 
     return {
-        props: { ...anteProps, ...compProps },
-        ...anteMethods,
-        ...compMethods,
+        props: { ...componentProps, ...extenderProps },
+        ...componentMethods,
+        ...extenderMethods,
     }
 }
 
+export const ExtendedComponent = (component, ...extenders) =>
+    extenders.reduce(extendComponent, component)
 
-export const combineComponents = (...components) =>
-    components.reduce(extendComponent)
+
+export const CombinedComponent = (...components) =>
+    components.reduce(combineComponents)
 
 
-export const UtilsComponent = () => ({
+export const StateComponent = props => ({
+    props
+})
+
+
+export const UpdateComponent = {
+    update(newValues) {
+        return Object.create(
+            Object.getPrototypeOf(this),
+            readonlyProps({ ...this, ...newValues }),
+        )
+    },
+}
+
+
+export const filterEntries = (predicate, obj) => (
+    Object.fromEntries(
+        Object.entries(obj)
+            .filter(([ name, value ]) => predicate(name, value))
+    )
+)
+
+
+export const UtilsComponent = {
     applyWhen(cond, fn) {
         if (cond) {
             return fn(this)
@@ -45,20 +79,14 @@ export const UtilsComponent = () => ({
         else {
             return this
         }
-    }
-})
-
-export const UpdateComponent = () => ({
-    update(newValues) {
-        return Object.create(
-            Object.getPrototypeOf(this),
-            readonlyProps({ ...this, ...newValues }),
-        )
+    },
+    call(method, ...args) {
+        return method.apply(this, args)
     },
     safeUpdate(newValues) {
-        const safeValues = Object.fromEntries(
-            Object.entries(newValues)
-                .filter(([ name ]) => this.hasOwnProperty(name))
+        const safeValues = filterEntries(
+            name => this.hasOwnProperty(name),
+            newValues
         )
         return this.update(safeValues)
     },
@@ -75,9 +103,42 @@ export const UpdateComponent = () => ({
             )
         return this.update(newValues)
     }
+}
+
+
+export const SaveLoadNothingComponent = {
+    save() {
+        return {}
+    },
+
+    load(obj) {
+        if (Object.keys(obj).length > 0) {
+            console.warn('stray content after load:', obj)
+        }
+        return this
+    }
+}
+
+export const SaveLoadSimpleExtension = (...propNameList) => ante => ({
+    save() {
+        const saved = this.call(ante.save)
+        const ownSave = filterEntries(name => propNameList.includes(name), this)
+        return { ...saved, ...ownSave }
+    },
+
+    load(input) {
+        const ownInput = filterEntries(name => propNameList.includes(name), input)
+        const anteInput = filterEntries(name => !propNameList.includes(name), input)
+        const loaded = this.call(ante.load, anteInput)
+        return loaded.update(ownInput)
+    },
 })
 
-export const JSExprComponent = () => ({
+
+export const SaveLoadJSExprExtension = SaveLoadSimpleExtension('expr')
+
+
+export const JSExprComponent = {
     props: {
         expr: "",
     },
@@ -85,9 +146,11 @@ export const JSExprComponent = () => ({
     exec(env) {
         return computeExpr(this.expr, env)
     },
-})
+}
 
-export const CachedComputationComponent = () => ({
+
+
+export const CachedComputationComponent = {
     props: {
         cachedResult: null,
         invalidated: true,
@@ -116,9 +179,26 @@ export const CachedComputationComponent = () => ({
             cachedResult: this.exec(env)
         })
     },
+}
+
+
+
+export const SaveLoadEnvironmentExtension = ante => ({
+    load({ id, name, prev, ...input }) {
+        const loaded = this.call(ante.load, input)
+        const prevLoaded = prev && this.load(prev)
+        return loaded.update({ id, name, prev: prevLoaded })
+    },
+
+    save() {
+        const saved = this.call(ante.save)
+        const prev = this.prev?.save() || null
+        const { id, name } = this
+        return { ...saved, id, name, prev }
+    },
 })
 
-export const EnvironmentComponent = () => ({
+export const EnvironmentComponent = {
     props: {
         id: 0,
         name: "",
@@ -178,9 +258,11 @@ export const EnvironmentComponent = () => ({
             null,
         )
     },
-})
+}
 
-export const CachedEnvironmentComponent = () => ({
+
+
+export const CachedEnvironmentComponent = {
     precomputeAll(globalEnv) {
         const prev = this.prev?.precomputeAll(globalEnv)
         const env = prev ? prev.toEnv() : {}
@@ -228,24 +310,22 @@ export const CachedEnvironmentComponent = () => ({
         })
     },
 
-    stripCachedResults() {
-        const prev = this.prev?.stripCachedResults()
-        return this.update({
-            cachedResult: null,
-            invalidated: true,
-            prev,
-        })
-    },
-})
+}
+
+
 
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
-export const BlockComponent = () => ({
+export const SaveLoadBlockExtension = SaveLoadSimpleExtension('state')
+
+export const BlockComponent = {
     props: {
         state: initialBlockState,
         usageMode: USAGE_MODES[0],
     }
-})
+}
+
+
 
 export const defaultCodeUI = {
     isNameVisible: true,
@@ -254,18 +334,40 @@ export const defaultCodeUI = {
     isStateVisible: false,
 }
 
+export const CodeUIOptionsComponent = {
+    props: {
+        ui: defaultCodeUI,
+    }
+}
 
-export const CodeComponent = createEntity(
-    UtilsComponent,
+
+export const CodeBlock = createEntity(
     UpdateComponent,
+    UtilsComponent,
     JSExprComponent,
     CachedComputationComponent,
     EnvironmentComponent,
+    ExtendedComponent(
+        SaveLoadNothingComponent,
+        SaveLoadJSExprExtension,
+        SaveLoadEnvironmentExtension,
+        SaveLoadBlockExtension,
+    ),
     CachedEnvironmentComponent,
     BlockComponent,
-    () => ({
-        props: {
-            ui: defaultCodeUI,
-        }
-    }),
+    CodeUIOptionsComponent,
+)
+
+
+export const CommandBlock = createEntity(
+    UpdateComponent,
+    UtilsComponent,
+    JSExprComponent,
+    CachedComputationComponent,
+    StateComponent({ blockState: initialBlockState }),
+    ExtendedComponent(
+        SaveLoadNothingComponent,
+        SaveLoadJSExprExtension,
+        SaveLoadSimpleExtension('blockState'),
+    )
 )

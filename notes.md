@@ -24,15 +24,6 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [x] Add option to use state/data instead of the expr result
-- [x] use headlessui
-- [x] make auto-run disable-able
-- [x] import js files
-- [x] map import statements in imported js if possible
-- [x] implement Text Block
-    - [x] implement Block Combinator, a React Component that properly executes Blocks in its children
-        - ugly, maybe implement another approach some time
-- [x] switch repl to dispatch pattern instead of update-/set-*
 - [x] Refactor REPL Code stuff into custom entity-component pattern
     - Components:
         - Compute: { code, run(env) }
@@ -40,6 +31,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - Autorun: Compute, Cache -> { autorun, setCode(code) }
     - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
 - [x] Refactor REPL Code into multiple files
+- [ ] Rename to tables to Jotter? Then also rename Blocks to Jots?
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
@@ -91,16 +83,16 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Always add variable names
     - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [x] Add Save/Load
-    - [ ] Make automatic code execution disable-able
+    - [x] Make automatic code execution disable-able
     - [ ] Add backup states / undo history
 * Cleanup
-    - [ ] use dangerouslySetInnerHTML in TextInput?
-    - [ ] Switch to useReducer for Code State
-    - [ ] Make Code a flat list instead of linking via prev?
+    - [/] use dangerouslySetInnerHTML in TextInput?
+    - [x] Switch to useReducer for Code State
+    - [/] Make Code a flat list instead of linking via prev?
     - [x] Merge cached result into Code again?
     - [x] headless-ui (e.g. for context menus)
 * Fixes
-    - [ ] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
+    - [/] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
         - Grabs focus when editing elsewhere
         - Caret jumps to beginning when editing Code in the inner Repl
         - CodeJar throws errors

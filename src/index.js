@@ -5,7 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import 'prismjs/themes/prism.css'
 
 import { REPL } from './repl'
-import { CodeComponent as CodeBlock } from './components'
+import { CodeBlock } from './components'
 import { parseJsCode, exportJsCode } from './import-export'
 import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
 import stdLibrary from './std-library'
@@ -72,7 +72,7 @@ const App = () => {
     }
 
     React.useEffect(() => {
-        localStorage.setItem('code', JSON.stringify(code.stripCachedResults()))
+        localStorage.setItem('code', JSON.stringify(code.save()))
     }, [code])
 
     return (
@@ -141,7 +141,7 @@ const DownloadButton = ({ code, name }) => (
             <SaveFileButtonStyled
                 className="self-end"
                 mimeType="text/json"
-                textContent={JSON.stringify(code.stripCachedResults())}
+                textContent={JSON.stringify(code.save())}
                 filename={name + '.json'}
             >
                 <div className="inline-block w-5 text-center">
@@ -198,7 +198,7 @@ const ExportButton = ({ name, code }) => (
 const UploadButton = ({ setCode }) => {
     const loadFile = async file => {
         const content = await file.text()
-        const newCode = CodeBlock.loadFrom(JSON.parse(content))
+        const newCode = CodeBlock.load(JSON.parse(content))
         setCode(code =>
             newCode.append(code.reindex(newCode))
                 .forcecomputeAll(stdLibrary)
