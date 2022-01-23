@@ -54,52 +54,6 @@ export const runExpr = (code, env) => {
     }
 }
 
-export const getCodeById = (id, code) => {
-    if (!code) { return null }
-    if (code.id === id) { return code }
-    return getCodeById(id, code.prev)
-}
-
-export const getNextId = (code, after) => {
-    for (
-        let id = after ? (after + 1) : 0;
-        id < Number.MAX_SAFE_INTEGER;
-        id++
-    ) {
-        if (!getCodeById(id, code)) {
-            return id
-        }
-    }
-}
-
-export const localEnv = (code, globalEnv) => {
-    if (!code) { return globalEnv }
-    return {
-        ...localEnv(code.prev, globalEnv),
-        [getName(code)]: code.usageMode === 'use-result' ? code.cachedResult : code.state,
-    }
-}
-
-export const precompute = (code, globalEnv, force=false) => {
-    if (!code) { return null }
-    const prev = precompute(code.prev, globalEnv, force)
-    if (prev === code.prev && !code.invalidated && !force) { return code }
-    const currentEnv = localEnv(prev, globalEnv)
-    const cachedResult = runExpr(
-        code.expr,
-        {
-            $$internals: { prev, currentEnv, globalEnv },
-            ...currentEnv
-        }
-    )
-    return {
-        ...code,
-        cachedResult,
-        invalidated: false,
-        prev,
-    }
-}
-
 export const stripCachedResult = code => (
     code ?
         {
@@ -111,33 +65,6 @@ export const stripCachedResult = code => (
         null
 )
 
-const getOrDefault = (fieldName, input, defaults) =>
-    input.hasOwnProperty(fieldName) ? input[fieldName] : defaults[fieldName]
-
-export const sanitizeCodeUIOptions = options => ({
-    isNameVisible:   getOrDefault('isNameVisible',   options, defaultCodeUI),
-    isCodeVisible:   getOrDefault('isCodeVisible',   options, defaultCodeUI),
-    isResultVisible: getOrDefault('isResultVisible', options, defaultCodeUI),
-    isStateVisible:  getOrDefault('isStateVisible',  options, defaultCodeUI),
-})
-
-export const sanitizeCode = code => {
-    const { id, name, expr, ui, state, usageMode, prev } = code
-    const rebuiltPrev = prev && sanitizeCode(prev)
-    return {
-        id: id || getNextId(rebuiltPrev),
-        name: name || "",
-        expr: expr || "",
-        ui: typeof ui === 'object' ? sanitizeCodeUIOptions(ui) : defaultCodeUI,
-        state,
-        usageMode: usageMode || USAGE_MODES[0],
-        cachedResult: null,
-        invalidated: true,
-        autorun: code.hasOwnProperty('autorun') ? code.autorun : true,
-        prev: rebuiltPrev,
-    }
-}
-
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
 export const defaultCodeUI = {
@@ -147,50 +74,218 @@ export const defaultCodeUI = {
     isStateVisible: false,
 }
 
-export const createEntity = (...components) =>
+export const combineComponents = (...components) =>
     components.reduce(
         (entity, component) => ({
             ...entity,
-            ...component(entity)
+            ...component,
         }),
         {},
     )
 
-export const stateComponent = state => _ => state
+export const UtilsComponent = {
+    applyWhen(cond, fn) {
+        if (cond) {
+            return fn(this)
+        }
+        return this
+    }
+}
 
-export const emptyCode = createEntity(
-    stateComponent({
-        expr: "",
-    }),
-    stateComponent({
-        id: 0,
-        name: "",
-        prev: null,
-    }),
-    stateComponent({
-        cachedResult: null,
-        invalidated: true,
-    }),
-    stateComponent({
-        state: initialBlockState,
-        usageMode: USAGE_MODES[0],
-    }),
-    stateComponent({
-        ui: defaultCodeUI,
-    }),
-    stateComponent({
-        autorun: true,
-    }),
+export const UpdateComponent = {
+    update(newValues) {
+        return {
+            ...this,
+            ...newValues
+        }
+    },
+    mapFields(mappers) {
+        const newValues =
+            Object.fromEntries(
+                Object.entries(mappers)
+                    .map(
+                        ([ name, fn ]) => [
+                            name,
+                            fn(this[name])
+                        ]
+                    )
+            )
+        return this.update(newValues)
+    }
+}
+
+export const JSExprComponent = {
+    expr: "",
+
+    exec(env) {
+        return runExpr(this.expr, env)
+    },
+}
+
+export const CachedComputationComponent = {
+    cachedResult: null,
+    invalidated: true,
+    autorun: true,
+
+    updateExpr(expr) {
+        return this
+            .update({ expr })
+            .invalidate()
+    },
+    precompute(env) {
+        if (!this.invalidated) { return this }
+        return this.update({
+            cachedResult: this.exec(env)
+        })
+    },
+    invalidate() {
+        if (!this.autorun) { return this }
+        return this.update({
+            invalidated: true
+        })
+    },
+    forcecompute(env) {
+        return this.update({
+            cachedResult: this.exec(env)
+        })
+    },
+}
+
+export const EnvironmentComponent = {
+    id: 0,
+    name: "",
+    prev: null,
+
+    getDefaultName() {
+        return '$' + this.id
+    },
+    getName() {
+        return this.name.length > 0 ? this.name : this.getDefaultName()
+    },
+    getNextFreeId(candidate = 0) {
+        const freeCandidate = candidate === this.id ? candidate + 1 : candidate
+        return this.prev ? this.prev.getNextFreeId(freeCandidate) : freeCandidate
+    },
+
+    reindex(codeNotToClashWith) {
+        const prev = this.prev?.reindex(codeNotToClashWith)
+        const id = codeNotToClashWith.getNextFreeId(prev ? prev.id + 1 : 0)
+        return this.update({ id, prev })
+    },
+    append(prev) {
+        if (this.prev) {
+            return this.update({ prev: this.prev.append(prev) })
+        }
+        else {
+            return this.update({ prev })
+        }
+    },
+
+    getWithId(id) {
+        if (this.id === id) {
+            return this
+        }
+        else {
+            return this.prev?.getWithId(id)
+        }
+    },
+    mapWithId(id, fn) {
+        if (this.id === id) {
+            return fn(this)
+        }
+        else {
+            return this.update({
+                prev: this.prev?.mapWithId(id, fn)
+            })
+        }
+    },
+    toList() {
+        if (!this.prev) { return [this] }
+        return [ this, ...this.prev.toList() ]
+    },
+    fromList(list) {
+        return list.reduceRight(
+            (prev, code) => code.update({ prev }),
+            null,
+        )
+    },
+}
+
+export const CachedEnvironmentComponent = {
+    precomputeAll(globalEnv) {
+        const prev = this.prev?.precomputeAll(globalEnv)
+        const env = prev ? prev.toEnv() : {}
+        return this
+            .precompute({ ...globalEnv, ...env })
+            .update({ prev })
+    },
+    forcecomputeAll(globalEnv) {
+        const prev = this.prev?.forcecomputeAll(globalEnv)
+        const env = prev ? prev.toEnv() : {}
+        return this
+            .forcecompute({ ...globalEnv, ...env })
+            .update({ prev })
+    },
+
+    updateExprWithId(id, expr) {
+        return this
+            .mapWithId(id, code => code.update({ expr }))
+            .invalidateWithId(id)
+    },
+    invalidateWithId(id) {
+        if (this.id === id) {
+            return this.invalidate()
+        }
+        else {
+            return this
+                .update({
+                    prev: this.prev.invalidateWithId(id)
+                })
+                .invalidate()
+        }
+    },
+
+    toEnv() {
+        return Object.fromEntries(
+            this.toList()
+                .map(code => [ code.getName(), code.cachedResult ])
+        )
+    },
+
+    loadFrom(data) {
+        return this.update({
+            ...data,
+            prev: data.prev && this.loadFrom(data.prev),
+        })
+    },
+
+    stripCachedResults() {
+        const prev = this.prev?.stripCachedResults()
+        return this.update({
+            cachedResult: null,
+            prev,
+        })
+    },
+}
+
+export const BlockComponent = {
+    state: initialBlockState,
+    usageMode: USAGE_MODES[0],
+}
+
+
+export const CodeComponent = combineComponents(
+    UtilsComponent,
+    UpdateComponent,
+    JSExprComponent,
+    CachedComputationComponent,
+    EnvironmentComponent,
+    CachedEnvironmentComponent,
+    BlockComponent,
+    {
+        ui: combineComponents(UpdateComponent, defaultCodeUI),
+    },
 )
-
-export const getDefaultName = code => '$' + code.id
-export const getName = code => code.name.length > 0 ? code.name : getDefaultName(code)
-
-export const codeList = code =>
-    code ?
-        [ code, ...codeList(code.prev) ]
-    :
-        []
 
 export const appendCode = (code, prevCode) =>
     code === null ? prevCode : { ...code, prev: appendCode(code.prev, prevCode) }
@@ -215,33 +310,29 @@ export const parseJsCode = (code, libMappings) => {
 }
 
 export const parseJsAstNode = (node, libMappings) => {
-    const codeWithoutResult = { ...emptyCode, ui: { ...emptyCode.ui, isResultVisible: false } }
+    const codeWithoutResult = CodeComponent.mapFields({ ui: ui => ui.update({ isResultVisible: false }) })
     if (node.type === 'ExportNamedDeclaration') {
-        return {
-            ...emptyCode,
+        return CodeComponent.update({
             name: node.declaration.declarations[0].id.name,
             expr: babelGenerator(node.declaration.declarations[0].init).code,
-        }
+        })
     }
     else if (node.type === 'VariableDeclaration') {
-        return {
-            ...emptyCode,
+        return CodeComponent.update({
             name: node.declarations[0].id.name,
             expr: babelGenerator(node.declarations[0].init).code,
-        }
+        })
     }
     else if (node.type === 'ImportDeclaration') {
-        return {
-            ...codeWithoutResult,
+        return codeWithoutResult.update({
             name: mapImportAssignment(node.specifiers),
             expr: mapImportSource(node.source.value, libMappings)
-        }
+        })
     }
     else {
-        return {
-            ...emptyCode,
+        return CodeComponent.update({
             expr: babelGenerator(node).code,
-        }
+        })
     }
 }
 
@@ -275,9 +366,9 @@ export const mapImportSource = (source, libMappings) => (
 
 
 export const exportJsCode = code =>
-    codeList(code)
+    code.toList()
         .map(block =>
-            `const ${getName(block)} = ${block.expr}`
+            `const ${block.getName()} = ${block.expr}`
         )
         .reverse()
         .join("\n\n")
@@ -303,109 +394,84 @@ const VarNameInput = classed(TextInput)`
 `
 
 
-export const updateCodeWithId = (id, update, code) =>
-    code && (
-        code.id === id ?
-            update(code)
-        : (
-            { ...code, prev: updateCodeWithId(id, update, code.prev) }
-        )
-    )
-
 export const setCodeExpr = (id, expr, wholeCode) =>
-    updateCodeWithId(
-        id,
-        code => ({
-            ...code,
-            expr,
-            invalidated: code.autorun
-        }),
-        wholeCode,
-    )
+    wholeCode.updateExprWithId(id, expr)
 
 export const switchUsageMode = (id, wholeCode) =>
-    updateCodeWithId(
-        id,
-        code => ({
-            ...code,
-            invalidated: code.autorun,
-            usageMode: nextElem(code.usageMode, USAGE_MODES),
-        }),
-        wholeCode,
-    )
+    wholeCode
+        .invalidateWithId(id)
+        .mapWithId(
+            id,
+            code => code.update({
+                usageMode: nextElem(code.usageMode, USAGE_MODES),
+            }),
+        )
 
 export const setName = (id, name, wholeCode) =>
-    updateCodeWithId(
-        id,
-        code => ({ ...code, name }),
-        wholeCode,
-    )
+    wholeCode
+        .invalidateWithId(id)
+        .mapWithid(id, code => code.update({ name }))
 
 export const updateState = (id, stateUpdate, wholeCode) =>
-    updateCodeWithId(
-        id,
-        code => ({
-            ...code,
-            invalidated: code.usageMode === 'use-data' ? code.autorun : code.invalidated,
-            state: runUpdate(stateUpdate, code.state),
-        }),
-        wholeCode,
-    )
+    wholeCode
+        .applyWhen(
+            code.usageMode === 'use-data',
+            code => code.invalidateWithId(id),
+        )
+        .mapWithId(
+            id,
+            code => code.update({
+                state: runUpdate(stateUpdate, code.state),
+            }),
+        )
 
 export const switchAutorun = (id, wholeCode) =>
-    updateCodeWithId(
+    wholeCode.mapWithId(
         id,
-        code => ({ ...code, autorun: !code.autorun }),
-        wholeCode,
+        code => code.update({ autorun: !code.autorun }),
     )
 
 export const runCode = (id, wholeCode) =>
-    updateCodeWithId(
+    wholeCode.mapWithId(
         id,
-        code => ({ ...code, invalidated: true }),
-        wholeCode,
+        code => code.update({ invalidated: true }),
     )
 
 export const insertBeforeCode = (id, insert, wholeCode) =>
-    updateCodeWithId(
+    wholeCode.mapWithId(
         id,
-        code => ({ ...code, prev: { ...insert, id: getNextId(wholeCode), prev: code.prev } }),
-        wholeCode,
+        code => code.update({
+            prev: insert.update({
+                id: wholeCode.getNextId(),
+                prev: code.prev
+            })
+        }),
     )
 
 export const insertAfterCode = (id, insert, wholeCode) =>
-    updateCodeWithId(
+    wholeCode.mapWithId(
         id,
-        code => ({ ...insert, id: getNextId(wholeCode), prev: code }),
-        wholeCode,
+        code => insert.update({ id: wholeCode.getNextId(), prev: code }),
     )
 
 export const deleteCode = (id, wholeCode) =>
     id === wholeCode.id ?
-        (wholeCode.prev || emptyCode)
+        (wholeCode.prev || CodeComponent)
     :
-        updateCodeWithId(
-            id,
-            code => code.prev,
-            wholeCode,
-        )
+        wholeCode.mapWithId(id, code => code.prev)
 
 export const resetStateCode = (id, wholeCode) =>
-    updateCodeWithId(
-        id,
-        code => ({
-            ...code,
-            invalidated: code.usageMode === 'use-data' ? code.autorun : code.invalidated,
-            state: initialBlockState
-        }),
-        wholeCode,
-    )
+    wholeCode
+        .applyWhen(
+            code.usageMode === 'use-data',
+            code => code.invalidateWithId(id),
+        )
+        .mapWithId(id, code => code.update({ state: initialBlockState }))
 
 export const updateUIOption = (id, uiUpdater, wholeCode) =>
-    updateCodeWithId(
+    wholeCode.mapWithId(
         id,
-        code => ({ ...code, ui: uiUpdater(code.ui) }),
-        wholeCode,
+        code => code.udpate({ ui: uiUpdater(code.ui) }),
     )
 
 
@@ -414,8 +480,8 @@ export const REPL = ({ code, dispatch }) => {
     const onUpdateState   = stateUpdate => dispatch(updateState,      code.id, stateUpdate)
     const onSwitchAutorun = ()          => dispatch(switchAutorun,    code.id)
     const onRun           = ()          => dispatch(runCode,          code.id)
-    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, emptyCode)
-    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, emptyCode)
+    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, CodeComponent)
+    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, CodeComponent)
 
     const onKeyPress = event => {
         onMetaEnter(onCmdInsert)(event)
@@ -476,7 +542,7 @@ export const AssignmentLine = ({ code, dispatch }) => {
                 <VarNameInput
                     value={code.name}
                     onUpdate={onUpdateName}
-                    placeholder={getDefaultName(code)}
+                    placeholder={code.getDefaultName()}
                 />
                 &nbsp;=
             </div>
@@ -513,8 +579,8 @@ const PopoverPanelStyled = classed(Popover.Panel)`
 `
 
 const REPLUIToggles = ({ code, dispatch }) => {
-    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, emptyCode)
-    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, emptyCode)
+    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, CodeComponent)
+    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, CodeComponent)
     const onReset           = () => dispatch(resetStateCode,   code.id)
     const onSwitchUsageMode = () => dispatch(switchUsageMode,  code.id)
     const onDelete          = () => dispatch(deleteCode,       code.id)
@@ -552,7 +618,7 @@ const REPLUIToggles = ({ code, dispatch }) => {
             <Toggle propName="isStateVisible"    icon={solidIcons.faHdd}          label="State"              />
             <Button onUpdate={onInsertBefore}    icon={solidIcons.faChevronUp}    label="Insert before"      />
             <Button onUpdate={onInsertAfter}     icon={solidIcons.faChevronDown}  label="Insert after"       />
-            <Button onUpdate={onSwitchUsageMode} icon={solidIcons.faDollarSign}   label={`Save ${code.usageMode === 'use-result' ? "code result" : "block data"} in ${getName(code)}`} />
+            <Button onUpdate={onSwitchUsageMode} icon={solidIcons.faDollarSign}   label={`Save ${code.usageMode === 'use-result' ? "code result" : "block data"} in ${code.getName()}`} />
             <Button onUpdate={onReset}           icon={solidIcons.faStepBackward} label="Reset Block (data)" />
             <Button onUpdate={onDelete}          icon={solidIcons.faTrash}        label="Delete"             />
         </PopoverPanelStyled>

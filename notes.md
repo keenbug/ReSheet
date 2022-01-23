@@ -33,12 +33,13 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] implement Block Combinator, a React Component that properly executes Blocks in its children
         - ugly, maybe implement another approach some time
 - [x] switch repl to dispatch pattern instead of update-/set-*
-- [ ] Refactor REPL Code stuff into custom entity-component pattern
+- [x] Refactor REPL Code stuff into custom entity-component pattern
     - Components:
         - Compute: { code, run(env) }
         - Cache: Compute -> { invalidated, cachedResult, run(env) }
         - Autorun: Compute, Cache -> { autorun, setCode(code) }
     - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
+- [ ] Refactor REPL Code into multiple files
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
