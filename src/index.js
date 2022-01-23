@@ -4,11 +4,13 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import 'prismjs/themes/prism.css'
 
-import { getNextId, REPL, precompute, CodeComponent, stripCachedResult, sanitizeCode, appendCode, reindexCode, parseJsCode, concatCode, exportJsCode, updateState } from './repl'
+import { REPL } from './repl'
+import { CodeComponent } from './components'
+import { parseJsCode, exportJsCode } from './import-export'
 import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
 import stdLibrary, { LIBRARY_MAPPINGS } from './std-library'
 import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
-import { catchAll, runUpdate, subUpdate } from './utils'
+import { catchAll } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
@@ -51,6 +53,56 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
     }
 }
 
+const App = () => {
+    const loadSavedCode = () =>
+        CodeComponent.loadFrom(
+            JSON.parse(localStorage.getItem('code'))
+                ?? {}
+        )
+        .forcecomputeAll(stdLibrary)
+    const [code, setCode] = React.useState(loadSavedCode)
+    const [mode, setMode] = React.useState('code')
+    const [name, setName] = React.useState('Code')
+
+    const dispatchCode = (action, ...args) => {
+        setCode(code => 
+            action(...args, code)
+                .precomputeAll(stdLibrary)
+        )
+    }
+
+    React.useEffect(() => {
+        localStorage.setItem('code', JSON.stringify(code.stripCachedResults()))
+    }, [code])
+
+    return (
+        <React.Fragment>
+            <MenuLine>
+                <IconToggleButton isActive={mode === 'app'} icon={solidIcons.faPlay} onUpdate={() => setMode('app')} />
+                <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
+                <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
+                <Spacer />
+                <NameInput value={name} onUpdate={setName} />
+                <DeleteButton setCode={setCode} />
+                <ImportButton setCode={setCode} />
+                <ExportButton code={code} name={name} />
+                <UploadButton setCode={setCode} />
+                <DownloadButton code={code} name={name} />
+            </MenuLine>
+            <AppContent
+                code={code} dispatchCode={dispatchCode}
+                mode={mode} setMode={setMode}
+            />
+        </React.Fragment>
+    )
+}
+
+
+
+
+
+/****************** Menu ******************/
+
 const MenuLine = classed('div')`flex flex-row shadow mb-1 w-full`
 
 const Spacer = classed('div')`flex-1`
@@ -89,7 +141,7 @@ const DownloadButton = ({ code, name }) => (
             <SaveFileButtonStyled
                 className="self-end"
                 mimeType="text/json"
-                textContent={JSON.stringify(stripCachedResult(code))}
+                textContent={JSON.stringify(code.stripCachedResult())}
                 filename={name + '.json'}
             >
                 <div className="inline-block w-5 text-center">
@@ -193,53 +245,11 @@ const NameInput = classed(TextInput)`
     rounded
 `
 
-const App = () => {
-    const loadSavedCode = () =>
-        CodeComponent.loadFrom(
-            JSON.parse(localStorage.getItem('code'))
-                ?? {}
-        )
-        .forcecomputeAll(stdLibrary)
-    const [code, setCode] = React.useState(loadSavedCode)
-    const [mode, setMode] = React.useState('code')
-    const [name, setName] = React.useState('Code')
 
-    const dispatchCode = (action, ...args) => {
-        setCode(code => 
-            action(...args, code)
-                .precomputeAll(stdLibrary)
-        )
-    }
 
-    React.useEffect(() => {
-        localStorage.setItem('code', JSON.stringify(code.stripCachedResults()))
-    }, [code])
-
-    return (
-        <React.Fragment>
-            <MenuLine>
-                <IconToggleButton isActive={mode === 'app'} icon={solidIcons.faPlay} onUpdate={() => setMode('app')} />
-                <IconToggleButton isActive={mode === 'code'} icon={solidIcons.faCode} onUpdate={() => setMode('code')} />
-                <IconToggleButton isActive={mode === 'state'} icon={solidIcons.faHdd} onUpdate={() => setMode('state')} />
-                <Spacer />
-                <NameInput value={name} onUpdate={setName} />
-                <DeleteButton setCode={setCode} />
-                <ImportButton setCode={setCode} />
-                <ExportButton code={code} name={name} />
-                <UploadButton setCode={setCode} />
-                <DownloadButton code={code} name={name} />
-            </MenuLine>
-            <AppContent
-                code={code} dispatchCode={dispatchCode}
-                mode={mode} setMode={setMode}
-            />
-        </React.Fragment>
-    )
-}
-
-const container = document.getElementById("app")
+/*** Script ***/
 
 ReactDOM.render(
     <App />,
-    container,
+    document.getElementById('app'),
 )

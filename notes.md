@@ -39,7 +39,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - Cache: Compute -> { invalidated, cachedResult, run(env) }
         - Autorun: Compute, Cache -> { autorun, setCode(code) }
     - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
-- [ ] Refactor REPL Code into multiple files
+- [x] Refactor REPL Code into multiple files
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
