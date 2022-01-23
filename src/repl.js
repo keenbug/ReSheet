@@ -163,7 +163,7 @@ export const EnvironmentComponent = {
         return this.name.length > 0 ? this.name : this.getDefaultName()
     },
     getNextFreeId(candidate = 0) {
-        const freeCandidate = candidate === this.id ? candidate + 1 : candidate
+        const freeCandidate = candidate <= this.id ? this.id + 1 : candidate
         return this.prev ? this.prev.getNextFreeId(freeCandidate) : freeCandidate
     },
 
@@ -410,7 +410,7 @@ export const switchUsageMode = (id, wholeCode) =>
 export const setName = (id, name, wholeCode) =>
     wholeCode
         .invalidateWithId(id)
-        .mapWithid(id, code => code.update({ name }))
+        .mapWithId(id, code => code.update({ name }))
 
 export const updateState = (id, stateUpdate, wholeCode) =>
     wholeCode
@@ -442,7 +442,7 @@ export const insertBeforeCode = (id, insert, wholeCode) =>
         id,
         code => code.update({
             prev: insert.update({
-                id: wholeCode.getNextId(),
+                id: wholeCode.getNextFreeId(),
                 prev: code.prev
             })
         }),
@@ -451,7 +451,7 @@ export const insertBeforeCode = (id, insert, wholeCode) =>
 export const insertAfterCode = (id, insert, wholeCode) =>
     wholeCode.mapWithId(
         id,
-        code => insert.update({ id: wholeCode.getNextId(), prev: code }),
+        code => insert.update({ id: wholeCode.getNextFreeId(), prev: code }),
     )
 
 export const deleteCode = (id, wholeCode) =>

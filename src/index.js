@@ -205,8 +205,7 @@ const App = () => {
     const [name, setName] = React.useState('Code')
 
     const dispatchCode = (action, ...args) => {
-        // console.log('dispatchCode', action, ...args)
-        setCode(code =>
+        setCode(code => 
             action(...args, code)
                 .precomputeAll(stdLibrary)
         )

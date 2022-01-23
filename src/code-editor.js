@@ -34,22 +34,27 @@ export const EditableCode = ({ code, onUpdate, highlight, className, ...props })
 export const CodeView = ({ code, highlight = highlightJS, ...props }) => {
     const ref = React.useRef(null)
 
-    React.useEffect(() => {
-        if (ref.current) {
-            ref.current.textContent = code
-            highlight(ref.current)
-        }
-    }, [code, ref.current])
-
-    return <pre><CodeContent ref={ref} style={{ minHeight: "1.5rem" }} {...props} /></pre>
+    return (
+        <pre>
+            <CodeContent
+                ref={ref}
+                style={{ minHeight: "1.5rem" }}
+                dangerouslySetInnerHTML={{ __html: highlight(code) }}
+                {...props}
+            />
+        </pre>
+    )
 }
 
 
 export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }) => {
+    const highlightCodeJar = editor => {
+        editor.innerHTML = highlight(editor.textContent)
+    }
     const ref = useCodeJar({
         code,
         onUpdate,
-        highlight,
+        highlight: highlightCodeJar,
         options: {
             tab: "  ",
         },
@@ -58,11 +63,10 @@ export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }
     return <pre><CodeContent ref={ref} {...props} /></pre>
 }
 
-export const highlightJS = editor => {
-    const text = editor.textContent
-    editor.innerHTML = Prism.highlight(
-        text,
+export const highlightJS = code => (
+    Prism.highlight(
+        code,
         Prism.languages.javascript,
         'javascript'
     )
-}
+)
