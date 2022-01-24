@@ -55,7 +55,7 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
 
 const App = () => {
     const loadSavedCode = () =>
-        CodeBlock.loadFrom(
+        CodeBlock.load(
             JSON.parse(localStorage.getItem('code'))
                 ?? {}
         )

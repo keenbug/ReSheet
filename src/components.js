@@ -2,43 +2,45 @@ import { computeExpr } from './compute'
 import { initialBlockState } from './value'
 
 
-export const readonlyProps = values => (
+export const mapObject = (obj, fn) => (
     Object.fromEntries(
-        Object.entries(values)
-            .map(
-                ([ name, value ]) => [
-                    name,
-                    { value, enumerable: true }
-                ]
-            )
+        Object.entries(obj)
+            .map(entry => fn(...entry))
     )
 )
 
-export const createEntity = (...components) => {
-    const { props, ...methods } = components.reduce(CombinedComponent)
-    const properties = readonlyProps(props)
-    return Object.create(methods, properties)
-}
+export const filterEntries = (predicate, obj) => (
+    Object.fromEntries(
+        Object.entries(obj)
+            .filter(([ name, value ]) => predicate(name, value))
+    )
+)
 
-export const combineComponents = (
-    { props: firstProps, ...firstMethods},
-    { props: secondProps, ...secondMethods }
-) => ({
-        props: { ...firstProps, ...secondProps },
-        ...firstMethods,
-        ...secondMethods,
-    })
+export const readonlyProps = values => (
+    mapObject(values,
+        (name, value) => [
+            name,
+            { value, enumerable: true }
+        ]
+    )
+)
 
-export const extendComponent = (component, extender) => {
-    const { props: componentProps, ...componentMethods } = component
-    const { props: extenderProps, ...extenderMethods } = extender(component)
+export const Component = (props, methods={}) => Object.create(methods, readonlyProps(props))
 
-    return {
-        props: { ...componentProps, ...extenderProps },
-        ...componentMethods,
-        ...extenderMethods,
-    }
-}
+export const combineComponents = (firstComponent, secondComponent) => Object.create(
+    {
+        ...Object.getPrototypeOf(firstComponent),
+        ...Object.getPrototypeOf(secondComponent),
+    },
+    {
+        ...Object.getOwnPropertyDescriptors(firstComponent),
+        ...Object.getOwnPropertyDescriptors(secondComponent),
+    },
+)
+
+export const extendComponent = (component, extender) => (
+    combineComponents(component, extender(component))
+)
 
 export const ExtendedComponent = (component, ...extenders) =>
     extenders.reduce(extendComponent, component)
@@ -48,30 +50,32 @@ export const CombinedComponent = (...components) =>
     components.reduce(combineComponents)
 
 
-export const StateComponent = props => ({
-    props
-})
 
-
-export const UpdateComponent = {
+export const UpdateComponent = Component({}, {
     update(newValues) {
         return Object.create(
             Object.getPrototypeOf(this),
-            readonlyProps({ ...this, ...newValues }),
+            mapObject(
+                Object.getOwnPropertyDescriptors(this),
+                (name, descriptor) => [
+                    name,
+                    {
+                        ...descriptor,
+                        value:
+                            name in newValues ?
+                                newValues[name]
+                            :
+                                descriptor.value,
+                    }
+                ]
+            )
         )
     },
-}
+})
 
 
-export const filterEntries = (predicate, obj) => (
-    Object.fromEntries(
-        Object.entries(obj)
-            .filter(([ name, value ]) => predicate(name, value))
-    )
-)
 
-
-export const UtilsComponent = {
+export const UtilsComponent = Component({}, {
     applyWhen(cond, fn) {
         if (cond) {
             return fn(this)
@@ -83,30 +87,20 @@ export const UtilsComponent = {
     call(method, ...args) {
         return method.apply(this, args)
     },
-    safeUpdate(newValues) {
-        const safeValues = filterEntries(
-            name => this.hasOwnProperty(name),
-            newValues
-        )
-        return this.update(safeValues)
-    },
     mapFields(mappers) {
         const newValues =
-            Object.fromEntries(
-                Object.entries(mappers)
-                    .map(
-                        ([ name, fn ]) => [
-                            name,
-                            fn(this[name])
-                        ]
-                    )
+            mapObject(mappers,
+                (name, fn) => [
+                    name,
+                    fn(this[name])
+                ]
             )
         return this.update(newValues)
     }
-}
+})
 
 
-export const SaveLoadNothingComponent = {
+export const SaveLoadNothingComponent = Component({}, {
     save() {
         return {}
     },
@@ -117,9 +111,9 @@ export const SaveLoadNothingComponent = {
         }
         return this
     }
-}
+})
 
-export const SaveLoadSimpleExtension = (...propNameList) => ante => ({
+export const SaveLoadSimpleExtension = (...propNameList) => ante => Component({}, {
     save() {
         const saved = this.call(ante.save)
         const ownSave = filterEntries(name => propNameList.includes(name), this)
@@ -138,52 +132,55 @@ export const SaveLoadSimpleExtension = (...propNameList) => ante => ({
 export const SaveLoadJSExprExtension = SaveLoadSimpleExtension('expr')
 
 
-export const JSExprComponent = {
-    props: {
+export const JSExprComponent = Component(
+    {
         expr: "",
     },
-
-    exec(env) {
-        return computeExpr(this.expr, env)
+    {
+        exec(env) {
+            return computeExpr(this.expr, env)
+        },
     },
-}
+)
 
 
 
-export const CachedComputationComponent = {
-    props: {
+
+export const CachedComputationComponent = Component(
+    {
         cachedResult: null,
         invalidated: true,
         autorun: true,
     },
+    {
+        updateExpr(expr) {
+            return this
+                .update({ expr })
+                .invalidate()
+        },
+        precompute(env) {
+            if (!this.invalidated) { return this }
+            return this.update({
+                cachedResult: this.exec(env)
+            })
+        },
+        invalidate() {
+            if (!this.autorun) { return this }
+            return this.update({
+                invalidated: true
+            })
+        },
+        forcecompute(env) {
+            return this.update({
+                cachedResult: this.exec(env)
+            })
+        },
+    }
+)
 
-    updateExpr(expr) {
-        return this
-            .update({ expr })
-            .invalidate()
-    },
-    precompute(env) {
-        if (!this.invalidated) { return this }
-        return this.update({
-            cachedResult: this.exec(env)
-        })
-    },
-    invalidate() {
-        if (!this.autorun) { return this }
-        return this.update({
-            invalidated: true
-        })
-    },
-    forcecompute(env) {
-        return this.update({
-            cachedResult: this.exec(env)
-        })
-    },
-}
 
 
-
-export const SaveLoadEnvironmentExtension = ante => ({
+export const SaveLoadEnvironmentExtension = ante => Component({}, {
     load({ id, name, prev, ...input }) {
         const loaded = this.call(ante.load, input)
         const prevLoaded = prev && this.load(prev)
@@ -198,71 +195,72 @@ export const SaveLoadEnvironmentExtension = ante => ({
     },
 })
 
-export const EnvironmentComponent = {
-    props: {
+export const EnvironmentComponent = Component(
+    {
         id: 0,
         name: "",
         prev: null,
     },
+    {
+        getDefaultName() {
+            return '$' + this.id
+        },
+        getName() {
+            return this.name.length > 0 ? this.name : this.getDefaultName()
+        },
+        getNextFreeId(candidate = 0) {
+            const freeCandidate = candidate <= this.id ? this.id + 1 : candidate
+            return this.prev ? this.prev.getNextFreeId(freeCandidate) : freeCandidate
+        },
 
-    getDefaultName() {
-        return '$' + this.id
-    },
-    getName() {
-        return this.name.length > 0 ? this.name : this.getDefaultName()
-    },
-    getNextFreeId(candidate = 0) {
-        const freeCandidate = candidate <= this.id ? this.id + 1 : candidate
-        return this.prev ? this.prev.getNextFreeId(freeCandidate) : freeCandidate
-    },
+        reindex(codeNotToClashWith) {
+            const prev = this.prev?.reindex(codeNotToClashWith)
+            const id = codeNotToClashWith.getNextFreeId(prev ? prev.id + 1 : 0)
+            return this.update({ id, prev })
+        },
+        append(prev) {
+            if (this.prev) {
+                return this.update({ prev: this.prev.append(prev) })
+            }
+            else {
+                return this.update({ prev })
+            }
+        },
 
-    reindex(codeNotToClashWith) {
-        const prev = this.prev?.reindex(codeNotToClashWith)
-        const id = codeNotToClashWith.getNextFreeId(prev ? prev.id + 1 : 0)
-        return this.update({ id, prev })
-    },
-    append(prev) {
-        if (this.prev) {
-            return this.update({ prev: this.prev.append(prev) })
-        }
-        else {
-            return this.update({ prev })
-        }
-    },
-
-    getWithId(id) {
-        if (this.id === id) {
-            return this
-        }
-        else {
-            return this.prev?.getWithId(id)
-        }
-    },
-    mapWithId(id, fn) {
-        if (this.id === id) {
-            return fn(this)
-        }
-        else {
-            return this.update({
-                prev: this.prev?.mapWithId(id, fn)
-            })
-        }
-    },
-    toList() {
-        if (!this.prev) { return [this] }
-        return [ this, ...this.prev.toList() ]
-    },
-    fromList(list) {
-        return list.reduceRight(
-            (prev, code) => code.update({ prev }),
-            null,
-        )
-    },
-}
+        getWithId(id) {
+            if (this.id === id) {
+                return this
+            }
+            else {
+                return this.prev?.getWithId(id)
+            }
+        },
+        mapWithId(id, fn) {
+            if (this.id === id) {
+                return fn(this)
+            }
+            else {
+                return this.update({
+                    prev: this.prev?.mapWithId(id, fn)
+                })
+            }
+        },
+        toList() {
+            if (!this.prev) { return [this] }
+            return [ this, ...this.prev.toList() ]
+        },
+        fromList(list) {
+            return list.reduceRight(
+                (prev, code) => code.update({ prev }),
+                null,
+            )
+        },
+    }
+)
 
 
 
-export const CachedEnvironmentComponent = {
+export const CachedEnvironmentComponent = Component({}, {
     precomputeAll(globalEnv) {
         const prev = this.prev?.precomputeAll(globalEnv)
         const env = prev ? prev.toEnv() : {}
@@ -302,15 +300,7 @@ export const CachedEnvironmentComponent = {
                 .map(code => [ code.getName(), code.cachedResult ])
         )
     },
-
-    loadFrom(data) {
-        return this.safeUpdate({
-            ...data,
-            prev: data.prev && this.loadFrom(data.prev),
-        })
-    },
-
-}
+})
 
 
 
@@ -318,12 +308,10 @@ export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
 export const SaveLoadBlockExtension = SaveLoadSimpleExtension('state')
 
-export const BlockComponent = {
-    props: {
-        state: initialBlockState,
-        usageMode: USAGE_MODES[0],
-    }
-}
+export const BlockComponent = Component({
+    state: initialBlockState,
+    usageMode: USAGE_MODES[0],
+})
 
 
 
@@ -334,14 +322,12 @@ export const defaultCodeUI = {
     isStateVisible: false,
 }
 
-export const CodeUIOptionsComponent = {
-    props: {
-        ui: defaultCodeUI,
-    }
-}
+export const CodeUIOptionsComponent = Component({
+    ui: defaultCodeUI,
+})
 
 
-export const CodeBlock = createEntity(
+export const CodeBlock = CombinedComponent(
     UpdateComponent,
     UtilsComponent,
     JSExprComponent,
@@ -359,12 +345,12 @@ export const CodeBlock = createEntity(
 )
 
 
-export const CommandBlock = createEntity(
+export const CommandBlock = CombinedComponent(
     UpdateComponent,
     UtilsComponent,
     JSExprComponent,
     CachedComputationComponent,
-    StateComponent({ blockState: initialBlockState }),
+    Component({ blockState: initialBlockState }),
     ExtendedComponent(
         SaveLoadNothingComponent,
         SaveLoadJSExprExtension,
