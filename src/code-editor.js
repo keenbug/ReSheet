@@ -63,6 +63,8 @@ export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }
     return <pre><CodeContent ref={ref} {...props} /></pre>
 }
 
+export const highlightNothing = code => new Option(code).innerHTML
+
 export const highlightJS = code => (
     Prism.highlight(
         code,

@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { ValueViewer, initialBlockState } from './value'
+import { ValueViewer, initialBlockState, ValueInspector } from './value'
 import { EditableCode } from './code-editor'
 import { classed } from './ui'
 import { runUpdate } from './utils'
@@ -13,14 +13,10 @@ export const setCommandExpr = (expr, commandBlock) =>
     commandBlock.updateExpr(expr)
 
 export const updateState = (stateUpdate, commandBlock) =>
-    commandBlock
-        .invalidate()
-        .update({ blockState: runUpdate(stateUpdate, commandBlock.blockState) })
+    commandBlock.update({ blockState: runUpdate(stateUpdate, commandBlock.blockState) })
 
 export const resetStateCode = commandBlock =>
-    commandBlock
-        .invalidate()
-        .update({ blockState: initialBlockState })
+    commandBlock.update({ blockState: initialBlockState })
 
 
 
@@ -39,8 +35,9 @@ export const CommandBlockUI = ({ code: command, dispatch }) => {
     return (
         <CommandLineContainer key={command.id}>
             <CommandContent>
-                <EditableCode code={command.expr} onUpdate={onUpdateExpr} onKeyPress={onKeyPress} />
-                <ValueViewer value={command.cachedResult} state={command.state} setState={onUpdateState} />
+                <EditableCode code={command.expr} onUpdate={onUpdateExpr} />
+                <ValueViewer value={command.cachedResult} state={command.blockState} setState={onUpdateState} />
+                <ValueInspector value={command} />
             </CommandContent>
         </CommandLineContainer>
     )

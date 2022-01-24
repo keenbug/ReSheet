@@ -1,9 +1,21 @@
 import React from 'react'
 import { runExpr } from './repl'
 import { BlockRunner, createBlock, initialBlockState, isBlock, ValueInspector } from './value'
-import { EditableCode } from './code-editor'
+import { EditableCode, highlightNothing } from './code-editor'
 import { classed, LoadFileButton } from './ui'
 import { runUpdate, updateArray } from './utils'
+import stdLibrary from './std-library'
+import { computeExpr } from './compute'
+
+export const ResetBlock = innerBlock => createBlock(
+    ({ data, setData }) => (
+        <div>
+            <button onClick={() => setData(initialBlockState)}>Reset</button>
+            {innerBlock && <BlockRunner state={data} setState={setData} block={innerBlock} />}
+        </div>
+    ),
+    innerBlock ? innerBlock.initialData : initialBlockState,
+)
 
 export const InputBlock = createBlock(
     ({ data, setData }) => {
@@ -69,11 +81,11 @@ export const BlockContainer = ({ data, setData, children, container = React.Frag
 }
 
 export const TextBlock = (container = 'div') => createBlock(
-    ({data: { code, result }, setData }) => {
+    ({ data: { code, result }, setData }) => {
       const runText = code =>
-        runExpr(
+        computeExpr(
           `<$TextBlockContainer>${code}</$TextBlockContainer>`,
-          { $stdLibrary, React, $TextBlockContainer: container },
+          { ...stdLibrary, $TextBlockContainer: container },
         )
       const setCode = code => {
         setData({ code, result: runText(code) })
@@ -83,7 +95,7 @@ export const TextBlock = (container = 'div') => createBlock(
           <EditableCode
             code={code}
             onUpdate={setCode}
-            highlight={() => {}}
+            highlight={highlightNothing}
           />
           <ValueInspector value={result} />
         </React.Fragment>

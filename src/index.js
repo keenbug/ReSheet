@@ -5,13 +5,14 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import 'prismjs/themes/prism.css'
 
 import { REPL } from './repl'
-import { CodeBlock } from './components'
+import { CodeBlock, CommandBlock } from './components'
 import { parseJsCode, exportJsCode } from './import-export'
 import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
 import stdLibrary from './std-library'
 import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
 import { catchAll } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { CommandBlockUI } from './command'
 
 
 
@@ -24,7 +25,7 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
             return (
                 <ErrorBoundary title="There was an Error in the REPL">
                     <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
-                        <REPL code={code} dispatch={dispatchCode} />
+                        <CommandBlockUI code={code} dispatch={dispatchCode} />
                     </div>
                 </ErrorBoundary>
             )
@@ -55,11 +56,11 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
 
 const App = () => {
     const loadSavedCode = () =>
-        CodeBlock.load(
-            JSON.parse(localStorage.getItem('code'))
-                ?? {}
+        CommandBlock.load(
+            JSON.parse(localStorage.getItem('block'))
+                ?? CommandBlock
         )
-        .forcecomputeAll(stdLibrary)
+        .forcecompute(stdLibrary)
     const [code, setCode] = React.useState(loadSavedCode)
     const [mode, setMode] = React.useState('code')
     const [name, setName] = React.useState('Code')
@@ -67,12 +68,12 @@ const App = () => {
     const dispatchCode = (action, ...args) => {
         setCode(code => 
             action(...args, code)
-                .precomputeAll(stdLibrary)
+                .precompute(stdLibrary)
         )
     }
 
     React.useEffect(() => {
-        localStorage.setItem('code', JSON.stringify(code.save()))
+        localStorage.setItem('block', JSON.stringify(code.save()))
     }, [code])
 
     return (
@@ -84,10 +85,10 @@ const App = () => {
                 <Spacer />
                 <NameInput value={name} onUpdate={setName} />
                 <DeleteButton setCode={setCode} />
-                <ImportButton setCode={setCode} />
+                {/* <ImportButton setCode={setCode} />
                 <ExportButton code={code} name={name} />
                 <UploadButton setCode={setCode} />
-                <DownloadButton code={code} name={name} />
+                <DownloadButton code={code} name={name} /> */}
             </MenuLine>
             <AppContent
                 code={code} dispatchCode={dispatchCode}

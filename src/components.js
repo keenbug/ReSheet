@@ -160,9 +160,7 @@ export const CachedComputationComponent = Component(
         },
         precompute(env) {
             if (!this.invalidated) { return this }
-            return this.update({
-                cachedResult: this.exec(env)
-            })
+            return this.forcecompute(env)
         },
         invalidate() {
             if (!this.autorun) { return this }
@@ -172,6 +170,7 @@ export const CachedComputationComponent = Component(
         },
         forcecompute(env) {
             return this.update({
+                invalidated: false,
                 cachedResult: this.exec(env)
             })
         },
