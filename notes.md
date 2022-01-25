@@ -31,13 +31,17 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - Autorun: Compute, Cache -> { autorun, setCode(code) }
     - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
 - [x] Refactor REPL Code into multiple files
-- [ ] Rename tables to Jotter? Then also rename Blocks to Jots?
+- [x] Component -> FCObject, functional composable object
+    - split into own file
+    - create base Object FCObject with base functionality: compose, extend, call, update, isDerivative
+- [ ] implement Block with FCObject
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
             - [ ] Add completion
         - [ ] Compute Block
             - former REPL
+- [ ] Rename tables to Jotter? JotterSheets? Then also rename Blocks to Jots?
 
 
 # Current

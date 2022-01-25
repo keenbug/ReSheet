@@ -59,3 +59,18 @@ export const logV = (msg = '', value) => {
     console.log(msg, value)
     return value
 }
+
+
+export const mapObject = (obj, fn) => (
+    Object.fromEntries(
+        Object.entries(obj)
+            .map(entry => fn(...entry))
+    )
+)
+
+export const filterEntries = (predicate, obj) => (
+    Object.fromEntries(
+        Object.entries(obj)
+            .filter(([ name, value ]) => predicate(name, value))
+    )
+)

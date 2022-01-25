@@ -15,6 +15,7 @@ import * as codeEditor from './code-editor'
 import * as command from './command'
 import * as components from './components'
 import * as compute from './compute'
+import * as fcObject from './fc-object'
 import * as importExport from './import-export'
 import * as repl from './repl'
 import * as tables from './tables'
@@ -37,6 +38,7 @@ export const LIBRARY_MAPPINGS = {
     "./command":                            command,
     "./components":                         components,
     "./compute":                            compute,
+    "./fc-object":                          fcObject,
     "./import-export":                      importExport,
     "./repl":                               repl,
     "./tables":                             tables,

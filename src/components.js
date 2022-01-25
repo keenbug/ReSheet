@@ -1,106 +1,10 @@
+import { FCO } from './fc-object'
 import { computeExpr } from './compute'
 import { initialBlockState } from './value'
+import { filterEntries } from './utils'
 
 
-export const mapObject = (obj, fn) => (
-    Object.fromEntries(
-        Object.entries(obj)
-            .map(entry => fn(...entry))
-    )
-)
-
-export const filterEntries = (predicate, obj) => (
-    Object.fromEntries(
-        Object.entries(obj)
-            .filter(([ name, value ]) => predicate(name, value))
-    )
-)
-
-export const readonlyProps = values => (
-    mapObject(values,
-        (name, value) => [
-            name,
-            { value, enumerable: true }
-        ]
-    )
-)
-
-export const Component = (props, methods={}) => Object.create(methods, readonlyProps(props))
-
-export const combineComponents = (firstComponent, secondComponent) => Object.create(
-    {
-        ...Object.getPrototypeOf(firstComponent),
-        ...Object.getPrototypeOf(secondComponent),
-    },
-    {
-        ...Object.getOwnPropertyDescriptors(firstComponent),
-        ...Object.getOwnPropertyDescriptors(secondComponent),
-    },
-)
-
-export const extendComponent = (component, extender) => (
-    combineComponents(component, extender(component))
-)
-
-export const ExtendedComponent = (component, ...extenders) =>
-    extenders.reduce(extendComponent, component)
-
-
-export const CombinedComponent = (...components) =>
-    components.reduce(combineComponents)
-
-
-
-export const UpdateComponent = Component({}, {
-    update(newValues) {
-        return Object.create(
-            Object.getPrototypeOf(this),
-            mapObject(
-                Object.getOwnPropertyDescriptors(this),
-                (name, descriptor) => [
-                    name,
-                    {
-                        ...descriptor,
-                        value:
-                            name in newValues ?
-                                newValues[name]
-                            :
-                                descriptor.value,
-                    }
-                ]
-            )
-        )
-    },
-})
-
-
-
-export const UtilsComponent = Component({}, {
-    applyWhen(cond, fn) {
-        if (cond) {
-            return fn(this)
-        }
-        else {
-            return this
-        }
-    },
-    call(method, ...args) {
-        return method.apply(this, args)
-    },
-    mapFields(mappers) {
-        const newValues =
-            mapObject(mappers,
-                (name, fn) => [
-                    name,
-                    fn(this[name])
-                ]
-            )
-        return this.update(newValues)
-    }
-})
-
-
-export const EmptyJSONComponent = Component({}, {
+export const BaseJSONFCO = FCO.addMethods({
     toJSON() {
         return {}
     },
@@ -113,7 +17,7 @@ export const EmptyJSONComponent = Component({}, {
     }
 })
 
-export const SimpleJSONExtension = (...propNameList) => ante => Component({}, {
+export const extendSimpleJSON = (...propNameList) => ante => ante.addMethods({
     toJSON() {
         const anteJson = this.call(ante.toJSON)
         const ownJson = filterEntries(name => propNameList.includes(name), this)
@@ -129,30 +33,29 @@ export const SimpleJSONExtension = (...propNameList) => ante => Component({}, {
 })
 
 
-export const JSExprJSONExtension = SimpleJSONExtension('expr')
+export const extendJSExprJSON = extendSimpleJSON('expr')
 
 
-export const JSExprComponent = Component(
-    {
+export const JSExprFCO = FCO
+    .addState({
         expr: "",
-    },
-    {
+    })
+    .addMethods({
         exec(env) {
             return computeExpr(this.expr, env)
         },
-    },
-)
+    })
 
 
 
 
-export const CachedComputationComponent = Component(
-    {
+export const CachedComputationFCO = FCO
+    .addState({
         cachedResult: null,
         invalidated: true,
         autorun: true,
-    },
-    {
+    })
+    .addMethods({
         updateExpr(expr) {
             return this
                 .update({ expr })
@@ -174,12 +77,11 @@ export const CachedComputationComponent = Component(
                 cachedResult: this.exec(env)
             })
         },
-    }
-)
+    })
 
 
 
-export const EnvironmentJSONExtension = ante => Component({}, {
+export const extendEnvironmentJSON = ante => ante.addMethods({
     fromJSON({ id, name, prev, ...json }) {
         const loaded = this.call(ante.fromJSON, json)
         const prevLoaded = prev && this.fromJSON(prev)
@@ -194,13 +96,13 @@ export const EnvironmentJSONExtension = ante => Component({}, {
     },
 })
 
-export const EnvironmentComponent = Component(
-    {
+export const EnvironmentFCO = FCO
+    .addState({
         id: 0,
         name: "",
         prev: null,
-    },
-    {
+    })
+    .addMethods({
         getDefaultName() {
             return '$' + this.id
         },
@@ -254,12 +156,11 @@ export const EnvironmentComponent = Component(
                 null,
             )
         },
-    }
-)
+    })
 
 
 
-export const CachedEnvironmentComponent = Component({}, {
+export const CachedEnvironmentFCO = FCO.addMethods({
     precomputeAll(globalEnv) {
         const prev = this.prev?.precomputeAll(globalEnv)
         const env = prev ? prev.toEnv() : {}
@@ -305,54 +206,46 @@ export const CachedEnvironmentComponent = Component({}, {
 
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
-export const BlockJSONExtension = SimpleJSONExtension('state')
+export const extendBlockJSON = extendSimpleJSON('state')
 
-export const BlockComponent = Component({
+export const BlockFCO = FCO.addState({
     state: initialBlockState,
     usageMode: USAGE_MODES[0],
 })
 
 
 
-export const defaultCodeUI = {
-    isNameVisible: true,
-    isCodeVisible: true,
-    isResultVisible: true,
-    isStateVisible: false,
-}
-
-export const CodeUIOptionsComponent = Component({
-    ui: defaultCodeUI,
+export const CodeUIOptionsFCO = FCO.addState({
+    ui: {
+        isNameVisible: true,
+        isCodeVisible: true,
+        isResultVisible: true,
+        isStateVisible: false,
+    },
 })
 
 
-export const CodeBlock = CombinedComponent(
-    UpdateComponent,
-    UtilsComponent,
-    JSExprComponent,
-    CachedComputationComponent,
-    EnvironmentComponent,
-    ExtendedComponent(
-        EmptyJSONComponent,
-        JSExprJSONExtension,
-        EnvironmentJSONExtension,
-        BlockJSONExtension,
+export const CodeBlock = FCO.reduce(FCO.combine,
+    JSExprFCO,
+    CachedComputationFCO,
+    EnvironmentFCO,
+    BaseJSONFCO.chain(
+        extendJSExprJSON,
+        extendEnvironmentJSON,
+        extendBlockJSON,
     ),
-    CachedEnvironmentComponent,
-    BlockComponent,
-    CodeUIOptionsComponent,
+    CachedEnvironmentFCO,
+    BlockFCO,
+    CodeUIOptionsFCO,
 )
 
 
-export const CommandBlock = CombinedComponent(
-    UpdateComponent,
-    UtilsComponent,
-    JSExprComponent,
-    CachedComputationComponent,
-    Component({ blockState: initialBlockState }),
-    ExtendedComponent(
-        EmptyJSONComponent,
-        JSExprJSONExtension,
-        SimpleJSONExtension('blockState'),
+export const CommandBlock = FCO.reduce(FCO.combine,
+    JSExprFCO,
+    CachedComputationFCO,
+    FCO.addState({ blockState: initialBlockState }),
+    BaseJSONFCO.chain(
+        extendJSExprJSON,
+        extendSimpleJSON('blockState'),
     ),
 )
