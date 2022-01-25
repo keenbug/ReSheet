@@ -5,7 +5,7 @@ import React from 'react'
 export const TableHeadRow = ({ columns }) => (
     <tr>
         {columns.map(column => (
-            <td key={column.id}>{column.header}</td>
+            <th key={column.id}>{column.header}</th>
         ))}
     </tr>
 )

@@ -8,7 +8,7 @@ import { REPL } from './repl'
 import { CodeBlock, CommandBlock } from './components'
 import { parseJsCode, exportJsCode } from './import-export'
 import { ValueViewer, ErrorBoundary, ValueInspector } from './value'
-import stdLibrary from './std-library'
+import stdLibrary, { library } from './std-library'
 import { IconToggleButton, classed, TextInput, SaveFileButton, LoadFileButton } from './ui'
 import { catchAll } from './utils'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -56,11 +56,11 @@ const AppContent = ({ code, dispatchCode, mode, setMode }) => {
 
 const App = () => {
     const loadSavedCode = () =>
-        CommandBlock.load(
+        CommandBlock.fromJSON(
             JSON.parse(localStorage.getItem('block'))
                 ?? CommandBlock
         )
-        .forcecompute(stdLibrary)
+        .forcecompute({ ...stdLibrary, ...library.blocks })
     const [code, setCode] = React.useState(loadSavedCode)
     const [mode, setMode] = React.useState('code')
     const [name, setName] = React.useState('Code')
@@ -68,12 +68,12 @@ const App = () => {
     const dispatchCode = (action, ...args) => {
         setCode(code => 
             action(...args, code)
-                .precompute(stdLibrary)
+                .precompute({ ...stdLibrary, ...library.blocks })
         )
     }
 
     React.useEffect(() => {
-        localStorage.setItem('block', JSON.stringify(code.save()))
+        localStorage.setItem('block', JSON.stringify(code))
     }, [code])
 
     return (

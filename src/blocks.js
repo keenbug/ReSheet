@@ -1,11 +1,12 @@
 import React from 'react'
-import { runExpr } from './repl'
 import { BlockRunner, createBlock, initialBlockState, isBlock, ValueInspector } from './value'
 import { EditableCode, highlightNothing } from './code-editor'
 import { classed, LoadFileButton } from './ui'
 import { runUpdate, updateArray } from './utils'
 import stdLibrary from './std-library'
 import { computeExpr } from './compute'
+import { REPL } from './repl'
+import { CodeBlock } from './components'
 
 export const ResetBlock = innerBlock => createBlock(
     ({ data, setData }) => (
@@ -103,3 +104,12 @@ export const TextBlock = (container = 'div') => createBlock(
     },
     { code: "", result: null },
   )
+
+
+export const REPLBlock = createBlock(
+    ({ data, setData }) => {
+        const dispatch = (action, ...args) => setData(code => action(...args, code).precomputeAll(stdLibrary))
+        return <REPL code={data} dispatch={dispatch} />
+    },
+    CodeBlock
+)

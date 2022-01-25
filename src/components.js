@@ -100,12 +100,12 @@ export const UtilsComponent = Component({}, {
 })
 
 
-export const SaveLoadNothingComponent = Component({}, {
-    save() {
+export const EmptyJSONComponent = Component({}, {
+    toJSON() {
         return {}
     },
 
-    load(obj) {
+    fromJSON(obj) {
         if (Object.keys(obj).length > 0) {
             console.warn('stray content after load:', obj)
         }
@@ -113,23 +113,23 @@ export const SaveLoadNothingComponent = Component({}, {
     }
 })
 
-export const SaveLoadSimpleExtension = (...propNameList) => ante => Component({}, {
-    save() {
-        const saved = this.call(ante.save)
-        const ownSave = filterEntries(name => propNameList.includes(name), this)
-        return { ...saved, ...ownSave }
+export const SimpleJSONExtension = (...propNameList) => ante => Component({}, {
+    toJSON() {
+        const anteJson = this.call(ante.toJSON)
+        const ownJson = filterEntries(name => propNameList.includes(name), this)
+        return { ...anteJson, ...ownJson }
     },
 
-    load(input) {
-        const ownInput = filterEntries(name => propNameList.includes(name), input)
-        const anteInput = filterEntries(name => !propNameList.includes(name), input)
-        const loaded = this.call(ante.load, anteInput)
-        return loaded.update(ownInput)
+    fromJSON(json) {
+        const ownJson = filterEntries(name => propNameList.includes(name), json)
+        const anteJson = filterEntries(name => !propNameList.includes(name), json)
+        const loaded = this.call(ante.fromJSON, anteJson)
+        return loaded.update(ownJson)
     },
 })
 
 
-export const SaveLoadJSExprExtension = SaveLoadSimpleExtension('expr')
+export const JSExprJSONExtension = SimpleJSONExtension('expr')
 
 
 export const JSExprComponent = Component(
@@ -179,18 +179,18 @@ export const CachedComputationComponent = Component(
 
 
 
-export const SaveLoadEnvironmentExtension = ante => Component({}, {
-    load({ id, name, prev, ...input }) {
-        const loaded = this.call(ante.load, input)
-        const prevLoaded = prev && this.load(prev)
+export const EnvironmentJSONExtension = ante => Component({}, {
+    fromJSON({ id, name, prev, ...json }) {
+        const loaded = this.call(ante.fromJSON, json)
+        const prevLoaded = prev && this.fromJSON(prev)
         return loaded.update({ id, name, prev: prevLoaded })
     },
 
-    save() {
-        const saved = this.call(ante.save)
-        const prev = this.prev?.save() || null
+    toJSON() {
+        const json = this.call(ante.toJSON)
+        const prev = this.prev?.toJSON() || null
         const { id, name } = this
-        return { ...saved, id, name, prev }
+        return { ...json, id, name, prev }
     },
 })
 
@@ -305,7 +305,7 @@ export const CachedEnvironmentComponent = Component({}, {
 
 export const USAGE_MODES = [ 'use-result', 'use-data' ]
 
-export const SaveLoadBlockExtension = SaveLoadSimpleExtension('state')
+export const BlockJSONExtension = SimpleJSONExtension('state')
 
 export const BlockComponent = Component({
     state: initialBlockState,
@@ -333,10 +333,10 @@ export const CodeBlock = CombinedComponent(
     CachedComputationComponent,
     EnvironmentComponent,
     ExtendedComponent(
-        SaveLoadNothingComponent,
-        SaveLoadJSExprExtension,
-        SaveLoadEnvironmentExtension,
-        SaveLoadBlockExtension,
+        EmptyJSONComponent,
+        JSExprJSONExtension,
+        EnvironmentJSONExtension,
+        BlockJSONExtension,
     ),
     CachedEnvironmentComponent,
     BlockComponent,
@@ -351,8 +351,8 @@ export const CommandBlock = CombinedComponent(
     CachedComputationComponent,
     Component({ blockState: initialBlockState }),
     ExtendedComponent(
-        SaveLoadNothingComponent,
-        SaveLoadJSExprExtension,
-        SaveLoadSimpleExtension('blockState'),
-    )
+        EmptyJSONComponent,
+        JSExprJSONExtension,
+        SimpleJSONExtension('blockState'),
+    ),
 )

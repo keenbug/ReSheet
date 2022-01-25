@@ -55,7 +55,8 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Style REPL
         * Done to a certain degree. Move on
     - [ ] Style Value Inspector: Theme? (search in docs)
-    - [ ] Add CSS class(es) with nice default styles for HTML elements (h1, table, p, button, input, ...)
+    - [x] Add CSS class(es) with nice default styles for HTML elements (h1, table, p, button, input, ...)
+        * https://simplecss.org
     * General
         - [ ] indicate active Tabs with bottom-border (like menu:{app,code,state} and state-editor:{json,code})
         - [ ] improve button discoverability (visual indicator for buttons)
