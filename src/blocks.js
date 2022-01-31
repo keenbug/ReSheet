@@ -1,30 +1,24 @@
 import React from 'react'
-import { BlockRunner, createBlock, initialBlockState, isBlock, ValueInspector } from './value'
+import { ValueInspector } from './value'
 import { EditableCode, highlightNothing } from './code-editor'
 import { classed, LoadFileButton } from './ui'
-import { runUpdate, updateArray } from './utils'
 import stdLibrary from './std-library'
 import { computeExpr } from './compute'
-import { REPL } from './repl'
-import { CodeBlock } from './components'
+import { createBlock, SimpleJSON } from './components'
+import { FCO } from './fc-object'
 
-export const ResetBlock = innerBlock => createBlock(
-    ({ data, setData }) => (
-        <div>
-            <button onClick={() => setData(initialBlockState)}>Reset</button>
-            {innerBlock && <BlockRunner state={data} setState={setData} block={innerBlock} />}
-        </div>
-    ),
-    innerBlock ? innerBlock.initialData : initialBlockState,
-)
-
-export const InputBlock = createBlock(
-    ({ data, setData }) => {
-        const onChange = event => { setData(event.target.value) }
-        return <input type="text" value={data} onChange={onChange} />
-    },
-    "",
-)
+export const InputBlock = FCO
+    .addState({ text: "" })
+    .addMethods({
+        view({ block, setBlock }) {
+            const onChange = event => {
+                setBlock(block => block.update({ text: event.target.value }))
+            }
+            return <input type="text" value={block.text} onChange={onChange} />
+        },
+    })
+    .combine(SimpleJSON('text'))
+    .pipe(createBlock)
 
 export const LoadFileButtonStyled = classed(LoadFileButton)`
     cursor-pointer
@@ -35,81 +29,48 @@ export const LoadFileButtonStyled = classed(LoadFileButton)`
     hover:bg-gray-200
 `
 
-export const LoadFileBlock = createBlock(
-    ({ setData }) => (
-        <LoadFileButtonStyled
-            onLoad={file => file.text().then(setData)}
-        >
-            Load File
-        </LoadFileButtonStyled>
-    )
-)
+export const LoadFileBlock = FCO
+    .addState({ loaded: null })
+    .addMethods({
+        view({ setBlock }) {
+            const setData = data =>
+                setBlock(block => block.update({ loaded: data }))
 
-export const BlockContainerBlock = children => createBlock(
-    ({ data, setData }) => <BlockContainer data={data} setData={setData} children={children} />,
-)
+            return (
+                <LoadFileButtonStyled
+                    onLoad={file => file.text().then(setData)}
+                >
+                    Load File
+                </LoadFileButtonStyled>
+            )
+        }
+    })
+    .combine(SimpleJSON('loaded'))
+    .pipe(createBlock)
 
-export const initialBlockContainerState = children =>
-    children.map(child => isBlock(child) ? child.initialData : null)
-
-export const BlockContainer = ({ data, setData, children, container = React.Fragment, ...props }) => {
-    const childrenArray =
-        Array.isArray(children) ?
-            children
-        : children ?
-            [children]
-        :
-            []
-    const initialState = initialBlockContainerState(childrenArray)
-    const getState = state => (!state || state === initialBlockState) ? initialState : state
-    const updateChild = idx => update => {
-        setData(data =>
-            updateArray(idx, runUpdate(update, getState(data)[idx]), getState(data))
-        )
-    }
-    const executedChildren = childrenArray
-        .map((child, idx) =>
-            isBlock(child) ?
-                <BlockRunner
-                    block={child}
-                    state={getState(data)[idx]}
-                    setState={updateChild(idx)}
+export const TextBlock = (container = 'div') => FCO
+    .addState({ code: '', result: null })
+    .addMethods({
+        view({ block, setBlock }) {
+            const runText = code =>
+                computeExpr(
+                    `<$TextBlockContainer>${code}</$TextBlockContainer>`,
+                    { ...stdLibrary, $TextBlockContainer: container },
+                )
+            const setCode = code => {
+                setBlock(block => block.update({ code, result: runText(code) }))
+            }
+            return (
+                <React.Fragment>
+                <EditableCode
+                    code={block.code}
+                    onUpdate={setCode}
+                    highlight={highlightNothing}
                 />
-            :
-                child
-        )
-    return React.createElement(container, props, ...executedChildren)
-}
-
-export const TextBlock = (container = 'div') => createBlock(
-    ({ data: { code, result }, setData }) => {
-      const runText = code =>
-        computeExpr(
-          `<$TextBlockContainer>${code}</$TextBlockContainer>`,
-          { ...stdLibrary, $TextBlockContainer: container },
-        )
-      const setCode = code => {
-        setData({ code, result: runText(code) })
-      }
-      return (
-        <React.Fragment>
-          <EditableCode
-            code={code}
-            onUpdate={setCode}
-            highlight={highlightNothing}
-          />
-          <ValueInspector value={result} />
-        </React.Fragment>
-      )
-    },
-    { code: "", result: null },
-  )
-
-
-export const REPLBlock = createBlock(
-    ({ data, setData }) => {
-        const dispatch = (action, ...args) => setData(code => action(...args, code).precomputeAll(stdLibrary))
-        return <REPL code={data} dispatch={dispatch} />
-    },
-    CodeBlock
-)
+                <ValueInspector value={block.result} />
+                </React.Fragment>
+            )
+        }
+    })
+    .combine(SimpleJSON('code'))
+    .pipe(createBlock)

@@ -24,17 +24,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Steps
 
-- [x] Refactor REPL Code stuff into custom entity-component pattern
-    - Components:
-        - Compute: { code, run(env) }
-        - Cache: Compute -> { invalidated, cachedResult, run(env) }
-        - Autorun: Compute, Cache -> { autorun, setCode(code) }
-    - Entity: addComponent(entity, component) => { ...entity, ...component(entity) }
-- [x] Refactor REPL Code into multiple files
 - [x] Component -> FCObject, functional composable object
     - split into own file
     - create base Object FCObject with base functionality: compose, extend, call, update, isDerivative
-- [ ] implement Block with FCObject
+- [x] implement Block with FCObject
+    - add JSON (de)serialization -> Block states for eg REPLBlock should also be properly (de)serialized
+- [ ] tidy up repl.js with Components
+- [ ] rename ...FCO mess in components.js
+- [ ] split/rename/? components.js?
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block

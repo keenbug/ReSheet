@@ -3,21 +3,22 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { CodeBlock } from './components'
-import { ValueViewer, ValueInspector, initialBlockState } from './value'
+import { CodeFCO, createBlock } from './components'
+import { ValueInspector } from './value'
 import { EditableCode } from './code-editor'
-import { IconToggleButton, TextInput, classed, onMetaEnter } from './ui'
-import { nextElem, runUpdate } from './utils'
+import { IconToggleButton, TextInput, classed } from './ui'
+import { nextElem } from './utils'
+import { FCO } from './fc-object'
 
 
 /**************** Code Actions **************/
 
 
-export const setCodeExpr = (id, expr, wholeCode) =>
-    wholeCode.updateExprWithId(id, expr)
+export const setCodeExpr = (id, expr, block) =>
+    block.update({ code: block.code.updateExprWithId(id, expr) })
 
-export const switchUsageMode = (id, wholeCode) =>
-    wholeCode
+export const switchUsageMode = (id, block) =>
+    block.update({ code: block.code
         .invalidateWithId(id)
         .mapWithId(
             id,
@@ -25,73 +26,66 @@ export const switchUsageMode = (id, wholeCode) =>
                 usageMode: nextElem(code.usageMode, USAGE_MODES),
             }),
         )
+    })
 
-export const setName = (id, name, wholeCode) =>
-    wholeCode
+export const setName = (id, name, block) =>
+    block.update({ code: block.code
         .invalidateWithId(id)
         .mapWithId(id, code => code.update({ name }))
+    })
 
-export const updateState = (id, stateUpdate, wholeCode) =>
-    wholeCode
-        .applyWhen(
-            code.usageMode === 'use-data',
-            code => code.invalidateWithId(id),
+export const switchAutorun = (id, block) =>
+    block.update({ code: block.code
+        .mapWithId(
+            id,
+            code => code.update({ autorun: !code.autorun }),
         )
+    })
+
+export const runCode = (id, block) =>
+    block.update({ code: block.code
+        .mapWithId(
+            id,
+            code => code.update({ invalidated: true }),
+        )
+    })
+
+export const insertBeforeCode = (id, insert, block) =>
+    block.update({ code: block.code
         .mapWithId(
             id,
             code => code.update({
-                state: runUpdate(stateUpdate, code.state),
+                prev: insert.update({
+                    id: wholeCode.getNextFreeId(),
+                    prev: code.prev
+                })
             }),
         )
+    })
 
-export const switchAutorun = (id, wholeCode) =>
-    wholeCode.mapWithId(
-        id,
-        code => code.update({ autorun: !code.autorun }),
-    )
-
-export const runCode = (id, wholeCode) =>
-    wholeCode.mapWithId(
-        id,
-        code => code.update({ invalidated: true }),
-    )
-
-export const insertBeforeCode = (id, insert, wholeCode) =>
-    wholeCode.mapWithId(
-        id,
-        code => code.update({
-            prev: insert.update({
-                id: wholeCode.getNextFreeId(),
-                prev: code.prev
-            })
-        }),
-    )
-
-export const insertAfterCode = (id, insert, wholeCode) =>
-    wholeCode.mapWithId(
-        id,
-        code => insert.update({ id: wholeCode.getNextFreeId(), prev: code }),
-    )
-
-export const deleteCode = (id, wholeCode) =>
-    id === wholeCode.id ?
-        (wholeCode.prev || CodeBlock)
-    :
-        wholeCode.mapWithId(id, code => code.prev)
-
-export const resetStateCode = (id, wholeCode) =>
-    wholeCode
-        .applyWhen(
-            code.usageMode === 'use-data',
-            code => code.invalidateWithId(id),
+export const insertAfterCode = (id, insert, block) =>
+    block.update({ code: block.code
+        .mapWithId(
+            id,
+            code => insert.update({ id: block.code.getNextFreeId(), prev: code }),
         )
-        .mapWithId(id, code => code.update({ state: initialBlockState }))
+    })
 
-export const updateUIOption = (id, uiUpdater, wholeCode) =>
-    wholeCode.mapWithId(
-        id,
-        code => code.udpate({ ui: uiUpdater(code.ui) }),
-    )
+export const deleteCode = (id, block) =>
+    block.update({ code:
+        id === block.code.id ?
+            (block.code.prev || CodeFCO)
+        :
+            block.code.mapWithId(id, code => code.prev)
+    })
+
+export const updateUIOption = (id, uiUpdater, block) =>
+    block.update({ code: block.code
+        .mapWithId(
+            id,
+            code => code.udpate({ ui: uiUpdater(code.ui) }),
+        )
+    })
 
 
 
@@ -111,26 +105,49 @@ const VarNameInput = classed(TextInput)`
 `
 
 
-export const REPL = ({ code, dispatch }) => (
+export const REPLBlock = library => FCO
+    .addState({ code: CodeFCO })
+    .addMethods({
+        fromJSON(json) {
+            return this.update({ code: this.code.fromJSON(json).precomputeAll(library) })
+        },
+        toJSON() {
+            return this.code.toJSON()
+        },
+        view({ block, setBlock }) {
+            const dispatch = (action, ...args) => {
+                setBlock(block => {
+                    const newBlock = action(...args, block)
+                    return newBlock.update({ code: newBlock.code.precomputeAll(library) })
+                })
+            }
+            return <REPL block={block} dispatch={dispatch} />
+        }
+    })
+    .pipe(createBlock)
+
+export const REPL = ({ block, dispatch }) => (
     <React.Fragment>
-        {code.toList().reverse().map(block =>
-            <REPLLine key={block.id} code={block} dispatch={dispatch} />
+        {block.code.toList().reverse().map(code =>
+            <REPLLine key={code.id} code={code} dispatch={dispatch} />
         )}
     </React.Fragment>
 )
 
 
 export const REPLLine = ({ code, dispatch }) => {
-    const onUpdateExpr    = expr        => dispatch(setCodeExpr,      code.id, expr)
-    const onUpdateState   = stateUpdate => dispatch(updateState,      code.id, stateUpdate)
-    const onSwitchAutorun = ()          => dispatch(switchAutorun,    code.id)
-    const onRun           = ()          => dispatch(runCode,          code.id)
-    const onInsertBefore  = ()          => dispatch(insertBeforeCode, code.id, CodeBlock)
-    const onInsertAfter   = ()          => dispatch(insertAfterCode,  code.id, CodeBlock)
+    const onUpdateExpr    = expr => dispatch(setCodeExpr,      code.id, expr)
+    const onSwitchAutorun = ()   => dispatch(switchAutorun,    code.id)
+    const onRun           = ()   => dispatch(runCode,          code.id)
+    const onInsertBefore  = ()   => dispatch(insertBeforeCode, code.id, CodeFCO)
+    const onInsertAfter   = ()   => dispatch(insertAfterCode,  code.id, CodeFCO)
 
     const onKeyPress = event => {
-        onMetaEnter(onCmdInsert)(event)
-        if (event.altKey && event.key === 'Enter') {
+        if (event.key === 'Enter' && event.metaKey) {
+            event.preventDefault()
+            onCmdInsert(event)
+        }
+        else if (event.altKey && event.key === 'Enter') {
             if (event.shiftKey) {
                 onSwitchAutorun()
             }
@@ -160,7 +177,7 @@ export const REPLLine = ({ code, dispatch }) => {
                     <EditableCode code={code.expr} onUpdate={onUpdateExpr} onKeyPress={onKeyPress} />
                 }
                 {code.ui.isResultVisible &&
-                    <ValueViewer value={code.cachedResult} state={code.state} setState={onUpdateState} />
+                    <ValueInspector value={code.cachedResult} />
                 }
                 {code.ui.isStateVisible &&
                     <ValueInspector value={code.state} />
@@ -219,9 +236,8 @@ const PopoverPanelStyled = classed(Popover.Panel)`
 `
 
 const REPLUIToggles = ({ code, dispatch }) => {
-    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, CodeBlock)
-    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, CodeBlock)
-    const onReset           = () => dispatch(resetStateCode,   code.id)
+    const onInsertBefore    = () => dispatch(insertBeforeCode, code.id, CodeFCO)
+    const onInsertAfter     = () => dispatch(insertAfterCode,  code.id, CodeFCO)
     const onSwitchUsageMode = () => dispatch(switchUsageMode,  code.id)
     const onDelete          = () => dispatch(deleteCode,       code.id)
 
@@ -259,7 +275,6 @@ const REPLUIToggles = ({ code, dispatch }) => {
             <Button onUpdate={onInsertBefore}    icon={solidIcons.faChevronUp}    label="Insert before"      />
             <Button onUpdate={onInsertAfter}     icon={solidIcons.faChevronDown}  label="Insert after"       />
             <Button onUpdate={onSwitchUsageMode} icon={solidIcons.faDollarSign}   label={`Save ${code.usageMode === 'use-result' ? "code result" : "block data"} in ${code.getName()}`} />
-            <Button onUpdate={onReset}           icon={solidIcons.faStepBackward} label="Reset Block (data)" />
             <Button onUpdate={onDelete}          icon={solidIcons.faTrash}        label="Delete"             />
         </PopoverPanelStyled>
     )

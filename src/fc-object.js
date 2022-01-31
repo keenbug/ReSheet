@@ -73,12 +73,17 @@ export const FCOPrototype = {
             this
         )
     },
-    chain(...functions) {
-        return functions.reduce(
-            (obj, fn) => fn(obj),
-            this,
-        )
+    pipe(fn) {
+        return fn(this)
     },
+    pipeWhen(condition, fn) {
+        if (condition(this)) {
+            return fn(this)
+        }
+        else {
+            return this
+        }
+    }
 }
 
 export const FCO =
@@ -86,26 +91,3 @@ export const FCO =
         Object.create(FCOPrototype, {}),
         {},
     )
-
-
-
-export const UtilsFCO = FCO.addMethods({
-    applyWhen(cond, fn) {
-        if (cond) {
-            return fn(this)
-        }
-        else {
-            return this
-        }
-    },
-    mapFields(mappers) {
-        const newValues =
-            mapObject(mappers,
-                (name, fn) => [
-                    name,
-                    fn(this[name])
-                ]
-            )
-        return this.update(newValues)
-    }
-})

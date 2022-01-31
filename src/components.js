@@ -1,42 +1,62 @@
 import { FCO } from './fc-object'
 import { computeExpr } from './compute'
-import { initialBlockState } from './value'
 import { filterEntries } from './utils'
+import React from 'react'
 
 
-export const BaseJSONFCO = FCO.addMethods({
-    toJSON() {
-        return {}
-    },
-
-    fromJSON(obj) {
-        if (Object.keys(obj).length > 0) {
-            console.warn('stray content after load:', obj)
-        }
-        return this
+const checkPropExists = propertyName => obj => {
+    if (obj.hasOwnProperty(propertyName)) {
+        return obj
     }
-})
+    else {
+        throw new TypeError(
+            `Property missing: .${propertyName} does not exists on ${obj}`
+        )
+    }
+}
 
-export const extendSimpleJSON = (...propNameList) => ante => ante.addMethods({
+const checkPropertyType = (propertyName, typeName) => obj => {
+    if (typeof obj[propertyName] === typeName) {
+        return obj
+    }
+    else {
+        throw new TypeError(
+            `Property type mismatch: typeof .${propertyName} must be "${typeName}" but is "${typeof obj[propertyName]}" on ${obj}`
+        )
+    }
+}
+
+const checkMethodExists = methodName => obj => {
+    const proto = Object.getPrototypeOf(obj)
+    if (proto.hasOwnProperty(methodName) && typeof proto[methodName] === 'function') {
+        return obj
+    }
+    else {
+        throw new TypeError(
+            `Method missing: .${methodName}() is missing or not a function on the prototype of ${obj}`,
+        )
+    }
+}
+
+
+
+
+export const SimpleJSON = (...propNameList) => FCO.addMethods({
     toJSON() {
-        const anteJson = this.call(ante.toJSON)
-        const ownJson = filterEntries(name => propNameList.includes(name), this)
-        return { ...anteJson, ...ownJson }
+        return filterEntries(name => propNameList.includes(name), this)
     },
 
     fromJSON(json) {
         const ownJson = filterEntries(name => propNameList.includes(name), json)
-        const anteJson = filterEntries(name => !propNameList.includes(name), json)
-        const loaded = this.call(ante.fromJSON, anteJson)
-        return loaded.update(ownJson)
+        return this.update(ownJson)
     },
 })
 
 
-export const extendJSExprJSON = extendSimpleJSON('expr')
 
 
-export const JSExprFCO = FCO
+
+export const JSComputationFCO = FCO
     .addState({
         expr: "",
     })
@@ -46,10 +66,15 @@ export const JSExprFCO = FCO
         },
     })
 
+export const JSComputationJSON = SimpleJSON('expr')
 
 
 
-export const CachedComputationFCO = FCO
+
+export const addCachedComputation = ComputationFCO => ComputationFCO
+    .pipe(checkPropertyType('expr', 'string'))
+    .pipe(checkMethodExists('exec'))
+
     .addState({
         cachedResult: null,
         invalidated: true,
@@ -74,32 +99,37 @@ export const CachedComputationFCO = FCO
         forcecompute(env) {
             return this.update({
                 invalidated: false,
-                cachedResult: this.exec(env)
+                cachedResult: this.exec(env),
             })
         },
     })
 
 
 
-export const extendEnvironmentJSON = ante => ante.addMethods({
-    fromJSON({ id, name, prev, ...json }) {
-        const loaded = this.call(ante.fromJSON, json)
-        const prevLoaded = prev && this.fromJSON(prev)
-        return loaded.update({ id, name, prev: prevLoaded })
-    },
+export const addEnvironmentJSON = EnvironmentComponent => EnvironmentComponent
+    .pipe(checkPropertyType('id', 'number'))
+    .pipe(checkPropertyType('name', 'string'))
 
-    toJSON() {
-        const json = this.call(ante.toJSON)
-        const prev = this.prev?.toJSON() || null
-        const { id, name } = this
-        return { ...json, id, name, prev }
-    },
-})
+    .addMethods({
+        fromJSON({ id, name, prev, ...rest }) {
+            const restLoaded = this.call(EnvironmentComponent.fromJSON, rest)
+            const prevLoaded = prev ? this.fromJSON(prev) : null
+            return restLoaded.update({ id, name, prev: prevLoaded })
+        },
 
-export const EnvironmentFCO = FCO
+        toJSON() {
+            const rest = this.call(EnvironmentComponent.toJSON)
+            const prev = this.prev?.toJSON() || null
+            const { id, name } = this
+            return { ...rest, id, name, prev }
+        },
+    })
+
+export const addEnvironment = InnerBlock => InnerBlock
     .addState({
         id: 0,
         name: "",
+
         prev: null,
     })
     .addMethods({
@@ -152,7 +182,7 @@ export const EnvironmentFCO = FCO
         },
         fromList(list) {
             return list.reduceRight(
-                (prev, code) => code.update({ prev }),
+                (prev, entry) => entry.update({ prev }),
                 null,
             )
         },
@@ -160,58 +190,108 @@ export const EnvironmentFCO = FCO
 
 
 
-export const CachedEnvironmentFCO = FCO.addMethods({
-    precomputeAll(globalEnv) {
-        const prev = this.prev?.precomputeAll(globalEnv)
-        const env = prev ? prev.toEnv() : {}
-        return this
-            .precompute({ ...globalEnv, ...env })
-            .update({ prev })
-    },
-    forcecomputeAll(globalEnv) {
-        const prev = this.prev?.forcecomputeAll(globalEnv)
-        const env = prev ? prev.toEnv() : {}
-        return this
-            .forcecompute({ ...globalEnv, ...env })
-            .update({ prev })
-    },
+export const addCachedEnvironment = ComputationFCO => ComputationFCO
+    .pipe(addCachedComputation)
+    .pipe(addEnvironment)
 
-    updateExprWithId(id, expr) {
-        return this
-            .mapWithId(id, code => code.update({ expr }))
-            .invalidateWithId(id)
-    },
-    invalidateWithId(id) {
-        if (this.id === id) {
-            return this.invalidate()
-        }
-        else {
+    .addMethods({
+        precomputeAll(globalEnv) {
+            const prev = this.prev?.precomputeAll(globalEnv)
+            const env = prev ? prev.toEnv() : {}
+            return this
+                .update({ prev })
+                .precompute({ ...globalEnv, ...env })
+        },
+        forcecomputeAll(globalEnv) {
+            const prev = this.prev?.forcecomputeAll(globalEnv)
+            const env = prev ? prev.toEnv() : {}
+            return this
+                .update({ prev })
+                .forcecompute({ ...globalEnv, ...env })
+        },
+
+        updateExprWithId(id, expr) {
+            return this
+                .mapWithId(id, entry => entry.updateExpr(expr))
+        },
+        invalidateWithId(id) {
             return this
                 .update({
-                    prev: this.prev.invalidateWithId(id)
+                    prev:
+                        this.id === id ?
+                            this.prev
+                        :
+                            this.prev.invalidateWithId(id)
+                    ,
                 })
                 .invalidate()
+        },
+
+        toEnv() {
+            return Object.fromEntries(
+                this.toList()
+                    .map(entry => [ entry.getName(), entry.cachedResult ])
+            )
+        },
+    })
+
+
+
+
+export const addInnerBlock = CachedComputation => CachedComputation
+    .pipe(checkPropExists('cachedResult'))
+    .pipe(checkMethodExists('precompute'))
+
+    .addState({ innerBlock: null })
+    .addMethods({
+        startBlock(library) {
+            const resultBefore = this.cachedResult
+            const computed = this.precompute(library)
+            const resultChanged = resultBefore !== computed.cachedResult
+            if (resultChanged && isBlock(computed.cachedResult)) {
+                return computed.update({ innerBlock: computed.cachedResult })
+            }
+            else {
+                return computed
+            }
+        }
+    })
+
+export const addInnerBlockJSON = CachedComputationJSON => CachedComputationJSON.addMethods({
+    fromJSON({ innerBlock, ...json }, library) {
+        return this
+            .call(CachedComputationJSON.fromJSON, json)
+            .precompute(library)
+            .pipeWhen(self => isBlock(self.cachedResult),
+                self => self.update({
+                    innerBlock: self.cachedResult.fromJSON(innerBlock)
+                })
+            )
+    },
+    toJSON() {
+        return {
+            ...this.call(CachedComputationJSON.toJSON),
+            innerBlock: this.innerBlock?.toJSON()
         }
     },
-
-    toEnv() {
-        return Object.fromEntries(
-            this.toList()
-                .map(code => [ code.getName(), code.cachedResult ])
-        )
-    },
 })
 
 
 
-export const USAGE_MODES = [ 'use-result', 'use-data' ]
+const BlockTag = Symbol('block')
+export const isBlock = obj => obj?.blockTag === BlockTag
 
-export const extendBlockJSON = extendSimpleJSON('state')
+export const createBlock = fco => fco
+    .pipe(checkMethodExists('view'))
+    .pipe(checkMethodExists('fromJSON'))
+    .pipe(checkMethodExists('toJSON'))
 
-export const BlockFCO = FCO.addState({
-    state: initialBlockState,
-    usageMode: USAGE_MODES[0],
-})
+    .addMethods({
+        blockTag: BlockTag,
+        render(setBlock) {
+            return React.createElement(this.view, { block: this, setBlock })
+        },
+    })
 
 
 
@@ -224,28 +304,16 @@ export const CodeUIOptionsFCO = FCO.addState({
     },
 })
 
-
-export const CodeBlock = FCO.reduce(FCO.combine,
-    JSExprFCO,
-    CachedComputationFCO,
-    EnvironmentFCO,
-    BaseJSONFCO.chain(
-        extendJSExprJSON,
-        extendEnvironmentJSON,
-        extendBlockJSON,
-    ),
-    CachedEnvironmentFCO,
-    BlockFCO,
-    CodeUIOptionsFCO,
-)
+export const CodeFCO = JSComputationFCO.combine(JSComputationJSON)
+    .pipe(addCachedEnvironment)
+    .pipe(addEnvironmentJSON)
+    .combine(CodeUIOptionsFCO)
 
 
-export const CommandBlock = FCO.reduce(FCO.combine,
-    JSExprFCO,
-    CachedComputationFCO,
-    FCO.addState({ blockState: initialBlockState }),
-    BaseJSONFCO.chain(
-        extendJSExprJSON,
-        extendSimpleJSON('blockState'),
-    ),
-)
+
+export const CommandFCO = JSComputationFCO.combine(JSComputationJSON)
+    .pipe(addCachedEnvironment)
+    .pipe(addEnvironmentJSON)
+
+    .pipe(addInnerBlock)
+    .pipe(addInnerBlockJSON)

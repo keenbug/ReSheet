@@ -1,37 +1,6 @@
 import React from 'react'
 import Inspector, { ObjectRootLabel, ObjectLabel } from 'react-inspector'
 
-import { catchAll } from './utils'
-
-
-const blockTypeSymbol = Symbol('blockType')
-export const initialBlockState = Symbol('initialBlockState')
-
-export const createBlock = (callback, initialData=initialBlockState) => ({
-    $$typeof: blockTypeSymbol,
-    initialData,
-    callback,
-})
-export const isBlock = value => value?.$$typeof === blockTypeSymbol
-export const BlockRunner = ({ state, setState, block }) => {
-    const data = state === initialBlockState ? block.initialData : state
-    const setData = update => (
-        typeof update === 'function' ?
-            setState(state =>
-                update(
-                    state === initialBlockState ?
-                        block.initialData
-                    :
-                        state
-                )
-            )
-        :
-            setState(update)
-    )
-    return React.createElement(block.callback, { data, setData })
-}
-
-
 
 /**************** Value Viewer *****************/
 
@@ -81,24 +50,6 @@ export const ValueInspector = ({ value }) => {
         )
     }
     return <div><Inspector data={value} expandLevel={1} nodeRenderer={inspectorNodeRenderer} /></div>
-}
-
-
-export const ValueViewer = ({ value, state, setState }) => {
-    if (isBlock(value)) {
-        return (
-            <ErrorBoundary
-                title="There was an error in your Block"
-                viewError={error => <ErrorInspector error={error} />}
-            >
-                {catchAll(
-                    () => <BlockRunner block={value} state={state} setState={setState} />,
-                    error => <ValueInspector value={error} />
-                )}
-            </ErrorBoundary>
-        )
-    }
-    return <ValueInspector value={value} />
 }
 
 
