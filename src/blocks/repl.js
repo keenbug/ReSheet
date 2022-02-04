@@ -3,12 +3,12 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { CodeFCO, createBlock } from './components'
-import { ValueInspector } from './value'
-import { EditableCode } from './code-editor'
-import { IconToggleButton, TextInput, classed } from './ui'
-import { nextElem } from './utils'
-import { FCO } from './fc-object'
+import { CodeFCO, createBlock } from '../logic/components'
+import { ValueInspector } from '../ui/value'
+import { EditableCode } from '../ui/code-editor'
+import { IconToggleButton, TextInput, classed } from '../ui/utils'
+import { nextElem } from '../utils'
+import { FCO } from '../logic/fc-object'
 
 
 /**************** Code Actions **************/
@@ -144,14 +144,17 @@ export const REPLLine = ({ code, dispatch }) => {
 
     const onKeyPress = event => {
         if (event.key === 'Enter' && event.metaKey) {
-            event.preventDefault()
             onCmdInsert(event)
         }
         else if (event.altKey && event.key === 'Enter') {
             if (event.shiftKey) {
+                event.preventDefault()
+                event.stopPropagation()
                 onSwitchAutorun()
             }
             else {
+                event.preventDefault()
+                event.stopPropagation()
                 onRun()
             }
         }
@@ -159,9 +162,13 @@ export const REPLLine = ({ code, dispatch }) => {
 
     const onCmdInsert = event => {
         if (event.shiftKey) {
+            event.preventDefault()
+            event.stopPropagation()
             onInsertBefore()
         }
         else {
+            event.preventDefault()
+            event.stopPropagation()
             onInsertAfter()
         }
     }

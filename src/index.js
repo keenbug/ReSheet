@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom'
 
 import 'prismjs/themes/prism.css'
 
-import { CommandBlock } from './command'
-import { ErrorBoundary } from './value'
-import stdLibrary, { library } from './std-library'
+import { CommandBlock } from './blocks/command'
+import { ErrorBoundary } from './ui/value'
+import stdLibrary, { library } from './utils/std-library'
 
 
 /****************** Main Application ******************/

@@ -1,4 +1,4 @@
-import { mapObject } from './utils'
+import { mapObject } from '../utils'
 
 export const readonlyProps = values => (
     mapObject(values,
@@ -31,6 +31,20 @@ export const FCOPrototype = {
             ),
             Object.getOwnPropertyDescriptors(this),
         )
+    },
+    addTag(tag) {
+        return Object.create(
+            Object.create(FCOPrototype,
+                {
+                    ...Object.getOwnPropertyDescriptors(Object.getPrototypeOf(this)),
+                    [tag]: { value: tag },
+                }
+            ),
+            Object.getOwnPropertyDescriptors(this),
+        )
+    },
+    hasTag(tag) {
+        return this?.[tag] === tag
     },
 
     combine(other) {
@@ -76,14 +90,6 @@ export const FCOPrototype = {
     pipe(fn) {
         return fn(this)
     },
-    pipeWhen(condition, fn) {
-        if (condition(this)) {
-            return fn(this)
-        }
-        else {
-            return this
-        }
-    }
 }
 
 export const FCO =

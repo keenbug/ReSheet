@@ -1,11 +1,10 @@
 import React from 'react'
 
-import { CommandFCO, createBlock, isBlock } from './components'
-import { ValueInspector } from './value'
-import { EditableCode } from './code-editor'
-import { classed } from './ui'
-import { runUpdate } from './utils'
-import stdLibrary from './std-library'
+import { CommandFCO, createBlock, isBlock } from '../logic/components'
+import { ValueInspector } from '../ui/value'
+import { EditableCode } from '../ui/code-editor'
+import { classed } from '../ui/utils'
+import stdLibrary from '../utils/std-library'
 
 
 /**************** Command Actions **************/
@@ -15,7 +14,14 @@ export const setCommandExpr = (expr, commandBlock) =>
     commandBlock.updateExpr(expr)
 
 export const updateBlock = (blockUpdate, commandBlock) =>
-    commandBlock.update({ innerBlock: runUpdate(blockUpdate, commandBlock.innerBlock) })
+    commandBlock.update({
+        innerBlock:
+            typeof blockUpdate === 'function' ?
+                blockUpdate(commandBlock.innerBlock)
+            :
+                blockUpdate
+        ,
+    })
 
 
 

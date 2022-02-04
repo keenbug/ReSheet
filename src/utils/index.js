@@ -30,36 +30,6 @@ export const interpolate = (strings, interpolations, props) => {
     )
 }
 
-export const runUpdate = (update, oldValue) =>
-    typeof update === 'function' ? update(oldValue) : update
-
-export const updateArray = (updateIdx, newValue, array) =>
-    array.map((value, idx) => idx === updateIdx ? newValue : value)
-
-export const subUpdateArray = (idx, update) => newValue => {
-    update(bigValue => updateArray(idx, runUpdate(newValue, bigValue[idx]), bigValue))
-}
-
-export const subUpdate = (fieldName, update) => newValue => {
-    update(bigValue => ({
-        ...bigValue,
-        [fieldName]: runUpdate(newValue, bigValue[fieldName]),
-    }))
-}
-
-export const logUpdate = (msg = '', update) => newValue => {
-    update(oldValue => {
-        const updatedValue = runUpdate(newValue, oldValue)
-        console.log(`update ${msg}`, oldValue, updatedValue)
-        return updatedValue
-    })
-}
-
-export const logV = (msg = '', value) => {
-    console.log(msg, value)
-    return value
-}
-
 
 export const mapObject = (obj, fn) => (
     Object.fromEntries(

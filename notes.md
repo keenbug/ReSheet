@@ -29,14 +29,14 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - create base Object FCObject with base functionality: compose, extend, call, update, isDerivative
 - [x] implement Block with FCObject
     - add JSON (de)serialization -> Block states for eg REPLBlock should also be properly (de)serialized
-- [ ] tidy up repl.js with Components
-- [ ] rename ...FCO mess in components.js
+- [x] tidy up repl.js with Components
+- [x] rename ...FCO mess in components.js
 - [ ] split/rename/? components.js?
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
             - [ ] Add completion
-        - [ ] Compute Block
+        - [x] Compute Block
             - former REPL
 - [ ] Rename tables to Jotter? JotterSheets? Then also rename Blocks to Jots?
 

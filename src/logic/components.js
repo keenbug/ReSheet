@@ -1,6 +1,6 @@
 import { FCO } from './fc-object'
 import { computeExpr } from './compute'
-import { filterEntries } from './utils'
+import { filterEntries } from '../utils'
 import React from 'react'
 
 
@@ -56,7 +56,7 @@ export const SimpleJSON = (...propNameList) => FCO.addMethods({
 
 
 
-export const JSComputationFCO = FCO
+export const JSComputation = FCO
     .addState({
         expr: "",
     })
@@ -71,7 +71,7 @@ export const JSComputationJSON = SimpleJSON('expr')
 
 
 
-export const addCachedComputation = ComputationFCO => ComputationFCO
+export const addCachedComputation = Computation => Computation
     .pipe(checkPropertyType('expr', 'string'))
     .pipe(checkMethodExists('exec'))
 
@@ -112,9 +112,9 @@ export const addEnvironmentJSON = EnvironmentComponent => EnvironmentComponent
 
     .addMethods({
         fromJSON({ id, name, prev, ...rest }) {
-            const restLoaded = this.call(EnvironmentComponent.fromJSON, rest)
-            const prevLoaded = prev ? this.fromJSON(prev) : null
-            return restLoaded.update({ id, name, prev: prevLoaded })
+            return this
+                .call(EnvironmentComponent.fromJSON, rest)
+                .update({ id, name, prev: prev ? this.fromJSON(prev) : null })
         },
 
         toJSON() {
@@ -190,7 +190,7 @@ export const addEnvironment = InnerBlock => InnerBlock
 
 
 
-export const addCachedEnvironment = ComputationFCO => ComputationFCO
+export const addCachedEnvironment = Computation => Computation
     .pipe(addCachedComputation)
     .pipe(addEnvironment)
 
@@ -229,8 +229,7 @@ export const addCachedEnvironment = ComputationFCO => ComputationFCO
 
         toEnv() {
             return Object.fromEntries(
-                this.toList()
-                    .map(entry => [ entry.getName(), entry.cachedResult ])
+                this.toList().map(entry => [ entry.getName(), entry.cachedResult ])
             )
         },
     })
@@ -245,15 +244,15 @@ export const addInnerBlock = CachedComputation => CachedComputation
     .addState({ innerBlock: null })
     .addMethods({
         startBlock(library) {
-            const resultBefore = this.cachedResult
-            const computed = this.precompute(library)
-            const resultChanged = resultBefore !== computed.cachedResult
-            if (resultChanged && isBlock(computed.cachedResult)) {
-                return computed.update({ innerBlock: computed.cachedResult })
-            }
-            else {
-                return computed
-            }
+            return this
+                .precompute(library)
+                .pipe(self => self.update({
+                    innerBlock:
+                        this.invalidated && isBlock(self.cachedResult) ?
+                            self.cachedResult
+                        :
+                            self.innerBlock
+                }))
         }
     })
 
@@ -262,11 +261,13 @@ export const addInnerBlockJSON = CachedComputationJSON => CachedComputationJSON.
         return this
             .call(CachedComputationJSON.fromJSON, json)
             .precompute(library)
-            .pipeWhen(self => isBlock(self.cachedResult),
-                self => self.update({
-                    innerBlock: self.cachedResult.fromJSON(innerBlock)
-                })
-            )
+            .pipe(self => self.update({
+                innerBlock:
+                    isBlock(self.cachedResult) ?
+                        self.cachedResult.fromJSON(innerBlock)
+                    :
+                        self.innerBlock
+            }))
     },
     toJSON() {
         return {
@@ -278,8 +279,9 @@ export const addInnerBlockJSON = CachedComputationJSON => CachedComputationJSON.
 
 
 
-const BlockTag = Symbol('block')
-export const isBlock = obj => obj?.blockTag === BlockTag
+export const BlockTag = Symbol('block')
+export const isBlock = obj => !!obj?.hasTag?.(BlockTag)
+// export const isBlock = obj => obj?.blockTag === BlockTag
 
 export const createBlock = fco => fco
     .pipe(checkMethodExists('view'))
@@ -287,11 +289,11 @@ export const createBlock = fco => fco
     .pipe(checkMethodExists('toJSON'))
 
     .addMethods({
-        blockTag: BlockTag,
         render(setBlock) {
             return React.createElement(this.view, { block: this, setBlock })
         },
     })
+    .addTag(BlockTag)
 
 
 
@@ -304,14 +306,14 @@ export const CodeUIOptionsFCO = FCO.addState({
     },
 })
 
-export const CodeFCO = JSComputationFCO.combine(JSComputationJSON)
+export const CodeFCO = JSComputation.combine(JSComputationJSON)
     .pipe(addCachedEnvironment)
     .pipe(addEnvironmentJSON)
     .combine(CodeUIOptionsFCO)
 
 
 
-export const CommandFCO = JSComputationFCO.combine(JSComputationJSON)
+export const CommandFCO = JSComputation.combine(JSComputationJSON)
     .pipe(addCachedEnvironment)
     .pipe(addEnvironmentJSON)
 

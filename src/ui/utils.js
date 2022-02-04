@@ -2,7 +2,7 @@ import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import styled, { css } from 'styled-components'
 
-import { interpolate } from './utils'
+import { interpolate } from '../utils'
 
 
 export const classed = elem => (strings, ...interpolations) =>

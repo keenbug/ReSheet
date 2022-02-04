@@ -10,18 +10,18 @@ import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 import * as babelGenerator from '@babel/generator'
 
-import * as blocks from './blocks'
-import * as codeEditor from './code-editor'
-import * as command from './command'
-import * as components from './components'
-import * as compute from './compute'
-import * as fcObject from './fc-object'
-import * as importExport from './import-export'
-import * as repl from './repl'
+import * as blocks from '../blocks/blocks'
+import * as codeEditor from '../ui/code-editor'
+import * as command from '../blocks/command'
+import * as components from '../logic/components'
+import * as compute from '../logic/compute'
+import * as fcObject from '../logic/fc-object'
+import * as importExport from '../logic/import-export'
+import * as repl from '../blocks/repl'
 import * as tables from './tables'
-import * as ui from './ui'
-import * as utils from './utils'
-import * as value from './value'
+import * as ui from '../ui/utils'
+import * as utils from '../utils'
+import * as value from '../ui/value'
 
 export const LIBRARY_MAPPINGS = {
     "react":                                React,
@@ -33,18 +33,18 @@ export const LIBRARY_MAPPINGS = {
     "@babel/preset-react":                  babelReact,
     "@babel/parser":                        babelParser,
     "@babel/generator":                     babelGenerator,
-    "./blocks":                             blocks,
-    "./code-editor":                        codeEditor,
-    "./command":                            command,
-    "./components":                         components,
-    "./compute":                            compute,
-    "./fc-object":                          fcObject,
-    "./import-export":                      importExport,
-    "./repl":                               repl,
-    "./tables":                             tables,
-    "./ui":                                 ui,
+    "./blocks/blocks":                      blocks,
+    "./blocks/command":                     command,
+    "./blocks/repl":                        repl,
+    "./logic/components":                   components,
+    "./logic/compute":                      compute,
+    "./logic/fc-object":                    fcObject,
+    "./logic/import-export":                importExport,
+    "./ui/code-editor":                     codeEditor,
+    "./ui/utils":                           ui,
+    "./ui/value":                           value,
     "./utils":                              utils,
-    "./value":                              value,
+    "./utils/tables":                       tables,
 }
 
 

@@ -1,11 +1,11 @@
 import React from 'react'
-import { ValueInspector } from './value'
-import { EditableCode, highlightNothing } from './code-editor'
-import { classed, LoadFileButton } from './ui'
-import stdLibrary from './std-library'
-import { computeExpr } from './compute'
-import { createBlock, SimpleJSON } from './components'
-import { FCO } from './fc-object'
+import { ValueInspector } from '../ui/value'
+import { EditableCode, highlightNothing } from '../ui/code-editor'
+import { classed, LoadFileButton } from '../ui/utils'
+import stdLibrary from '../utils/std-library'
+import { computeExpr } from '../logic/compute'
+import { createBlock, SimpleJSON } from '../logic/components'
+import { FCO } from '../logic/fc-object'
 
 export const InputBlock = FCO
     .addState({ text: "" })

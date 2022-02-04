@@ -3,7 +3,7 @@ import React from 'react'
 import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
 
-import { classed } from './ui'
+import { classed } from './utils'
 
 
 /**************** Code Editor *****************/
