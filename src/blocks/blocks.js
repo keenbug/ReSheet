@@ -6,8 +6,15 @@ import stdLibrary from '../utils/std-library'
 import { computeExpr } from '../logic/compute'
 import { createBlock, SimpleJSON } from '../logic/components'
 import { FCO } from '../logic/fc-object'
+import { SheetBlock } from './sheet'
+import { CommandBlock } from './command'
+import { JSExprBlock } from './jsexpr'
 
-export const InputBlock = FCO
+export const Sheet = SheetBlock
+export const Command = CommandBlock
+export const JSExpr = JSExprBlock
+
+export const Input = FCO
     .addState({ text: "" })
     .addMethods({
         view({ block, setBlock }) {
@@ -15,6 +22,9 @@ export const InputBlock = FCO
                 setBlock(block => block.update({ text: event.target.value }))
             }
             return <input type="text" value={block.text} onChange={onChange} />
+        },
+        getResult() {
+            return this.text
         },
     })
     .combine(SimpleJSON('text'))
@@ -29,7 +39,7 @@ export const LoadFileButtonStyled = classed(LoadFileButton)`
     hover:bg-gray-200
 `
 
-export const LoadFileBlock = FCO
+export const LoadFile = FCO
     .addState({ loaded: null })
     .addMethods({
         view({ setBlock }) {
@@ -43,12 +53,15 @@ export const LoadFileBlock = FCO
                     Load File
                 </LoadFileButtonStyled>
             )
+        },
+        getResult() {
+            return this.loaded
         }
     })
     .combine(SimpleJSON('loaded'))
     .pipe(createBlock)
 
-export const TextBlock = (container = 'div') => FCO
+export const Text = (container = 'div') => FCO
     .addState({ code: '', result: null })
     .addMethods({
         view({ block, setBlock }) {
@@ -70,7 +83,10 @@ export const TextBlock = (container = 'div') => FCO
                 <ValueInspector value={block.result} />
                 </React.Fragment>
             )
-        }
+        },
+        getResult() {
+            return this.result
+        },
     })
     .combine(SimpleJSON('code'))
     .pipe(createBlock)

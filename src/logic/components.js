@@ -4,28 +4,6 @@ import { filterEntries } from '../utils'
 import React from 'react'
 
 
-const checkPropExists = propertyName => obj => {
-    if (obj.hasOwnProperty(propertyName)) {
-        return obj
-    }
-    else {
-        throw new TypeError(
-            `Property missing: .${propertyName} does not exists on ${obj}`
-        )
-    }
-}
-
-const checkPropertyType = (propertyName, typeName) => obj => {
-    if (typeof obj[propertyName] === typeName) {
-        return obj
-    }
-    else {
-        throw new TypeError(
-            `Property type mismatch: typeof .${propertyName} must be "${typeName}" but is "${typeof obj[propertyName]}" on ${obj}`
-        )
-    }
-}
-
 const checkMethodExists = methodName => obj => {
     const proto = Object.getPrototypeOf(obj)
     if (proto.hasOwnProperty(methodName) && typeof proto[methodName] === 'function') {
@@ -64,214 +42,48 @@ export const JSComputation = FCO
         exec(env) {
             return computeExpr(this.expr, env)
         },
+        getResult(env) {
+            return this.exec(env)
+        },
     })
 
 export const JSComputationJSON = SimpleJSON('expr')
 
 
-
-
-export const addCachedComputation = Computation => Computation
-    .pipe(checkPropertyType('expr', 'string'))
-    .pipe(checkMethodExists('exec'))
-
-    .addState({
-        cachedResult: null,
-        invalidated: true,
-        autorun: true,
-    })
-    .addMethods({
-        updateExpr(expr) {
-            return this
-                .update({ expr })
-                .invalidate()
-        },
-        precompute(env) {
-            if (!this.invalidated) { return this }
-            return this.forcecompute(env)
-        },
-        invalidate() {
-            if (!this.autorun) { return this }
-            return this.update({
-                invalidated: true
-            })
-        },
-        forcecompute(env) {
-            return this.update({
-                invalidated: false,
-                cachedResult: this.exec(env),
-            })
-        },
-    })
-
-
-
-export const addEnvironmentJSON = EnvironmentComponent => EnvironmentComponent
-    .pipe(checkPropertyType('id', 'number'))
-    .pipe(checkPropertyType('name', 'string'))
-
-    .addMethods({
-        fromJSON({ id, name, prev, ...rest }) {
-            return this
-                .call(EnvironmentComponent.fromJSON, rest)
-                .update({ id, name, prev: prev ? this.fromJSON(prev) : null })
-        },
-
-        toJSON() {
-            const rest = this.call(EnvironmentComponent.toJSON)
-            const prev = this.prev?.toJSON() || null
-            const { id, name } = this
-            return { ...rest, id, name, prev }
-        },
-    })
-
-export const addEnvironment = InnerBlock => InnerBlock
-    .addState({
-        id: 0,
-        name: "",
-
-        prev: null,
-    })
-    .addMethods({
-        getDefaultName() {
-            return '$' + this.id
-        },
-        getName() {
-            return this.name.length > 0 ? this.name : this.getDefaultName()
-        },
-        getNextFreeId(candidate = 0) {
-            const freeCandidate = candidate <= this.id ? this.id + 1 : candidate
-            return this.prev ? this.prev.getNextFreeId(freeCandidate) : freeCandidate
-        },
-
-        reindex(codeNotToClashWith) {
-            const prev = this.prev?.reindex(codeNotToClashWith)
-            const id = codeNotToClashWith.getNextFreeId(prev ? prev.id + 1 : 0)
-            return this.update({ id, prev })
-        },
-        append(prev) {
-            if (this.prev) {
-                return this.update({ prev: this.prev.append(prev) })
-            }
-            else {
-                return this.update({ prev })
-            }
-        },
-
-        getWithId(id) {
-            if (this.id === id) {
-                return this
-            }
-            else {
-                return this.prev?.getWithId(id)
-            }
-        },
-        mapWithId(id, fn) {
-            if (this.id === id) {
-                return fn(this)
-            }
-            else {
-                return this.update({
-                    prev: this.prev?.mapWithId(id, fn)
-                })
-            }
-        },
-        toList() {
-            if (!this.prev) { return [this] }
-            return [ this, ...this.prev.toList() ]
-        },
-        fromList(list) {
-            return list.reduceRight(
-                (prev, entry) => entry.update({ prev }),
-                null,
-            )
-        },
-    })
-
-
-
-export const addCachedEnvironment = Computation => Computation
-    .pipe(addCachedComputation)
-    .pipe(addEnvironment)
-
-    .addMethods({
-        precomputeAll(globalEnv) {
-            const prev = this.prev?.precomputeAll(globalEnv)
-            const env = prev ? prev.toEnv() : {}
-            return this
-                .update({ prev })
-                .precompute({ ...globalEnv, ...env })
-        },
-        forcecomputeAll(globalEnv) {
-            const prev = this.prev?.forcecomputeAll(globalEnv)
-            const env = prev ? prev.toEnv() : {}
-            return this
-                .update({ prev })
-                .forcecompute({ ...globalEnv, ...env })
-        },
-
-        updateExprWithId(id, expr) {
-            return this
-                .mapWithId(id, entry => entry.updateExpr(expr))
-        },
-        invalidateWithId(id) {
-            return this
-                .update({
-                    prev:
-                        this.id === id ?
-                            this.prev
-                        :
-                            this.prev.invalidateWithId(id)
-                    ,
-                })
-                .invalidate()
-        },
-
-        toEnv() {
-            return Object.fromEntries(
-                this.toList().map(entry => [ entry.getName(), entry.cachedResult ])
-            )
-        },
-    })
-
-
-
-
-export const addInnerBlock = CachedComputation => CachedComputation
-    .pipe(checkPropExists('cachedResult'))
-    .pipe(checkMethodExists('precompute'))
-
+export const addInnerBlock = Computation => Computation
     .addState({ innerBlock: null })
     .addMethods({
-        startBlock(library) {
-            return this
-                .precompute(library)
-                .pipe(self => self.update({
-                    innerBlock:
-                        this.invalidated && isBlock(self.cachedResult) ?
-                            self.cachedResult
-                        :
-                            self.innerBlock
-                }))
-        }
+        getBlock(env) {
+            return this.call(Computation.getResult, env)
+        },
+        getResult(env) {
+            if (this.innerBlock) {
+                return this.innerBlock.getResult(env)
+            }
+            else {
+                return undefined
+            }
+        },
     })
 
-export const addInnerBlockJSON = CachedComputationJSON => CachedComputationJSON.addMethods({
+export const addInnerBlockJSON = ComputationJSON => ComputationJSON.addMethods({
     fromJSON({ innerBlock, ...json }, library) {
         return this
-            .call(CachedComputationJSON.fromJSON, json)
-            .precompute(library)
-            .pipe(self => self.update({
-                innerBlock:
-                    isBlock(self.cachedResult) ?
-                        self.cachedResult.fromJSON(innerBlock)
-                    :
-                        self.innerBlock
-            }))
+            .call(ComputationJSON.fromJSON, json, library)
+            .pipe(self => {
+                const result = self.getBlock(library)
+                return self.update({
+                    innerBlock:
+                        isBlock(result) ?
+                            result.fromJSON(innerBlock)
+                        :
+                            self.innerBlock
+                })
+            })
     },
     toJSON() {
         return {
-            ...this.call(CachedComputationJSON.toJSON),
+            ...this.call(ComputationJSON.toJSON),
             innerBlock: this.innerBlock?.toJSON()
         }
     },
@@ -281,41 +93,22 @@ export const addInnerBlockJSON = CachedComputationJSON => CachedComputationJSON.
 
 export const BlockTag = Symbol('block')
 export const isBlock = obj => !!obj?.hasTag?.(BlockTag)
-// export const isBlock = obj => obj?.blockTag === BlockTag
 
 export const createBlock = fco => fco
     .pipe(checkMethodExists('view'))
+    .pipe(checkMethodExists('getResult'))
     .pipe(checkMethodExists('fromJSON'))
     .pipe(checkMethodExists('toJSON'))
 
     .addMethods({
-        render(setBlock) {
-            return React.createElement(this.view, { block: this, setBlock })
+        render(setBlock, env) {
+            return React.createElement(this.view, { block: this, setBlock, env })
         },
     })
     .addTag(BlockTag)
 
 
 
-export const CodeUIOptionsFCO = FCO.addState({
-    ui: {
-        isNameVisible: true,
-        isCodeVisible: true,
-        isResultVisible: true,
-        isStateVisible: false,
-    },
-})
-
-export const CodeFCO = JSComputation.combine(JSComputationJSON)
-    .pipe(addCachedEnvironment)
-    .pipe(addEnvironmentJSON)
-    .combine(CodeUIOptionsFCO)
-
-
-
 export const CommandFCO = JSComputation.combine(JSComputationJSON)
-    .pipe(addCachedEnvironment)
-    .pipe(addEnvironmentJSON)
-
     .pipe(addInnerBlock)
     .pipe(addInnerBlockJSON)

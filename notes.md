@@ -22,6 +22,13 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - Text Block (Parses Content as JSX)
 
 
+# Current
+
+* Refactor/Simplify/Modularize/Generalize
+    * Goal
+        * Load Code with LoadFileBlock
+        * Generate REPLBlock from imported parsed loaded code
+
 # Steps
 
 - [x] Component -> FCObject, functional composable object
@@ -134,7 +141,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 * Other Code Editor?
     - monaco? (~VSCode) https://github.com/Microsoft/monaco-editor
     - CodeMirror? https://github.com/codemirror/CodeMirror
-    
+
 
 # Used Technologies
 
@@ -154,5 +161,22 @@ ReactJS
 
 # Interesting Technologies
 
+skypack.dev - alternative to unpkg that bundles for a browser
+
+snowpack.dev - fast(er) simpler(?) bundler
+https://www.snowpack.dev/tutorials/react
+
+deno - JS/TS Runtime with Security built-in
+https://deno.land/
+
+immer - immutability in JS with "mutable" API
+https://immerjs.github.io/immer/
+
+
+# Interesting Fun Stuff
+
 Kaboom - fast & fun JS game programming library
-https://kaboomjs.com
+https://kaboomjs.com/
+
+rough-notation - add hand-drawn annotations
+https://rough-notation.com/

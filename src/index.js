@@ -10,14 +10,14 @@ import stdLibrary, { library } from './utils/std-library'
 
 /****************** Main Application ******************/
 
-const commandLibrary = { ...stdLibrary, ...library.blocks }
+const commandLibrary = library
 
-const ToplevelBlock = CommandBlock(commandLibrary)
+const ToplevelBlock = CommandBlock
 
 const loadSavedBlock = () => {
     try {
         const savedJson = JSON.parse(localStorage.getItem('block'))
-        return ToplevelBlock.fromJSON(savedJson)
+        return ToplevelBlock.fromJSON(savedJson, commandLibrary)
     }
     catch (e) {
         console.warn("Could not load saved state:", e)
@@ -36,7 +36,7 @@ const App = () => {
         <React.Fragment>
             <ErrorBoundary title="There was an Error in the REPL">
                 <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
-                    {block.render(setBlock)}
+                    {block.render(setBlock, commandLibrary)}
                 </div>
             </ErrorBoundary>
         </React.Fragment>
