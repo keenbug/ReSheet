@@ -2,7 +2,6 @@ import React from 'react'
 import { ValueInspector } from '../ui/value'
 import { EditableCode, highlightNothing } from '../ui/code-editor'
 import { classed, LoadFileButton } from '../ui/utils'
-import stdLibrary from '../utils/std-library'
 import { computeExpr } from '../logic/compute'
 import { createBlock, SimpleJSON } from '../logic/components'
 import { FCO } from '../logic/fc-object'
@@ -13,6 +12,42 @@ import { JSExprBlock } from './jsexpr'
 export const Sheet = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
+
+export const ChangeEnv = (fn, block) => FCO
+    .addState({ block })
+    .addMethods({
+        view({ block, setBlock, env, ...props }) {
+            const setInnerBlock = inner => setBlock(block => block.update({ block: inner(block.block) }))
+            return block.block.view({ block: block.block, setBlock: setInnerBlock, env: fn(env), ...props })
+        },
+        getResult(env) { return this.block.getResult(env) },
+        fromJSON(json) {
+            return this.update({ block: this.block.fromJSON(json) })
+        },
+        toJSON() { return this.block.toJSON() },
+    })
+    .pipe(createBlock)
+
+export const Inspect = block => FCO
+    .addState({ block })
+    .addMethods({
+        view({ block, setBlock, ...props }) {
+            const setInnerBlock = inner => setBlock(block => block.update({ block: inner(block.block) }))
+            return (
+                <div>
+                    <ValueInspector value={block.block} />
+                    {block.block.view({ block: block.block, setBlock: setInnerBlock, ...props })}
+                </div>
+            )
+        },
+        getResult() { return this.block },
+        fromJSON(json) {
+            return this.update({ block: this.block.fromJSON(json) })
+        },
+        toJSON() { return this.block.toJSON() },
+    })
+    .pipe(createBlock)
+
 
 export const Input = FCO
     .addState({ text: "" })
@@ -64,23 +99,23 @@ export const LoadFile = FCO
 export const Text = (container = 'div') => FCO
     .addState({ code: '', result: null })
     .addMethods({
-        view({ block, setBlock }) {
+        view({ block, setBlock, env }) {
             const runText = code =>
                 computeExpr(
                     `<$TextBlockContainer>${code}</$TextBlockContainer>`,
-                    { ...stdLibrary, $TextBlockContainer: container },
+                    { ...env, $TextBlockContainer: container },
                 )
             const setCode = code => {
                 setBlock(block => block.update({ code, result: runText(code) }))
             }
             return (
                 <React.Fragment>
-                <EditableCode
-                    code={block.code}
-                    onUpdate={setCode}
-                    highlight={highlightNothing}
-                />
-                <ValueInspector value={block.result} />
+                    <EditableCode
+                        code={block.code}
+                        onUpdate={setCode}
+                        highlight={highlightNothing}
+                    />
+                    <ValueInspector value={block.result} />
                 </React.Fragment>
             )
         },

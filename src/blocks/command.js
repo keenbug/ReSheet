@@ -72,6 +72,12 @@ export const CommandBlock = CommandFCO
 const CommandLineContainer = classed('div')`flex flex-row space-x-2`
 const CommandContent = classed('div')`flex flex-col space-y-1 flex-1`
 
+const ChangeBlockButton = classed('button')`
+    text-xs text-gray-400 rounded-full
+    hover:text-gray-700 hover:bg-gray-200 hover:px-1
+    transition-all duration-100
+`
+
 
 export const CommandBlockUI = ({ command, dispatch, env }) => {
     const onUpdateExpr    = expr        => dispatch(setCommandExpr, expr)
@@ -94,7 +100,11 @@ export const CommandBlockUI = ({ command, dispatch, env }) => {
             return (
                 <CommandLineContainer key={command.id}>
                     <CommandContent>
-                        <button onClick={() => onSetMode('choose')}>Change Block</button>
+                        <div>
+                            <ChangeBlockButton onClick={() => onSetMode('choose')}>
+                                {command.expr}
+                            </ChangeBlockButton>
+                        </div>
                         {command.innerBlock.render(onUpdateBlock, env) }
                     </CommandContent>
                 </CommandLineContainer>
@@ -109,7 +119,7 @@ export const CommandBlockUI = ({ command, dispatch, env }) => {
                         {isBlock(blockCmdResult) ?
                             <React.Fragment>
                                 <button onClick={() => onChooseBlock(env)}>Choose</button>
-                                {blockCmdResult.render(() => {}, env)}
+                                <ValueInspector value={blockCmdResult} />
                             </React.Fragment>
                         :
                             <ValueInspector value={blockCmdResult} />

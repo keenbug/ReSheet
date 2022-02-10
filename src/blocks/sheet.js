@@ -140,7 +140,7 @@ export const SheetBlock = innerBlock => FCO
         },
         getResult(env) {
             const resultLines = this.getResultLines(env)
-            return resultLines[resultLines.length - 1]
+            return resultLines[resultLines.length - 1].result
         },
     })
     .pipe(createBlock)
@@ -155,7 +155,7 @@ export const Sheet = ({ block, dispatch, env }) => (
                     ...previousLines,
                     {
                         id, name,
-                        result: block.getResult(env),
+                        result: block.getResult({ ...env, ...localEnv }),
                         view: <SheetLine key={id} line={line} dispatch={dispatch} env={{ ...env, ...localEnv}} />,
                     }
                 ]

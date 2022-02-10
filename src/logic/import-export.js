@@ -10,29 +10,29 @@ export const parseJsCode = code => {
 }
 
 export const parseJsAstNode = node => {
-    const codeWithoutResult = CodeComponent.mapFields({ ui: ui => ui.update({ isResultVisible: false }) })
     if (node.type === 'ExportNamedDeclaration') {
-        return CodeComponent.update({
+        return {
             name: node.declaration.declarations[0].id.name,
             expr: generate(node.declaration.declarations[0].init).code,
-        })
+        }
     }
     else if (node.type === 'VariableDeclaration') {
-        return CodeComponent.update({
+        return {
             name: node.declarations[0].id.name,
             expr: generate(node.declarations[0].init).code,
-        })
+        }
     }
     else if (node.type === 'ImportDeclaration') {
-        return codeWithoutResult.update({
+        return {
             name: mapImportAssignment(node.specifiers),
             expr: mapImportSource(node.source.value)
-        })
+        }
     }
     else {
-        return CodeComponent.update({
+        return {
+            name: '',
             expr: generate(node).code,
-        })
+        }
     }
 }
 
