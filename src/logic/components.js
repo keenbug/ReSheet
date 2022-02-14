@@ -53,8 +53,8 @@ export const JSComputationJSON = SimpleJSON('expr')
 export const addInnerBlock = Computation => Computation
     .addState({ innerBlock: null })
     .addMethods({
-        getBlock(env) {
-            return this.call(Computation.getResult, env)
+        getBlock(env, blockLibrary) {
+            return this.call(Computation.getResult, { ...blockLibrary, ...env })
         },
         getResult(env) {
             if (this.innerBlock) {
@@ -67,15 +67,15 @@ export const addInnerBlock = Computation => Computation
     })
 
 export const addInnerBlockJSON = ComputationJSON => ComputationJSON.addMethods({
-    fromJSON({ innerBlock, ...json }, library) {
+    fromJSON({ innerBlock, ...json }, library, blockLibrary) {
         return this
-            .call(ComputationJSON.fromJSON, json, library)
+            .call(ComputationJSON.fromJSON, json, { ...blockLibrary, ...library })
             .pipe(self => {
-                const result = self.getBlock(library)
+                const result = self.getBlock(library, blockLibrary)
                 return self.update({
                     innerBlock:
                         isBlock(result) ?
-                            result.fromJSON(innerBlock)
+                            result.fromJSON(innerBlock, library)
                         :
                             self.innerBlock
                 })

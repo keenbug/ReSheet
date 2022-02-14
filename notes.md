@@ -24,21 +24,11 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Current
 
-* Refactor/Simplify/Modularize/Generalize
-    * Goal
-        * Load Code with LoadFileBlock
-        * Generate REPLBlock from imported parsed loaded code
+* Fix loading of chosen command blocks
 
 # Steps
 
-- [x] Component -> FCObject, functional composable object
-    - split into own file
-    - create base Object FCObject with base functionality: compose, extend, call, update, isDerivative
-- [x] implement Block with FCObject
-    - add JSON (de)serialization -> Block states for eg REPLBlock should also be properly (de)serialized
-- [x] tidy up repl.js with Components
 - [x] rename ...FCO mess in components.js
-- [ ] split/rename/? components.js?
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
@@ -66,9 +56,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Add CSS class(es) with nice default styles for HTML elements (h1, table, p, button, input, ...)
         * https://simplecss.org
     * General
-        - [ ] indicate active Tabs with bottom-border (like menu:{app,code,state} and state-editor:{json,code})
         - [ ] improve button discoverability (visual indicator for buttons)
-        - [ ] improve differentiation of state editor (draw inspiration from inline js/html editors: JSFiddle etc)
 * User REPL
     - [x] Make a big single-Code version
     - [x] Save Code
@@ -90,7 +78,6 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
     - [x] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
     - [x] Properly transpile JS Expressions (instead of Statements) with Babel
     - [x] Always add variable names
-    - [ ] Make state of StateEditor (un)linkable => either always sync state, or only when explicitly saving
     - [x] Add Save/Load
     - [x] Make automatic code execution disable-able
     - [ ] Add backup states / undo history
@@ -180,3 +167,9 @@ https://kaboomjs.com/
 
 rough-notation - add hand-drawn annotations
 https://rough-notation.com/
+
+
+
+# Various Docs
+
+Stacktraces in JS - https://code-maven.com/stack-trace-in-javascript

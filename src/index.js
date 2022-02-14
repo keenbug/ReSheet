@@ -12,7 +12,7 @@ import stdLibrary, { library } from './utils/std-library'
 
 const commandLibrary = library
 
-const ToplevelBlock = CommandBlock
+const ToplevelBlock = CommandBlock(library.blocks)
 
 const loadSavedBlock = () => {
     try {

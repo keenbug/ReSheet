@@ -28,12 +28,12 @@ export const updateBlock = (blockUpdate, commandBlock) =>
         ,
     })
 
-export const CommandBlock = CommandFCO
+export const CommandBlock = blockLibrary => CommandFCO
     .addState({ mode: 'choose' })
     .addMethods({
         fromJSON({ mode, ...json }, library) {
             return this
-                .call(CommandFCO.fromJSON, json, library)
+                .call(CommandFCO.fromJSON, json, library, blockLibrary)
                 .pipe(self => self.update({ mode: self.innerBlock ? mode : 'choose' }))
         },
         toJSON() {
@@ -47,10 +47,13 @@ export const CommandBlock = CommandFCO
             const dispatch = (action, ...args) => {
                 setBlock(block => action(...args, block))
             }
-            return <CommandBlockUI command={block} dispatch={dispatch} env={env} />
+            return <CommandBlockUI command={block} dispatch={dispatch} env={env} blockLibrary={blockLibrary} />
+        },
+        getResult(env) {
+            return this.call(CommandFCO.getResult, env, blockLibrary)
         },
         chooseBlock(env) {
-            const blockCmdResult = this.getBlock(env)
+            const blockCmdResult = this.getBlock(env, blockLibrary)
             if (isBlock(blockCmdResult)) {
                 return this
                     .update({ mode: 'run', innerBlock: blockCmdResult })
@@ -58,7 +61,7 @@ export const CommandBlock = CommandFCO
             else {
                 return this
             }
-        }
+        },
     })
     .pipe(createBlock)
 
@@ -79,7 +82,7 @@ const ChangeBlockButton = classed('button')`
 `
 
 
-export const CommandBlockUI = ({ command, dispatch, env }) => {
+export const CommandBlockUI = ({ command, dispatch, env, blockLibrary }) => {
     const onUpdateExpr    = expr        => dispatch(setCommandExpr, expr)
     const onUpdateBlock   = blockUpdate => dispatch(updateBlock, blockUpdate)
     const onSetMode       = mode        => dispatch(updateMode, mode)
@@ -93,7 +96,7 @@ export const CommandBlockUI = ({ command, dispatch, env }) => {
         }
     }
     
-    const blockCmdResult = command.getBlock(env)
+    const blockCmdResult = command.getBlock(env, blockLibrary)
 
     switch (command.mode) {
         case 'run':
