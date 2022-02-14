@@ -1,5 +1,5 @@
 import React from 'react'
-import Inspector, { ObjectRootLabel, ObjectLabel } from 'react-inspector'
+import Inspector from 'react-inspector'
 
 
 /**************** Value Viewer *****************/
@@ -22,13 +22,6 @@ export const ErrorInspector = ({ error }) => {
     }
 }
 
-export const inspectorNodeRenderer = ({ expanded, depth, ...props }) => (
-    expanded && depth > 0 ?
-        <ObjectLabel {...props} />
-    :
-        <ObjectRootLabel {...props} />
-)
-
 export const ValueInspector = ({ value }) => {
     if (React.isValidElement(value)) {
         return (
@@ -49,7 +42,7 @@ export const ValueInspector = ({ value }) => {
             </div>
         )
     }
-    return <div><Inspector data={value} expandLevel={1} nodeRenderer={inspectorNodeRenderer} /></div>
+    return <div><Inspector data={value} expandLevel={1} /></div>
 }
 
 
