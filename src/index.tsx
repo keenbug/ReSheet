@@ -1,11 +1,11 @@
-import React from 'react'
+import * as React from 'react'
 import ReactDOM from 'react-dom'
 
 import 'prismjs/themes/prism.css'
 
 import { CommandBlock } from './blocks/command'
 import { ErrorBoundary } from './ui/value'
-import stdLibrary, { library } from './utils/std-library'
+import { library } from './utils/std-library'
 
 
 /****************** Main Application ******************/

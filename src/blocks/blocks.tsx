@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 import { ValueInspector } from '../ui/value'
 import { EditableCode, highlightNothing } from '../ui/code-editor'
 import { classed, LoadFileButton } from '../ui/utils'

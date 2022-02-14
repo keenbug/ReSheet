@@ -1,6 +1,6 @@
 import { mapObject } from '../utils'
 
-export const readonlyProps = values => (
+export const readonlyProps = (values: { [name: string]: any }) => (
     mapObject(values,
         (name, value) => [
             name,
@@ -11,17 +11,36 @@ export const readonlyProps = values => (
 
 /************ Functional Composable Objects *************/
 
-export const FCOPrototype = {
-    addProps(props) {
+export type FCO<State = {}, Methods = {}> = State & Methods & FCOPrototype<State, Methods>
+
+interface FCOPrototype<State, Methods> {
+    addProps<NewState = {}>(this: FCO<State, Methods>, props: PropertyDescriptorMap): FCO<State & NewState, Methods>
+    addState<NewState>(this: FCO<State, Methods>, state: NewState): FCO<State & NewState, Methods>
+    addMethods<NewMethods>(this: FCO<State, Methods>, methods: NewMethods): FCO<State, Methods & NewMethods>
+
+    addTag(this: FCO<State, Methods>, tag: symbol): FCO<State, Methods>
+    hasTag(this: FCO<State, Methods>, tag: symbol): boolean
+
+    combine<OtherState, OtherMethods>(this: FCO<State, Methods>, other: FCO<OtherState, OtherMethods>): FCO<State & OtherState, Methods & OtherMethods>
+
+    update(this: FCO<State, Methods>, values: Partial<State>): FCO<State, Methods>
+
+    call<Args extends Array<any>, Result>(this: FCO<State, Methods>, method: (this: FCO<State, Methods>, ...args: Args) => Result, ...args: Args): Result
+    reduce<Arg>(this: FCO<State, Methods>, method: (this: FCO<State, Methods>, arg: Arg) => FCO<State, Methods>, ...args: Array<Arg>): FCO<State, Methods>
+    pipe<Result>(this: FCO<State, Methods>, fn: (arg: FCO<State, Methods>) => Result): Result
+}
+
+export const FCOPrototype: FCOPrototype<unknown, unknown> = {
+    addProps(props: PropertyDescriptorMap) {
         return Object.create(
             Object.getPrototypeOf(this),
             { ...Object.getOwnPropertyDescriptors(this), ...props },
         )
     },
-    addState(state) {
+    addState(state: Object) {
         return this.addProps(readonlyProps(state))
     },
-    addMethods(methods) {
+    addMethods(methods: Object) {
         return Object.create(
             Object.create(FCOPrototype,
                 {
@@ -32,7 +51,7 @@ export const FCOPrototype = {
             Object.getOwnPropertyDescriptors(this),
         )
     },
-    addTag(tag) {
+    addTag(tag: symbol) {
         return Object.create(
             Object.create(FCOPrototype,
                 {
@@ -43,7 +62,7 @@ export const FCOPrototype = {
             Object.getOwnPropertyDescriptors(this),
         )
     },
-    hasTag(tag) {
+    hasTag(tag: symbol) {
         return this?.[tag] === tag
     },
 
@@ -62,7 +81,7 @@ export const FCOPrototype = {
         )
     },
 
-    update(values) {
+    update(values: Object) {
         return Object.create(
             Object.getPrototypeOf(this),
             mapObject(
@@ -92,7 +111,7 @@ export const FCOPrototype = {
     },
 }
 
-export const FCO =
+export const FCO: FCO =
     Object.create(
         Object.create(FCOPrototype, {}),
         {},

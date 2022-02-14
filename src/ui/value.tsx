@@ -1,10 +1,10 @@
-import React from 'react'
+import * as React from 'react'
 import Inspector from 'react-inspector'
 
 
 /**************** Value Viewer *****************/
 
-export const ErrorInspector = ({ error }) => {
+export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
     const [showError, setShowError] = React.useState(false)
     if (showError) {
         return (
@@ -22,7 +22,7 @@ export const ErrorInspector = ({ error }) => {
     }
 }
 
-export const ValueInspector = ({ value }) => {
+export const ValueInspector: React.FC<{ value: any }> = ({ value }) => {
     if (React.isValidElement(value)) {
         return (
             <ErrorBoundary
@@ -46,7 +46,16 @@ export const ValueInspector = ({ value }) => {
 }
 
 
-export class ErrorBoundary extends React.Component {
+interface ErrorBoundaryProps {
+    title: string
+    viewError?: (caughtError: any) => JSX.Element
+}
+
+interface ErrorBoundaryState {
+    caughtError: any
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props) {
         super(props)
         this.state = { caughtError: null }

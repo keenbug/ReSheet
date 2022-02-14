@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 
 import { JSComputation, JSComputationJSON, createBlock } from '../logic/components'
 import { ValueInspector } from '../ui/value'
@@ -30,7 +30,7 @@ export const JSExprBlock = FCO
 
 /**************** UI *****************/
 
-const JSExprContainer = classed('div')`flex flex-col space-y-1 flex-1`
+const JSExprContainer = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
 export const JSExpr = ({ block: code, dispatch, env }) => {
     const onUpdateExpr = expr => dispatch(setCodeExpr, expr)

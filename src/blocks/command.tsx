@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 
 import { CommandFCO, createBlock, isBlock } from '../logic/components'
 import { ValueInspector } from '../ui/value'
@@ -72,10 +72,10 @@ export const CommandBlock = blockLibrary => CommandFCO
 
 
 
-const CommandLineContainer = classed('div')`flex flex-row space-x-2`
-const CommandContent = classed('div')`flex flex-col space-y-1 flex-1`
+const CommandLineContainer = classed<any>('div')`flex flex-row space-x-2`
+const CommandContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
-const ChangeBlockButton = classed('button')`
+const ChangeBlockButton = classed<any>('button')`
     text-xs text-gray-400 rounded-full
     hover:text-gray-700 hover:bg-gray-200 hover:px-1
     transition-all duration-100

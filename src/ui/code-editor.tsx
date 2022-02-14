@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 
 import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
@@ -8,7 +8,7 @@ import { classed } from './utils'
 
 /**************** Code Editor *****************/
 
-const CodeContent = classed('code')`
+const CodeContent = classed<any>('code')`
     block
     rounded
     hover:bg-gray-100 focus:bg-gray-100
@@ -16,7 +16,7 @@ const CodeContent = classed('code')`
 `
 
 
-export const EditableCode = ({ code, onUpdate, highlight, className, ...props }) => {
+export const EditableCode: React.FC<any> = ({ code, onUpdate, highlight, className, ...props }) => {
     const [isEditing, setEditing] = React.useState(false)
 
     const stopEditing = () => { setEditing(false) }
@@ -31,7 +31,7 @@ export const EditableCode = ({ code, onUpdate, highlight, className, ...props })
 }
 
 
-export const CodeView = ({ code, highlight = highlightJS, ...props }) => {
+export const CodeView: React.FC<any> = ({ code, highlight = highlightJS, ...props }) => {
     const ref = React.useRef(null)
 
     return (
@@ -47,7 +47,7 @@ export const CodeView = ({ code, highlight = highlightJS, ...props }) => {
 }
 
 
-export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }) => {
+export const CodeEditor: React.FC<any> = ({ code, onUpdate, highlight = highlightJS, ...props }) => {
     const highlightCodeJar = editor => {
         editor.innerHTML = highlight(editor.textContent)
     }
@@ -55,6 +55,7 @@ export const CodeEditor = ({ code, onUpdate, highlight = highlightJS, ...props }
         code,
         onUpdate,
         highlight: highlightCodeJar,
+        style: {},
         options: {
             tab: "  ",
         },

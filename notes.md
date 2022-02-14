@@ -24,7 +24,8 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Current
 
-* Fix loading of chosen command blocks
+* Switch to TypeScript
+* Use Immer
 
 # Steps
 
@@ -158,6 +159,9 @@ https://deno.land/
 
 immer - immutability in JS with "mutable" API
 https://immerjs.github.io/immer/
+
+source-map - Source-map library in js
+https://www.npmjs.com/package/source-map
 
 
 # Interesting Fun Stuff

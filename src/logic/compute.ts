@@ -3,11 +3,14 @@ import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 
 
-export const parseReactOpts = { plugins: [ 'jsx' ] }
+export type Environment = { [varName: string]: any }
+
+
+export const parseReactOpts: babelParser.ParserOptions = { plugins: [ 'jsx' ] }
 export const transformReactOpts = { presets: [ babelReact ] }
 
 
-export const parseJSExpr = sourcecode =>
+export const parseJSExpr = (sourcecode: string) =>
     babelParser.parseExpression(sourcecode, parseReactOpts)
 
 
@@ -38,7 +41,7 @@ export const transformJSExpr = sourcecode =>
     )
 
 
-export const computeExpr = (code, env) => {
+export const computeExpr = (code: string | null, env: Environment) => {
     if (!code) { return }
     try {
         const exprFunc = new Function(

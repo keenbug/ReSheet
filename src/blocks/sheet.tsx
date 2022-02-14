@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
@@ -76,10 +76,10 @@ export const deleteCode = (id, block) =>
 /**************** UI *****************/
 
 
-const SheetLineContainer = classed('div')`flex flex-row space-x-2`
-const SheetLineContent = classed('div')`flex flex-col space-y-1 flex-1`
+const SheetLineContainer = classed<any>('div')`flex flex-row space-x-2`
+const SheetLineContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
-const VarNameInput = classed(TextInput)`
+const VarNameInput = classed<any>(TextInput)`
     hover:bg-gray-200 hover:text-slate-700
     focus:bg-gray-200 focus:text-slate-700
     outline-none
@@ -201,7 +201,7 @@ export const AssignmentLine = ({ line, dispatch }) => {
 
 /****************** REPL Popover ******************/
 
-const PopoverPanelStyled = classed(Popover.Panel)`
+const PopoverPanelStyled = classed<any>(Popover.Panel)`
     flex flex-col
     bg-gray-100
     shadow

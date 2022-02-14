@@ -7,13 +7,13 @@ export const catchAll = (fn, onError = e => e) => {
     }
 }
 
-export const nextElem = (elem, allElems) => {
+export const nextElem = (elem: string, allElems: Array<string>) => {
     const elemIdx = allElems.findIndex(e => e === elem)
     const nextElemIdx = (elemIdx + 1) % allElems.length
     return allElems[nextElemIdx]
 }
 
-export const interpolate = (strings, interpolations, props) => {
+export const interpolate = (strings: TemplateStringsArray, interpolations: Array<any>, props) => {
     const computedInterpolations = interpolations.map(interpolation => {
         if (typeof interpolation === 'function') {
             return String(interpolation(props))
@@ -31,16 +31,22 @@ export const interpolate = (strings, interpolations, props) => {
 }
 
 
-export const mapObject = (obj, fn) => (
+export const mapObject = <V, V1>(
+    obj: { [s: string]: V },
+    fn: (key: string, value: V) => [string, V1]
+) => (
     Object.fromEntries(
         Object.entries(obj)
             .map(entry => fn(...entry))
     )
 )
 
-export const filterEntries = (predicate, obj) => (
+export const filterEntries = <V>(
+    predicate: (key: string, value: V) => boolean,
+    obj: { [s: string]: V }
+) => (
     Object.fromEntries(
         Object.entries(obj)
-            .filter(([ name, value ]) => predicate(name, value))
+            .filter(entry => predicate(...entry))
     )
 )

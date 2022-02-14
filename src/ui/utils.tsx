@@ -1,12 +1,16 @@
-import React from 'react'
+import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import styled, { css } from 'styled-components'
 
 import { interpolate } from '../utils'
 
 
-export const classed = elem => (strings, ...interpolations) =>
-    React.forwardRef((props, ref) =>
+type ClassedElemType<P> = React.FunctionComponent<P> | React.ComponentClass<P> | string
+
+export const classed = <P extends { className?: string }>(
+    elem: ClassedElemType<P>
+) => (strings: TemplateStringsArray, ...interpolations: Array<any>) =>
+    React.forwardRef<unknown, P>((props, ref) =>
         React.createElement(
             elem,
             {
@@ -46,7 +50,7 @@ const htmlEncode = input => (
     optionForEncoding.innerHTML
 )
 
-export const TextInput = ({ value, onUpdate, ...props }) => {
+export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
     React.useLayoutEffect(() => {
         if (spaceToFixedWidth(ref.current.textContent) !== spaceToFixedWidth(value)) {
@@ -74,7 +78,7 @@ export const TextInput = ({ value, onUpdate, ...props }) => {
 
 
 
-export const ToggleButton = classed('button')`
+export const ToggleButton = classed<any>('button')`
     text-left
     text-slate-600
 
@@ -87,7 +91,7 @@ export const ToggleButton = classed('button')`
     h-7 px-1 space-x-1
 `
 
-export const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUpdate, label="", ...props }) => (
+export const IconToggleButton: React.FC<any> = ({ className, isActive, icon, iconDisabled, onUpdate, label="", ...props }) => (
     <ToggleButton
         className={(className ?? "") + (isActive ? "" : " text-slate-400")}
         onClick={onUpdate}
@@ -102,7 +106,7 @@ export const IconToggleButton = ({ className, isActive, icon, iconDisabled, onUp
 
 
 
-export const LoadFileButton = ({ onLoad, children, ...props }) => {
+export const LoadFileButton: React.FC<any> = ({ onLoad, children, ...props }) => {
     const loadFile = event => {
         onLoad(event.target.files[0])
     }
@@ -116,7 +120,7 @@ export const LoadFileButton = ({ onLoad, children, ...props }) => {
 }
 
 
-export const SaveFileButton = ({ mimeType, textContent, filename, children, ...props }) => {
+export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename, children, ...props }) => {
     const dataStr = `data:${mimeType};charset=utf-8,${encodeURIComponent(textContent)}`
 
     return (

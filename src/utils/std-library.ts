@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 import styled from 'styled-components'
 import * as headlessui from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -21,7 +21,7 @@ import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
 import * as tables from './tables'
 import * as ui from '../ui/utils'
-import * as utils from '../utils'
+import * as utils from '.'
 import * as value from '../ui/value'
 
 export const LIBRARY_MAPPINGS = {
