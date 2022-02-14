@@ -7,10 +7,12 @@
   "source": "src/index.html",
   "scripts": {
     "start": "parcel",
-    "build": "parcel build"
+    "build": "parcel build",
+    "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "parcel": "^2.1.1"
+    "parcel": "^2.1.1",
+    "typescript": "^4.5.5"
   },
   "dependencies": {
     "@babel/core": "^7.16.7",
