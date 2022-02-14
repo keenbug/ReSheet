@@ -8,10 +8,12 @@ import { FCO } from '../logic/fc-object'
 import { SheetBlock } from './sheet'
 import { CommandBlock } from './command'
 import { JSExprBlock } from './jsexpr'
+import { JSAsyncBlock } from './jsasync'
 
 export const Sheet = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
+export const JSAsync = JSAsyncBlock
 
 export const ChangeEnv = (fn, block) => FCO
     .addState({ block })
