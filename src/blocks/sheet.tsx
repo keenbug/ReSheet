@@ -3,9 +3,9 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { createBlock } from '../logic/components'
 import { IconToggleButton, TextInput, classed } from '../ui/utils'
 import { FCO } from '../logic/fc-object'
+import { fcoBlockAdapter } from '../logic/components'
 
 
 const lineDefaultName = line => '$' + line.id
@@ -53,16 +53,16 @@ const resultLinesToEnv = resultLines =>
 
 
 export const updateLineBlock = (id, update, block) =>
-    block.update({ lines: updateLineWithId(id, line => ({ ...line, block: update(line.block) }), block.lines) })
+    block.update({ lines: updateLineWithId(id, line => ({ ...line, state: update(line.state) }), block.lines) })
 
 export const setName = (id, name, block) =>
     block.update({ lines: updateLineWithId(id, line => ({ ...line, name }), block.lines) })
 
 export const insertBeforeCode = (id, block) =>
-    block.update({ lines: insertLineBefore(id, { id: nextFreeId(block.lines), name: '', block: block.innerBlock }, block.lines) })
+    block.update({ lines: insertLineBefore(id, { id: nextFreeId(block.lines), name: '', state: block.innerBlock.init }, block.lines) })
 
 export const insertAfterCode = (id, block) =>
-    block.update({ lines: insertLineAfter(id, { id: nextFreeId(block.lines), name: '', block: block.innerBlock }, block.lines) })
+    block.update({ lines: insertLineAfter(id, { id: nextFreeId(block.lines), name: '', state: block.innerBlock.init }, block.lines) })
 
 export const deleteCode = (id, block) =>
     block.lines.length > 1 ?
@@ -88,32 +88,32 @@ const VarNameInput = classed<any>(TextInput)`
 `
 
 
-export const SheetBlock = innerBlock => FCO
+export const SheetBlockFCO = innerBlock => FCO
     .addState({
         innerBlock,
-        lines: [{ id: 0, name: '', block: innerBlock }],
+        lines: [{ id: 0, name: '', state: innerBlock.init }],
     })
     .addMethods({
         fromJSON(json, env) {
             return this.update({
                 lines: json
                     .reduce(
-                        (prevLines, { id, name, block}) => {
+                        (prevLines, { id, name, state}) => {
                             const localEnv = { ...env, ...resultLinesToEnv(prevLines) }
-                            const loadedBlock = innerBlock.fromJSON(block, localEnv)
-                            const result = loadedBlock.getResult(localEnv)
+                            const loadedState = this.innerBlock.fromJSON(state, localEnv)
+                            const result = this.innerBlock.getResult(loadedState, localEnv)
                             return [
                                 ...prevLines,
-                                { id, name, block: loadedBlock, result }
+                                { id, name, state: loadedState, result }
                             ]
                         },
                         []
                     )
-                    .map(({ id, name, block }) => ({ id, name, block }))
+                    .map(({ id, name, state }) => ({ id, name, state }))
             })
         },
         toJSON() {
-            return this.lines.map(({ id, name, block }) => ({ id, name, block: block.toJSON() }))
+            return this.lines.map(({ id, name, state }) => ({ id, name, state: this.innerBlock.toJSON(state) }))
         },
         view({ block, setBlock, env }) {
             const dispatch = (action, ...args) => {
@@ -123,12 +123,12 @@ export const SheetBlock = innerBlock => FCO
         },
         getResultLines(env) {
             return this.lines.reduce(
-                (previousResultLines, { id, name, block }) =>
+                (previousResultLines, { id, name, state }) =>
                     [
                         ...previousResultLines,
                         {
                             id, name,
-                            result: block.getResult({
+                            result: this.innerBlock.getResult(state, {
                                 ...env,
                                 ...resultLinesToEnv(previousResultLines),
                             })
@@ -143,20 +143,21 @@ export const SheetBlock = innerBlock => FCO
             return resultLines[resultLines.length - 1].result
         },
     })
-    .pipe(createBlock)
+
+export const SheetBlock = innerBlock => fcoBlockAdapter(SheetBlockFCO(innerBlock))
 
 export const Sheet = ({ block, dispatch, env }) => (
     <React.Fragment>
         {block.lines.reduce(
             (previousLines, line) => {
-                const { id, name, block } = line
+                const { id, name, state } = line
                 const localEnv = resultLinesToEnv(previousLines)
                 return [
                     ...previousLines,
                     {
                         id, name,
-                        result: block.getResult({ ...env, ...localEnv }),
-                        view: <SheetLine key={id} line={line} dispatch={dispatch} env={{ ...env, ...localEnv}} />,
+                        result: block.innerBlock.getResult(state, { ...env, ...localEnv }),
+                        view: <SheetLine key={id} block={block.innerBlock} line={line} dispatch={dispatch} env={{ ...env, ...localEnv}} />,
                     }
                 ]
             },
@@ -168,14 +169,14 @@ export const Sheet = ({ block, dispatch, env }) => (
 )
 
 
-export const SheetLine = ({ line, dispatch, env }) => {
+export const SheetLine = ({ block, line, dispatch, env }) => {
     const onUpdateBlock = update => dispatch(updateLineBlock, line.id, update)
     return (
         <SheetLineContainer key={line.id}>
             <SheetUIToggles line={line} dispatch={dispatch} />
             <SheetLineContent>
                 <AssignmentLine line={line} dispatch={dispatch} />
-                {line.block.render(onUpdateBlock, env)}
+                {block.view({ state: line.state, setState: onUpdateBlock, env })}
             </SheetLineContent>
         </SheetLineContainer>
     )

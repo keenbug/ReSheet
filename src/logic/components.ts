@@ -1,7 +1,7 @@
 import { FCO } from './fc-object'
 import { computeExpr } from './compute'
 import { filterEntries } from '../utils'
-import * as React from 'react'
+import * as Block from './block'
 
 
 const checkMethodExists = methodName => obj => {
@@ -64,9 +64,9 @@ export const addInnerBlock = <Computation extends JSComputation>(Computation: Co
         getBlock(this: Computation, env: Environment, blockLibrary: Environment) {
             return this.call(Computation.getResult, { ...blockLibrary, ...env })
         },
-        getResult(this: Computation & { innerBlock: { getResult(env: Environment): any } }, env: Environment) {
+        getResult(this: Computation & { innerBlock: { state: unknown, block: Block.Block<unknown> } }, env: Environment) {
             if (this.innerBlock) {
-                return this.innerBlock.getResult(env)
+                return this.innerBlock.block.getResult(this.innerBlock.state, env)
             }
             else {
                 return undefined
@@ -82,8 +82,11 @@ export const addInnerBlockJSON = ComputationJSON => ComputationJSON.addMethods({
                 const result = self.getBlock(library, blockLibrary)
                 return self.update({
                     innerBlock:
-                        isBlock(result) ?
-                            result.fromJSON(innerBlock, library)
+                        Block.isBlock(result) ?
+                            {
+                                state: result.fromJSON(innerBlock, library),
+                                block: result,
+                            }
                         :
                             self.innerBlock
                 })
@@ -92,38 +95,38 @@ export const addInnerBlockJSON = ComputationJSON => ComputationJSON.addMethods({
     toJSON() {
         return {
             ...this.call(ComputationJSON.toJSON),
-            innerBlock: this.innerBlock?.toJSON()
+            innerBlock: this.innerBlock?.block?.toJSON(this.innerBlock?.state)
         }
     },
 })
 
 
 
-export const BlockTag = Symbol('block')
-export const isBlock = obj => !!obj?.hasTag?.(BlockTag)
-
-interface PreBlock {
-    view(props: { env: Environment, block: any, setBlock: (update: (any) => any) => void }): JSX.Element
-    getResult(env: Environment): any
-    fromJSON(json: {}, env: Environment): any
-    toJSON(): {}
-}
-
-export const createBlock = (fco: FCO<{}, PreBlock>) => fco
-    .pipe(checkMethodExists('view'))
-    .pipe(checkMethodExists('getResult'))
-    .pipe(checkMethodExists('fromJSON'))
-    .pipe(checkMethodExists('toJSON'))
-
-    .addMethods({
-        render(setBlock, env) {
-            return React.createElement(this.view, { block: this, setBlock, env })
-        },
-    })
-    .addTag(BlockTag)
-
-
 
 export const CommandFCO = JSComputation.combine(JSComputationJSON)
     .pipe(addInnerBlock)
     .pipe(addInnerBlockJSON)
+
+
+interface FCOBlock {
+    view: any
+    getResult: any
+    fromJSON: any
+    toJSON: any
+}
+
+export const fcoBlockAdapter = <FCO extends FCOBlock>(fco: FCO) => Block.create<FCO>({
+    init: fco,
+    view({ state, setState, env }) {
+        return state.view({ block: state, setBlock: setState, env })
+    },
+    getResult(state, env) {
+        return state.getResult(env)
+    },
+    fromJSON(json, env) {
+        return fco.fromJSON(json, env)
+    },
+    toJSON(state) {
+        return state.toJSON()
+    }
+})

@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { JSComputation, JSComputationJSON, createBlock } from '../logic/components'
+import { JSComputation, JSComputationJSON, fcoBlockAdapter } from '../logic/components'
 import { ErrorInspector, ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
@@ -13,7 +13,7 @@ import { computeExpr } from '../logic/compute'
 export const setCodeExpr = (expr, block) =>
     block.update({ expr })
 
-export const JSAsyncBlock = FCO
+export const JSAsyncBlockFCO = FCO
     .combine(JSComputation)
     .combine(JSComputationJSON)
     .addMethods({
@@ -24,7 +24,8 @@ export const JSAsyncBlock = FCO
             return <JSAsync block={block} dispatch={dispatch} env={env} />
         },
     })
-    .pipe(createBlock)
+
+export const JSAsyncBlock = fcoBlockAdapter(JSAsyncBlockFCO)
 
 
 

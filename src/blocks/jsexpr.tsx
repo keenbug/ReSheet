@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { JSComputation, JSComputationJSON, createBlock } from '../logic/components'
+import { JSComputation, JSComputationJSON, fcoBlockAdapter } from '../logic/components'
 import { ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
@@ -13,7 +13,7 @@ import { computeExpr } from '../logic/compute'
 export const setCodeExpr = (expr, block) =>
     block.update({ expr })
 
-export const JSExprBlock = FCO
+export const JSExprBlockFCO = FCO
     .combine(JSComputation)
     .combine(JSComputationJSON)
     .addMethods({
@@ -24,8 +24,8 @@ export const JSExprBlock = FCO
             return <JSExpr block={block} dispatch={dispatch} env={env} />
         },
     })
-    .pipe(createBlock)
 
+export const JSExprBlock = fcoBlockAdapter(JSExprBlockFCO)
 
 
 /**************** UI *****************/

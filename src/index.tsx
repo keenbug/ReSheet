@@ -14,29 +14,29 @@ const commandLibrary = library
 
 const ToplevelBlock = CommandBlock(library.blocks)
 
-const loadSavedBlock = () => {
+const loadSavedState = () => {
     try {
         const savedJson = JSON.parse(localStorage.getItem('block'))
         return ToplevelBlock.fromJSON(savedJson, commandLibrary)
     }
     catch (e) {
         console.warn("Could not load saved state:", e)
-        return ToplevelBlock
+        return ToplevelBlock.init
     }
 }
 
 const App = () => {
-    const [block, setBlock] = React.useState(loadSavedBlock)
+    const [state, setState] = React.useState<any>(loadSavedState)
 
     React.useEffect(() => {
-        localStorage.setItem('block', JSON.stringify(block))
-    }, [block])
+        localStorage.setItem('block', JSON.stringify(state))
+    }, [state])
 
     return (
         <React.Fragment>
             <ErrorBoundary title="There was an Error in the REPL">
                 <div className="flex flex-col space-y-4" style={{ marginBottom: '100vh' }}>
-                    {block.render(setBlock, commandLibrary)}
+                    {ToplevelBlock.view({ state, setState, env: commandLibrary })}
                 </div>
             </ErrorBoundary>
         </React.Fragment>

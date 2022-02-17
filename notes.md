@@ -24,7 +24,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Current
 
-* Switch to TypeScript
+* Remove FCO's completely
 * Use Immer
 
 # Steps
