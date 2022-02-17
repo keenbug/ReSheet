@@ -1,44 +1,42 @@
 import * as React from 'react'
 
-import { JSComputation, JSComputationJSON, fcoBlockAdapter } from '../logic/components'
 import { ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
-import { FCO } from '../logic/fc-object'
 import { computeExpr } from '../logic/compute'
+import * as block from '../logic/block'
 
 
-/**************** Code Actions **************/
+export const JSExprBlock = block.create({
+    init: "",
+    view({ env, state, setState }) {
+        return <JSExpr code={state} setCode={setState} env={env} />
+    },
+    getResult(state, env) {
+        return computeExpr(state, env)
+    },
+    fromJSON(json, env) {
+        if (typeof json === 'string') {
+            return json
+        }
+        else {
+            return ""
+        }
+    },
+    toJSON(state) {
+        return state
+    }
+})
 
-export const setCodeExpr = (expr, block) =>
-    block.update({ expr })
-
-export const JSExprBlockFCO = FCO
-    .combine(JSComputation)
-    .combine(JSComputationJSON)
-    .addMethods({
-        view({ block, setBlock, env }) {
-            const dispatch = (action, ...args) => {
-                setBlock(block => action(...args, block))
-            }
-            return <JSExpr block={block} dispatch={dispatch} env={env} />
-        },
-    })
-
-export const JSExprBlock = fcoBlockAdapter(JSExprBlockFCO)
-
-
-/**************** UI *****************/
 
 const JSExprContainer = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
-export const JSExpr = ({ block: code, dispatch, env }) => {
-    const onUpdateExpr = expr => dispatch(setCodeExpr, expr)
-
+export const JSExpr = ({ code, setCode, env }) => {
+    const update = newCode => setCode(() => newCode)
     return (
-        <JSExprContainer key={code.id}>
-            <EditableCode code={code.expr} onUpdate={onUpdateExpr} />
-            <ValueInspector value={computeExpr(code.expr, env)} />
+        <JSExprContainer>
+            <EditableCode code={code} onUpdate={update} />
+            <ValueInspector value={computeExpr(code, env)} />
         </JSExprContainer>
     )
 }

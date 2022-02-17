@@ -4,12 +4,10 @@ import * as Block from '../logic/block'
 import { SheetBlock } from './sheet'
 import { CommandBlock } from './command'
 import { JSExprBlock } from './jsexpr'
-import { JSAsyncBlock } from './jsasync'
 
 export const Sheet = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
-export const JSAsync = JSAsyncBlock
 
 export const Input = Block.create<string>({
     init: "",
