@@ -24,82 +24,43 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Current
 
-* Remove FCO's completely
-* Use Immer
+* What to do next?
+    * Use Immer?
+    * Add completion?
+    * Work on tables?
+    * Work on real-world example?
+    * Work on Notion-Features?
+        * Add "JSXBlock" again?
+        * Add columns?
+        * Pages, Hierarchy of Pages?
+            * Sub-Pages not weirdly inlined in between "text"
+            * "text" only contains links to Sub-Pages
+            * Sub-Pages just another type of property of a Page?
+            * 
+    * Work on UX?
 
 # Steps
 
-- [x] rename ...FCO mess in components.js
 - [ ] implement Command Block
     - [ ] Extend and Split REPL
         - [ ] Command Block
             - [ ] Add completion
-        - [x] Compute Block
-            - former REPL
 - [ ] Rename tables to Jotter? JotterSheets? Then also rename Blocks to Jots?
 
 
 # Current
 
 * Dynamic Tables
-    - [x] Add dynamic columns (user code)
-    * Save Table Data
     * Make Raw Data editable (JSON)
     * Make Raw Columns Editable
         * Maybe needs REPL for Dynamic Function Stuff?
 * Styling
-    - [x] How to style in React? (styled?)
-        - yep
     - [ ] Style Table
-    - [x] Style REPL
-        * Done to a certain degree. Move on
     - [ ] Style Value Inspector: Theme? (search in docs)
-    - [x] Add CSS class(es) with nice default styles for HTML elements (h1, table, p, button, input, ...)
-        * https://simplecss.org
     * General
         - [ ] improve button discoverability (visual indicator for buttons)
 * User REPL
-    - [x] Make a big single-Code version
-    - [x] Save Code
-    - [x] Make it switchable in states: Code only, side-by-side, result only
-    - [x] find out when a value is a React Component
-        * Maybe subclass/instance of some React Class?
-            * React.isValidElement(value)
-    - [x] Make it multi-line:
-        - [x] each line switchable
-        - [x] can be saved in a variable
-    - [x] Add local Definitions
-    - [x] Make it a big single-Code version again
-        - [x] Extend modes to be: live code, code, app, state
-            - [x] add state to code
-            - [x] change from modes to individual visibility toggles
-            - [x] show app and code myself
-    - [x] Clean up Code
-    - [x] Add initial data field to Apps (formerly Statefuls) (default state to Symbol('uninitializedData'))
-    - [x] Insert Code Block before instead of after when pressing Shift+Cmd+Enter
-    - [x] Properly transpile JS Expressions (instead of Statements) with Babel
-    - [x] Always add variable names
-    - [x] Add Save/Load
-    - [x] Make automatic code execution disable-able
     - [ ] Add backup states / undo history
-* Cleanup
-    - [/] use dangerouslySetInnerHTML in TextInput?
-    - [x] Switch to useReducer for Code State
-    - [/] Make Code a flat list instead of linking via prev?
-    - [x] Merge cached result into Code again?
-    - [x] headless-ui (e.g. for context menus)
-* Fixes
-    - [/] Bug: Repl run in Repl run in Repl ... run in the Repl has weird focusing behavior:
-        - Grabs focus when editing elsewhere
-        - Caret jumps to beginning when editing Code in the inner Repl
-        - CodeJar throws errors
-        - maybe updating code and recreating the dom and reconciliation is the problem
-            - yep, fixed by not using anonymous functions as elements in createElement
-            - but still having the recreation effect when generating the ReplApp in a function
-                - timing bug? Is not consistent
-                - NaN bug. (revision was not set)
-        - is there a react reconciliation debugger? Something in React DevTools?
-    - [ ] Try other Code Editor? Maybe CodeJar or react-codejar is the culprit? OTOH, there are still weird bugs that are definitely independent from the editor
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition
@@ -109,7 +70,7 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Future
 
-* Switch to TypeScript? Maybe TS could be run in the browser - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
+* Use TypeScript typechecking in browser? - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
 * Style-/Theme-Editor?
     * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
 * Change (Context) Menus to "Commander Prompts"
@@ -162,6 +123,9 @@ https://immerjs.github.io/immer/
 
 source-map - Source-map library in js
 https://www.npmjs.com/package/source-map
+
+Haskell Retrie - Refactor haskell code by stating simple rules
+https://hackage.haskell.org/package/retrie
 
 
 # Interesting Fun Stuff
