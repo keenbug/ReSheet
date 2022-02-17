@@ -1,74 +1,89 @@
 import * as React from 'react'
 
 import * as Block from '../logic/block'
-import { CommandFCO, fcoBlockAdapter } from '../logic/components'
 import { ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
+import { computeExpr } from '../logic/compute'
 
 
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = (expr, commandBlock) =>
-    commandBlock.update({ expr })
+export const setCommandExpr = (expr, state) => (
+    { ...state, expr }
+)
 
-export const updateMode = (mode, commandBlock) =>
-    commandBlock.update({ mode })
+export const updateMode = (mode, state) => (
+    { ...state, mode }
+)
 
-export const chooseBlock = (env, commandBlock) =>
-    commandBlock.chooseBlock(env)
+export const chooseBlock = (env, state, blockLibrary) =>
+    chooseBlock_(state, env, blockLibrary)
 
-export const updateBlock = (blockUpdate, commandBlock) =>
-    commandBlock.update({
+export const updateBlock = (blockUpdate, state) => (
+    {
+        ...state,
         innerBlock: {
+            ...state.innerBlock,
             state:
                 typeof blockUpdate === 'function' ?
-                    blockUpdate(commandBlock.innerBlock.state)
+                    blockUpdate(state.innerBlock.state)
                 :
                     blockUpdate
             ,
-            block: commandBlock.innerBlock.block,
         }
-    })
+    }
+)
 
-export const CommandBlockFCO = blockLibrary => CommandFCO
-    .addState({ mode: 'choose' })
-    .addMethods({
-        fromJSON({ mode, ...json }, library) {
-            return this
-                .call(CommandFCO.fromJSON, json, library, blockLibrary)
-                .pipe(self => self.update({ mode: self.innerBlock ? mode : 'choose' }))
-        },
-        toJSON() {
-            const { mode } = this
-            return {
-                ...this.call(CommandFCO.toJSON),
-                mode,
-            }
-        },
-        view({ block, setBlock, env }) {
-            const dispatch = (action, ...args) => {
-                setBlock(block => action(...args, block))
-            }
-            return <CommandBlockUI command={block} dispatch={dispatch} env={env} blockLibrary={blockLibrary} />
-        },
-        getResult(env) {
-            return this.call(CommandFCO.getResult, env, blockLibrary)
-        },
-        chooseBlock(env) {
-            const blockCmdResult = this.getBlock(env, blockLibrary)
-            if (Block.isBlock(blockCmdResult)) {
-                return this
-                    .update({ mode: 'run', innerBlock: { state: blockCmdResult.init, block: blockCmdResult } })
-            }
-            else {
-                return this
-            }
-        },
-    })
 
-export const CommandBlock = blockLibrary => fcoBlockAdapter(CommandBlockFCO(blockLibrary))
+const chooseBlock_ = (state, env, blockLibrary) => {
+    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
+    if (Block.isBlock(blockCmdResult)) {
+        return { ...state, mode: 'run', innerBlock: { state: blockCmdResult.init, block: blockCmdResult } }
+    }
+    else {
+        return state
+    }
+}
+
+const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
+    if (mode === 'choose') { return null }
+
+    const block = computeExpr(expr, { ...blockLibrary, ...library })
+    const state = block.fromJSON(inner, library)
+    return { block, state }
+}
+
+export const CommandBlock = blockLibrary => Block.create({
+    init: { mode: 'choose', innerBlock: null, expr: "" },
+    view({ state, setState, env }) {
+        const dispatch = (action, ...args) => {
+            setState(state => action(...args, state, blockLibrary))
+        }
+        return <CommandBlockUI state={state} dispatch={dispatch} env={env} blockLibrary={blockLibrary} />
+    },
+    getResult(state, env) {
+        if (state.mode === 'choose') { return null }
+    
+        return state.innerBlock.block.getResult(state.innerBlock.state, env)
+    },
+    fromJSON(json: any, library) {
+        const { mode = 'choose', inner = null, expr = "" } = json
+        return {
+            mode,
+            expr,
+            innerBlock: loadBlock(json, library, blockLibrary),
+        }
+    },
+    toJSON({ mode, expr, innerBlock }) {
+        return {
+            mode,
+            expr,
+            inner: innerBlock ? innerBlock.block.toJSON(innerBlock.state) : null,
+        }
+    },
+})
 
 
 /**************** UI *****************/
@@ -85,7 +100,7 @@ const ChangeBlockButton = classed<any>('button')`
 `
 
 
-export const CommandBlockUI = ({ command, dispatch, env, blockLibrary }) => {
+export const CommandBlockUI = ({ state, dispatch, env, blockLibrary }) => {
     const onUpdateExpr    = expr        => dispatch(setCommandExpr, expr)
     const onUpdateBlock   = blockUpdate => dispatch(updateBlock, blockUpdate)
     const onSetMode       = mode        => dispatch(updateMode, mode)
@@ -99,19 +114,19 @@ export const CommandBlockUI = ({ command, dispatch, env, blockLibrary }) => {
         }
     }
     
-    const blockCmdResult = command.getBlock(env, blockLibrary)
+    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
 
-    switch (command.mode) {
+    switch (state.mode) {
         case 'run':
             return (
-                <CommandLineContainer key={command.id}>
+                <CommandLineContainer>
                     <CommandContent>
                         <div>
                             <ChangeBlockButton onClick={() => onSetMode('choose')}>
-                                {command.expr}
+                                {state.expr}
                             </ChangeBlockButton>
                         </div>
-                        {command.innerBlock.block.view({ state: command.innerBlock.state, setState: onUpdateBlock, env }) }
+                        {state.innerBlock.block.view({ state: state.innerBlock.state, setState: onUpdateBlock, env }) }
                     </CommandContent>
                 </CommandLineContainer>
             )
@@ -119,9 +134,9 @@ export const CommandBlockUI = ({ command, dispatch, env, blockLibrary }) => {
         case 'choose':
         default:
             return (
-                <CommandLineContainer key={command.id}>
+                <CommandLineContainer>
                     <CommandContent>
-                        <EditableCode code={command.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
+                        <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
                         {Block.isBlock(blockCmdResult) ?
                             <React.Fragment>
                                 <button onClick={() => onChooseBlock(env)}>Choose</button>

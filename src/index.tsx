@@ -27,7 +27,7 @@ const App = () => {
     const [state, setState] = React.useState<any>(loadSavedState)
 
     React.useEffect(() => {
-        localStorage.setItem('block', JSON.stringify(state))
+        localStorage.setItem('block', JSON.stringify(ToplevelBlock.toJSON(state)))
     }, [state])
 
     return (
