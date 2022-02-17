@@ -13,9 +13,7 @@ import * as babelGenerator from '@babel/generator'
 import * as blocks from '../blocks/blocks'
 import * as codeEditor from '../ui/code-editor'
 import * as command from '../blocks/command'
-import * as components from '../logic/components'
 import * as compute from '../logic/compute'
-import * as fcObject from '../logic/fc-object'
 import * as importExport from '../logic/import-export'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
@@ -38,9 +36,7 @@ export const LIBRARY_MAPPINGS = {
     "./blocks/command":                     command,
     "./blocks/sheet":                       sheet,
     "./blocks/jsexpr":                      jsexpr,
-    "./logic/components":                   components,
     "./logic/compute":                      compute,
-    "./logic/fc-object":                    fcObject,
     "./logic/import-export":                importExport,
     "./ui/code-editor":                     codeEditor,
     "./ui/utils":                           ui,
