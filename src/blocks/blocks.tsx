@@ -18,7 +18,12 @@ export const Input = Block.create<string>({
         return state
     },
     fromJSON(json) {
-        return json as string
+        if (typeof json === 'string') {
+            return json
+        }
+        else {
+            return ""
+        }
     },
     toJSON(state) {
         return state
