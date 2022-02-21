@@ -11,22 +11,14 @@ const lineDefaultName = line => '$' + line.id
 const lineName = line => line.name.length > 0 ? line.name : lineDefaultName(line)
 
 const nextFreeId = lines =>
-    lines
+    1 + lines
         .map(line => line.id)
-        .reduce(
-            (usedId, idCandidate) =>
-                idCandidate <= usedId ?
-                    usedId + 1
-                :
-                    idCandidate
-            ,
-            0,
-        )
+        .reduce((a, b) => Math.max(a, b), -1)
 
-const updateLineWithId = (id, update, lines) =>
+const updateLineWithId = (lines, id, update) =>
     lines.map(line => line.id === id ? update(line) : line)
 
-const insertLineBefore = (id, newLine, lines) =>
+const insertLineBefore = (lines, id, newLine) =>
     lines.flatMap(line =>
         line.id === id ?
             [newLine, line]
@@ -34,7 +26,7 @@ const insertLineBefore = (id, newLine, lines) =>
             [line]
     )
 
-const insertLineAfter = (id, newLine, lines) =>
+const insertLineAfter = (lines, id, newLine) =>
     lines.flatMap(line =>
         line.id === id ?
             [line, newLine]
@@ -51,19 +43,19 @@ const resultLinesToEnv = resultLines =>
 /**************** Code Actions **************/
 
 
-export const updateLineBlock = (id, update, lines) =>
-    updateLineWithId(id, line => ({ ...line, state: update(line.state) }), lines)
+export const updateLineBlock = (lines, id, update) =>
+    updateLineWithId(lines, id, line => ({ ...line, state: update(line.state) }))
 
-export const setName = (id, name, lines) =>
-    updateLineWithId(id, line => ({ ...line, name }), lines)
+export const setName = (lines, id, name) =>
+    updateLineWithId(lines, id, line => ({ ...line, name }))
 
-export const insertBeforeCode = (id, lines, innerBlock) =>
-    insertLineBefore(id, { id: nextFreeId(lines), name: '', state: innerBlock.init }, lines)
+export const insertBeforeCode = (lines, id, innerBlock) =>
+    insertLineBefore(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
 
-export const insertAfterCode = (id, lines, innerBlock) =>
-    insertLineAfter(id, { id: nextFreeId(lines), name: '', state: innerBlock.init }, lines)
+export const insertAfterCode = (lines, id, innerBlock) =>
+    insertLineAfter(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
 
-export const deleteCode = (id, lines) =>
+export const deleteCode = (lines, id) =>
     lines.length > 1 ?
         lines.filter(line => line.id !== id)
     :
@@ -115,7 +107,7 @@ export const SheetBlock = innerBlock => block.create<SheetBlockState>({
     init: [{ id: 0, name: '', state: innerBlock.init }],
     view({ state, setState, env }) {
         const dispatch = (action, ...args) => {
-            setState(lines => action(...args, lines, innerBlock))
+            setState(lines => action(lines, ...args))
         }
         return <Sheet lines={state} dispatch={dispatch} innerBlock={innerBlock} env={env} />
     },
@@ -176,7 +168,7 @@ export const SheetLine = ({ block, line, dispatch, env }) => {
     const onUpdateBlock = update => dispatch(updateLineBlock, line.id, update)
     return (
         <SheetLineContainer key={line.id}>
-            <SheetUIToggles line={line} dispatch={dispatch} />
+            <SheetUIToggles line={line} dispatch={dispatch} block={block} />
             <SheetLineContent>
                 <AssignmentLine line={line} dispatch={dispatch} />
                 {block.view({ state: line.state, setState: onUpdateBlock, env })}
@@ -218,9 +210,9 @@ const PopoverPanelStyled = classed<any>(Popover.Panel)`
     outline-none
 `
 
-const SheetUIToggles = ({ line, dispatch }) => {
-    const onInsertBefore = () => dispatch(insertBeforeCode, line.id)
-    const onInsertAfter  = () => dispatch(insertAfterCode,  line.id)
+const SheetUIToggles = ({ line, dispatch, block }) => {
+    const onInsertBefore = () => dispatch(insertBeforeCode, line.id, block)
+    const onInsertAfter  = () => dispatch(insertAfterCode,  line.id, block)
     const onDelete       = () => dispatch(deleteCode,       line.id)
 
     const Button = props => (
