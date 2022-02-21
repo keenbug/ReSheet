@@ -9,6 +9,21 @@ export const Sheet = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
 
+export const Inspect = <State extends any>(block: Block.Block<State>) => Block.create<State>({
+    init: block.init,
+    view: block.view,
+    fromJSON: block.fromJSON,
+    toJSON: block.toJSON,
+    getResult(state, env) {
+        return {
+            block,
+            state,
+            env,
+            result: block.getResult(state, env)
+        }
+    },
+})
+
 export const Input = Block.create<string>({
     init: "",
     view({ state, setState }) {
