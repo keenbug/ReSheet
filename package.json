@@ -25,6 +25,7 @@
     "@fortawesome/react-fontawesome": "^0.1.16",
     "@headlessui/react": "^1.4.3",
     "@types/react": "^17.0.39",
+    "immer": "^9.0.12",
     "prismjs": "^1.26.0",
     "react": "17",
     "react-codejar": "^1.1.2",

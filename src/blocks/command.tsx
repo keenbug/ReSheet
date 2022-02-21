@@ -1,4 +1,5 @@
 import * as React from 'react'
+import produce from 'immer'
 
 import * as Block from '../logic/block'
 import { ValueInspector } from '../ui/value'
@@ -10,42 +11,33 @@ import { computeExpr } from '../logic/compute'
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = (expr, state) => (
-    { ...state, expr }
-)
+export const setCommandExpr = produce((draft, expr) => {
+    draft.expr = expr
+})
 
-export const updateMode = (mode, state) => (
-    { ...state, mode }
-)
+export const updateMode = produce((draft, mode) => {
+    draft.mode = mode
+})
 
-export const chooseBlock = (env, state, blockLibrary) =>
-    chooseBlock_(state, env, blockLibrary)
-
-export const updateBlock = (blockUpdate, state) => (
-    {
-        ...state,
-        innerBlock: {
-            ...state.innerBlock,
-            state:
-                typeof blockUpdate === 'function' ?
-                    blockUpdate(state.innerBlock.state)
-                :
-                    blockUpdate
-            ,
+export const chooseBlock = produce((draft, env, blockLibrary) => {
+    const blockCmdResult = computeExpr(draft.expr, { ...blockLibrary, ...env })
+    if (Block.isBlock(blockCmdResult)) {
+        draft.mode = 'run'
+        draft.innerBlock = {
+            state: blockCmdResult.init,
+            block: blockCmdResult,
         }
     }
-)
+})
 
-
-const chooseBlock_ = (state, env, blockLibrary) => {
-    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
-    if (Block.isBlock(blockCmdResult)) {
-        return { ...state, mode: 'run', innerBlock: { state: blockCmdResult.init, block: blockCmdResult } }
+export const updateBlock = produce((draft, blockUpdate) => {
+    if (typeof blockUpdate === 'function') {
+        draft.innerBlock.state = blockUpdate(draft.innerBlock.state)
     }
     else {
-        return state
+        draft.innerBlock.state = blockUpdate
     }
-}
+})
 
 const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
     if (mode === 'choose') { return null }
@@ -59,7 +51,7 @@ export const CommandBlock = blockLibrary => Block.create({
     init: { mode: 'choose', innerBlock: null, expr: "" },
     view({ state, setState, env }) {
         const dispatch = (action, ...args) => {
-            setState(state => action(...args, state, blockLibrary))
+            setState(state => action(state, ...args))
         }
         return <CommandBlockUI state={state} dispatch={dispatch} env={env} blockLibrary={blockLibrary} />
     },
@@ -104,7 +96,7 @@ export const CommandBlockUI = ({ state, dispatch, env, blockLibrary }) => {
     const onUpdateExpr    = expr        => dispatch(setCommandExpr, expr)
     const onUpdateBlock   = blockUpdate => dispatch(updateBlock, blockUpdate)
     const onSetMode       = mode        => dispatch(updateMode, mode)
-    const onChooseBlock   = env         => dispatch(chooseBlock, env)
+    const onChooseBlock   = env         => dispatch(chooseBlock, env, blockLibrary)
 
     const onChooseKeyPress = env => event => {
         if (event.key === 'Enter' && event.metaKey) {
