@@ -1,27 +1,40 @@
 import * as React from 'react'
 import produce from 'immer'
 
-import * as Block from '../logic/block'
+import * as block from '../logic/block'
+import { Block } from '../logic/block'
 import { ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
 import { computeExpr } from '../logic/compute'
 
 
+export interface CommandModel<InnerState> {
+    expr: string
+    mode: Mode
+    innerBlock: null | {
+        state: InnerState
+        block: Block<InnerState>
+    }
+}
+
+export type Mode = 'run' | 'choose'
+
+
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = produce((draft, expr) => {
+export const setCommandExpr = produce((draft: CommandModel<unknown>, expr: string) => {
     draft.expr = expr
 })
 
-export const updateMode = produce((draft, mode) => {
+export const updateMode = produce((draft: CommandModel<unknown>, mode: Mode) => {
     draft.mode = mode
 })
 
-export const chooseBlock = produce((draft, env, blockLibrary) => {
+export const chooseBlock = produce((draft: CommandModel<unknown>, env: block.Environment, blockLibrary: block.Environment) => {
     const blockCmdResult = computeExpr(draft.expr, { ...blockLibrary, ...env })
-    if (Block.isBlock(blockCmdResult)) {
+    if (block.isBlock(blockCmdResult)) {
         draft.mode = 'run'
         draft.innerBlock = {
             state: blockCmdResult.init,
@@ -30,9 +43,10 @@ export const chooseBlock = produce((draft, env, blockLibrary) => {
     }
 })
 
-export const updateBlock = produce((draft, blockUpdate) => {
+export const updateBlock = produce(<State extends any>(draft: CommandModel<State>, blockUpdate: State | ((state: State) => State)) => {
     if (typeof blockUpdate === 'function') {
-        draft.innerBlock.state = blockUpdate(draft.innerBlock.state)
+        // doesn't work if State is a function, so State must not be a function
+        draft.innerBlock.state = (blockUpdate as (state: State) => State)(draft.innerBlock.state)
     }
     else {
         draft.innerBlock.state = blockUpdate
@@ -47,7 +61,7 @@ const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
     return { block, state }
 }
 
-export const CommandBlock = blockLibrary => Block.create({
+export const CommandBlock = blockLibrary => block.create<CommandModel<any>>({
     init: { mode: 'choose', innerBlock: null, expr: "" },
     view({ state, setState, env }) {
         const dispatch = (action, ...args) => {
@@ -129,7 +143,7 @@ export const CommandBlockUI = ({ state, dispatch, env, blockLibrary }) => {
                 <CommandLineContainer>
                     <CommandContent>
                         <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
-                        {Block.isBlock(blockCmdResult) ?
+                        {block.isBlock(blockCmdResult) ?
                             <React.Fragment>
                                 <button onClick={() => onChooseBlock(env)}>Choose</button>
                                 <ValueInspector value={blockCmdResult} />

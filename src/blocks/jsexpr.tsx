@@ -7,7 +7,7 @@ import { computeExpr } from '../logic/compute'
 import * as block from '../logic/block'
 
 
-export const JSExprBlock = block.create({
+export const JSExprBlock = block.create<string>({
     init: "",
     view({ env, state, setState }) {
         return <JSExpr code={state} setCode={setState} env={env} />

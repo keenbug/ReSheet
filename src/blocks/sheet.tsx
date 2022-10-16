@@ -5,20 +5,35 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { IconToggleButton, TextInput, classed } from '../ui/utils'
 import * as block from '../logic/block'
+import { Block } from '../logic/block'
+
+interface SheetBlockLine<InnerBlockState> {
+    id: number
+    name: string
+    state: InnerBlockState
+}
 
 
-const lineDefaultName = line => '$' + line.id
-const lineName = line => line.name.length > 0 ? line.name : lineDefaultName(line)
+const lineDefaultName = (line: SheetBlockLine<unknown>) => '$' + line.id
+const lineName = (line: SheetBlockLine<unknown>) => line.name.length > 0 ? line.name : lineDefaultName(line)
 
-const nextFreeId = lines =>
+const nextFreeId = (lines: SheetBlockLine<unknown>[]) =>
     1 + lines
         .map(line => line.id)
         .reduce((a, b) => Math.max(a, b), -1)
 
-const updateLineWithId = (lines, id, update) =>
+const updateLineWithId = <Inner extends unknown>(
+    lines: SheetBlockLine<Inner>[],
+    id: number,
+    update: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
+) =>
     lines.map(line => line.id === id ? update(line) : line)
 
-const insertLineBefore = (lines, id, newLine) =>
+const insertLineBefore = <Inner extends unknown>(
+    lines: SheetBlockLine<Inner>[],
+    id: number,
+    newLine: SheetBlockLine<Inner>,
+) =>
     lines.flatMap(line =>
         line.id === id ?
             [newLine, line]
@@ -26,7 +41,11 @@ const insertLineBefore = (lines, id, newLine) =>
             [line]
     )
 
-const insertLineAfter = (lines, id, newLine) =>
+const insertLineAfter = <Inner extends unknown>(
+    lines: SheetBlockLine<Inner>[],
+    id: number,
+    newLine: SheetBlockLine<Inner>,
+) =>
     lines.flatMap(line =>
         line.id === id ?
             [line, newLine]
@@ -43,19 +62,24 @@ const resultLinesToEnv = resultLines =>
 /**************** Code Actions **************/
 
 
-export const updateLineBlock = (lines, id, update) =>
+export const updateLineBlock = <Inner extends unknown>(
+    lines: SheetBlockLine<Inner>[],
+    id: number,
+    update: (inner: Inner) => Inner
+) =>
     updateLineWithId(lines, id, line => ({ ...line, state: update(line.state) }))
 
-export const setName = (lines, id, name) =>
+
+export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
     updateLineWithId(lines, id, line => ({ ...line, name }))
 
-export const insertBeforeCode = (lines, id, innerBlock) =>
+export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: Block<Inner>) =>
     insertLineBefore(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
 
-export const insertAfterCode = (lines, id, innerBlock) =>
+export const insertAfterCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: Block<Inner>) =>
     insertLineAfter(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
 
-export const deleteCode = (lines, id) =>
+export const deleteCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number) =>
     lines.length > 1 ?
         lines.filter(line => line.id !== id)
     :
@@ -78,12 +102,6 @@ const VarNameInput = classed<any>(TextInput)`
     rounded
 `
 
-interface SheetBlockLine<InnerBlockState> {
-    id: number
-    name: string
-    state: InnerBlockState
-}
-
 const getResultLines = (lines, innerBlock, env) =>
     lines.reduce(
         (previousResultLines, { id, name, state }) =>
@@ -101,9 +119,7 @@ const getResultLines = (lines, innerBlock, env) =>
         []
     )
 
-type SheetBlockState = Array<SheetBlockLine<unknown>>
-
-export const SheetBlock = innerBlock => block.create<SheetBlockState>({
+export const SheetBlock = <State extends unknown>(innerBlock: Block<State>) => block.create<SheetBlockLine<State>[]>({
     init: [{ id: 0, name: '', state: innerBlock.init }],
     view({ state, setState, env }) {
         const dispatch = (action, ...args) => {
