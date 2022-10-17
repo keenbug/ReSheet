@@ -3,7 +3,7 @@ import { Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { IconToggleButton, TextInput, classed, ToggleButton } from '../ui/utils'
+import { TextInput, classed, Button, IconForButton } from '../ui/utils'
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
 
@@ -60,7 +60,14 @@ export const setName = <Inner extends unknown>(state: DirectoryState<Inner>, id:
 export const addNewEntry = <Inner extends unknown>(state: DirectoryState<Inner>, innerBlock: Block<Inner>): DirectoryState<Inner> =>
     ({
         ...state,
-        entries: [ { id: nextFreeId(state.entries), name: '', state: innerBlock.init }, ...state.entries ]
+        entries: [
+            ...state.entries,
+            {
+                id: nextFreeId(state.entries),
+                name: '',
+                state: innerBlock.init
+            },
+        ]
     })
 
 export const openEntry = <Inner extends unknown>(state: DirectoryState<Inner>, id: number): DirectoryState<Inner> =>
@@ -80,7 +87,7 @@ export const deleteEntry = <Inner extends unknown>(state: DirectoryState<Inner>,
 
 /**************** UI *****************/
 
-const DirectoryEntryContainer = classed<any>('div')`flex flex-row space-x-2 mx-2`
+const DirectoryEntryContainer = classed<any>('div')`flex flex-row space-x-2`
 const DirectoryEntryContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
 const OpenedDirectoryEntryContainer = classed<any>('div')`flex flex-col space-y-2 mx-2`
@@ -148,10 +155,10 @@ export const Directory = ({ state, dispatch, innerBlock, env }) => {
         const onAddNew = () => dispatch(addNewEntry, innerBlock)
         return (
             <React.Fragment>
-                <IconToggleButton isActive={true} onUpdate={onAddNew} icon={solidIcons.faPlus}  />
                 {entries.map(entry => (
                     <DirectoryEntry key={entry.id} entry={entry} dispatch={dispatch} />
                 ))}
+                <Button onClick={onAddNew}><IconForButton icon={solidIcons.faPlus} /></Button>
             </React.Fragment>
         )
     }
@@ -168,9 +175,9 @@ export const DirectoryEntry = ({ entry, dispatch }) => {
     return (
         <DirectoryEntryContainer key={entry.id}>
             <DirectoryEntryContent>
-                <ToggleButton onClick={onOpenEntry}>
+                <Button onClick={onOpenEntry}>
                     {entryName(entry)}
-                </ToggleButton>
+                </Button>
             </DirectoryEntryContent>
             <EntryActions entry={entry} dispatch={dispatch} />
         </DirectoryEntryContainer>
@@ -180,9 +187,13 @@ export const DirectoryEntry = ({ entry, dispatch }) => {
 export const OpenedDirectoryEntry = ({ block, entry, dispatch, env }) => {
     const onUpdateName  = name   => dispatch(setName,          entry.id, name)
     const onUpdateBlock = update => dispatch(updateEntryBlock, entry.id, update)
+    const onCloseEntry  = ()     => dispatch(openEntry,        null)
     return (
         <OpenedDirectoryEntryContainer key={entry.id}>
             <OpenedDirectoryEntryHeader>
+                <Button onClick={onCloseEntry}>
+                    <IconForButton icon={solidIcons.faAngleLeft} />
+                </Button>
                 <NameInput
                     value={entry.name}
                     onUpdate={onUpdateName}
@@ -195,16 +206,12 @@ export const OpenedDirectoryEntry = ({ block, entry, dispatch, env }) => {
 }
 
 
-
-
-/****************** REPL Popover ******************/
-
 const EntryActions = ({ entry, dispatch }) => {
     const onDelete = () => dispatch(deleteEntry, entry.id)
 
     return (
         <React.Fragment>
-            <IconToggleButton isActive={true} onUpdate={onDelete} icon={solidIcons.faTrash} />
+            <Button onClick={onDelete}><IconForButton icon={solidIcons.faTrash} /></Button>
         </React.Fragment>
     )
 }

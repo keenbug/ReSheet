@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import styled, { css } from 'styled-components'
 
 import { interpolate } from '../utils'
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
 
 type ClassedElemType<P> = React.FunctionComponent<P> | React.ComponentClass<P> | string
@@ -67,7 +68,7 @@ export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
 
 
 
-export const ToggleButton = classed<any>('button')`
+export const Button = classed<any>('button')`
     text-left
     text-slate-600
 
@@ -81,16 +82,20 @@ export const ToggleButton = classed<any>('button')`
 `
 
 export const IconToggleButton: React.FC<any> = ({ className, isActive, icon, iconDisabled, onUpdate, label="", ...props }) => (
-    <ToggleButton
+    <Button
         className={(className ?? "") + (isActive ? "" : " text-slate-400")}
         onClick={onUpdate}
         {...props}
     >
-        <div className="inline-block w-5 text-center">
-            <FontAwesomeIcon size="xs" icon={isActive ? icon : (iconDisabled || icon)} />
-        </div>
+        <IconForButton icon={isActive ? icon : (iconDisabled || icon)} />
         {label && <span>{label}</span>}
-    </ToggleButton>
+    </Button>
+)
+
+export const IconForButton: React.FC<{ icon: IconDefinition }> = ({ icon }) => (
+    <div className="inline-block w-5 text-center">
+        <FontAwesomeIcon size="xs" icon={icon} />
+    </div>
 )
 
 
