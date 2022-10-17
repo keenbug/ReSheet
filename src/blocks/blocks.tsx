@@ -4,10 +4,12 @@ import * as Block from '../logic/block'
 import { SheetBlock } from './sheet'
 import { CommandBlock } from './command'
 import { JSExprBlock } from './jsexpr'
+import { DirectoryBlock } from './directory'
 
 export const Sheet = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
+export const Directory = DirectoryBlock
 
 export const Inspect = <State extends any>(block: Block.Block<State>) => Block.create<State>({
     init: block.init,
