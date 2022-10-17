@@ -40,30 +40,19 @@ const TextInputHTML = styled.span`
 
 const space = String.fromCharCode(32)
 const fixedWidth = String.fromCharCode(160)
-const spaceToFixedWidth = str => str.replaceAll(space, fixedWidth)
 const fixedWidthToSpace = str => str.replaceAll(fixedWidth, space)
-
-const optionForEncoding = new Option()
-
-const htmlEncode = input => (
-    optionForEncoding.text = input,
-    optionForEncoding.innerHTML
-)
 
 export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
     const ref = React.useRef(null)
     React.useLayoutEffect(() => {
-        if (spaceToFixedWidth(ref.current.textContent) !== spaceToFixedWidth(value)) {
-            ref.current.textContent = spaceToFixedWidth(value)
+        if (fixedWidthToSpace(ref.current.textContent) !== fixedWidthToSpace(value)) {
+            ref.current.textContent = fixedWidthToSpace(value)
         }
     })
     const onInput = event => {
-        const { textContent, innerHTML } = event.target
-        const text = spaceToFixedWidth(textContent.replaceAll('\n', ''))
-        if (innerHTML !== htmlEncode(text)) {
-            event.target.innerHTML = text
-        }
-        onUpdate(fixedWidthToSpace(text))
+        const { textContent } = event.target
+        const text = fixedWidthToSpace(textContent.replaceAll('\n', ''))
+        onUpdate(text)
     }
     return (
         <TextInputHTML
