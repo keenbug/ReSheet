@@ -1,20 +1,21 @@
 import * as React from 'react'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
-import { produce } from 'immer'
+import { original, produce } from 'immer'
 
 import { TextInput, classed, Button, IconForButton } from '../ui/utils'
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
+import { ErrorBoundary } from '../ui/value'
 
 interface DirectoryState<InnerBlockState> {
-    openedEntryId: null | number
-    entries: DirectoryEntry<InnerBlockState>[]
+    readonly openedEntryId: null | number
+    readonly entries: DirectoryEntry<InnerBlockState>[]
 }
 
 interface DirectoryEntry<InnerBlockState> {
-    id: number
-    name: string
-    state: InnerBlockState
+    readonly id: number
+    readonly name: string
+    readonly state: InnerBlockState
 }
 
 
@@ -26,46 +27,45 @@ const nextFreeId = (entries: DirectoryEntry<unknown>[]) =>
         .map(entry => entry.id)
         .reduce((a, b) => Math.max(a, b), -1)
 
-const updateEntryWithId = <Inner extends unknown>(
-    state: DirectoryState<Inner>,
-    id: number,
-    update: (entry: DirectoryEntry<Inner>) => DirectoryEntry<Inner>,
-): DirectoryState<Inner> =>
-    ({
-        ...state,
-        entries: state.entries.map(entry => entry.id === id ? update(entry) : entry)
-    })
-
 
 /**************** Code Actions **************/
 
 
-export const updateEntryBlock = <Inner extends unknown>(
-    state: DirectoryState<Inner>,
-    id: number,
-    update: (inner: Inner) => Inner
-): DirectoryState<Inner> =>
-    updateEntryWithId(state, id, entry => ({ ...entry, state: update(entry.state) }))
+export const updateEntryBlock = produce<DirectoryState<unknown>, [number, (inner: unknown) => unknown]>(
+    (state, id, action) => {
+        const entry = state.entries.find(entry => entry.id === id)
+        entry.state = action(original(entry).state)
+    }
+)
 
 
-export const setName = <Inner extends unknown>(state: DirectoryState<Inner>, id: number, name: string): DirectoryState<Inner> =>
-    updateEntryWithId(state, id, entry => ({ ...entry, name }))
+export const setName = produce<DirectoryState<unknown>, [number, string]>(
+    (state, id, name) => {
+        state.entries.find(entry => entry.id === id).name = name
+    }
+)
 
-export const addNewEntry = produce((state: DirectoryState<unknown>, innerBlock: Block<unknown>) => {
-    state.entries.push({
-        id: nextFreeId(state.entries),
-        name: '',
-        state: innerBlock.init
-    })
-})
+export const addNewEntry = produce<DirectoryState<unknown>, [Block<unknown>]>(
+    (state, innerBlock) => {
+        state.entries.push({
+            id: nextFreeId(original(state).entries),
+            name: '',
+            state: innerBlock.init
+        })
+    }
+)
 
-export const openEntry = produce((state: DirectoryState<unknown>, id: number) => {
-    state.openedEntryId = id
-})
+export const openEntry = produce<DirectoryState<unknown>, [number]>(
+    (state, id) => {
+        state.openedEntryId = id
+    }
+)
 
-export const deleteEntry = produce((state: DirectoryState<unknown>, id: number) => {
-    state.entries = state.entries.filter(entry => entry.id !== id)
-})
+export const deleteEntry = produce<DirectoryState<unknown>, [number]>(
+    (state, id) => {
+        state.entries = state.entries.filter(entry => entry.id !== id)
+    }
+)
 
 
 
@@ -92,11 +92,8 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: Block<State>) 
         openedEntryId: null,
         entries: [],
     },
-    view({ state, setState, env }) {
-        const dispatch = (action, ...args) => {
-            setState(state => action(state, ...args))
-        }
-        return <Directory state={state} dispatch={dispatch} innerBlock={innerBlock} env={env} />
+    view({ state, update, env }) {
+        return <Directory state={state} update={update} innerBlock={innerBlock} env={env} />
     },
     getResult(state, env) {
         const obj = Object.create(null)
@@ -118,19 +115,26 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: Block<State>) 
         }
     },
     toJSON(state) {
-        return state.entries.map(({ id, name, state }) => ({ id, name, state: innerBlock.toJSON(state) }))
+        return state.entries.map(
+            ({ id, name, state }) =>
+                ({
+                    id,
+                    name,
+                    state: innerBlock.toJSON(state)
+                })
+        )
     },
 })
 
-export const Directory = ({ state, dispatch, innerBlock, env }) => {
+export const Directory = ({ state, update, innerBlock, env }) => {
     const { openedEntryId, entries } = state as DirectoryState<unknown>
     const openedEntry = openedEntryId === null ? null : entries.find(entry => entry.id === openedEntryId)
     if (openedEntry === null) {
-        const onAddNew = () => dispatch(addNewEntry, innerBlock)
+        const onAddNew = () => update(state => addNewEntry(state, innerBlock))
         return (
             <React.Fragment>
                 {entries.map(entry => (
-                    <DirectoryEntry key={entry.id} entry={entry} dispatch={dispatch} />
+                    <DirectoryEntry key={entry.id} entry={entry} update={update} />
                 ))}
                 <Button onClick={onAddNew}><IconForButton icon={solidIcons.faPlus} /></Button>
             </React.Fragment>
@@ -138,14 +142,14 @@ export const Directory = ({ state, dispatch, innerBlock, env }) => {
     }
     else {
         return (
-            <OpenedDirectoryEntry block={innerBlock} entry={openedEntry} dispatch={dispatch} env={env} />
+            <OpenedDirectoryEntry block={innerBlock} entry={openedEntry} update={update} env={env} />
         )
     }
 }
 
 
-export const DirectoryEntry = ({ entry, dispatch }) => {
-    const onOpenEntry = () => dispatch(openEntry, entry.id)
+export const DirectoryEntry = ({ entry, update }) => {
+    const onOpenEntry = () => update(state => openEntry(state, entry.id))
     return (
         <DirectoryEntryContainer key={entry.id}>
             <DirectoryEntryContent>
@@ -153,15 +157,16 @@ export const DirectoryEntry = ({ entry, dispatch }) => {
                     {entryName(entry)}
                 </Button>
             </DirectoryEntryContent>
-            <EntryActions entry={entry} dispatch={dispatch} />
+            <EntryActions entry={entry} update={update} />
         </DirectoryEntryContainer>
     )
 }
 
-export const OpenedDirectoryEntry = ({ block, entry, dispatch, env }) => {
-    const onUpdateName  = name   => dispatch(setName,          entry.id, name)
-    const onUpdateBlock = update => dispatch(updateEntryBlock, entry.id, update)
-    const onCloseEntry  = ()     => dispatch(openEntry,        null)
+export const OpenedDirectoryEntry = ({ block, entry, update, env }) => {
+    const onUpdateName = name   => update(state => setName(state, entry.id, name))
+    const onCloseEntry = ()     => update(state => openEntry(state, null))
+    const subupdate    = action => update(state => updateEntryBlock(state, entry.id, action))
+
     return (
         <OpenedDirectoryEntryContainer key={entry.id}>
             <OpenedDirectoryEntryHeader>
@@ -174,14 +179,16 @@ export const OpenedDirectoryEntry = ({ block, entry, dispatch, env }) => {
                     placeholder={entryDefaultName(entry)}
                 />
             </OpenedDirectoryEntryHeader>
-            {block.view({ state: entry.state, setState: onUpdateBlock, env })}
+            <ErrorBoundary title={"There was an error in " + entry.name}>
+                {block.view({ state: entry.state, update: subupdate, env })}
+            </ErrorBoundary>
         </OpenedDirectoryEntryContainer>
     )
 }
 
 
-const EntryActions = ({ entry, dispatch }) => {
-    const onDelete = () => dispatch(deleteEntry, entry.id)
+const EntryActions = ({ entry, update }) => {
+    const onDelete = () => update(state => deleteEntry(state, entry.id))
 
     return (
         <React.Fragment>

@@ -6,11 +6,13 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { IconToggleButton, TextInput, classed } from '../ui/utils'
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
+import produce, { original } from 'immer'
+import { ErrorBoundary } from '../ui/value'
 
 interface SheetBlockLine<InnerBlockState> {
-    id: number
-    name: string
-    state: InnerBlockState
+    readonly id: number
+    readonly name: string
+    readonly state: InnerBlockState
 }
 
 
@@ -62,12 +64,12 @@ const resultLinesToEnv = resultLines =>
 /**************** Code Actions **************/
 
 
-export const updateLineBlock = <Inner extends unknown>(
-    lines: SheetBlockLine<Inner>[],
-    id: number,
-    update: (inner: Inner) => Inner
-) =>
-    updateLineWithId(lines, id, line => ({ ...line, state: update(line.state) }))
+export const updateLineBlock = produce<SheetBlockLine<unknown>[], [number, (inner: unknown) => unknown]>(
+    (lines, id, action) => {
+        const line = lines.find(line => line.id === id)
+        line.state = action(original(line).state)
+    }
+)
 
 
 export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
@@ -121,11 +123,8 @@ const getResultLines = (lines, innerBlock, env) =>
 
 export const SheetBlock = <State extends unknown>(innerBlock: Block<State>) => block.create<SheetBlockLine<State>[]>({
     init: [{ id: 0, name: '', state: innerBlock.init }],
-    view({ state, setState, env }) {
-        const dispatch = (action, ...args) => {
-            setState(lines => action(lines, ...args))
-        }
-        return <Sheet lines={state} dispatch={dispatch} innerBlock={innerBlock} env={env} />
+    view({ state, update, env }) {
+        return <Sheet lines={state} update={update} innerBlock={innerBlock} env={env} />
     },
     getResult(state, env) {
         const resultLines = getResultLines(state, innerBlock, env)
@@ -157,7 +156,7 @@ export const SheetBlock = <State extends unknown>(innerBlock: Block<State>) => b
     },
 })
 
-export const Sheet = ({ lines, dispatch, innerBlock, env }) => (
+export const Sheet = ({ lines, update, innerBlock, env }) => (
     <React.Fragment>
         {lines.reduce(
             (previousLines, line) => {
@@ -168,7 +167,7 @@ export const Sheet = ({ lines, dispatch, innerBlock, env }) => (
                     {
                         id, name,
                         result: innerBlock.getResult(state, { ...env, ...localEnv }),
-                        view: <SheetLine key={id} block={innerBlock} line={line} dispatch={dispatch} env={{ ...env, ...localEnv}} />,
+                        view: <SheetLine key={id} block={innerBlock} line={line} update={update} env={{ ...env, ...localEnv}} />,
                     }
                 ]
             },
@@ -180,22 +179,24 @@ export const Sheet = ({ lines, dispatch, innerBlock, env }) => (
 )
 
 
-export const SheetLine = ({ block, line, dispatch, env }) => {
-    const onUpdateBlock = update => dispatch(updateLineBlock, line.id, update)
+export const SheetLine = ({ block, line, update, env }) => {
+    const subupdate = action => update(state => updateLineBlock(state, line.id, action))
     return (
         <SheetLineContainer key={line.id}>
-            <SheetUIToggles line={line} dispatch={dispatch} block={block} />
+            <SheetUIToggles line={line} update={update} block={block} />
             <SheetLineContent>
-                <AssignmentLine line={line} dispatch={dispatch} />
-                {block.view({ state: line.state, setState: onUpdateBlock, env })}
+                <AssignmentLine line={line} update={update} />
+                <ErrorBoundary title="There was an error in the subblock">
+                    {block.view({ state: line.state, update: subupdate, env })}
+                </ErrorBoundary>
             </SheetLineContent>
         </SheetLineContainer>
     )
 }
 
 
-export const AssignmentLine = ({ line, dispatch }) => {
-    const onUpdateName = name => dispatch(setName, line.id, name)
+export const AssignmentLine = ({ line, update }) => {
+    const onUpdateName = name => update(state => setName(state, line.id, name))
     return (
         <div className="self-stretch pr-2 -mb-1 text-slate-500 font-light text-xs">
             <VarNameInput
@@ -226,10 +227,10 @@ const PopoverPanelStyled = classed<any>(Popover.Panel)`
     outline-none
 `
 
-const SheetUIToggles = ({ line, dispatch, block }) => {
-    const onInsertBefore = () => dispatch(insertBeforeCode, line.id, block)
-    const onInsertAfter  = () => dispatch(insertAfterCode,  line.id, block)
-    const onDelete       = () => dispatch(deleteCode,       line.id)
+const SheetUIToggles = ({ line, update, block }) => {
+    const onInsertBefore = () => update(state => insertBeforeCode(state, line.id, block))
+    const onInsertAfter  = () => update(state => insertAfterCode(state, line.id, block))
+    const onDelete       = () => update(state => deleteCode(state, line.id))
 
     const Button = props => (
         <IconToggleButton className="w-full" isActive={true} {...props} />

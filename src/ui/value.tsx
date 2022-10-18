@@ -1,5 +1,6 @@
 import * as React from 'react'
 import Inspector from 'react-inspector'
+import { ErrorView } from './utils'
 
 
 /**************** Value Viewer *****************/
@@ -77,15 +78,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     render() {
         if (this.state.caughtError) {
             return (
-                <div>
-                    <h3>{this.props.title}</h3>
-                    <h4>{this.state.caughtError.name}</h4>
-                    <p>{this.state.caughtError.message}</p>
+                <ErrorView title={this.props.title} error={this.state.caughtError}>
                     <div><button onClick={this.retry.bind(this)}>Retry</button></div>
                     {this.props.viewError &&
                         <div>{this.props.viewError(this.state.caughtError)}</div>
                     }
-                </div>
+                </ErrorView>
             )
         }
 

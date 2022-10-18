@@ -5,8 +5,14 @@ export type Environment = { [varName: string]: any }
 export const BlockTag = Symbol('block')
 export const isBlock = obj => obj?.[BlockTag] === BlockTag
 
+export interface BlockViewerProps<State> {
+    env: Environment
+    state: State
+    update: (action: (state: State) => State) => void
+}
+
 export type BlockViewer<State> =
-    (props: { env: Environment, state: State, setState: React.Dispatch<(state: State) => State> }) => JSX.Element
+    (props: BlockViewerProps<State>) => JSX.Element
 
 export interface Block<State> {
     init: State

@@ -67,6 +67,16 @@ export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
 
 
 
+export const ErrorView = ({ title, error, children }) => (
+    <div>
+        <h3>{title}</h3>
+        <h4>{error.name}</h4>
+        <p>{error.message}</p>
+        <pre>{error.stack}</pre>
+        {children}
+    </div>
+)
+
 
 export const Button = classed<any>('button')`
     text-left

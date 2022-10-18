@@ -28,8 +28,11 @@ export const Inspect = <State extends any>(block: Block.Block<State>) => Block.c
 
 export const Input = Block.create<string>({
     init: "",
-    view({ state, setState }) {
-        return <input type="text" value={state} onChange={ev => setState(() => ev.target.value)} />
+    view({ state, update }) {
+        const onChange = ev => {
+            update(() => ev.target.value)
+        }
+        return <input type="text" value={state} onChange={onChange} />
     },
     getResult(state) {
         return state
@@ -58,8 +61,8 @@ export const LoadFileButtonStyled = classed<any>(LoadFileButton)`
 
 export const LoadFile = Block.create<any>({
     init: null,
-    view({ setState }) {
-        const setData = data => setState(state => data)
+    view({ update }) {
+    const setData = data => update(() => data)
 
         return (
             <LoadFileButtonStyled

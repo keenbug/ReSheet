@@ -9,8 +9,8 @@ import * as block from '../logic/block'
 
 export const JSExprBlock = block.create<string>({
     init: "",
-    view({ env, state, setState }) {
-        return <JSExpr code={state} setCode={setState} env={env} />
+    view({ env, state, update }) {
+        return <JSExpr code={state} update={update} env={env} />
     },
     getResult(state, env) {
         return computeExpr(state, env)
@@ -31,11 +31,11 @@ export const JSExprBlock = block.create<string>({
 
 const JSExprContainer = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
-export const JSExpr = ({ code, setCode, env }) => {
-    const update = newCode => setCode(() => newCode)
+export const JSExpr = ({ code, update, env }) => {
+    const setCode = newCode => update(() => newCode)
     return (
         <JSExprContainer>
-            <EditableCode code={code} onUpdate={update} />
+            <EditableCode code={code} onUpdate={setCode} />
             <ValueInspector value={computeExpr(code, env)} />
         </JSExprContainer>
     )

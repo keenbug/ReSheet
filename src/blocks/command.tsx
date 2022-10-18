@@ -3,7 +3,7 @@ import produce from 'immer'
 
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
-import { ValueInspector } from '../ui/value'
+import { ErrorBoundary, ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
 import { computeExpr } from '../logic/compute'
@@ -43,31 +43,23 @@ export const chooseBlock = produce((draft: CommandModel<unknown>, env: block.Env
     }
 })
 
-export const updateBlock = produce(<State extends any>(draft: CommandModel<State>, blockUpdate: State | ((state: State) => State)) => {
-    if (typeof blockUpdate === 'function') {
-        // doesn't work if State is a function, so State must not be a function
-        draft.innerBlock.state = (blockUpdate as (state: State) => State)(draft.innerBlock.state)
-    }
-    else {
-        draft.innerBlock.state = blockUpdate
-    }
-})
+export const updateBlock = <State extends any>(state: CommandModel<State>, action: (state: State) => State) =>
+    produce(state, (draft: CommandModel<State>) => {
+        draft.innerBlock.state = action(state.innerBlock.state)
+    })
 
 const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
     if (mode === 'choose') { return null }
 
     const block = computeExpr(expr, { ...blockLibrary, ...library })
     const state = block.fromJSON(inner, library)
-    return { block, state }
+    return { block, state, error: null }
 }
 
 export const CommandBlock = blockLibrary => block.create<CommandModel<any>>({
     init: { mode: 'choose', innerBlock: null, expr: "" },
-    view({ state, setState, env }) {
-        const dispatch = (action, ...args) => {
-            setState(state => action(state, ...args))
-        }
-        return <CommandBlockUI state={state} dispatch={dispatch} env={env} blockLibrary={blockLibrary} />
+    view({ state, update, env }) {
+        return <CommandBlockUI state={state} update={update} env={env} blockLibrary={blockLibrary} />
     },
     getResult(state, env) {
         if (state.mode === 'choose') { return null }
@@ -106,11 +98,11 @@ const ChangeBlockButton = classed<any>('button')`
 `
 
 
-export const CommandBlockUI = ({ state, dispatch, env, blockLibrary }) => {
-    const onUpdateExpr    = expr        => dispatch(setCommandExpr, expr)
-    const onUpdateBlock   = blockUpdate => dispatch(updateBlock, blockUpdate)
-    const onSetMode       = mode        => dispatch(updateMode, mode)
-    const onChooseBlock   = env         => dispatch(chooseBlock, env, blockLibrary)
+export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
+    const onUpdateExpr  = expr   => update(state => setCommandExpr(state, expr))
+    const onSetMode     = mode   => update(state => updateMode(state, mode))
+    const onChooseBlock = env    => update(state => chooseBlock(state, env, blockLibrary))
+    const subupdate     = action => update(state => updateBlock(state, action))
 
     const onChooseKeyPress = env => event => {
         if (event.key === 'Enter' && event.metaKey) {
@@ -132,7 +124,9 @@ export const CommandBlockUI = ({ state, dispatch, env, blockLibrary }) => {
                                 {state.expr}
                             </ChangeBlockButton>
                         </div>
-                        {state.innerBlock.block.view({ state: state.innerBlock.state, setState: onUpdateBlock, env }) }
+                        <ErrorBoundary title={"There was an error in: " + state.expr}>
+                            {state.innerBlock.block.view({ state: state.innerBlock.state, update: subupdate, env }) }
+                        </ErrorBoundary>
                     </CommandContent>
                 </CommandLineContainer>
             )
