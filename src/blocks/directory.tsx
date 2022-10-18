@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { Popover } from '@headlessui/react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import { produce } from 'immer'
 
 import { TextInput, classed, Button, IconForButton } from '../ui/utils'
 import * as block from '../logic/block'
@@ -37,11 +36,6 @@ const updateEntryWithId = <Inner extends unknown>(
         entries: state.entries.map(entry => entry.id === id ? update(entry) : entry)
     })
 
-const resultEntriesToEnv = resultEntries =>
-    Object.fromEntries(
-        resultEntries.map(entry => [entryName(entry), entry.result])
-    )
-
 
 /**************** Code Actions **************/
 
@@ -57,30 +51,21 @@ export const updateEntryBlock = <Inner extends unknown>(
 export const setName = <Inner extends unknown>(state: DirectoryState<Inner>, id: number, name: string): DirectoryState<Inner> =>
     updateEntryWithId(state, id, entry => ({ ...entry, name }))
 
-export const addNewEntry = <Inner extends unknown>(state: DirectoryState<Inner>, innerBlock: Block<Inner>): DirectoryState<Inner> =>
-    ({
-        ...state,
-        entries: [
-            ...state.entries,
-            {
-                id: nextFreeId(state.entries),
-                name: '',
-                state: innerBlock.init
-            },
-        ]
+export const addNewEntry = produce((state: DirectoryState<unknown>, innerBlock: Block<unknown>) => {
+    state.entries.push({
+        id: nextFreeId(state.entries),
+        name: '',
+        state: innerBlock.init
     })
+})
 
-export const openEntry = <Inner extends unknown>(state: DirectoryState<Inner>, id: number): DirectoryState<Inner> =>
-    ({
-        ...state,
-        openedEntryId: id,
-    })
+export const openEntry = produce((state: DirectoryState<unknown>, id: number) => {
+    state.openedEntryId = id
+})
 
-export const deleteEntry = <Inner extends unknown>(state: DirectoryState<Inner>, id: number): DirectoryState<Inner> =>
-    ({
-        ...state,
-        entries: state.entries.filter(entry => entry.id !== id)
-    })
+export const deleteEntry = produce((state: DirectoryState<unknown>, id: number) => {
+    state.entries = state.entries.filter(entry => entry.id !== id)
+})
 
 
 
@@ -122,21 +107,10 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: Block<State>) 
     },
     fromJSON(json, env) {
         if (Array.isArray(json)) {
-            const entries =
-                json
-                    .reduce(
-                        (prevEntries, { id, name, state}) => {
-                            const localEnv = { ...env, ...resultEntriesToEnv(prevEntries) }
-                            const loadedState = innerBlock.fromJSON(state, localEnv)
-                            const result = innerBlock.getResult(loadedState, localEnv)
-                            return [
-                                ...prevEntries,
-                                { id, name, state: loadedState, result }
-                            ]
-                        },
-                        []
-                    )
-                    .map(({ id, name, state }) => ({ id, name, state }))
+            const entries: DirectoryEntry<State>[] =
+                json.map(({ id, name, state }) =>
+                    ({ id, name, state: innerBlock.fromJSON(state, env) })
+                )
             return { openedEntryId: null, entries }
         }
         else {
