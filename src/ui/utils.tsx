@@ -70,10 +70,10 @@ export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
 
 export const Button = classed<any>('button')`
     text-left
-    text-slate-600
+    text-slate-800
 
-    hover:bg-gray-200 hover:text-slate-600
-    focus:bg-gray-300 focus:text-slate-700
+    hover:bg-gray-200
+    focus:bg-gray-300
 
     transition-colors
 

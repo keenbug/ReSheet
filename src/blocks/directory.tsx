@@ -94,8 +94,8 @@ const OpenedDirectoryEntryContainer = classed<any>('div')`flex flex-col space-y-
 const OpenedDirectoryEntryHeader = classed<any>('div')`flex flex-row space-x-1 flex-1`
 
 const NameInput = classed<any>(TextInput)`
-    hover:bg-gray-200 hover:text-slate-700
-    focus:bg-gray-200 focus:text-slate-700
+    hover:bg-gray-200
+    focus:bg-gray-200
     outline-none
     p-0.5 mx-1
     rounded
