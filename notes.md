@@ -22,54 +22,30 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
         - Text Block (Parses Content as JSX)
 
 
-# Current
+# Next Steps
 
-* What to do next?
-    * Use Immer?
-    * Add completion?
-    * Work on tables?
-    * Work on real-world example?
-    * Work on Notion-Features?
-        * Add "JSXBlock" again?
-        * Add columns?
-        * Pages, Hierarchy of Pages?
-            * Sub-Pages not weirdly inlined in between "text"
-            * "text" only contains links to Sub-Pages
-            * Sub-Pages just another type of property of a Page?
-            * 
-    * Work on UX?
-
-# Steps
-
-- [ ] implement Command Block
-    - [ ] Extend and Split REPL
-        - [ ] Command Block
-            - [ ] Add completion
-- [ ] Rename tables to Jotter? JotterSheets? Then also rename Blocks to Jots?
-
-
-# Current
-
-* Dynamic Tables
-    * Make Raw Data editable (JSON)
-    * Make Raw Columns Editable
-        * Maybe needs REPL for Dynamic Function Stuff?
-* Styling
-    - [ ] Style Table
-    - [ ] Style Value Inspector: Theme? (search in docs)
-    * General
-        - [ ] improve button discoverability (visual indicator for buttons)
-* User REPL
-    - [ ] Add backup states / undo history
+* Add history
+* Work on UX?
+* Add completion?
 * Work on Tables/Spreadsheets again
     * Use REPL to change available columns
         * Step-by-step: Improve columns Definition
             * Simpler columns definition
             * Add focus (edit -> focus + isEditing)
             * Add "global" edit line (like excel)
+* Work on Notion-Features?
+    * Add "JSXBlock" again?
+    * Add columns?
+    * Pages, Hierarchy of Pages?
+        * Sub-Pages not weirdly inlined in between "text"
+        * "text" only contains links to Sub-Pages
+        * Sub-Pages just another type of property of a Page?
+        * 
+
 
 # Future
 
+* Rename tables to Jotter? JotterSheets? Then also rename Blocks to Jots?
 * Use TypeScript typechecking in browser? - has an API: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API
 * Style-/Theme-Editor?
     * Customizable CSS, always under a specific new class, divisible into sections and with live example html preview
