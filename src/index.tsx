@@ -1,13 +1,15 @@
 import * as React from 'react'
 import ReactDOM from 'react-dom'
+import produce, { original } from 'immer'
 
 import 'prismjs/themes/prism.css'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { CommandBlock, CommandModel } from './blocks/command'
 import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
-import { ErrorView } from './ui/utils'
-import produce, { original } from 'immer'
+import { classed, ErrorView } from './ui/utils'
 
 
 type ViewState =
@@ -78,6 +80,12 @@ const App = () => {
         }))
     }
 
+    const onCloseHistory = () => {
+        setState(produce(state => {
+            state.viewState = { mode: 'current' }
+        }))
+    }
+
     const onGoBack = () => {
         setState(produce(state => {
             if (state.viewState.mode === 'history') {
@@ -89,10 +97,7 @@ const App = () => {
     const onGoForward = () => {
         setState(produce(state => {
             if (state.viewState.mode === 'history') {
-                state.viewState.position++
-                if (state.viewState.position >= state.history.length) {
-                    state.viewState = { mode: 'current' }
-                }
+                state.viewState.position = Math.min(state.viewState.position + 1, state.history.length - 1)
             }
         }))
     }
@@ -141,6 +146,7 @@ const App = () => {
                 viewState={state.viewState}
                 history={state.history}
                 onOpenHistory={onOpenHistory}
+                onCloseHistory={onCloseHistory}
                 onGoBack={onGoBack}
                 onGoForward={onGoForward}
                 onUseState={onUseState}
@@ -163,25 +169,107 @@ const App = () => {
 }
 
 
-const MenuBar = ({ viewState, history, onOpenHistory, onGoBack, onGoForward, onUseState }) => {
+const HistoryButton = ({ isActive, ...props }) => {
+    const className = `
+        px-2
+        py-0.5
+        rounded
+        ${isActive ? 'bg-gray-200' : ''}
+        hover:bg-gray-300
+    `
+    return (
+        <button className={className} {...props}>
+            <FontAwesomeIcon size="xs" icon={solidIcons.faClockRotateLeft} />
+            History
+        </button>
+    )
+}
+
+const useTrigger = (onTrigger) => {
+    const timeoutRef = React.useRef<null | NodeJS.Timeout>(null)
+
+    React.useEffect(() => {
+        return () => {
+            if (timeoutRef.current !== null) {
+                clearTimeout(timeoutRef.current)
+            }
+        }
+    }, [timeoutRef])
+
+    const triggerPeriodically = period => () => {
+        onTrigger()
+        timeoutRef.current = setTimeout(triggerPeriodically(period * 0.99), period)
+    }
+
+    const triggerStart = () => {
+        onTrigger()
+        timeoutRef.current = setTimeout(triggerPeriodically(100), 1000)
+    }
+
+    const triggerStop = () => {
+        if (timeoutRef.current !== null) {
+            clearTimeout(timeoutRef.current)
+        }
+    }
+
+    return [triggerStart, triggerStop]
+}
+
+const MenuBarContainer = classed<any>('div')`bg-gray-100 p-1 flex space-x-1`
+
+const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState }) => {
+    const [startGoBack, stopGoBack] = useTrigger(onGoBack)
+    const [startGoForward, stopGoForward] = useTrigger(onGoForward)
+
     // TODO styling
     switch (viewState.mode) {
         case 'current':
             return (
-                <div>
-                    <button onClick={onOpenHistory}>Back</button>
-                </div>
+                <MenuBarContainer>
+                    <HistoryButton isActive={false} onClick={onOpenHistory} />
+                </MenuBarContainer>
             )
         case 'history':
         default:
             return (
-                <div>
-                    <button onClick={onGoBack}>Back</button>
-                    {history[viewState.position].time.toString()}
-                    <button onClick={onGoForward}>Forward</button>
-                    <button onClick={onUseState}>Use this state</button>
-                </div>
+                <MenuBarContainer>
+                    <HistoryButton isActive={true} onClick={onCloseHistory} />
+                    <button onMouseDown={startGoBack} onMouseUp={stopGoBack}>
+                        <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
+                    </button>
+                    <button onMouseDown={startGoForward} onMouseUp={stopGoForward}>
+                        <FontAwesomeIcon icon={solidIcons.faAngleRight} />
+                    </button>
+                    <div>{formatTime(history[viewState.position].time)}</div>
+                    <button style={{ marginLeft: 'auto' }} onClick={onUseState}>
+                        Use this state
+                    </button>
+                </MenuBarContainer>
             )
+    }
+}
+
+
+const secondInMs = 1000
+const minuteInMs = 60 * secondInMs
+const hourInMs = 60 * minuteInMs
+const dayInMs = 24 * hourInMs
+
+const formatTime = (date: Date) => {
+    const diffInMs = Date.now() - date.getTime()
+    if (diffInMs < dayInMs) {
+        return Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)
+    }
+    else {
+        const formatOptions: Intl.DateTimeFormatOptions = {
+            year: '2-digit',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        }
+        return Intl.DateTimeFormat(undefined, formatOptions).format(date)
     }
 }
 

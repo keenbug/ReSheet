@@ -24,7 +24,6 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Next Steps
 
-* Add history
 * Work on UX?
 * Add completion?
 * Work on Tables/Spreadsheets again
