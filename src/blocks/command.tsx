@@ -9,12 +9,12 @@ import { classed } from '../ui/utils'
 import { computeExpr } from '../logic/compute'
 
 
-export interface CommandModel<InnerState> {
+export interface CommandModel {
     expr: string
     mode: Mode
     innerBlock: null | {
-        state: InnerState
-        block: Block<InnerState>
+        state: unknown
+        block: Block<unknown>
     }
 }
 
@@ -24,15 +24,15 @@ export type Mode = 'run' | 'choose'
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = produce((draft: CommandModel<unknown>, expr: string) => {
+export const setCommandExpr = produce((draft: CommandModel, expr: string) => {
     draft.expr = expr
 })
 
-export const updateMode = produce((draft: CommandModel<unknown>, mode: Mode) => {
+export const updateMode = produce((draft: CommandModel, mode: Mode) => {
     draft.mode = mode
 })
 
-export const chooseBlock = produce((draft: CommandModel<unknown>, env: block.Environment, blockLibrary: block.Environment) => {
+export const chooseBlock = produce((draft: CommandModel, env: block.Environment, blockLibrary: block.Environment) => {
     const blockCmdResult = computeExpr(draft.expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {
         draft.mode = 'run'
@@ -43,8 +43,8 @@ export const chooseBlock = produce((draft: CommandModel<unknown>, env: block.Env
     }
 })
 
-export const updateBlock = <State extends any>(state: CommandModel<State>, action: (state: State) => State) =>
-    produce(state, (draft: CommandModel<State>) => {
+export const updateBlock = (state: CommandModel, action: (state: unknown) => unknown) =>
+    produce(state, (draft: CommandModel) => {
         draft.innerBlock.state = action(state.innerBlock.state)
     })
 
@@ -56,7 +56,7 @@ const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
     return { block, state, error: null }
 }
 
-export const CommandBlock = blockLibrary => block.create<CommandModel<any>>({
+export const CommandBlock = blockLibrary => block.create<CommandModel>({
     init: { mode: 'choose', innerBlock: null, expr: "" },
     view({ state, update, env }) {
         return <CommandBlockUI state={state} update={update} env={env} blockLibrary={blockLibrary} />
