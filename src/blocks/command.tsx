@@ -1,5 +1,5 @@
 import * as React from 'react'
-import produce from 'immer'
+import produce, { original } from 'immer'
 
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
@@ -12,10 +12,8 @@ import { computeExpr } from '../logic/compute'
 export interface CommandModel {
     expr: string
     mode: Mode
-    innerBlock: null | {
-        state: unknown
-        block: Block<unknown>
-    }
+    innerBlockState: null | unknown
+    innerBlock: null | Block<unknown>
 }
 
 export type Mode = 'run' | 'choose'
@@ -24,61 +22,69 @@ export type Mode = 'run' | 'choose'
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = produce((draft: CommandModel, expr: string) => {
+export const setCommandExpr = produce<CommandModel, [string]>((draft: CommandModel, expr: string) => {
     draft.expr = expr
 })
 
-export const updateMode = produce((draft: CommandModel, mode: Mode) => {
+export const updateMode = produce<CommandModel, [Mode]>((draft: CommandModel, mode: Mode) => {
     draft.mode = mode
 })
 
-export const chooseBlock = produce((draft: CommandModel, env: block.Environment, blockLibrary: block.Environment) => {
+export const setInnerBlockState = produce<CommandModel, [unknown]>((draft, innerBlockState) => {
+    draft.innerBlockState = innerBlockState
+})
+
+export const chooseBlock = produce<CommandModel, [block.Environment, block.Environment]>((draft: CommandModel, env: block.Environment, blockLibrary: block.Environment) => {
     const blockCmdResult = computeExpr(draft.expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {
         draft.mode = 'run'
-        draft.innerBlock = {
-            state: blockCmdResult.init,
-            block: blockCmdResult,
+        draft.innerBlock = blockCmdResult
+        if (draft.innerBlockState === null) {
+            draft.innerBlockState = blockCmdResult.init
         }
     }
 })
 
-export const updateBlock = (state: CommandModel, action: (state: unknown) => unknown) =>
-    produce(state, (draft: CommandModel) => {
-        draft.innerBlock.state = action(state.innerBlock.state)
-    })
+export const updateBlock = produce<CommandModel, [(state: unknown) => unknown]>((draft: CommandModel, action) => {
+    draft.innerBlockState = action(original(draft).innerBlockState)
+})
 
 const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
     if (mode === 'choose') { return null }
 
-    const block = computeExpr(expr, { ...blockLibrary, ...library })
-    const state = block.fromJSON(inner, library)
-    return { block, state, error: null }
+    const innerBlock = computeExpr(expr, { ...blockLibrary, ...library })
+    const innerBlockState = innerBlock.fromJSON(inner, library)
+    return { innerBlock, innerBlockState }
 }
 
 export const CommandBlock = blockLibrary => block.create<CommandModel>({
-    init: { mode: 'choose', innerBlock: null, expr: "" },
+    init: { mode: 'choose', innerBlockState: null, innerBlock: null, expr: "" },
     view({ state, update, env }) {
         return <CommandBlockUI state={state} update={update} env={env} blockLibrary={blockLibrary} />
     },
     getResult(state, env) {
         if (state.mode === 'choose') { return null }
     
-        return state.innerBlock.block.getResult(state.innerBlock.state, env)
+        return state.innerBlock.getResult(state.innerBlockState, env)
     },
     fromJSON(json: any, library) {
         const { mode = 'choose', inner = null, expr = "" } = json
         return {
             mode,
             expr,
-            innerBlock: loadBlock(json, library, blockLibrary),
+            ...loadBlock(json, library, blockLibrary),
         }
     },
-    toJSON({ mode, expr, innerBlock }) {
+    toJSON({ mode, expr, innerBlock, innerBlockState }) {
         return {
             mode,
             expr,
-            inner: innerBlock ? innerBlock.block.toJSON(innerBlock.state) : null,
+            inner:
+                innerBlock !== null && innerBlockState !== null ?
+                    innerBlock.toJSON(innerBlockState)
+                :
+                    null
+            ,
         }
     },
 })
@@ -102,6 +108,7 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
     const onUpdateExpr  = expr   => update(state => setCommandExpr(state, expr))
     const onSetMode     = mode   => update(state => updateMode(state, mode))
     const onChooseBlock = env    => update(state => chooseBlock(state, env, blockLibrary))
+    const onResetState  = ()     => update(state => setInnerBlockState(state, blockCmdResult.init))
     const subupdate     = action => update(state => updateBlock(state, action))
 
     const onChooseKeyPress = env => event => {
@@ -125,7 +132,7 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                             </ChangeBlockButton>
                         </div>
                         <ErrorBoundary title={"There was an error in: " + state.expr}>
-                            {state.innerBlock.block.view({ state: state.innerBlock.state, update: subupdate, env }) }
+                            {state.innerBlock.view({ state: state.innerBlockState, update: subupdate, env }) }
                         </ErrorBoundary>
                     </CommandContent>
                 </CommandLineContainer>
@@ -140,7 +147,13 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                         {block.isBlock(blockCmdResult) ?
                             <React.Fragment>
                                 <button onClick={() => onChooseBlock(env)}>Choose</button>
-                                <ValueInspector value={blockCmdResult} />
+                                {blockCmdResult.view({
+                                    state: state.innerBlockState ?? blockCmdResult.init,
+                                    update: () => {},
+                                    env,
+                                })}
+                                <ValueInspector value={state.innerBlockState ?? blockCmdResult.init} />
+                                <button onClick={onResetState}>Reset</button>
                             </React.Fragment>
                         :
                             <ValueInspector value={blockCmdResult} />

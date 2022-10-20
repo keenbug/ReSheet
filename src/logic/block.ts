@@ -3,7 +3,7 @@ import * as React from 'react'
 export type Environment = { [varName: string]: any }
 
 export const BlockTag = Symbol('block')
-export const isBlock = obj => obj?.[BlockTag] === BlockTag
+export const isBlock = (obj): obj is Block<unknown> => obj?.[BlockTag] === BlockTag
 
 export interface BlockViewerProps<State> {
     env: Environment
