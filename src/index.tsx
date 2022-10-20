@@ -10,20 +10,60 @@ import { CommandBlock, CommandModel } from './blocks/command'
 import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
 import { classed, ErrorView } from './ui/utils'
+import { catchAll } from './utils'
+import { Environment } from './logic/block'
 
 
 type ViewState =
     | { mode: 'current' }
     | { mode: 'history', position: number }
 
-interface ApplicationState {
-    blockState: ToplevelBlockState
-    history: Array<{
-        time: Date
-        blockState: ToplevelBlockState
-    }>
-    viewState: ViewState
+
+interface HistoryEntry {
+    readonly time: Date
+    readonly blockState: ToplevelBlockState
 }
+
+interface ApplicationState {
+    readonly blockState: ToplevelBlockState
+    readonly history: Array<HistoryEntry>
+    readonly viewState: ViewState
+}
+
+const openHistory = produce<ApplicationState>(state => {
+    if (state.history.length > 0) {
+        state.viewState = {
+            mode: 'history',
+            position: state.history.length - 1,
+        }
+    }
+})
+
+const closeHistory = produce<ApplicationState>(state => {
+    state.viewState = { mode: 'current' }
+})
+
+const goBackInHistory = produce<ApplicationState>(state => {
+    if (state.viewState.mode === 'history') {
+        state.viewState.position = Math.max(0, state.viewState.position - 1)
+    }
+})
+
+const goForwardInHistory = produce<ApplicationState>(state => {
+    if (state.viewState.mode === 'history') {
+        state.viewState.position = Math.min(state.viewState.position + 1, state.history.length - 1)
+    }
+})
+
+const viewStateFromHistory = produce<ApplicationState>(state => {
+    if (state.viewState.mode === 'history') {
+        const historicState = original(state).history[state.viewState.position]
+        state.history.push(historicState)
+        state.blockState = historicState.blockState
+        state.viewState = { mode: 'current' }
+    }
+})
+
 
 type ToplevelBlockState = CommandModel
 const ToplevelBlock = CommandBlock(library.blocks)
@@ -37,13 +77,50 @@ const initApplicationState = (initBlockState: ToplevelBlockState): ApplicationSt
     }
 }
 
+const historyToJSON = (history: Array<HistoryEntry>) => {
+    return history.map(entry => (
+        {
+            time: entry.time.getTime(),
+            blockState: ToplevelBlock.toJSON(entry.blockState),
+        }
+    ))
+}
+
+const historyFromJSON = (json: { time: number, blockState: any }[], env: Environment) => {
+    return json.map(historyEntryJson => (
+        {
+            time: new Date(historyEntryJson.time),
+            blockState: ToplevelBlock.fromJSON(historyEntryJson.blockState, env),
+        }
+    ))
+}
+
 
 /****************** Main Application ******************/
 
-const loadSavedState = () => {
+const loadSavedState = (): ApplicationState => {
     try {
         const savedJson = JSON.parse(localStorage.getItem('block'))
-        return initApplicationState(ToplevelBlock.fromJSON(savedJson, library))
+        const blockState = ToplevelBlock.fromJSON(savedJson, library)
+        const savedHistory = catchAll(
+            () =>
+                historyFromJSON(
+                    JSON.parse(localStorage.getItem('history')),
+                    library,
+                ),
+            () => {
+                localStorage.setItem(
+                    `history-backup-${new Date()}`,
+                    localStorage.getItem('history'),
+                )
+                return [{ time: new Date(), blockState }]
+            },
+        )
+        return {
+            blockState,
+            history: savedHistory,
+            viewState: { mode: 'current' },
+        }
     }
     catch (e) {
         console.warn("Could not load saved state:", e)
@@ -55,6 +132,16 @@ const App = () => {
     const [state, setState] = React.useState<ApplicationState>(loadSavedState)
     const [updateError, setUpdateError] = React.useState<null | Error>(null)
     const [savingError, setSavingError] = React.useState<null | Error>(null)
+
+    React.useEffect(() => {
+        try {
+            const stateAsJson = ToplevelBlock.toJSON(state.blockState)
+            localStorage.setItem('block', JSON.stringify(stateAsJson))
+            const historyAsJson = historyToJSON(state.history)
+            localStorage.setItem('history', JSON.stringify(historyAsJson))
+        }
+        catch (error) { setSavingError(error) }
+    }, [state.blockState])
 
     const saveUpdate = action => {
         setState(produce(state => {
@@ -68,58 +155,6 @@ const App = () => {
             }
         }))
     }
-
-    const onOpenHistory = () => {
-        setState(produce(state => {
-            if (state.history.length > 0) {
-                state.viewState = {
-                    mode: 'history',
-                    position: state.history.length - 1,
-                }
-            }
-        }))
-    }
-
-    const onCloseHistory = () => {
-        setState(produce(state => {
-            state.viewState = { mode: 'current' }
-        }))
-    }
-
-    const onGoBack = () => {
-        setState(produce(state => {
-            if (state.viewState.mode === 'history') {
-                state.viewState.position = Math.max(0, state.viewState.position - 1)
-            }
-        }))
-    }
-
-    const onGoForward = () => {
-        setState(produce(state => {
-            if (state.viewState.mode === 'history') {
-                state.viewState.position = Math.min(state.viewState.position + 1, state.history.length - 1)
-            }
-        }))
-    }
-
-    const onUseState = () => {
-        setState(produce(state => {
-            if (state.viewState.mode === 'history') {
-                const historicState = original(state).history[state.viewState.position]
-                state.history.push(historicState)
-                state.blockState = historicState.blockState
-                state.viewState = { mode: 'current' }
-            }
-        }))
-    }
-
-    React.useEffect(() => {
-        try {
-            const stateAsJson = ToplevelBlock.toJSON(state.blockState)
-            localStorage.setItem('block', JSON.stringify(stateAsJson))
-        }
-        catch (error) { setSavingError(error) }
-    }, [state.blockState])
 
     const viewToplevelBlock = () => {
         switch (state.viewState.mode) {
@@ -139,6 +174,12 @@ const App = () => {
                 })
         }
     }
+
+    const onOpenHistory  = () => setState(openHistory)
+    const onCloseHistory = () => setState(closeHistory)
+    const onGoBack       = () => setState(goBackInHistory)
+    const onGoForward    = () => setState(goForwardInHistory)
+    const onUseState     = () => setState(viewStateFromHistory)
 
     return (
         <React.Fragment>
@@ -179,13 +220,13 @@ const HistoryButton = ({ isActive, ...props }) => {
     `
     return (
         <button className={className} {...props}>
-            <FontAwesomeIcon size="xs" icon={solidIcons.faClockRotateLeft} />
+            <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
             History
         </button>
     )
 }
 
-const useTrigger = (onTrigger) => {
+const useTrigger = (onTrigger: () => void) => {
     const timeoutRef = React.useRef<null | NodeJS.Timeout>(null)
 
     React.useEffect(() => {
@@ -196,7 +237,7 @@ const useTrigger = (onTrigger) => {
         }
     }, [timeoutRef])
 
-    const triggerPeriodically = period => () => {
+    const triggerPeriodically = (period: number) => () => {
         onTrigger()
         timeoutRef.current = setTimeout(triggerPeriodically(period * 0.99), period)
     }
@@ -215,13 +256,13 @@ const useTrigger = (onTrigger) => {
     return [triggerStart, triggerStop]
 }
 
-const MenuBarContainer = classed<any>('div')`bg-gray-100 p-1 flex space-x-1`
+const MenuBarContainer = classed<any>('div')`bg-gray-100 p-1 flex space-x-2`
+const TimeContainer = classed<any>('div')`self-center flex space-x-1 px-2`
 
 const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState }) => {
     const [startGoBack, stopGoBack] = useTrigger(onGoBack)
     const [startGoForward, stopGoForward] = useTrigger(onGoForward)
 
-    // TODO styling
     switch (viewState.mode) {
         case 'current':
             return (
@@ -234,13 +275,17 @@ const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, 
             return (
                 <MenuBarContainer>
                     <HistoryButton isActive={true} onClick={onCloseHistory} />
-                    <button onMouseDown={startGoBack} onMouseUp={stopGoBack}>
-                        <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
-                    </button>
-                    <button onMouseDown={startGoForward} onMouseUp={stopGoForward}>
-                        <FontAwesomeIcon icon={solidIcons.faAngleRight} />
-                    </button>
-                    <div>{formatTime(history[viewState.position].time)}</div>
+                    <TimeContainer>
+                        <button onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
+                            <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
+                        </button>
+                        <button onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
+                            <FontAwesomeIcon icon={solidIcons.faAngleRight} />
+                        </button>
+                        <div className="self-center px-1">
+                            {formatTime(history[viewState.position].time)}
+                        </div>
+                    </TimeContainer>
                     <button style={{ marginLeft: 'auto' }} onClick={onUseState}>
                         Use this state
                     </button>
