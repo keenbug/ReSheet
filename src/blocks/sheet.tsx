@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Popover } from '@headlessui/react'
+import { Menu, Popover } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
@@ -214,10 +214,10 @@ export const AssignmentLine = ({ line, update }) => {
 
 /****************** REPL Popover ******************/
 
-const PopoverPanelStyled = classed<any>(Popover.Panel)`
+const MenuItemsStyled = classed<any>(Menu.Items)`
     flex flex-col
     bg-gray-100
-    shadow
+    shadow-md
     rounded
     items-stretch
     w-max
@@ -225,6 +225,21 @@ const PopoverPanelStyled = classed<any>(Popover.Panel)`
     overflow-hidden
     z-10
     outline-none
+    absolute top-0 -right-1 translate-x-full
+`
+
+const MenuButton = classed<any>('button')`
+    text-left
+    text-slate-800
+
+    hover:bg-gray-200
+    focus:bg-gray-300
+
+    transition-colors
+
+    outline-none
+    h-7 px-2 space-x-1
+    w-full
 `
 
 const SheetUIToggles = ({ line, update, block }) => {
@@ -232,26 +247,27 @@ const SheetUIToggles = ({ line, update, block }) => {
     const onInsertAfter  = () => update(state => insertAfterCode(state, line.id, block))
     const onDelete       = () => update(state => deleteCode(state, line.id))
 
-    const Button = props => (
-        <IconToggleButton className="w-full" isActive={true} {...props} />
-    )
-
-    const Menu = () => (
-        <PopoverPanelStyled className="absolute -right-1 translate-x-full">
-            <Button onUpdate={onInsertBefore} icon={solidIcons.faChevronUp}   label="Insert before" />
-            <Button onUpdate={onInsertAfter}  icon={solidIcons.faChevronDown} label="Insert after"  />
-            <Button onUpdate={onDelete}       icon={solidIcons.faTrash}       label="Delete"        />
-        </PopoverPanelStyled>
+    const Button = ({ icon, label, ...props }) => (
+        <Menu.Item>
+            <MenuButton {...props}>
+                <FontAwesomeIcon icon={icon} />
+                <span>{label}</span>
+            </MenuButton>
+        </Menu.Item>
     )
 
     return (
         <div>
-            <Popover className="relative">
-                <Menu />
-                <Popover.Button className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+            <Menu as="div" className="relative"> 
+                <Menu.Button className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                     <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
-                </Popover.Button>
-            </Popover>
+                </Menu.Button>
+                <MenuItemsStyled>
+                    <Button onClick={onInsertBefore} icon={solidIcons.faChevronUp}   label="Insert before" />
+                    <Button onClick={onInsertAfter}  icon={solidIcons.faChevronDown} label="Insert after"  />
+                    <Button onClick={onDelete}       icon={solidIcons.faTrash}       label="Delete"        />
+                </MenuItemsStyled>
+            </Menu>
         </div>
     )
 }
