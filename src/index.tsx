@@ -215,8 +215,11 @@ const HistoryButton = ({ isActive, ...props }) => {
         px-2
         py-0.5
         rounded
-        ${isActive ? 'bg-gray-200' : ''}
-        hover:bg-gray-300
+        ${isActive ?
+            'text-blue-50 bg-blue-700 hover:bg-blue-500'
+        :
+            'hover:text-blue-900 hover:bg-blue-200'
+        }
     `
     return (
         <button className={className} {...props}>
@@ -256,7 +259,7 @@ const useTrigger = (onTrigger: () => void) => {
     return [triggerStart, triggerStop]
 }
 
-const MenuBarContainer = classed<any>('div')`bg-gray-100 p-1 flex space-x-2`
+const MenuBarContainer = classed<any>('div')`shadow p-1 mb-2 flex space-x-2`
 const TimeContainer = classed<any>('div')`self-center flex space-x-1 px-2`
 
 const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState }) => {

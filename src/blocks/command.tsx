@@ -94,8 +94,13 @@ export const CommandBlock = blockLibrary => block.create<CommandModel>({
 
 
 
-const CommandLineContainer = classed<any>('div')`flex flex-row space-x-2`
 const CommandContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
+
+const CommandPreviewSection = classed<any>('div')`
+    flex flex-col space-y-2
+    m-1 p-2 rounded
+    shadow
+`
 
 const ChangeBlockButton = classed<any>('button')`
     text-xs text-gray-400 rounded-full
@@ -124,29 +129,29 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
     switch (state.mode) {
         case 'run':
             return (
-                <CommandLineContainer>
-                    <CommandContent>
-                        <div>
-                            <ChangeBlockButton onClick={() => onSetMode('choose')}>
-                                {state.expr}
-                            </ChangeBlockButton>
-                        </div>
-                        <ErrorBoundary title={"There was an error in: " + state.expr}>
-                            {state.innerBlock.view({ state: state.innerBlockState, update: subupdate, env }) }
-                        </ErrorBoundary>
-                    </CommandContent>
-                </CommandLineContainer>
+                <CommandContent>
+                    <div>
+                        <ChangeBlockButton onClick={() => onSetMode('choose')}>
+                            {state.expr}
+                        </ChangeBlockButton>
+                    </div>
+                    <ErrorBoundary title={"There was an error in: " + state.expr}>
+                        {state.innerBlock.view({ state: state.innerBlockState, update: subupdate, env }) }
+                    </ErrorBoundary>
+                </CommandContent>
             )
 
         case 'choose':
         default:
             return (
-                <CommandLineContainer>
-                    <CommandContent>
-                        <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
-                        {block.isBlock(blockCmdResult) ?
-                            <React.Fragment>
-                                <button onClick={() => onChooseBlock(env)}>Choose</button>
+                <CommandContent>
+                    <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
+                    {block.isBlock(blockCmdResult) ?
+                        <React.Fragment>
+                            <button onClick={() => onChooseBlock(env)}>Choose</button>
+
+                            <CommandPreviewSection>
+                                <h1>Preview</h1>
                                 <ErrorBoundary title="Could not show block">
                                     {blockCmdResult.view({
                                         state: state.innerBlockState ?? blockCmdResult.init,
@@ -154,14 +159,18 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                                         env,
                                     })}
                                 </ErrorBoundary>
+                            </CommandPreviewSection>
+
+                            <CommandPreviewSection>
+                                <h1>State</h1>
                                 <ValueInspector value={state.innerBlockState ?? blockCmdResult.init} />
                                 <button onClick={onResetState}>Reset</button>
-                            </React.Fragment>
-                        :
-                            <ValueInspector value={blockCmdResult} />
-                        }
-                    </CommandContent>
-                </CommandLineContainer>
+                            </CommandPreviewSection>
+                        </React.Fragment>
+                    :
+                        <ValueInspector value={blockCmdResult} />
+                    }
+                </CommandContent>
             )
     }
 }
