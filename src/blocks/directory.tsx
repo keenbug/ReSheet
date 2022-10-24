@@ -103,26 +103,28 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: Block<State>) 
         return  obj
     },
     fromJSON(json, env) {
-        if (Array.isArray(json)) {
-            const entries: DirectoryEntry<State>[] =
-                json.map(({ id, name, state }) =>
-                    ({ id, name, state: innerBlock.fromJSON(state, env) })
-                )
-            return { openedEntryId: null, entries }
-        }
-        else {
-            return { openedEntryId: null, entries: [] }
+        const openedEntryId = json?.openedEntryId ?? null
+        const entries = json?.entries ?? []
+        return {
+            openedEntryId,
+            entries: entries.map(({ id, name, state }) =>
+                ({ id, name, state: innerBlock.fromJSON(state, env) })
+            ),
         }
     },
-    toJSON(state) {
-        return state.entries.map(
-            ({ id, name, state }) =>
-                ({
-                    id,
-                    name,
-                    state: innerBlock.toJSON(state)
-                })
-        )
+    toJSON({ openedEntryId, entries }) {
+        return {
+            openedEntryId,
+            entries: 
+                entries.map(
+                    ({ id, name, state }) =>
+                        ({
+                            id,
+                            name,
+                            state: innerBlock.toJSON(state)
+                        })
+                ),
+        }
     },
 })
 

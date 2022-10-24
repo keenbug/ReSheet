@@ -18,7 +18,7 @@ export interface Block<State> {
     init: State
     view: BlockViewer<State>
     getResult(state: State, env: Environment): any
-    fromJSON(json: {}, env: Environment): State
+    fromJSON(json: any, env: Environment): State
     toJSON(state: State): {}
 }
 
