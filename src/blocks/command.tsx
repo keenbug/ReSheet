@@ -39,7 +39,7 @@ export const chooseBlock = produce<CommandModel, [block.Environment, block.Envir
     if (block.isBlock(blockCmdResult)) {
         draft.mode = 'run'
         draft.innerBlock = blockCmdResult
-        if (draft.innerBlockState === null) {
+        if (draft.innerBlockState === null || draft.innerBlockState === undefined) {
             draft.innerBlockState = blockCmdResult.init
         }
     }
@@ -80,7 +80,7 @@ export const CommandBlock = blockLibrary => block.create<CommandModel>({
             mode,
             expr,
             inner:
-                innerBlock !== null && innerBlockState !== null ?
+                mode === 'run' && innerBlock !== null && innerBlockState !== null ?
                     innerBlock.toJSON(innerBlockState)
                 :
                     null
@@ -147,11 +147,13 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                         {block.isBlock(blockCmdResult) ?
                             <React.Fragment>
                                 <button onClick={() => onChooseBlock(env)}>Choose</button>
-                                {blockCmdResult.view({
-                                    state: state.innerBlockState ?? blockCmdResult.init,
-                                    update: () => {},
-                                    env,
-                                })}
+                                <ErrorBoundary title="Could not show block">
+                                    {blockCmdResult.view({
+                                        state: state.innerBlockState ?? blockCmdResult.init,
+                                        update: () => {},
+                                        env,
+                                    })}
+                                </ErrorBoundary>
                                 <ValueInspector value={state.innerBlockState ?? blockCmdResult.init} />
                                 <button onClick={onResetState}>Reset</button>
                             </React.Fragment>
