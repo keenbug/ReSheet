@@ -1,12 +1,14 @@
 import * as React from 'react'
 import produce, { original } from 'immer'
+import { Tab } from '@headlessui/react'
 
 import * as block from '../logic/block'
 import { Block } from '../logic/block'
 import { ErrorBoundary, ValueInspector } from '../ui/value'
-import { EditableCode } from '../ui/code-editor'
+import { CodeEditor, EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
 import { computeExpr } from '../logic/compute'
+import { catchAll } from '../utils'
 
 
 export interface CommandModel {
@@ -116,6 +118,8 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
     const onResetState  = ()     => update(state => setInnerBlockState(state, blockCmdResult.init))
     const subupdate     = action => update(state => updateBlock(state, action))
 
+    const onSetInnerState = innerState => update(state => setInnerBlockState(state, innerState))
+
     const onChooseKeyPress = env => event => {
         if (event.key === 'Enter' && event.metaKey) {
             event.preventDefault()
@@ -151,7 +155,7 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                             <button onClick={() => onChooseBlock(env)}>Choose</button>
 
                             <CommandPreviewSection>
-                                <h1>Preview</h1>
+                                <h1 className="font-thin">Preview</h1>
                                 <ErrorBoundary title="Could not show block">
                                     {blockCmdResult.view({
                                         state: state.innerBlockState ?? blockCmdResult.init,
@@ -162,8 +166,27 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                             </CommandPreviewSection>
 
                             <CommandPreviewSection>
-                                <h1>State</h1>
-                                <ValueInspector value={state.innerBlockState ?? blockCmdResult.init} />
+                                <h1 className="font-thin">State</h1>
+                                <Tab.Group>
+                                    <Tab.List className="flex space-x-2">
+                                        <StateEditorTab>Inspector</StateEditorTab>
+                                        <StateEditorTab>JSON Editor</StateEditorTab>
+                                    </Tab.List>
+                                    <Tab.Panels>
+                                        <Tab.Panel>
+                                            <ValueInspector value={state.innerBlockState ?? blockCmdResult.init} />
+                                        </Tab.Panel>
+                                        <Tab.Panel>
+                                            <JSONEditor
+                                                initialValue={catchAll(
+                                                    () => blockCmdResult.toJSON(state.innerBlockState),
+                                                    () => blockCmdResult.toJSON(blockCmdResult.init),
+                                                )}
+                                                onSave={onSetInnerState}
+                                                />
+                                        </Tab.Panel>
+                                    </Tab.Panels>
+                                </Tab.Group>
                                 <button onClick={onResetState}>Reset</button>
                             </CommandPreviewSection>
                         </React.Fragment>
@@ -175,4 +198,24 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
     }
 }
 
+const StateEditorTab = props => (
+    <Tab
+        className={({ selected }) => `
+            rounded hover:text-blue-700
+            ${selected ? 'font-medium' : 'font-thin text-gray-800'}
+        `}
+        {...props}
+        />
+)
+
+const JSONEditor = ({ initialValue, onSave }) => {
+    const [json, setJson] = React.useState<string>(() => JSON.stringify(initialValue, null, 4))
+
+    return (
+        <div>
+            <CodeEditor code={json} onUpdate={setJson} />
+            <button onClick={() => onSave(JSON.parse(json))}>Save</button>
+        </div>
+    )
+}
 
