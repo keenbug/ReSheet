@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import styled, { css } from 'styled-components'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { interpolate } from '../utils'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
@@ -66,16 +67,45 @@ export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
 }
 
 
+const ErrorViewContainer = classed<any>('div')`
+    rounded
+    flex flex-col
+    space-y-1 mx-1 p-2
+    bg-red-50
+`
 
-export const ErrorView = ({ title, error, children }) => (
-    <div>
-        <h3>{title}</h3>
-        <h4>{error.name}</h4>
-        <p>{error.message}</p>
-        <pre>{error.stack}</pre>
-        {children}
-    </div>
-)
+const ErrorTitle = classed<any>('h1')`
+    font-medium
+`
+const ErrorName = classed<any>('h2')`
+    text-red-900
+`
+const ErrorMessageButton = classed<any>('button')`
+    text-left text-sm flex items-center
+`
+const ErrorStack = classed<any>('pre')`
+    ml-3
+    text-sm leading-loose
+`
+
+
+export const ErrorView = ({ title, error, children }) => {
+    const [isExpanded, setIsExpanded] = React.useState<boolean>(false)
+    const toggleExpanded = () => setIsExpanded(isExpanded => !isExpanded)
+
+    return (
+        <ErrorViewContainer>
+            <ErrorTitle>{title}</ErrorTitle>
+            <ErrorName>{error.name}</ErrorName>
+            <ErrorMessageButton onClick={toggleExpanded}>
+                <FontAwesomeIcon className="mr-2" icon={isExpanded ? solidIcons.faAngleDown : solidIcons.faAngleRight} />
+                {error.message}
+            </ErrorMessageButton>
+            {isExpanded && <ErrorStack>{error.stack}</ErrorStack>}
+            {children}
+        </ErrorViewContainer>
+    )
+}
 
 
 export const Button = classed<any>('button')`
