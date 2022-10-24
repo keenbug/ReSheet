@@ -17,6 +17,7 @@ import * as compute from '../logic/compute'
 import * as importExport from '../logic/import-export'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
+import * as completions from '../blocks/completions'
 import * as tables from './tables'
 import * as ui from '../ui/utils'
 import * as utils from '.'
@@ -36,6 +37,7 @@ export const LIBRARY_MAPPINGS = {
     "./blocks/command":                     command,
     "./blocks/sheet":                       sheet,
     "./blocks/jsexpr":                      jsexpr,
+    "./blocks/completions":                 completions,
     "./logic/compute":                      compute,
     "./logic/import-export":                importExport,
     "./ui/code-editor":                     codeEditor,
