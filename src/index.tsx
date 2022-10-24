@@ -95,6 +95,10 @@ const historyFromJSON = (json: { time: number, blockState: any }[], env: Environ
     ))
 }
 
+const reduceHistory = (history: Array<HistoryEntry>): Array<HistoryEntry> => {
+    return history.slice(1)
+}
+
 
 /****************** Main Application ******************/
 
@@ -128,6 +132,21 @@ const loadSavedState = (): ApplicationState => {
     }
 }
 
+const saveHistory = (history: Array<HistoryEntry>) => {
+    try {
+        const historyAsJson = historyToJSON(history)
+        localStorage.setItem('history', JSON.stringify(historyAsJson))
+    }
+    catch (e) {
+        if (history.length > 1) {
+            saveHistory(reduceHistory(history))
+        }
+        else {
+            throw e
+        }
+    }
+}
+
 const App = () => {
     const [state, setState] = React.useState<ApplicationState>(loadSavedState)
     const [updateError, setUpdateError] = React.useState<null | Error>(null)
@@ -137,8 +156,7 @@ const App = () => {
         try {
             const stateAsJson = ToplevelBlock.toJSON(state.blockState)
             localStorage.setItem('block', JSON.stringify(stateAsJson))
-            const historyAsJson = historyToJSON(state.history)
-            localStorage.setItem('history', JSON.stringify(historyAsJson))
+            saveHistory(state.history)
         }
         catch (error) { setSavingError(error) }
     }, [state.blockState])
