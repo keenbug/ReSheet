@@ -119,7 +119,7 @@ const loadSavedState = (): ApplicationState => {
                 JSON.parse(localStorage.getItem('history')),
                 library,
             ),
-        () => {
+        (e) => {
             console.warn("Could not load saved history:", e)
             localStorage.setItem(
                 `history-backup-${new Date()}`,
@@ -178,12 +178,13 @@ const App = () => {
     }
 
     const viewToplevelBlock = () => {
+        const env = { ...library, history: state.history }
         switch (state.viewState.mode) {
             case 'current':
                 return ToplevelBlock.view({
                     state: state.blockState,
                     update: saveUpdate,
-                    env: library
+                    env,
                 })
             
             case 'history':
@@ -191,7 +192,7 @@ const App = () => {
                 return ToplevelBlock.view({
                     state: stateInHistory,
                     update: () => {},
-                    env: library,
+                    env,
                 })
         }
     }
