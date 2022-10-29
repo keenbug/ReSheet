@@ -28,6 +28,29 @@ const nextFreeId = (entries: DirectoryEntry<unknown>[]) =>
         .reduce((a, b) => Math.max(a, b), -1)
 
 
+function getLookupDirectory<InnerBlockState>(
+    state: DirectoryState<InnerBlockState>,
+    block: Block<InnerBlockState>,
+    env: block.Environment,
+) {
+    return function lookupDirectory(name: string) {
+        if (name === '..') { return env.lookupDirectory }
+        return getEntryResult(state, block, name, env)
+    }
+}
+
+function getEntryResult<InnerBlockState>(
+    state: DirectoryState<InnerBlockState>,
+    block: Block<InnerBlockState>,
+    name: string,
+    env: block.Environment,
+) {
+    const lookupDirectory = getLookupDirectory(state, block, env)
+    const entry = state.entries.find(entry => entry.name === name)
+    return entry && block.getResult(entry.state, { ...env, lookupDirectory })
+}
+
+
 /**************** Code Actions **************/
 
 
@@ -47,8 +70,10 @@ export const setName = produce<DirectoryState<unknown>, [number, string]>(
 
 export const addNewEntry = produce<DirectoryState<unknown>, [Block<unknown>]>(
     (state, innerBlock) => {
+        const id = nextFreeId(original(state).entries)
+        state.openedEntryId = id
         state.entries.push({
-            id: nextFreeId(original(state).entries),
+            id,
             name: '',
             state: innerBlock.init
         })
@@ -93,14 +118,12 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: Block<State>) 
         entries: [],
     },
     view({ state, update, env }) {
-        return <Directory state={state} update={update} innerBlock={innerBlock} env={env} />
+        const lookupDirectory = getLookupDirectory(state, innerBlock, env)
+        const envWithLookup = { ...env, lookupDirectory }
+        return <Directory state={state} update={update} innerBlock={innerBlock} env={envWithLookup} />
     },
     getResult(state, env) {
-        const obj = Object.create(null)
-        state.entries.forEach(entry => {
-            obj[entryName(entry)] = innerBlock.getResult(entry.state, env)
-        })
-        return  obj
+        return getLookupDirectory(state, innerBlock, env)
     },
     fromJSON(json, env) {
         const openedEntryId = json?.openedEntryId ?? null
