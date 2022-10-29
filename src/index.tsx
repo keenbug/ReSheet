@@ -103,32 +103,35 @@ const reduceHistory = (history: Array<HistoryEntry>): Array<HistoryEntry> => {
 /****************** Main Application ******************/
 
 const loadSavedState = (): ApplicationState => {
-    try {
-        const savedJson = JSON.parse(localStorage.getItem('block'))
-        const blockState = ToplevelBlock.fromJSON(savedJson, library)
-        const savedHistory = catchAll(
-            () =>
-                historyFromJSON(
-                    JSON.parse(localStorage.getItem('history')),
-                    library,
-                ),
-            () => {
-                localStorage.setItem(
-                    `history-backup-${new Date()}`,
-                    localStorage.getItem('history'),
-                )
-                return [{ time: new Date(), blockState }]
-            },
-        )
-        return {
-            blockState,
-            history: savedHistory,
-            viewState: { mode: 'current' },
+    const blockState = catchAll(
+        () => {
+            const savedJson = JSON.parse(localStorage.getItem('block'))
+            return ToplevelBlock.fromJSON(savedJson, library)
+        },
+        (e) => {
+            console.warn("Could not load saved state:", e)
+            return ToplevelBlock.init
         }
-    }
-    catch (e) {
-        console.warn("Could not load saved state:", e)
-        return initApplicationState(ToplevelBlock.init)
+    )
+    const savedHistory = catchAll(
+        () =>
+            historyFromJSON(
+                JSON.parse(localStorage.getItem('history')),
+                library,
+            ),
+        () => {
+            console.warn("Could not load saved history:", e)
+            localStorage.setItem(
+                `history-backup-${new Date()}`,
+                localStorage.getItem('history'),
+            )
+            return [{ time: new Date(), blockState }]
+        },
+    )
+    return {
+        blockState,
+        history: savedHistory,
+        viewState: { mode: 'current' },
     }
 }
 
