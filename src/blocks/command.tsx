@@ -3,7 +3,7 @@ import produce, { original } from 'immer'
 import { Tab } from '@headlessui/react'
 
 import * as block from '../logic/block'
-import { Block } from '../logic/block'
+import { BlockDesc } from '../logic/block'
 import { ErrorBoundary, ValueInspector } from '../ui/value'
 import { CodeEditor, EditableCode } from '../ui/code-editor'
 import { classed } from '../ui/utils'
@@ -15,10 +15,17 @@ export interface CommandModel {
     expr: string
     mode: Mode
     innerBlockState: null | unknown
-    innerBlock: null | Block<unknown>
+    innerBlock: null | BlockDesc<unknown>
 }
 
 export type Mode = 'run' | 'choose'
+
+export const initCommandModel: CommandModel = {
+    expr: "",
+    mode: 'choose',
+    innerBlockState: null,
+    innerBlock: null,
+}
 
 
 /**************** Command Actions **************/
@@ -60,15 +67,18 @@ const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
 }
 
 export const CommandBlock = blockLibrary => block.create<CommandModel>({
-    init: { mode: 'choose', innerBlockState: null, innerBlock: null, expr: "" },
+    init: initCommandModel,
+
     view({ state, update, env }) {
         return <CommandBlockUI state={state} update={update} env={env} blockLibrary={blockLibrary} />
     },
+
     getResult(state, env) {
         if (state.mode === 'choose') { return null }
     
         return state.innerBlock.getResult(state.innerBlockState, env)
     },
+
     fromJSON(json: any, library) {
         const { mode = 'choose', inner = null, expr = "" } = json
         return {
@@ -77,12 +87,18 @@ export const CommandBlock = blockLibrary => block.create<CommandModel>({
             ...loadBlock(json, library, blockLibrary),
         }
     },
+
     toJSON({ mode, expr, innerBlock, innerBlockState }) {
         return {
             mode,
             expr,
             inner:
-                mode === 'run' && innerBlock !== null && innerBlockState !== null ?
+                mode === 'choose' ?
+                    catchAll(
+                        () => innerBlock.toJSON(innerBlockState),
+                        () => null,
+                    )
+                : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
                     innerBlock.toJSON(innerBlockState)
                 :
                     null
@@ -130,6 +146,14 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
     
     const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
 
+    function BlockCmdResultView() {
+        return blockCmdResult.view({
+            state: state.innerBlockState ?? blockCmdResult.init,
+            update: () => {},
+            env,
+        })
+    }
+
     switch (state.mode) {
         case 'run':
             return (
@@ -152,16 +176,17 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                     <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
                     {block.isBlock(blockCmdResult) ?
                         <React.Fragment>
-                            <button onClick={() => onChooseBlock(env)}>Choose</button>
-
-                            <CommandPreviewSection>
-                                <h1 className="font-thin">Preview</h1>
+                            <CommandPreviewSection
+                                className="hover:shadow-lg hover:-translate-y-px transition"
+                            >
+                                <h1
+                                    className="font-thin cursor-pointer"
+                                    onClick={() => onChooseBlock(env)}
+                                >
+                                    Block
+                                </h1>
                                 <ErrorBoundary title="Could not show block">
-                                    {blockCmdResult.view({
-                                        state: state.innerBlockState ?? blockCmdResult.init,
-                                        update: () => {},
-                                        env,
-                                    })}
+                                    <BlockCmdResultView />
                                 </ErrorBoundary>
                             </CommandPreviewSection>
 
@@ -170,6 +195,7 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                                 <Tab.Group>
                                     <Tab.List className="flex space-x-2">
                                         <StateEditorTab>Inspector</StateEditorTab>
+                                        <span className="font-thin">|</span>
                                         <StateEditorTab>JSON Editor</StateEditorTab>
                                     </Tab.List>
                                     <Tab.Panels>
@@ -180,7 +206,10 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                                             <JSONEditor
                                                 initialValue={catchAll(
                                                     () => blockCmdResult.toJSON(state.innerBlockState),
-                                                    () => blockCmdResult.toJSON(blockCmdResult.init),
+                                                    () => catchAll(
+                                                        () => blockCmdResult.toJSON(blockCmdResult.init),
+                                                        () => null,
+                                                    ),
                                                 )}
                                                 onSave={onSetInnerState}
                                                 />
@@ -201,7 +230,7 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
 const StateEditorTab = props => (
     <Tab
         className={({ selected }) => `
-            rounded hover:text-blue-700
+            hover:text-blue-700
             ${selected ? 'font-medium' : 'font-thin text-gray-800'}
         `}
         {...props}
