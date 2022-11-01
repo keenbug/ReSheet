@@ -61,6 +61,7 @@ export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
             contentEditable="plaintext-only"
             ref={ref}
             onInput={onInput}
+            spellcheck={false}
             {...props}
         />
     )

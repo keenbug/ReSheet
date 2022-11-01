@@ -2,8 +2,12 @@
     "include": ["src/**/*"],
     "exclude": ["node_modules"],
     "compilerOptions": {
-        "target": "es5",
+        "target": "ES6",
+        "lib": ["ES2019", "DOM"],
+        "moduleResolution": "node",
+        "removeComments": false,
         "jsx": "preserve",
+        "allowSyntheticDefaultImports": true,
         "isolatedModules": true
     }
 }

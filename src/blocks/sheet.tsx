@@ -6,7 +6,6 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { TextInput, classed } from '../ui/utils'
 import * as block from '../logic/block'
 import { BlockDesc } from '../logic/block'
-import produce, { original } from 'immer'
 import { ErrorBoundary } from '../ui/value'
 
 
@@ -17,6 +16,7 @@ interface SheetBlockLine<InnerBlockState> {
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
+    result: unknown
 }
 
 
@@ -28,9 +28,8 @@ function lineToEnv<State>(
     innerBlock: BlockDesc<State>,
     env: block.Environment,
 ) {
-    const result = innerBlock.getResult(line.state, env)
     return {
-        [lineName(line)]: result
+        [lineName(line)]: line.result
     }
 }
 
@@ -82,44 +81,64 @@ function insertLineAfter<Inner extends unknown>(
     )
 }
 
-function getResult<State>(
+function recomputeSheetResults<State>(
     lines: SheetBlockState<State>,
     innerBlock: BlockDesc<State>,
-    env: block.Environment
+    env: block.Environment,
 ) {
-    const results = block.mapWithEnv(
+    const recomputedLines = block.mapWithEnv(
         lines,
         (line, localEnv) => {
             const result = innerBlock.getResult(line.state, localEnv)
             return {
-                out: result,
+                out: { ...line, result },
                 env: { [lineName(line)]: result },
             }
         },
         env,
     )
-    return results[results.length - 1]
+    return recomputedLines
+}
+
+function getResult<State>(lines: SheetBlockState<State>) {
+    return lines[lines.length - 1].result
 }
 
 /**************** Code Actions **************/
 
 
-export const updateLineBlock = produce<SheetBlockLine<unknown>[], [number, (inner: unknown) => unknown]>(
-    (lines, id, action) => {
-        const line = lines.find(line => line.id === id)
-        line.state = action(original(line).state)
-    }
-)
+export function updateLineBlock<State>(
+    lines: SheetBlockState<State>,
+    id: number,
+    action: (state: State) => State,
+): SheetBlockState<State> {
+    return lines.map(line =>
+        line.id === id ?
+            { ...line, state: action(line.state) }
+        :
+            line
+    )
+}
 
 
 export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
     updateLineWithId(lines, id, line => ({ ...line, name }))
 
 export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    insertLineBefore(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
+    insertLineBefore(lines, id, {
+        id: nextFreeId(lines),
+        name: '',
+        state: innerBlock.init,
+        result: null,
+    })
 
 export const insertAfterCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    insertLineAfter(lines, id, { id: nextFreeId(lines), name: '', state: innerBlock.init })
+    insertLineAfter(lines, id, {
+        id: nextFreeId(lines),
+        name: '',
+        state: innerBlock.init,
+        result: null,
+    })
 
 export const deleteCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number) =>
     lines.length > 1 ?
@@ -146,19 +165,23 @@ const VarNameInput = classed<any>(TextInput)`
 
 export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) {
     return block.create<SheetBlockState<State>>({
-        init: [{ id: 0, name: '', state: innerBlock.init }],
+        init: [{ id: 0, name: '', state: innerBlock.init, result: null }],
         view({ state, update, env }) {
-            return <Sheet lines={state} update={update} innerBlock={innerBlock} env={env} />
+            function updateAndRecompute(action, env) {
+                update(state => recomputeSheetResults(action(state), innerBlock, env))
+            }
+            return <Sheet lines={state} update={action => updateAndRecompute(action, env)} innerBlock={innerBlock} env={env} />
         },
         getResult(state, env) {
-            return getResult(state, innerBlock, env)
+            return getResult(state)
         },
         fromJSON(json, env) {
             return block.mapWithEnv(
                 json,
                 ({ id, name, state }, localEnv) => {
                     const loadedState = innerBlock.fromJSON(state, localEnv)
-                    const line: SheetBlockLine<State> = { id, name, state: loadedState }
+                    const result = innerBlock.getResult(loadedState, localEnv)
+                    const line: SheetBlockLine<State> = { id, name, state: loadedState, result }
                     return {
                         out: line,
                         env: lineToEnv(line, innerBlock, localEnv)

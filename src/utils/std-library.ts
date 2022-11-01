@@ -10,6 +10,8 @@ import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 import * as babelGenerator from '@babel/generator'
 
+import * as codeJar from 'react-codejar'
+
 import * as blocks from '../blocks/blocks'
 import * as codeEditor from '../ui/code-editor'
 import * as command from '../blocks/command'
@@ -70,6 +72,8 @@ export const library = {
         parser: babelParser,
         generator: babelGenerator,
     },
+
+    codeJar,
 
     block,
     blocks,

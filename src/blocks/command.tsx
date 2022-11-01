@@ -1,5 +1,4 @@
 import * as React from 'react'
-import produce, { original } from 'immer'
 import { Tab } from '@headlessui/react'
 
 import * as block from '../logic/block'
@@ -20,92 +19,130 @@ export interface CommandModel {
 
 export type Mode = 'run' | 'choose'
 
-export const initCommandModel: CommandModel = {
-    expr: "",
-    mode: 'choose',
-    innerBlockState: null,
-    innerBlock: null,
+export function initCommandModel(
+    expr: string = '',
+    innerBlockInit: BlockDesc<unknown> = null
+): CommandModel {
+    return {
+        expr,
+        mode: expr ? 'run' : 'choose',
+        innerBlockState: innerBlockInit?.init,
+        innerBlock: innerBlockInit,
+    }
 }
 
 
 /**************** Command Actions **************/
 
 
-export const setCommandExpr = produce<CommandModel, [string]>((draft: CommandModel, expr: string) => {
-    draft.expr = expr
-})
+export function setCommandExpr(state: CommandModel, expr: string): CommandModel {
+    return { ...state, expr }
+}
 
-export const updateMode = produce<CommandModel, [Mode]>((draft: CommandModel, mode: Mode) => {
-    draft.mode = mode
-})
+export function updateMode(state: CommandModel, mode: Mode): CommandModel {
+    return { ...state, mode }
+}
 
-export const setInnerBlockState = produce<CommandModel, [unknown]>((draft, innerBlockState) => {
-    draft.innerBlockState = innerBlockState
-})
+export function setInnerBlockState(state: CommandModel, innerBlockState: unknown): CommandModel {
+    return { ...state, innerBlockState }
+}
 
-export const chooseBlock = produce<CommandModel, [block.Environment, block.Environment]>((draft: CommandModel, env: block.Environment, blockLibrary: block.Environment) => {
-    const blockCmdResult = computeExpr(draft.expr, { ...blockLibrary, ...env })
+export function chooseBlock(
+    state: CommandModel,
+    env: block.Environment,
+    blockLibrary: block.Environment
+): CommandModel {
+    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {
-        draft.mode = 'run'
-        draft.innerBlock = blockCmdResult
-        if (draft.innerBlockState === null || draft.innerBlockState === undefined) {
-            draft.innerBlockState = blockCmdResult.init
+        return {
+            ...state,
+            mode: 'run',
+            innerBlock: blockCmdResult,
+            innerBlockState:
+                state.innerBlockState === null || state.innerBlockState === undefined ?
+                    blockCmdResult.init
+                :
+                    state.innerBlockState
+            ,
         }
     }
-})
+    return state
+}
 
-export const updateBlock = produce<CommandModel, [(state: unknown) => unknown]>((draft: CommandModel, action) => {
-    draft.innerBlockState = action(original(draft).innerBlockState)
-})
+export function updateBlock(state: CommandModel, action: (state: unknown) => unknown): CommandModel {
+    return {
+        ...state,
+        innerBlockState: action(state.innerBlockState),
+    }
+}
 
 const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
-    if (mode === 'choose') { return null }
-
-    const innerBlock = computeExpr(expr, { ...blockLibrary, ...library })
-    const innerBlockState = innerBlock.fromJSON(inner, library)
+    const innerBlock = catchAll(
+        () => computeExpr(expr, { ...blockLibrary, ...library }),
+        () => null,
+    )
+    const innerBlockState = catchAll(
+        () => innerBlock.fromJSON(inner, library),
+        () => null,
+    )
     return { innerBlock, innerBlockState }
 }
 
-export const CommandBlock = blockLibrary => block.create<CommandModel>({
-    init: initCommandModel,
+export function CommandBlock(
+    expr: string = '',
+    innerBlockInit: BlockDesc<unknown> = null,
+    stateEditorBlock: BlockDesc<unknown>,
+    blockLibrary: block.Environment,
+) {
+    return block.create<CommandModel>({
+        init: initCommandModel(expr, innerBlockInit),
 
-    view({ state, update, env }) {
-        return <CommandBlockUI state={state} update={update} env={env} blockLibrary={blockLibrary} />
-    },
+        view({ state, update, env }) {
+            return (
+                <CommandBlockUI
+                    state={state}
+                    update={update}
+                    env={env}
+                    stateEditorBlock={stateEditorBlock}
+                    blockLibrary={blockLibrary}
+                    />
+            )
+        },
 
-    getResult(state, env) {
-        if (state.mode === 'choose') { return null }
-    
-        return state.innerBlock.getResult(state.innerBlockState, env)
-    },
+        getResult(state, env) {
+            if (state.mode === 'choose') { return null }
+        
+            return state.innerBlock.getResult(state.innerBlockState, env)
+        },
 
-    fromJSON(json: any, library) {
-        const { mode = 'choose', inner = null, expr = "" } = json
-        return {
-            mode,
-            expr,
-            ...loadBlock(json, library, blockLibrary),
-        }
-    },
+        fromJSON(json: any, library) {
+            const { mode = 'choose', inner = null, expr = "" } = json
+            return {
+                mode,
+                expr,
+                ...loadBlock(json, library, blockLibrary),
+            }
+        },
 
-    toJSON({ mode, expr, innerBlock, innerBlockState }) {
-        return {
-            mode,
-            expr,
-            inner:
-                mode === 'choose' ?
-                    catchAll(
-                        () => innerBlock.toJSON(innerBlockState),
-                        () => null,
-                    )
-                : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
-                    innerBlock.toJSON(innerBlockState)
-                :
-                    null
-            ,
-        }
-    },
-})
+        toJSON({ mode, expr, innerBlock, innerBlockState }) {
+            return {
+                mode,
+                expr,
+                inner:
+                    mode === 'choose' ?
+                        catchAll(
+                            () => innerBlock.toJSON(innerBlockState),
+                            () => null,
+                        )
+                    : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
+                        innerBlock.toJSON(innerBlockState)
+                    :
+                        null
+                ,
+            }
+        },
+    })
+}
 
 
 /**************** UI *****************/
@@ -116,7 +153,7 @@ const CommandContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
 
 const CommandPreviewSection = classed<any>('div')`
     flex flex-col space-y-2
-    m-1 p-2 rounded
+    p-2 rounded
     shadow
 `
 
@@ -127,14 +164,41 @@ const ChangeBlockButton = classed<any>('button')`
 `
 
 
-export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
+export interface CommandBlockUIProps {
+    state: CommandModel
+    update: (action: (state: CommandModel) => CommandModel) => void
+    env: block.Environment
+    stateEditorBlock: BlockDesc<unknown>
+    blockLibrary: block.Environment
+}
+
+export function CommandBlockUI(props: CommandBlockUIProps) {
+    const { state, update, env } = props
+    const { stateEditorBlock, blockLibrary } = props
     const onUpdateExpr  = expr   => update(state => setCommandExpr(state, expr))
     const onSetMode     = mode   => update(state => updateMode(state, mode))
     const onChooseBlock = env    => update(state => chooseBlock(state, env, blockLibrary))
     const onResetState  = ()     => update(state => setInnerBlockState(state, blockCmdResult.init))
     const subupdate     = action => update(state => updateBlock(state, action))
 
-    const onSetInnerState = innerState => update(state => setInnerBlockState(state, innerState))
+    const onLoadInnerState = innerStateJSON => update(state => {
+        try {
+            return setInnerBlockState(state, blockCmdResult.fromJSON(innerStateJSON, env))
+        }
+        catch (e) {
+            return state
+        }
+    })
+
+    const onCommitInnerState = innerState => update(state => {
+        try {
+            return setInnerBlockState(state, innerState)
+        }
+        catch (e) {
+            return state
+        }
+    })
+
 
     const onChooseKeyPress = env => event => {
         if (event.key === 'Enter' && event.metaKey) {
@@ -197,6 +261,8 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                                         <StateEditorTab>Inspector</StateEditorTab>
                                         <span className="font-thin">|</span>
                                         <StateEditorTab>JSON Editor</StateEditorTab>
+                                        <span className="font-thin">|</span>
+                                        <StateEditorTab>Expr Editor</StateEditorTab>
                                     </Tab.List>
                                     <Tab.Panels>
                                         <Tab.Panel>
@@ -211,7 +277,17 @@ export const CommandBlockUI = ({ state, update, env, blockLibrary }) => {
                                                         () => null,
                                                     ),
                                                 )}
-                                                onSave={onSetInnerState}
+                                                onSave={onLoadInnerState}
+                                                />
+                                        </Tab.Panel>
+                                        <Tab.Panel>
+                                            <ExprEditor
+                                                editorBlock={stateEditorBlock}
+                                                env={env}
+                                                currentBlock={blockCmdResult}
+                                                oldBlock={state.innerBlock}
+                                                state={state.innerBlockState}
+                                                onCommit={onCommitInnerState}
                                                 />
                                         </Tab.Panel>
                                     </Tab.Panels>
@@ -243,7 +319,35 @@ const JSONEditor = ({ initialValue, onSave }) => {
     return (
         <div>
             <CodeEditor code={json} onUpdate={setJson} />
-            <button onClick={() => onSave(JSON.parse(json))}>Save</button>
+            <button onClick={() => onSave(JSON.parse(json))}>Load</button>
+        </div>
+    )
+}
+
+interface ExprEditorProps {
+    editorBlock: BlockDesc<unknown>
+    currentBlock: BlockDesc<unknown>
+    oldBlock: BlockDesc<unknown>
+    state: unknown
+    env: block.Environment
+    onCommit: (newState: any) => void
+}
+
+function ExprEditor({ editorBlock, currentBlock, oldBlock, state, env, onCommit }: ExprEditorProps) {
+    const [editorBlockState, setEditorBlockState] = React.useState(editorBlock.init)
+
+    const extendedEnv = { ...env, currentBlock, oldBlock, state }
+
+    return (
+        <div>
+            {editorBlock.view({
+                state: editorBlockState,
+                update: setEditorBlockState,
+                env: extendedEnv,
+            })}
+            <button onClick={() => onCommit(editorBlock.getResult(editorBlockState, extendedEnv))}>
+                Commit
+            </button>
         </div>
     )
 }

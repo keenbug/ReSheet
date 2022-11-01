@@ -1,6 +1,5 @@
 import * as React from 'react'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
-import { createDraft, original, produce } from 'immer'
 
 import { TextInput, classed, Button, IconForButton } from '../ui/utils'
 import * as block from '../logic/block'
@@ -16,6 +15,7 @@ interface DirectoryEntry<InnerBlockState> {
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
+    result: unknown
 }
 
 
@@ -30,16 +30,14 @@ const nextFreeId = (entries: DirectoryEntry<unknown>[]) =>
 
 function annotateDirectoryMap<InnerState>(
     entries: DirectoryEntry<InnerState>[],
-    innerBlock: BlockDesc<InnerState>,
     env: block.Environment,
 ) {
     return block.mapWithEnv(
         entries,
         (entry, dir) => {
-            const result = innerBlock.getResult(entry.state, { ...env, dir })
             return {
                 out: { ...entry, dir },
-                env: { [entryName(entry)]: result },
+                env: { [entryName(entry)]: entry.result },
             }
         },
         { '..': env.dir },
@@ -47,59 +45,99 @@ function annotateDirectoryMap<InnerState>(
 }
 
 
-function getResult<InnerState>(
+function recomputeEntryResults<InnerState>(
     state: DirectoryState<InnerState>,
     innerBlock: BlockDesc<InnerState>,
     env: block.Environment,
 ) {
-    const annotatedEntries = annotateDirectoryMap(state.entries, innerBlock, env)
-    return annotatedEntries[annotatedEntries.length - 1]?.dir
+    const recomputedEntries = block.mapWithEnv(
+        state.entries,
+        (entry, dir) => {
+            const localEnv = { ...env, dir }
+            const result = innerBlock.getResult(entry.state, localEnv)
+            return {
+                out: { ...entry, result },
+                env: { [entryName(entry)]: result },
+            }
+        },
+        { '..': env.dir },
+    )
+    return { ...state, entries: recomputedEntries }
 }
 
 
 /**************** Code Actions **************/
 
 
-export const updateEntryBlock = produce<DirectoryState<unknown>, [number, (inner: unknown) => unknown]>(
-    (state, id, action) => {
-        const entry = state.entries.find(entry => entry.id === id)
-        entry.state = action(original(entry).state)
+export function updateEntryBlock<State>(
+    state: DirectoryState<State>,
+    id: number,
+    action: (state: State) => State,
+): DirectoryState<State> {
+    return {
+        ...state,
+        entries: state.entries.map(entry =>
+            entry.id === id ?
+                { ...entry, state: action(entry.state) }
+            :
+                entry
+        ),
     }
-)
-
-
-export const setName = produce<DirectoryState<unknown>, [number, string]>(
-    (state, id, name) => {
-        state.entries.find(entry => entry.id === id).name = name
-    }
-)
-
-export function addNewEntry<State>(state: DirectoryState<State>, innerBlock: BlockDesc<State>) {
-    return produce<DirectoryState<State>>(
-        state,
-        state => {
-            const id = nextFreeId(original(state).entries)
-            state.openedEntryId = id
-            state.entries.push({
-                id,
-                name: '',
-                state: createDraft(innerBlock.init),
-            })
-        }
-    )
 }
 
-export const openEntry = produce<DirectoryState<unknown>, [number]>(
-    (state, id) => {
-        state.openedEntryId = id
-    }
-)
 
-export const deleteEntry = produce<DirectoryState<unknown>, [number]>(
-    (state, id) => {
-        state.entries = state.entries.filter(entry => entry.id !== id)
+export function setName<State>(
+    state: DirectoryState<State>,
+    id: number,
+    name: string,
+): DirectoryState<State> {
+    return {
+        ...state,
+        entries: state.entries.map(entry =>
+            entry.id === id ?
+                { ...entry, name }
+            :
+                entry
+        ),
     }
-)
+}
+
+export function addNewEntry<State>(
+    state: DirectoryState<State>,
+    innerBlock: BlockDesc<State>,
+): DirectoryState<State> {
+    const id = nextFreeId(state.entries)
+    return {
+        ...state,
+        openedEntryId: id,
+        entries: [
+            ...state.entries,
+            {
+                id,
+                name: '',
+                state: innerBlock.init,
+                result: null,
+            },
+        ]
+    }
+}
+
+export function openEntry<State>(
+    state: DirectoryState<State>,
+    id: number,
+): DirectoryState<State> {
+    return { ...state, openedEntryId: id }
+}
+
+export function deleteEntry<State>(
+    state: DirectoryState<State>,
+    id: number,
+): DirectoryState<State> {
+    return {
+        ...state,
+        entries: state.entries.filter(entry => entry.id !== id),
+    }
+}
 
 
 
@@ -127,10 +165,20 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: BlockDesc<Stat
         entries: [],
     },
     view({ state, update, env }) {
-        return <Directory state={state} update={update} innerBlock={innerBlock} env={env} />
+        function updateAndRecompute(action, env) {
+            update(state => recomputeEntryResults(action(state), innerBlock, env))
+        }
+        return (
+            <Directory
+                state={state}
+                update={action => updateAndRecompute(action, env)}
+                innerBlock={innerBlock}
+                env={env}
+                />
+        )
     },
     getResult(state, env) {
-        return getResult(state, innerBlock, env)
+        return state.entries[state.entries.length - 1]?.result
     },
     fromJSON(json, env) {
         const openedEntryId = json?.openedEntryId ?? null
@@ -142,8 +190,8 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: BlockDesc<Stat
                     const { id, name, state } = innerJson
                     const localEnv = { ...env, dir }
                     const loadedState = innerBlock.fromJSON(state, localEnv)
-                    const entry = { id, name, state: loadedState }
                     const result = innerBlock.getResult(loadedState, localEnv)
+                    const entry = { id, name, state: loadedState, result }
                     return {
                         out: [entry],
                         env: { [entryName(entry)]: result },
@@ -188,7 +236,7 @@ export interface DirectoryProps<State> {
 
 export function Directory<State>({ state, update, innerBlock, env }: DirectoryProps<State>) {
     const { openedEntryId, entries } = state as DirectoryState<unknown>
-    const annotatedEntries = annotateDirectoryMap(entries, innerBlock, env)
+    const annotatedEntries = annotateDirectoryMap(entries, env)
     const openedEntry = openedEntryId === null ? null : annotatedEntries.find(entry => entry.id === openedEntryId)
     if (openedEntry === null) {
         const onAddNew = () => update(state => addNewEntry(state, innerBlock))

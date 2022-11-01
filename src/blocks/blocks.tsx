@@ -6,12 +6,17 @@ import { CommandBlock } from './command'
 import { JSExprBlock } from './jsexpr'
 import { DirectoryBlock } from './directory'
 
-export const Sheet = SheetBlock
+export const SheetOf = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
-export const Directory = DirectoryBlock
+export const DirectoryOf = DirectoryBlock
 
-export const Inspect = <State extends any>(block: Block.Block<State>) => Block.create<State>({
+export const StateEditor = blocks => SheetBlock(CommandBlock('JSExpr', JSExprBlock, JSExprBlock, blocks))
+export const Cmd = blocks => CommandBlock('JSExpr', JSExprBlock, StateEditor(blocks), blocks)
+export const Sheet = blocks => SheetBlock(Cmd(blocks))
+export const Dir = blocks => DirectoryBlock(Cmd(blocks))
+
+export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Block.create<State>({
     init: block.init,
     view: block.view,
     fromJSON: block.fromJSON,
@@ -62,7 +67,7 @@ export const LoadFileButtonStyled = classed<any>(LoadFileButton)`
 export const LoadFile = Block.create<any>({
     init: null,
     view({ update }) {
-    const setData = data => update(() => data)
+        const setData = data => update(() => data)
 
         return (
             <LoadFileButtonStyled

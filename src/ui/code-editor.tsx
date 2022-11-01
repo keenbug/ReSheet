@@ -1,4 +1,5 @@
 import * as React from 'react'
+import styled, { css } from 'styled-components'
 
 import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
@@ -8,7 +9,22 @@ import { classed } from './utils'
 
 /**************** Code Editor *****************/
 
-const CodeContent = classed<any>('code')`
+const CodeWithPlaceholder = styled.code`
+    ${({ placeholder }) =>
+        placeholder ?
+            css`
+                &:empty:after {
+                    content: "${placeholder}";
+                    color: #bbb;
+                    font-size: 0.75rem;
+                }
+            `
+        :
+            ''
+    }
+`
+
+const CodeContent = classed<any>(CodeWithPlaceholder)`
     block
     rounded
     hover:bg-gray-100 focus:bg-gray-100
@@ -40,6 +56,7 @@ export const CodeView: React.FC<any> = ({ code, highlight = highlightJS, ...prop
                 ref={ref}
                 style={{ minHeight: "1.5rem" }}
                 dangerouslySetInnerHTML={{ __html: highlight(code) }}
+                placeholder="<code/>"
                 {...props}
             />
         </pre>
@@ -61,7 +78,7 @@ export const CodeEditor: React.FC<any> = ({ code, onUpdate, highlight = highligh
         },
     })
 
-    return <pre><CodeContent ref={ref} {...props} /></pre>
+    return <pre><CodeContent ref={ref} placeholder="<code/>" {...props} /></pre>
 }
 
 export const highlightNothing = code => new Option(code).innerHTML
