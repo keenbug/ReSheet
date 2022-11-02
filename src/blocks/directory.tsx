@@ -129,6 +129,22 @@ export function openEntry<State>(
     return { ...state, openedEntryId: id }
 }
 
+export function duplicateEntry<State>(
+    state: DirectoryState<State>,
+    id: number,
+): DirectoryState<State> {
+    const newId = nextFreeId(state.entries)
+    return {
+        ...state,
+        entries: state.entries.flatMap(entry =>
+            entry.id === id ?
+                [entry, { ...entry, id: newId }]
+            :
+                [entry]
+        ),
+    }
+}
+
 export function deleteEntry<State>(
     state: DirectoryState<State>,
     id: number,
@@ -302,11 +318,35 @@ export const OpenedDirectoryEntry = ({ block, entry, update, env }) => {
 
 
 const EntryActions = ({ entry, update }) => {
+    const onDuplicate = () => update(state => duplicateEntry(state, entry.id))
     const onDelete = () => update(state => deleteEntry(state, entry.id))
+
+    function IconButton({ onClick, icon }) {
+        return (
+            <button
+                className={`
+                    text-left
+                    text-gray-400 hover:text-gray-600
+                
+                    hover:bg-gray-200
+                    focus:bg-gray-300
+                
+                    transition-colors
+                
+                    outline-none
+                    h-7 px-1 space-x-1
+                `}
+                onClick={onClick}
+                >
+                <IconForButton icon={icon} />
+            </button>
+        )
+    }
 
     return (
         <React.Fragment>
-            <Button onClick={onDelete}><IconForButton icon={solidIcons.faTrash} /></Button>
+            <IconButton onClick={onDuplicate} icon={solidIcons.faClone} />
+            <IconButton onClick={onDelete} icon={solidIcons.faTrash} />
         </React.Fragment>
     )
 }
