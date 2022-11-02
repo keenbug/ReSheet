@@ -143,7 +143,12 @@ function historyFromJSON<State>(
 }
 
 function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array<HistoryEntry<State>> {
-    return history.slice(1)
+    return history.filter((entry, index) => {
+        const nextTime = history[index + 1]?.time?.getTime() ?? Number.POSITIVE_INFINITY
+        const differenceMS = nextTime - entry.time.getTime()
+        const reverseIndex = history.length - index
+        return differenceMS / 100 > reverseIndex
+    })
 }
 
 
@@ -204,10 +209,10 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
             return {
                 ...state,
                 blockState,
-                history: [
+                history: reduceHistory([
                     ...state.history,
                     { type: 'state', time: new Date(), blockState },
-                ],
+                ]),
             }
         })
     }
