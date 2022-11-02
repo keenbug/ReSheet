@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { ErrorBoundary } from '../ui/value'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -31,7 +32,11 @@ export function create<State>(description: BlockDesc<State>) {
         ...description,
         [BlockTag]: BlockTag,
         view(props: BlockViewerProps<State>) {
-            return React.createElement(description.view, props)
+            return (
+                <ErrorBoundary title="There was an error in this block">
+                    {React.createElement(description.view, props)}
+                </ErrorBoundary>
+            )
         },
         fromJSON(json: any, env: Environment) {
             try { return description.fromJSON(json, env) }

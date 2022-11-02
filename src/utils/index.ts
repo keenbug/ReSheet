@@ -1,4 +1,4 @@
-export const catchAll = (fn, onError = e => e) => {
+export function catchAll<Result>(fn: () => Result, onError: ((error: any) => Result) = e => e) {
     try {
         return fn()
     }

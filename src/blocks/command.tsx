@@ -77,15 +77,21 @@ export function updateBlock(state: CommandModel, action: (state: unknown) => unk
 }
 
 const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
-    const innerBlock = catchAll(
-        () => computeExpr(expr, { ...blockLibrary, ...library }),
-        () => null,
-    )
-    const innerBlockState = catchAll(
-        () => innerBlock.fromJSON(inner, library),
-        () => null,
-    )
-    return { innerBlock, innerBlockState }
+    try {
+        const innerBlock = computeExpr(expr, { ...blockLibrary, ...library })
+        const innerBlockState = catchAll(
+            () => innerBlock.fromJSON(inner, library),
+            () => innerBlock.init,
+        )
+        return { mode, innerBlock, innerBlockState }
+    }
+    catch (e) {
+        return {
+            mode: 'choose',
+            innerBlock: null,
+            innerBlockState: null,
+         }
+    }
 }
 
 export function CommandBlock(
@@ -137,7 +143,7 @@ export function CommandBlock(
                     : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
                         innerBlock.toJSON(innerBlockState)
                     :
-                        null
+                        innerBlock.init
                 ,
             }
         },
