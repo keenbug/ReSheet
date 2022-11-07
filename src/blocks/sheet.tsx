@@ -6,7 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { TextInput, classed } from '../ui/utils'
 import * as block from '../logic/block'
 import { BlockDesc } from '../logic/block'
-import { ErrorBoundary } from '../ui/value'
+import { ErrorBoundary, ValueInspector } from '../ui/value'
 
 
 type SheetBlockState<InnerBlockState> =
@@ -15,8 +15,9 @@ type SheetBlockState<InnerBlockState> =
 interface SheetBlockLine<InnerBlockState> {
     readonly id: number
     readonly name: string
+    readonly isCollapsed: boolean
     readonly state: InnerBlockState
-    result: unknown
+    readonly result: unknown
 }
 
 
@@ -124,10 +125,17 @@ export function updateLineBlock<State>(
 export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
     updateLineWithId(lines, id, line => ({ ...line, name }))
 
+export function toggleCollapse<Inner>(state: SheetBlockState<Inner>, id: number) {
+    return updateLineWithId(state, id, line => {
+        return { ...line, isCollapsed: !line.isCollapsed }
+    })
+}
+
 export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
     insertLineBefore(lines, id, {
         id: nextFreeId(lines),
         name: '',
+        isCollapsed: false,
         state: innerBlock.init,
         result: null,
     })
@@ -136,6 +144,7 @@ export const insertAfterCode = <Inner extends unknown>(lines: SheetBlockLine<Inn
     insertLineAfter(lines, id, {
         id: nextFreeId(lines),
         name: '',
+        isCollapsed: false,
         state: innerBlock.init,
         result: null,
     })
@@ -165,7 +174,7 @@ const VarNameInput = classed<any>(TextInput)`
 
 export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) {
     return block.create<SheetBlockState<State>>({
-        init: [{ id: 0, name: '', state: innerBlock.init, result: null }],
+        init: [{ id: 0, name: '', isCollapsed: false, state: innerBlock.init, result: null }],
         view({ state, update, env }) {
             function updateAndRecompute(action, env) {
                 update(state => recomputeSheetResults(action(state), innerBlock, env))
@@ -175,13 +184,14 @@ export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) 
         getResult(state, env) {
             return getResult(state)
         },
-        fromJSON(json, env) {
+        fromJSON(json: any[], env) {
             return block.mapWithEnv(
                 json,
-                ({ id, name, state }, localEnv) => {
+                (jsonLine, localEnv) => {
+                    const { id, name, isCollapsed = false, state } = jsonLine
                     const loadedState = innerBlock.fromJSON(state, localEnv)
                     const result = innerBlock.getResult(loadedState, localEnv)
-                    const line: SheetBlockLine<State> = { id, name, state: loadedState, result }
+                    const line: SheetBlockLine<State> = { id, name, isCollapsed, state: loadedState, result }
                     return {
                         out: line,
                         env: lineToEnv(line, innerBlock, localEnv)
@@ -192,11 +202,12 @@ export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) 
         },
         toJSON(lines) {
             return lines.map(
-                ({ id, name, state }) => (
+                ({ id, name, isCollapsed, state }) => (
                     {
                         id,
                         name,
-                        state: innerBlock.toJSON(state)
+                        isCollapsed,
+                        state: innerBlock.toJSON(state),
                     }
                 )
             )
@@ -232,30 +243,62 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
 
 export const SheetLine = ({ block, line, update, env }) => {
     const subupdate = action => update(state => updateLineBlock(state, line.id, action))
-    return (
-        <SheetLineContainer key={line.id}>
-            <SheetUIToggles line={line} update={update} block={block} />
-            <SheetLineContent>
-                <AssignmentLine line={line} update={update} />
-                <ErrorBoundary title="There was an error in the subblock">
-                    {block.view({ state: line.state, update: subupdate, env })}
-                </ErrorBoundary>
-            </SheetLineContent>
-        </SheetLineContainer>
-    )
+    if (line.isCollapsed) {
+        return (
+            <SheetLineContainer key={line.id}>
+                <SheetUIToggles line={line} update={update} block={block} />
+                <SheetLineContent>
+                    <AssignmentLine line={line} update={update}>
+                        <ValueInspector value={line.result} expandLevel={0} />
+                    </AssignmentLine>
+                </SheetLineContent>
+            </SheetLineContainer>
+        )
+    }
+    else {
+        return (
+            <SheetLineContainer key={line.id}>
+                <SheetUIToggles line={line} update={update} block={block} />
+                <SheetLineContent>
+                    <AssignmentLine line={line} update={update} />
+                    <ErrorBoundary title="There was an error in the subblock">
+                        {block.view({ state: line.state, update: subupdate, env })}
+                    </ErrorBoundary>
+                </SheetLineContent>
+            </SheetLineContainer>
+        )
+    }
 }
 
 
-export const AssignmentLine = ({ line, update }) => {
+
+interface AssignmentLineProps<State> {
+    line: SheetBlockLine<State>
+    update: (action: (state: SheetBlockState<State>) => SheetBlockState<State>) => void
+    children?: any
+}
+
+export function AssignmentLine<State>(props: AssignmentLineProps<State>) {
+    const { line, update, children = null } = props
     const onUpdateName = name => update(state => setName(state, line.id, name))
     return (
-        <div className="self-stretch pr-2 -mb-1 text-slate-500 font-light text-xs">
+        <div
+            className={`
+                self-stretch
+                pr-2 -mb-1 mt-1
+                text-slate-500 font-light text-xs
+                truncate
+                flex flex-row space-x-2 align-baseline
+            `}
+            >
+            <div>
             <VarNameInput
                 value={line.name}
                 onUpdate={onUpdateName}
                 placeholder={lineDefaultName(line)}
             />
-            &nbsp;=
+            &nbsp;=</div>
+            {children}
         </div>
     )
 }
@@ -293,10 +336,11 @@ const MenuButton = classed<any>('button')`
     w-full
 `
 
-const SheetUIToggles = ({ line, update, block }) => {
-    const onInsertBefore = () => update(state => insertBeforeCode(state, line.id, block))
-    const onInsertAfter  = () => update(state => insertAfterCode(state, line.id, block))
-    const onDelete       = () => update(state => deleteCode(state, line.id))
+function SheetUIToggles({ line, update, block }) {
+    const onToggleCollapse = () => update(state => toggleCollapse(state, line.id))
+    const onInsertBefore   = () => update(state => insertBeforeCode(state, line.id, block))
+    const onInsertAfter    = () => update(state => insertAfterCode(state, line.id, block))
+    const onDelete         = () => update(state => deleteCode(state, line.id))
 
     const Button = ({ icon, label, ...props }) => (
         <Menu.Item>
@@ -307,6 +351,14 @@ const SheetUIToggles = ({ line, update, block }) => {
         </Menu.Item>
     )
 
+    const collapseButton = (
+        <Button
+            onClick={onToggleCollapse}
+            icon={line.isCollapsed ? solidIcons.faSquarePlus : solidIcons.faSquareMinus}
+            label={line.isCollapsed ? "Expand" : "Collapse"}
+            />
+    )
+
     return (
         <div>
             <Menu as="div" className="relative"> 
@@ -314,6 +366,7 @@ const SheetUIToggles = ({ line, update, block }) => {
                     <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
                 </Menu.Button>
                 <MenuItemsStyled>
+                    {collapseButton}
                     <Button onClick={onInsertBefore} icon={solidIcons.faChevronUp}   label="Insert before" />
                     <Button onClick={onInsertAfter}  icon={solidIcons.faChevronDown} label="Insert after"  />
                     <Button onClick={onDelete}       icon={solidIcons.faTrash}       label="Delete"        />

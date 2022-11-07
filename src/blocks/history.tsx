@@ -29,6 +29,7 @@ export interface HistoryState<State> {
     readonly blockState: State
     readonly history: Array<HistoryEntry<State>>
     readonly viewState: ViewState
+    readonly name: string
 }
 
 function openHistory<State>(state: HistoryState<State>): HistoryState<State> {
@@ -100,6 +101,7 @@ function initHistoryState<State>(initBlockState: State): HistoryState<State> {
         blockState: initBlockState,
         history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
         viewState: { mode: 'current' },
+        name: '',
     }
 }
 
@@ -173,7 +175,7 @@ export function HistoryBlock<State>(innerBlock: BlockDesc<State>) {
 }
 
 function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<State>): HistoryState<State> {
-    const { block, history } = json
+    const { block, history, name = '' } = json
     const blockState = catchAll(
         () => innerBlock.fromJSON(block, env),
         (e) => innerBlock.init,
@@ -186,13 +188,14 @@ function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<Stat
         blockState,
         history: savedHistory,
         viewState: { mode: 'current' },
+        name,
     }
 }
 
 function toJSON<State>(state: HistoryState<State>, innerBlock: BlockDesc<State>) {
     const block = innerBlock.toJSON(state.blockState)
     const history = historyToJSON(state.history, innerBlock)
-    return { block, history }
+    return { block, history, name: state.name }
 }
 
 interface HistoryViewProps<State> {
@@ -246,17 +249,18 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
     const onGoBack       = () => update(goBackInHistory)
     const onGoForward    = () => update(goForwardInHistory)
     const onUseState     = () => update(state => viewStateFromHistory(state, innerBlock, localEnv))
+    const onChangeName   = name => update(state => ({ ...state, name }))
 
     return (
         <React.Fragment>
             <MenuBar
-                viewState={state.viewState}
-                history={state.history}
+                state={state}
                 onOpenHistory={onOpenHistory}
                 onCloseHistory={onCloseHistory}
                 onGoBack={onGoBack}
                 onGoForward={onGoForward}
                 onUseState={onUseState}
+                onChangeName={onChangeName}
                 />
             {viewToplevelBlock()}
         </React.Fragment>
@@ -320,15 +324,20 @@ const MenuBarContainer = classed<any>('div')`
 `
 const TimeContainer = classed<any>('div')`self-center flex space-x-1 px-2`
 
-const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState }) => {
+function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName }) {
     const [startGoBack, stopGoBack] = useTrigger(onGoBack)
     const [startGoForward, stopGoForward] = useTrigger(onGoForward)
 
-    switch (viewState.mode) {
+    switch (state.viewState.mode) {
         case 'current':
             return (
                 <MenuBarContainer>
                     <HistoryButton isActive={false} onClick={onOpenHistory} />
+                    <input
+                        type="text"
+                        value={state.name}
+                        onChange={e => { onChangeName(e.target.value) }}
+                        />
                 </MenuBarContainer>
             )
         case 'history':
@@ -344,7 +353,7 @@ const MenuBar = ({ viewState, history, onOpenHistory, onCloseHistory, onGoBack, 
                             <FontAwesomeIcon icon={solidIcons.faAngleRight} />
                         </button>
                         <div className="self-center px-1">
-                            {formatTime(history[viewState.position].time)}
+                            {formatTime(state.history[state.viewState.position].time)}
                         </div>
                     </TimeContainer>
                     <button style={{ marginLeft: 'auto' }} onClick={onUseState}>

@@ -9,6 +9,7 @@ import * as babelCore from '@babel/core'
 import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
 import * as babelGenerator from '@babel/generator'
+import * as babelTypes from '@babel/types'
 
 import * as codeJar from 'react-codejar'
 
@@ -71,6 +72,7 @@ export const library = {
         react: babelReact,
         parser: babelParser,
         generator: babelGenerator,
+        types: babelTypes,
     },
 
     codeJar,
@@ -80,6 +82,7 @@ export const library = {
     tables,
     ui,
     command,
+    compute,
     sheet,
     jsexpr,
     codeEditor,

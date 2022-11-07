@@ -47,12 +47,13 @@ export const EditableCode: React.FC<any> = ({ code, onUpdate, highlight, classNa
 }
 
 
-export const CodeView: React.FC<any> = ({ code, highlight = highlightJS, ...props }) => {
+export const CodeView: React.FC<any> = ({ code, container, highlight = highlightJS, ...props }) => {
     const ref = React.useRef(null)
 
+    const Container = container ?? CodeContent
     return (
         <pre>
-            <CodeContent
+            <Container
                 ref={ref}
                 style={{ minHeight: "1.5rem" }}
                 dangerouslySetInnerHTML={{ __html: highlight(code) }}

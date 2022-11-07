@@ -116,3 +116,10 @@ https://rough-notation.com/
 # Various Docs
 
 Stacktraces in JS - https://code-maven.com/stack-trace-in-javascript
+Babel stuff - https://github.com/jamiebuilds/babel-handbook/blob/master/translations/en/plugin-handbook.md#babel-traverse
+HTML multiple sticky header levels - https://stackoverflow.com/questions/55941019/how-can-i-create-different-levels-of-sticky-headers
+
+
+# Maybe useful
+
+Promise Hooks - https://github.com/aiven715/promise-hook

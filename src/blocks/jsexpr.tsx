@@ -1,10 +1,14 @@
 import * as React from 'react'
+import babelGenerator from '@babel/generator'
+import * as babel from '@babel/types'
+import { codeFrameColumns } from '@babel/code-frame'
 
-import { ValueInspector } from '../ui/value'
-import { EditableCode } from '../ui/code-editor'
-import { classed } from '../ui/utils'
-import { computeExpr } from '../logic/compute'
+import { ErrorInspector, ValueInspector } from '../ui/value'
+import { CodeView, EditableCode, highlightJS } from '../ui/code-editor'
+import { classed, ErrorView } from '../ui/utils'
+import { computeExpr, computeScript, parseJSExpr } from '../logic/compute'
 import * as block from '../logic/block'
+import Inspector from 'react-inspector'
 
 
 export const JSExprBlock = block.create<string>({
@@ -13,7 +17,7 @@ export const JSExprBlock = block.create<string>({
         return <JSExpr code={state} update={update} env={env} />
     },
     getResult(state, env) {
-        return computeExpr(state, env)
+        return computeScript(state, env)
     },
     fromJSON(json, env) {
         if (typeof json === 'string') {
@@ -36,7 +40,57 @@ export const JSExpr = ({ code, update, env }) => {
     return (
         <JSExprContainer>
             <EditableCode code={code} onUpdate={setCode} />
-            <ValueInspector value={computeExpr(code, env)} />
+            <PreviewValue code={code} env={env} />
         </JSExprContainer>
     )
+}
+
+
+export function PreviewValue({ code, env }) {
+    if (code.trim() === '') {
+        return <ValueInspector value={env} expandLevel={1} />
+    }
+
+    try {
+        let parsed: babel.Expression
+
+        // looks like an incomplete member access?
+        if (code.slice(-1) === '.') {
+            parsed = babel.memberExpression(
+                parseJSExpr(code.slice(0, -1)),
+                babel.identifier(''),
+            )
+        }
+        else {
+            parsed = parseJSExpr(code)
+        }
+
+        if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
+            const obj = computeExpr(babelGenerator(parsed.object).code, env)
+            return (
+                <>
+                    <ValueInspector value={obj[parsed.property.name]} />
+                    <ValueInspector value={obj} expandLevel={1} />
+                </>
+            )
+        }
+        // Top-level variable access?
+        if (parsed.type === 'Identifier') {
+            return (
+                <>
+                    <ValueInspector value={computeExpr(parsed.name, env)} />
+                    <ValueInspector value={env} expandLevel={1} />
+                </>
+            )
+        }
+    }
+    catch (e) { }
+
+    return (
+        <ValueInspector value={computeScript(code, env)} />
+    )
+}
+
+export function JSCode({ code, ...props }) {
+    return <code dangerouslySetInnerHTML={{ __html: highlightJS(code)}} {...props} />
 }

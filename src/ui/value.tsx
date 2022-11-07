@@ -1,5 +1,6 @@
 import * as React from 'react'
-import Inspector from 'react-inspector'
+import Inspector, { InspectorProps } from 'react-inspector'
+import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
 
 
@@ -23,7 +24,13 @@ export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
     }
 }
 
-export const ValueInspector: React.FC<{ value: any }> = ({ value }) => {
+export type ValueInspectorProps = {
+    value: any
+    expandLevel?: number
+}
+
+export function ValueInspector(props: ValueInspectorProps) {
+    const { value, expandLevel } = props
     if (React.isValidElement(value)) {
         return (
             <ErrorBoundary
@@ -34,22 +41,30 @@ export const ValueInspector: React.FC<{ value: any }> = ({ value }) => {
             </ErrorBoundary>
         )
     }
-    if (value instanceof Error) {
+    if (value instanceof SyntaxError && (value as any).frame !== undefined) {
         return (
-            <div>
-                <h1>{value.name}</h1>
-                <p>{value.message}</p>
-                <Inspector data={value} />
-            </div>
+            <ErrorView title="Syntax Error in your code" error={value}>
+                <CodeView code={(value as any).frame} />
+                <ErrorInspector error={value} />
+            </ErrorView>
         )
     }
-    return <div><Inspector data={value} expandLevel={1} /></div>
+    if (value instanceof Error) {
+        return (
+            <ErrorView title="Error in your code" error={value}>
+                <Inspector data={value} />
+            </ErrorView>
+        )
+    }
+
+    return <div><Inspector data={value} expandLevel={expandLevel} /></div>
 }
 
 
 interface ErrorBoundaryProps {
     title: string
     viewError?: (caughtError: any) => JSX.Element
+    children: any
 }
 
 interface ErrorBoundaryState {

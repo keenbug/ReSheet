@@ -1,5 +1,5 @@
 import * as React from 'react'
-import ReactDOM from 'react-dom'
+import ReactDOM from 'react-dom/client'
 
 import 'prismjs/themes/prism.css'
 
@@ -20,6 +20,7 @@ const ToplevelBlock = HistoryBlock(CommandBlock('', null, blocks.StateEditor(blo
 /****************** Main Application ******************/
 
 const loadSavedState = (): ToplevelBlockState => {
+    debugger
     try {
             const savedJson = JSON.parse(localStorage.getItem('block'))
             return ToplevelBlock.fromJSON(savedJson, library)
@@ -109,7 +110,5 @@ const ViewInternalError = ({ title, error, onDismiss }) => {
 
 /*** Script ***/
 
-ReactDOM.render(
-    <App />,
-    document.getElementById('app'),
-)
+const root = ReactDOM.createRoot(document.getElementById('app'))
+root.render(<App />)
