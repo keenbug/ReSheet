@@ -149,7 +149,7 @@ function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array<Histor
         const nextTime = history[index + 1]?.time?.getTime() ?? Number.POSITIVE_INFINITY
         const differenceMS = nextTime - entry.time.getTime()
         const reverseIndex = history.length - index
-        return differenceMS / 100 > reverseIndex
+        return differenceMS / 100 > 2 ** reverseIndex
     })
 }
 

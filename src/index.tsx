@@ -98,7 +98,7 @@ const ViewInternalError = ({ title, error, onDismiss }) => {
     if (error === null) { return null }
 
     return (
-        <ErrorView title={"Internal Error: " + title} error={error}>
+        <ErrorView title={"Internal Error: " + title} error={error} className="sticky top-1 my-1 z-20 shadow-lg">
             <button onClick={onDismiss}>Dismiss</button>
             <ErrorInspector error={error} />
         </ErrorView>

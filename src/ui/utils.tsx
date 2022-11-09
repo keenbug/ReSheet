@@ -89,13 +89,19 @@ const ErrorStack = classed<any>('pre')`
     text-sm leading-loose
 `
 
+interface ErrorViewProps {
+    title: string
+    error: Error
+    children: any
+    className?: string
+}
 
-export const ErrorView = ({ title, error, children }) => {
+export function ErrorView({ title, error, children, className }: ErrorViewProps) {
     const [isExpanded, setIsExpanded] = React.useState<boolean>(false)
     const toggleExpanded = () => setIsExpanded(isExpanded => !isExpanded)
 
     return (
-        <ErrorViewContainer>
+        <ErrorViewContainer className={className}>
             <ErrorTitle>{title}</ErrorTitle>
             <ErrorName>{error.name}</ErrorName>
             <ErrorMessageButton onClick={toggleExpanded}>

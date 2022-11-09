@@ -15,7 +15,7 @@ interface DirectoryEntry<InnerBlockState> {
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
-    result: unknown
+    readonly result: unknown
 }
 
 
@@ -181,13 +181,10 @@ export const DirectoryBlock = <State extends unknown>(innerBlock: BlockDesc<Stat
         entries: [],
     },
     view({ state, update, env }) {
-        function updateAndRecompute(action, env) {
-            update(state => recomputeEntryResults(action(state), innerBlock, env))
-        }
         return (
             <Directory
                 state={state}
-                update={action => updateAndRecompute(action, env)}
+                update={update}
                 innerBlock={innerBlock}
                 env={env}
                 />
@@ -294,7 +291,7 @@ export const DirectoryEntry = ({ entry, update }) => {
 
 export const OpenedDirectoryEntry = ({ block, entry, update, env }) => {
     const onUpdateName = name   => update(state => setName(state, entry.id, name))
-    const onCloseEntry = ()     => update(state => openEntry(state, null))
+    const onCloseEntry = ()     => update(state => recomputeEntryResults(openEntry(state, null), block, env))
     const subupdate    = action => update(state => updateEntryBlock(state, entry.id, action))
 
     return (

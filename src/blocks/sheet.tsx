@@ -26,8 +26,6 @@ const lineName = (line: SheetBlockLine<unknown>) => line.name.length > 0 ? line.
 
 function lineToEnv<State>(
     line: SheetBlockLine<State>,
-    innerBlock: BlockDesc<State>,
-    env: block.Environment,
 ) {
     return {
         [lineName(line)]: line.result
@@ -86,9 +84,20 @@ function recomputeSheetResults<State>(
     lines: SheetBlockState<State>,
     innerBlock: BlockDesc<State>,
     env: block.Environment,
+    startFromId?: number,
 ) {
+    const startIndex = lines.findIndex(line => line.id === startFromId) ?? 0
+    const linesBefore = lines.slice(0, startIndex)
+    const linesAfter = lines.slice(startIndex)
+
+    const envBefore = Object.assign(
+        {},
+        env,
+        ...linesBefore.map(lineToEnv),
+    )
+
     const recomputedLines = block.mapWithEnv(
-        lines,
+        linesAfter,
         (line, localEnv) => {
             const result = innerBlock.getResult(line.state, localEnv)
             return {
@@ -96,9 +105,9 @@ function recomputeSheetResults<State>(
                 env: { [lineName(line)]: result },
             }
         },
-        env,
+        envBefore,
     )
-    return recomputedLines
+    return [ ...linesBefore, ...recomputedLines ]
 }
 
 function getResult<State>(lines: SheetBlockState<State>) {
@@ -112,12 +121,19 @@ export function updateLineBlock<State>(
     lines: SheetBlockState<State>,
     id: number,
     action: (state: State) => State,
+    innerBlock: BlockDesc<State>,
+    env: block.Environment,
 ): SheetBlockState<State> {
-    return lines.map(line =>
-        line.id === id ?
-            { ...line, state: action(line.state) }
-        :
-            line
+    return recomputeSheetResults(
+        lines.map(line =>
+            line.id === id ?
+                { ...line, state: action(line.state) }
+            :
+                line
+        ),
+        innerBlock,
+        env,
+        id,
     )
 }
 
@@ -176,10 +192,7 @@ export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) 
     return block.create<SheetBlockState<State>>({
         init: [{ id: 0, name: '', isCollapsed: false, state: innerBlock.init, result: null }],
         view({ state, update, env }) {
-            function updateAndRecompute(action, env) {
-                update(state => recomputeSheetResults(action(state), innerBlock, env))
-            }
-            return <Sheet lines={state} update={action => updateAndRecompute(action, env)} innerBlock={innerBlock} env={env} />
+            return <Sheet lines={state} update={update} innerBlock={innerBlock} env={env} />
         },
         getResult(state, env) {
             return getResult(state)
@@ -194,7 +207,7 @@ export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) 
                     const line: SheetBlockLine<State> = { id, name, isCollapsed, state: loadedState, result }
                     return {
                         out: line,
-                        env: lineToEnv(line, innerBlock, localEnv)
+                        env: lineToEnv(line)
                     }
                 },
                 env,
@@ -231,7 +244,7 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
                 (line, localEnv) => {
                     return {
                         out: <SheetLine key={line.id} block={innerBlock} line={line} update={update} env={localEnv} />,
-                        env: lineToEnv(line, innerBlock, localEnv),
+                        env: lineToEnv(line),
                     }
                 },
                 env
@@ -242,7 +255,7 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
 
 
 export const SheetLine = ({ block, line, update, env }) => {
-    const subupdate = action => update(state => updateLineBlock(state, line.id, action))
+    const subupdate = action => update(state => updateLineBlock(state, line.id, action, block, env))
     if (line.isCollapsed) {
         return (
             <SheetLineContainer key={line.id}>

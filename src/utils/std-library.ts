@@ -1,4 +1,6 @@
 import * as React from 'react'
+import * as ReactDom from 'react-dom'
+import * as ReactDomServer from 'react-dom/server'
 import styled from 'styled-components'
 import * as headlessui from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -61,6 +63,8 @@ export const library = {
     $import,
 
     React,
+    ReactDom,
+    ReactDomServer,
     FontAwesomeIcon,
     faSolid,
     faRegular,

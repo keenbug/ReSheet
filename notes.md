@@ -102,6 +102,9 @@ https://www.npmjs.com/package/source-map
 Haskell Retrie - Refactor haskell code by stating simple rules
 https://hackage.haskell.org/package/retrie
 
+Draft.js - Rich Text Editor Framework for React (uses contenteditable)
+https://draftjs.org/
+
 
 # Interesting Fun Stuff
 
