@@ -5,13 +5,13 @@ import { SheetBlock } from './sheet'
 import { CommandBlock } from './command'
 import { JSExprBlock } from './jsexpr'
 import { DirectoryBlock } from './directory'
-import { HistoryBlock } from './history'
+import { DocumentBlock } from './document'
 
 export const SheetOf = SheetBlock
 export const Command = CommandBlock
 export const JSExpr = JSExprBlock
 export const DirectoryOf = DirectoryBlock
-export const HistoryOf = HistoryBlock
+export const DocumentOf = DocumentBlock
 
 export const StateEditor = blocks => SheetBlock(CommandBlock('JSExpr', JSExprBlock, JSExprBlock, blocks))
 export const Cmd = blocks => CommandBlock('JSExpr', JSExprBlock, StateEditor(blocks), blocks)

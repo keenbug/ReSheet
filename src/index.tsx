@@ -8,13 +8,13 @@ import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
 import { ErrorView } from './ui/utils'
 import { useThrottle } from './ui/hooks'
-import { HistoryBlock, HistoryState } from './blocks/history'
+import { DocumentBlock, DocumentState } from './blocks/document'
 
 
 const blocks = library.blocks
 
-type ToplevelBlockState = HistoryState<CommandModel>
-const ToplevelBlock = HistoryBlock(CommandBlock('', null, blocks.StateEditor(blocks), blocks))
+type ToplevelBlockState = DocumentState<CommandModel>
+const ToplevelBlock = DocumentBlock(CommandBlock('', null, blocks.StateEditor(blocks), blocks))
 
 
 /****************** Main Application ******************/

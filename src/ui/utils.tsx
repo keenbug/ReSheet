@@ -147,8 +147,12 @@ export const IconForButton: React.FC<{ icon: IconDefinition }> = ({ icon }) => (
 
 
 
-export const LoadFileButton: React.FC<any> = ({ onLoad, children, ...props }) => {
-    const loadFile = event => {
+export type LoadFileButtonProps = React.LabelHTMLAttributes<HTMLLabelElement> & {
+    onLoad: (file: File) => void
+}
+
+export function LoadFileButton({ onLoad, children, ...props }: LoadFileButtonProps) {
+    const loadFile: React.ChangeEventHandler<HTMLInputElement> = event => {
         onLoad(event.target.files[0])
     }
 
@@ -169,4 +173,17 @@ export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename,
             {children}
         </a>
     )
+}
+
+export function saveFile(filename: string, mimeType: string, textContent: string) {
+    const downloadButton = document.createElement('a')
+    downloadButton.setAttribute(
+        'href',
+        `data:${mimeType};charset=utf-8,${encodeURIComponent(textContent)}`,
+    )
+    downloadButton.setAttribute('download', filename)
+    downloadButton.style.display = 'hidden'
+    document.body.appendChild(downloadButton)
+    downloadButton.click()
+    setTimeout(() => { document.body.removeChild(downloadButton) })
 }

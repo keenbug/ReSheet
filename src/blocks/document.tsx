@@ -5,7 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as block from '../logic/block'
 import { BlockDesc, Environment } from '../logic/block'
 import { catchAll } from '../utils'
-import { classed } from '../ui/utils'
+import { classed, LoadFileButton, saveFile } from '../ui/utils'
 
 
 export type ViewState =
@@ -25,14 +25,14 @@ export type HistoryEntry<State> =
         readonly blockJSON: any
     }
 
-export interface HistoryState<State> {
+export interface DocumentState<State> {
     readonly blockState: State
     readonly history: Array<HistoryEntry<State>>
     readonly viewState: ViewState
     readonly name: string
 }
 
-function openHistory<State>(state: HistoryState<State>): HistoryState<State> {
+function openHistory<State>(state: DocumentState<State>): DocumentState<State> {
     if (state.history.length > 0) {
         return {
             ...state,
@@ -45,14 +45,14 @@ function openHistory<State>(state: HistoryState<State>): HistoryState<State> {
     return state
 }
 
-function closeHistory<State>(state: HistoryState<State>): HistoryState<State> {
+function closeHistory<State>(state: DocumentState<State>): DocumentState<State> {
     return {
         ...state,
         viewState: { mode: 'current' },
     }
 }
 
-function goBackInHistory<State>(state: HistoryState<State>): HistoryState<State> {
+function goBackInHistory<State>(state: DocumentState<State>): DocumentState<State> {
     if (state.viewState.mode === 'history') {
         return {
             ...state,
@@ -65,7 +65,7 @@ function goBackInHistory<State>(state: HistoryState<State>): HistoryState<State>
     return state
 }
 
-function goForwardInHistory<State>(state: HistoryState<State>): HistoryState<State> {
+function goForwardInHistory<State>(state: DocumentState<State>): DocumentState<State> {
     if (state.viewState.mode === 'history') {
         return {
             ...state,
@@ -79,10 +79,10 @@ function goForwardInHistory<State>(state: HistoryState<State>): HistoryState<Sta
 }
 
 function viewStateFromHistory<State>(
-    state: HistoryState<State>,
+    state: DocumentState<State>,
     innerBlock: BlockDesc<State>,
     env: Environment,
-): HistoryState<State> {
+): DocumentState<State> {
     if (state.viewState.mode === 'history') {
         const historicState = state.history[state.viewState.position]
         return {
@@ -96,7 +96,7 @@ function viewStateFromHistory<State>(
 }
 
 
-function initHistoryState<State>(initBlockState: State): HistoryState<State> {
+function initDocumentState<State>(initBlockState: State): DocumentState<State> {
     return {
         blockState: initBlockState,
         history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
@@ -156,25 +156,25 @@ function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array<Histor
 
 /****************** Block ******************/
 
-export function HistoryBlock<State>(innerBlock: BlockDesc<State>) {
+export function DocumentBlock<State>(innerBlock: BlockDesc<State>) {
     return block.create({
-        init: initHistoryState(innerBlock.init),
-        view({ state, update, env }: block.BlockViewerProps<HistoryState<State>>) {
+        init: initDocumentState(innerBlock.init),
+        view({ state, update, env }: block.BlockViewerProps<DocumentState<State>>) {
             return <HistoryView state={state} update={update} env={env} innerBlock={innerBlock} />
         },
-        getResult(state: HistoryState<State>, env: Environment) {
+        getResult(state: DocumentState<State>, env: Environment) {
             return innerBlock.getResult(state.blockState, env)
         },
-        fromJSON(json: any, env: Environment): HistoryState<State> {
+        fromJSON(json: any, env: Environment): DocumentState<State> {
             return fromJSON(json, env, innerBlock)
         },
-        toJSON(state: HistoryState<State>): {} {
+        toJSON(state: DocumentState<State>): {} {
             return toJSON(state, innerBlock)
         }
     })
 }
 
-function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<State>): HistoryState<State> {
+function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<State>): DocumentState<State> {
     const { block, history, name = '' } = json
     const blockState = catchAll(
         () => innerBlock.fromJSON(block, env),
@@ -192,22 +192,22 @@ function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<Stat
     }
 }
 
-function toJSON<State>(state: HistoryState<State>, innerBlock: BlockDesc<State>) {
+function toJSON<State>(state: DocumentState<State>, innerBlock: BlockDesc<State>) {
     const block = innerBlock.toJSON(state.blockState)
     const history = historyToJSON(state.history, innerBlock)
     return { block, history, name: state.name }
 }
 
 interface HistoryViewProps<State> {
-    state: HistoryState<State>
-    update: (action: (state: HistoryState<State>) => HistoryState<State>) => void
+    state: DocumentState<State>
+    update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
     env: Environment
     innerBlock: BlockDesc<State>
 }
 
 function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps<State>) {
     function updateInner(action: (state: State) => State) {
-        update((state: HistoryState<State>): HistoryState<State> => {
+        update((state: DocumentState<State>): DocumentState<State> => {
             const blockState = action(state.blockState)
             return {
                 ...state,
@@ -218,6 +218,26 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
                 ]),
             }
         })
+    }
+
+    function onSave() {
+        const content = JSON.stringify(toJSON(state, innerBlock))
+        saveFile(
+            state.name + '.json',
+            'application/json',
+            content,
+        )
+    }
+
+    async function onLoadFile(file: File) {
+        const content = JSON.parse(await file.text())
+        try {
+            const newState = fromJSON(content, env, innerBlock)
+            update(() => newState)
+        }
+        catch (e) {
+            window.alert(`Could not load file: ${e}`)
+        }
     }
 
     const localEnv = { ...env, history: state.history }
@@ -261,6 +281,8 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
                 onGoForward={onGoForward}
                 onUseState={onUseState}
                 onChangeName={onChangeName}
+                onSave={onSave}
+                onLoadFile={onLoadFile}
                 />
             {viewToplevelBlock()}
         </React.Fragment>
@@ -320,11 +342,11 @@ const useTrigger = (onTrigger: () => void) => {
 const MenuBarContainer = classed<any>('div')`
     sticky top-0 left-0 z-10
     bg-white backdrop-opacity-90 backdrop-blur
-    shadow p-1 mb-2 flex space-x-2
+    shadow p-1 mb-2 flex space-x-2 items-baseline
 `
 const TimeContainer = classed<any>('div')`self-center flex space-x-1 px-2`
 
-function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName }) {
+function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName, onSave, onLoadFile }) {
     const [startGoBack, stopGoBack] = useTrigger(onGoBack)
     const [startGoForward, stopGoForward] = useTrigger(onGoForward)
 
@@ -333,11 +355,20 @@ function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, 
             return (
                 <MenuBarContainer>
                     <HistoryButton isActive={false} onClick={onOpenHistory} />
-                    <input
-                        type="text"
-                        value={state.name}
-                        onChange={e => { onChangeName(e.target.value) }}
-                        />
+                    <div className="flex flex-1 space-x-2 justify-center items-baseline">
+                        <input
+                            className="w-14"
+                            type="text"
+                            value={state.name}
+                            onChange={e => { onChangeName(e.target.value) }}
+                            />
+                        <button className="text-sm" onClick={onSave}>
+                            save
+                        </button>
+                        <LoadFileButton className="text-sm" onLoad={onLoadFile}>
+                            load
+                        </LoadFileButton>
+                    </div>
                 </MenuBarContainer>
             )
         case 'history':
