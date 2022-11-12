@@ -6,6 +6,7 @@ import * as headlessui from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
+import * as reactInspector from 'react-inspector'
 
 import * as babelCore from '@babel/core'
 import babelReact from '@babel/preset-react'
@@ -35,6 +36,7 @@ export const LIBRARY_MAPPINGS = {
     "@fortawesome/react-fontawesome":       { FontAwesomeIcon },
     "@fortawesome/free-solid-svg-icons":    faSolid,
     "@fortawesome/free-regular-svg-icons":  faRegular,
+    "react-inspector":                      reactInspector,
     "@babel/core":                          babelCore,
     "@babel/preset-react":                  babelReact,
     "@babel/parser":                        babelParser,
@@ -61,6 +63,7 @@ export const $import = lib => LIBRARY_MAPPINGS[lib]
 export const library = {
     $LIBRARY_MAPPINGS: LIBRARY_MAPPINGS,
     $import,
+    $library() { return library },
 
     React,
     ReactDom,

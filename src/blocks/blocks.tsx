@@ -28,7 +28,8 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
             block,
             state,
             env,
-            result: block.getResult(state, env)
+            result: block.getResult(state, env),
+            derivedBlock: { ...block, init: state }
         }
     },
 })
