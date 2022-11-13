@@ -1,6 +1,7 @@
 import * as babel from '@babel/core'
 import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
+import babelTraverse from '@babel/traverse'
 import * as babelAst from '@babel/types'
 import { codeFrameColumns } from '@babel/code-frame'
 
@@ -61,8 +62,10 @@ export function transformJSScript(sourcecode) {
     const parserOpts: babelParser.ParserOptions = {
         ...parseReactOpts,
         allowReturnOutsideFunction: true,
+        allowAwaitOutsideFunction: true,
     }
-    const statements = babelParser.parse(sourcecode, parserOpts).program.body
+    const program = babelParser.parse(sourcecode, parserOpts).program
+    const statements = program.body
     const ast = babelAst.program([
         ...statements.slice(0, -1),
         ...statements.slice(-1).map(stmt => {
@@ -75,16 +78,29 @@ export function transformJSScript(sourcecode) {
             return stmt
         }),
     ])
-    return babel.transformFromAstSync(ast, sourcecode, transformReactOpts).code
+    const isAsync = program.directives.find(directive => (
+        babelAst.isDirectiveLiteral(directive.value)
+        && directive.value.value === 'async'
+    ))
+
+    return {
+        transformedCode: babel.transformFromAstSync(ast, sourcecode, transformReactOpts).code,
+        isAsync,
+    }
 }
 
+
+
+export const AsyncFunction = (async function(){}).constructor
 
 export function computeScript(code: string | null, env: Environment) {
     if (!code) { return }
     try {
-        const exprFunc = new Function(
+        const { transformedCode, isAsync } = transformJSScript(code)
+        const funcConstructor = isAsync ? AsyncFunction : Function
+        const exprFunc = funcConstructor(
             ...Object.keys(env),
-            transformJSScript(code),
+            transformedCode,
         )
         return exprFunc(...Object.values(env))
     }

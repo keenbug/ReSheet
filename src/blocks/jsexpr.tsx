@@ -8,7 +8,7 @@ import { CodeView, EditableCode, highlightJS } from '../ui/code-editor'
 import { classed, ErrorView } from '../ui/utils'
 import { computeExpr, computeScript, parseJSExpr } from '../logic/compute'
 import * as block from '../logic/block'
-import Inspector from 'react-inspector'
+import { Inspector } from 'react-inspector'
 
 
 export const JSExprBlock = block.create<string>({
@@ -70,7 +70,7 @@ export function PreviewValue({ code, env }) {
             return (
                 <>
                     <ValueInspector value={obj[parsed.property.name]} />
-                    <ValueInspector value={obj} expandLevel={1} />
+                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
                 </>
             )
         }

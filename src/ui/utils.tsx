@@ -176,14 +176,11 @@ export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename,
 }
 
 export function saveFile(filename: string, mimeType: string, textContent: string) {
+    const blob = new Blob([textContent], { type: mimeType })
     const downloadButton = document.createElement('a')
-    downloadButton.setAttribute(
-        'href',
-        `data:${mimeType};charset=utf-8,${encodeURIComponent(textContent)}`,
-    )
-    downloadButton.setAttribute('download', filename)
-    downloadButton.style.display = 'hidden'
-    document.body.appendChild(downloadButton)
+    downloadButton.href = URL.createObjectURL(blob)
+    downloadButton.download = filename
     downloadButton.click()
-    setTimeout(() => { document.body.removeChild(downloadButton) })
+    downloadButton.remove()
+    // setTimeout(() => { downloadButton.remove() })
 }

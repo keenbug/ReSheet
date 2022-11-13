@@ -1,5 +1,5 @@
 import * as React from 'react'
-import Inspector, { InspectorProps } from 'react-inspector'
+import { Inspector } from 'react-inspector'
 import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
 
@@ -13,7 +13,7 @@ export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
             <ErrorBoundary
                 title="There was an error displaying the error"
                 viewError={error => <ErrorInspector error={error} />}>
-                <Inspector data={error} />
+                <Inspector table={false} data={error} />
             </ErrorBoundary>
         )
     }
@@ -27,10 +27,14 @@ export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
 export type ValueInspectorProps = {
     value: any
     expandLevel?: number
+    table?: boolean
 }
 
 export function ValueInspector(props: ValueInspectorProps) {
-    const { value, expandLevel } = props
+    const { value, expandLevel, table = false } = props
+    if (typeof value?.then === 'function') {
+        return <PromiseValueInspector {...props} />
+    }
     if (React.isValidElement(value)) {
         return (
             <ErrorBoundary
@@ -52,12 +56,37 @@ export function ValueInspector(props: ValueInspectorProps) {
     if (value instanceof Error) {
         return (
             <ErrorView title="Error in your code" error={value}>
-                <Inspector data={value} />
+                <Inspector table={table} data={value} />
             </ErrorView>
         )
     }
 
-    return <div><Inspector data={value} expandLevel={expandLevel} /></div>
+    return <div><Inspector table={table} data={value} expandLevel={expandLevel} /></div>
+}
+
+export type PromiseState =
+    | { state: 'pending' }
+    | { state: 'fulfilled', value: any }
+    | { state: 'rejected', error: any }
+
+export function PromiseValueInspector(props: ValueInspectorProps) {
+    const [promiseState, setPromiseState] = React.useState<PromiseState>({ state: 'pending' })
+
+    React.useEffect(() => {
+        props.value.then(
+            (value: any) => { setPromiseState({ state: 'fulfilled', value }) },
+            (error: any) => { setPromiseState({ state: 'rejected', error } ) },
+        )
+    }, [props.value])
+
+    switch (promiseState.state) {
+        case 'pending':
+            return <>Promise pending...</>
+        case 'fulfilled':
+            return <>Promise fulfilled: <ValueInspector {...props} value={promiseState.value} /></>
+        case 'rejected':
+            return <>Promise rejected: <ValueInspector {...props} value={promiseState.error} /></>
+    }
 }
 
 
