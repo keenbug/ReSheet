@@ -7,7 +7,6 @@ import { CommandBlock, CommandModel } from './blocks/command'
 import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
 import { ErrorView } from './ui/utils'
-import { useThrottle } from './ui/hooks'
 import { DocumentBlock, DocumentState } from './blocks/document'
 
 
@@ -19,39 +18,9 @@ const ToplevelBlock = DocumentBlock(CommandBlock('', null, blocks.StateEditor(bl
 
 /****************** Main Application ******************/
 
-const loadSavedState = (): ToplevelBlockState => {
-    debugger
-    try {
-            const savedJson = JSON.parse(localStorage.getItem('block'))
-            return ToplevelBlock.fromJSON(savedJson, library)
-    }
-    catch (e) {
-        console.warn("Could not load saved state:", e)
-
-        const backupName = `block-backup-${Date.now()}`
-        console.log("Saving backup of saved state under", backupName)
-        localStorage.setItem(backupName, localStorage.getItem('block'))
-
-        return ToplevelBlock.init
-    }
-}
-
 const App = () => {
-    const [state, setState] = React.useState<ToplevelBlockState>(loadSavedState)
+    const [state, setState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const [updateError, setUpdateError] = React.useState<null | Error>(null)
-    const [savingError, setSavingError] = React.useState<null | Error>(null)
-
-    const persistStateAndHistory = useThrottle(5000, (state: ToplevelBlockState) => {
-        try {
-            const stateAsJson = ToplevelBlock.toJSON(state)
-            localStorage.setItem('block', JSON.stringify(stateAsJson))
-        }
-        catch (error) { setSavingError(error) }
-    })
-
-    React.useEffect(() => {
-        persistStateAndHistory(state)
-    }, [state])
 
     const safeUpdate = action => {
         setState(state => {
@@ -75,11 +44,6 @@ const App = () => {
 
     return (
         <React.Fragment>
-            <ViewInternalError
-                title="Could not save current state"
-                error={savingError}
-                onDismiss={() => setSavingError(null)}
-            />
             <ViewInternalError
                 title="Last action could not be completed"
                 error={updateError}
