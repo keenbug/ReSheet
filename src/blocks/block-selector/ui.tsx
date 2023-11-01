@@ -168,7 +168,9 @@ function BlockPreview({ env, state, blockCmdResult, stateEditorBlock, onChooseBl
                     Block
                 </h1>
                 <ErrorBoundary title="Could not show block">
-                    <BlockCmdResultView />
+                    <div className="saturate-50 cursor-default bg-gray-100 rounded">
+                        <BlockCmdResultView />
+                    </div>
                 </ErrorBoundary>
             </div>
 
