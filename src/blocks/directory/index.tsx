@@ -9,7 +9,7 @@ import * as UI from './ui'
 
 export type { DirectoryState }
 
-export function DirectoryBlock<State>(innerBlock: BlockDesc<State>) {
+export function DirectoryOf<State>(innerBlock: BlockDesc<State>) {
     return block.create<DirectoryState<State>>({
         init: {
             openedEntryId: null,

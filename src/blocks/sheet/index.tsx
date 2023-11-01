@@ -9,7 +9,7 @@ import * as UI from './ui'
 
 export type { SheetBlockState }
 
-export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) {
+export function SheetOf<State extends unknown>(innerBlock: BlockDesc<State>) {
     return block.create<SheetBlockState<State>>({
         init: Model.init(innerBlock.init),
         view({ state, update, env }) {

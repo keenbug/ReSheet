@@ -6,14 +6,14 @@ import 'prismjs/themes/prism.css'
 import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
 import { ErrorView } from './ui/utils'
-import { DocumentBlock, DocumentState } from './blocks/document'
-import { CommandBlock, CommandState } from './blocks/command'
+import { DocumentOf, DocumentState } from './blocks/document'
+import { BlockSelector, BlockSelectorState } from './blocks/block-selector'
 
 
 const blocks = library.blocks
 
-type ToplevelBlockState = DocumentState<CommandState>
-const ToplevelBlock = DocumentBlock(CommandBlock('', null, blocks.StateEditor(blocks), blocks))
+type ToplevelBlockState = DocumentState<BlockSelectorState>
+const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks.StateEditor(blocks), blocks))
 
 
 /****************** Main Application ******************/

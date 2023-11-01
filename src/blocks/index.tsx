@@ -1,22 +1,18 @@
 import * as React from 'react'
 import { classed, LoadFileButton } from '../ui/utils'
 import * as Block from '../logic/block'
-import { SheetBlock } from './sheet'
-import { CommandBlock } from './command'
-import { JSExprBlock } from './jsexpr'
-import { DirectoryBlock } from './directory'
-import { DocumentBlock } from './document'
+import { SheetOf } from './sheet'
+import { BlockSelector } from './block-selector'
+import { JSExpr } from './jsexpr'
+import { DirectoryOf } from './directory'
+import { DocumentOf } from './document'
 
-export const SheetOf = SheetBlock
-export const Command = CommandBlock
-export const JSExpr = JSExprBlock
-export const DirectoryOf = DirectoryBlock
-export const DocumentOf = DocumentBlock
+export { JSExpr, BlockSelector, SheetOf, DirectoryOf, DocumentOf }
 
-export const StateEditor = blocks => SheetBlock(CommandBlock('JSExpr', JSExprBlock, JSExprBlock, blocks))
-export const Cmd = blocks => CommandBlock('JSExpr', JSExprBlock, StateEditor(blocks), blocks)
-export const Sheet = blocks => SheetBlock(Cmd(blocks))
-export const Dir = blocks => DirectoryBlock(Cmd(blocks))
+export const StateEditor = blocks => SheetOf(BlockSelector('JSExpr', JSExpr, JSExpr, blocks))
+export const Selector = blocks => BlockSelector('JSExpr', JSExpr, StateEditor(blocks), blocks)
+export const Sheet = blocks => SheetOf(Selector(blocks))
+export const Dir = blocks => DirectoryOf(Selector(blocks))
 
 export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Block.create<State>({
     init: block.init,

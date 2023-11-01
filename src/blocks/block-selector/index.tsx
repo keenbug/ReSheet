@@ -4,24 +4,24 @@ import * as block from '../../logic/block'
 import { BlockDesc } from '../../logic/block'
 import { catchAll } from '../../utils'
 
-import { CommandState } from './model'
+import { BlockSelectorState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
 
-export type { CommandState }
+export type { BlockSelectorState }
 
-export function CommandBlock(
+export function BlockSelector(
     expr: string = '',
     innerBlockInit: BlockDesc<unknown> = null,
     stateEditorBlock: BlockDesc<unknown>,
     blockLibrary: block.Environment,
 ) {
-    return block.create<CommandState>({
+    return block.create<BlockSelectorState>({
         init: Model.init(expr, innerBlockInit),
 
         view({ state, update, env }) {
             return (
-                <UI.CommandBlockUI
+                <UI.BlockSelectorUI
                     state={state}
                     update={update}
                     env={env}

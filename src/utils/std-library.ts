@@ -19,12 +19,11 @@ import * as codeJar from 'react-codejar'
 
 import * as blocks from '../blocks'
 import * as codeEditor from '../ui/code-editor'
-import * as command from '../blocks/command'
+import * as blockSelector from '../blocks/block-selector'
 import * as block from '../logic/block'
 import * as compute from '../logic/compute'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
-import * as completions from '../blocks/completions'
 import * as ui from '../ui/utils'
 import * as utils from '.'
 import * as value from '../ui/value'
@@ -41,10 +40,9 @@ export const LIBRARY_MAPPINGS = {
     "@babel/parser":                        babelParser,
     "@babel/generator":                     babelGenerator,
     "./blocks":                             blocks,
-    "./blocks/command":                     command,
+    "./blocks/block-selector":              blockSelector,
     "./blocks/sheet":                       sheet,
     "./blocks/jsexpr":                      jsexpr,
-    "./blocks/completions":                 completions,
     "./logic/block":                        block,
     "./logic/compute":                      compute,
     "./ui/code-editor":                     codeEditor,
@@ -85,7 +83,7 @@ export const library = {
     block,
     blocks,
     ui,
-    command,
+    blockSelector,
     compute,
     sheet,
     jsexpr,

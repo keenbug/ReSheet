@@ -8,22 +8,22 @@ import { CodeEditor, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'
 import { catchAll } from '../../utils'
 
-import { CommandState } from './model'
+import { BlockSelectorState } from './model'
 import * as Model from './model'
 
 
-export interface CommandBlockUIProps {
-    state: CommandState
-    update: (action: (state: CommandState) => CommandState) => void
+export interface BlockSelectorUIProps {
+    state: BlockSelectorState
+    update: (action: (state: BlockSelectorState) => BlockSelectorState) => void
     env: block.Environment
     stateEditorBlock: BlockDesc<unknown>
     blockLibrary: block.Environment
 }
 
-export function CommandBlockUI(props: CommandBlockUIProps) {
+export function BlockSelectorUI(props: BlockSelectorUIProps) {
     const { state, update, env } = props
     const { stateEditorBlock, blockLibrary } = props
-    const onUpdateExpr  = expr   => update(state => Model.setCommandExpr(state, expr))
+    const onUpdateExpr  = expr   => update(state => Model.setExpr(state, expr))
     const onSetMode     = mode   => update(state => Model.updateMode(state, mode))
     const onChooseBlock = env    => update(state => Model.chooseBlock(state, env, blockLibrary))
     const onResetState  = ()     => update(state => Model.setInnerBlockState(state, blockCmdResult.init))
@@ -123,7 +123,7 @@ function JSONEditor({ initialValue, onSave }) {
 
 interface BlockPreviewProps {
     env: block.Environment
-    state: CommandState
+    state: BlockSelectorState
     blockCmdResult: block.BlockDesc<unknown>
     stateEditorBlock: block.BlockDesc<unknown>
     onChooseBlock: (env: any) => void

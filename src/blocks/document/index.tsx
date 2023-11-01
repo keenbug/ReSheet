@@ -9,7 +9,7 @@ import * as UI from './ui'
 
 export type { DocumentState }
 
-export function DocumentBlock<State>(innerBlock: BlockDesc<State>) {
+export function DocumentOf<State>(innerBlock: BlockDesc<State>) {
     return block.create({
         init: Model.init(innerBlock.init),
         view({ state, update, env }: block.BlockViewerProps<DocumentState<State>>) {

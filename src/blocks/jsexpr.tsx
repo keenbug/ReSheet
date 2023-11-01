@@ -9,10 +9,10 @@ import * as block from '../logic/block'
 import { Inspector } from 'react-inspector'
 
 
-export const JSExprBlock = block.create<string>({
+export const JSExpr = block.create<string>({
     init: "",
     view({ env, state, update }) {
-        return <JSExpr code={state} update={update} env={env} />
+        return <JSExprUi code={state} update={update} env={env} />
     },
     getResult(state, env) {
         return computeScript(state, env)
@@ -31,7 +31,7 @@ export const JSExprBlock = block.create<string>({
 })
 
 
-export function JSExpr({ code, update, env }) {
+export function JSExprUi({ code, update, env }) {
     const setCode = newCode => update(() => newCode)
     return (
         <div className="flex flex-col space-y-1 flex-1">

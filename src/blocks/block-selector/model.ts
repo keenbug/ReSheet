@@ -4,7 +4,7 @@ import { computeExpr } from '../../logic/compute'
 import { catchAll } from '../../utils'
 
 
-export interface CommandState {
+export interface BlockSelectorState {
     expr: string
     mode: Mode
     innerBlockState: null | unknown
@@ -16,7 +16,7 @@ export type Mode = 'run' | 'choose'
 export function init(
     expr: string = '',
     innerBlockInit: BlockDesc<unknown> = null
-): CommandState {
+): BlockSelectorState {
     return {
         expr,
         mode: expr ? 'run' : 'choose',
@@ -29,23 +29,23 @@ export function init(
 /**************** Command Actions **************/
 
 
-export function setCommandExpr(state: CommandState, expr: string): CommandState {
+export function setExpr(state: BlockSelectorState, expr: string): BlockSelectorState {
     return { ...state, expr }
 }
 
-export function updateMode(state: CommandState, mode: Mode): CommandState {
+export function updateMode(state: BlockSelectorState, mode: Mode): BlockSelectorState {
     return { ...state, mode }
 }
 
-export function setInnerBlockState(state: CommandState, innerBlockState: unknown): CommandState {
+export function setInnerBlockState(state: BlockSelectorState, innerBlockState: unknown): BlockSelectorState {
     return { ...state, innerBlockState }
 }
 
 export function chooseBlock(
-    state: CommandState,
+    state: BlockSelectorState,
     env: block.Environment,
     blockLibrary: block.Environment
-): CommandState {
+): BlockSelectorState {
     const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {
         return {
@@ -63,7 +63,7 @@ export function chooseBlock(
     return state
 }
 
-export function updateBlock(state: CommandState, action: (state: unknown) => unknown): CommandState {
+export function updateBlock(state: BlockSelectorState, action: (state: unknown) => unknown): BlockSelectorState {
     return {
         ...state,
         innerBlockState: action(state.innerBlockState),
