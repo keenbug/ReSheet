@@ -1,11 +1,9 @@
 import * as React from 'react'
 import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
-import { codeFrameColumns } from '@babel/code-frame'
 
-import { ErrorInspector, ValueInspector } from '../ui/value'
-import { CodeView, EditableCode, highlightJS } from '../ui/code-editor'
-import { classed, ErrorView } from '../ui/utils'
+import { ValueInspector } from '../ui/value'
+import { EditableCode, highlightJS } from '../ui/code-editor'
 import { computeExpr, computeScript, parseJSExpr } from '../logic/compute'
 import * as block from '../logic/block'
 import { Inspector } from 'react-inspector'
@@ -33,15 +31,13 @@ export const JSExprBlock = block.create<string>({
 })
 
 
-const JSExprContainer = classed<any>('div')`flex flex-col space-y-1 flex-1`
-
-export const JSExpr = ({ code, update, env }) => {
+export function JSExpr({ code, update, env }) {
     const setCode = newCode => update(() => newCode)
     return (
-        <JSExprContainer>
+        <div className="flex flex-col space-y-1 flex-1">
             <EditableCode code={code} onUpdate={setCode} />
             <PreviewValue code={code} env={env} />
-        </JSExprContainer>
+        </div>
     )
 }
 

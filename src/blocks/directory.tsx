@@ -1,7 +1,7 @@
 import * as React from 'react'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput, classed, Button, IconForButton } from '../ui/utils'
+import { TextInput, Button, IconForButton } from '../ui/utils'
 import * as block from '../logic/block'
 import { BlockDesc } from '../logic/block'
 import { ErrorBoundary } from '../ui/value'
@@ -160,20 +160,6 @@ export function deleteEntry<State>(
 
 /**************** UI *****************/
 
-const DirectoryEntryContainer = classed<any>('div')`flex flex-row space-x-2`
-const DirectoryEntryContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
-
-const OpenedDirectoryEntryContainer = classed<any>('div')`flex flex-col space-y-2 mx-2`
-const OpenedDirectoryEntryHeader = classed<any>('div')`flex flex-row space-x-1 flex-1`
-
-const NameInput = classed<any>(TextInput)`
-    hover:bg-gray-200
-    focus:bg-gray-200
-    outline-none
-    p-0.5 mx-1
-    rounded
-`
-
 
 export const DirectoryBlock = <State extends unknown>(innerBlock: BlockDesc<State>) => block.create<DirectoryState<State>>({
     init: {
@@ -275,46 +261,51 @@ export function Directory<State>({ state, update, innerBlock, env }: DirectoryPr
 }
 
 
-export const DirectoryEntry = ({ entry, update }) => {
+export function DirectoryEntry({ entry, update }) {
     const onOpenEntry = () => update(state => openEntry(state, entry.id))
     return (
-        <DirectoryEntryContainer key={entry.id}>
-            <DirectoryEntryContent>
+        <div key={entry.id} className="flex flex-row space-x-2">
+            <div className="flex flex-col space-y-1 flex-1">
                 <Button onClick={onOpenEntry}>
                     {entryName(entry)}
                 </Button>
-            </DirectoryEntryContent>
+            </div>
             <EntryActions entry={entry} update={update} />
-        </DirectoryEntryContainer>
+        </div>
     )
 }
 
-export const OpenedDirectoryEntry = ({ block, entry, update, env }) => {
+export function OpenedDirectoryEntry({ block, entry, update, env }) {
     const onUpdateName = name   => update(state => setName(state, entry.id, name))
     const onCloseEntry = ()     => update(state => recomputeEntryResults(openEntry(state, null), block, env))
     const subupdate    = action => update(state => updateEntryBlock(state, entry.id, action))
 
     return (
-        <OpenedDirectoryEntryContainer key={entry.id}>
-            <OpenedDirectoryEntryHeader>
+        <div key={entry.id} className="flex flex-col space-y-2 mx-2">
+            <div className="flex flex-row space-x-1 flex-1">
                 <Button onClick={onCloseEntry}>
                     <IconForButton icon={solidIcons.faAngleLeft} />
                 </Button>
-                <NameInput
+                <TextInput
+                    className={`
+                        hover:bg-gray-200 focus:bg-gray-200
+                        rounded outline-none
+                        p-0.5 mx-1
+                    `}
                     value={entry.name}
                     onUpdate={onUpdateName}
                     placeholder={entryDefaultName(entry)}
                 />
-            </OpenedDirectoryEntryHeader>
+            </div>
             <ErrorBoundary title={"There was an error in " + entry.name}>
                 {block.view({ state: entry.state, update: subupdate, env })}
             </ErrorBoundary>
-        </OpenedDirectoryEntryContainer>
+        </div>
     )
 }
 
 
-const EntryActions = ({ entry, update }) => {
+function EntryActions({ entry, update }) {
     const onDuplicate = () => update(state => duplicateEntry(state, entry.id))
     const onDelete = () => update(state => deleteEntry(state, entry.id))
 

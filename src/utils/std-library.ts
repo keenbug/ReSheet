@@ -22,11 +22,9 @@ import * as codeEditor from '../ui/code-editor'
 import * as command from '../blocks/command'
 import * as block from '../logic/block'
 import * as compute from '../logic/compute'
-import * as importExport from '../logic/import-export'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
 import * as completions from '../blocks/completions'
-import * as tables from './tables'
 import * as ui from '../ui/utils'
 import * as utils from '.'
 import * as value from '../ui/value'
@@ -49,12 +47,10 @@ export const LIBRARY_MAPPINGS = {
     "./blocks/completions":                 completions,
     "./logic/block":                        block,
     "./logic/compute":                      compute,
-    "./logic/import-export":                importExport,
     "./ui/code-editor":                     codeEditor,
     "./ui/utils":                           ui,
     "./ui/value":                           value,
     "./utils":                              utils,
-    "./utils/tables":                       tables,
 }
 
 
@@ -88,7 +84,6 @@ export const library = {
 
     block,
     blocks,
-    tables,
     ui,
     command,
     compute,

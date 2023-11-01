@@ -5,7 +5,8 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as block from '../logic/block'
 import { BlockDesc, Environment } from '../logic/block'
 import { catchAll } from '../utils'
-import { classed, LoadFileButton, saveFile } from '../ui/utils'
+import { LoadFileButton, saveFile } from '../ui/utils'
+import { useAutoretrigger } from '../ui/hooks'
 
 
 export type ViewState =
@@ -242,7 +243,7 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
 
     const localEnv = { ...env, history: state.history }
 
-    const viewToplevelBlock = () => {
+    function viewToplevelBlock() {
         switch (state.viewState.mode) {
             case 'current':
                 return innerBlock.view({
@@ -290,71 +291,31 @@ function HistoryView<State>({ state, update, env, innerBlock }: HistoryViewProps
 }
 
 
-const HistoryButton = ({ isActive, ...props }) => {
-    const className = `
-        px-2
-        py-0.5
-        rounded
-        ${isActive ?
-            'text-blue-50 bg-blue-700 hover:bg-blue-500'
-        :
-            'hover:text-blue-900 hover:bg-blue-200'
-        }
-    `
-    return (
-        <button className={className} {...props}>
-            <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
-            History
-        </button>
-    )
-}
-
-const useTrigger = (onTrigger: () => void) => {
-    const timeoutRef = React.useRef<null | number>(null)
-
-    React.useEffect(() => {
-        return () => {
-            if (timeoutRef.current !== null) {
-                clearTimeout(timeoutRef.current)
-            }
-        }
-    }, [timeoutRef])
-
-    const triggerPeriodically = (period: number) => () => {
-        onTrigger()
-        timeoutRef.current = setTimeout(triggerPeriodically(period * 0.99), period)
-    }
-
-    const triggerStart = () => {
-        onTrigger()
-        timeoutRef.current = setTimeout(triggerPeriodically(100), 1000)
-    }
-
-    const triggerStop = () => {
-        if (timeoutRef.current !== null) {
-            clearTimeout(timeoutRef.current)
-        }
-    }
-
-    return [triggerStart, triggerStop]
-}
-
-const MenuBarContainer = classed<any>('div')`
-    sticky top-0 left-0 z-10
-    bg-white backdrop-opacity-90 backdrop-blur
-    shadow p-1 mb-2 flex space-x-2 items-baseline
-`
-const TimeContainer = classed<any>('div')`self-center flex space-x-1 px-2`
 
 function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName, onSave, onLoadFile }) {
-    const [startGoBack, stopGoBack] = useTrigger(onGoBack)
-    const [startGoForward, stopGoForward] = useTrigger(onGoForward)
+    const [startGoBack, stopGoBack] = useAutoretrigger(onGoBack)
+    const [startGoForward, stopGoForward] = useAutoretrigger(onGoForward)
 
     switch (state.viewState.mode) {
         case 'current':
             return (
-                <MenuBarContainer>
-                    <HistoryButton isActive={false} onClick={onOpenHistory} />
+                <div
+                    className={`
+                        sticky top-0 left-0 z-10
+                        bg-white backdrop-opacity-90 backdrop-blur
+                        shadow p-1 mb-2 flex space-x-2 items-baseline
+                    `}
+                    >
+                    <button
+                        className={`
+                            px-2 py-0.5 rounded
+                            hover:text-blue-900 hover:bg-blue-200
+                        `}
+                        onClick={onOpenHistory}
+                        >
+                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                        History
+                    </button>
                     <div className="flex flex-1 space-x-2 justify-center items-baseline">
                         <input
                             className="w-14"
@@ -369,14 +330,29 @@ function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, 
                             load
                         </LoadFileButton>
                     </div>
-                </MenuBarContainer>
+                </div>
             )
         case 'history':
         default:
             return (
-                <MenuBarContainer>
-                    <HistoryButton isActive={true} onClick={onCloseHistory} />
-                    <TimeContainer>
+                <div
+                    className={`
+                        sticky top-0 left-0 z-10
+                        bg-white backdrop-opacity-90 backdrop-blur
+                        shadow p-1 mb-2 flex space-x-2 items-baseline
+                    `}
+                    >
+                    <button
+                        className={`
+                            px-2 py-0.5 rounded
+                            text-blue-50 bg-blue-700 hover:bg-blue-500
+                        `}
+                        onClick={onOpenHistory}
+                        >
+                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                        History
+                    </button>
+                    <div className="self-center flex space-x-1 px-2">
                         <button onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
                             <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
                         </button>
@@ -386,11 +362,11 @@ function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, 
                         <div className="self-center px-1">
                             {formatTime(state.history[state.viewState.position].time)}
                         </div>
-                    </TimeContainer>
+                    </div>
                     <button style={{ marginLeft: 'auto' }} onClick={onUseState}>
                         Use this state
                     </button>
-                </MenuBarContainer>
+                </div>
             )
     }
 }

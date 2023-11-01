@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { Menu, Popover } from '@headlessui/react'
+import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput, classed } from '../ui/utils'
+import { TextInput } from '../ui/utils'
 import * as block from '../logic/block'
 import { BlockDesc } from '../logic/block'
 import { ErrorBoundary, ValueInspector } from '../ui/value'
@@ -177,17 +177,6 @@ export const deleteCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[]
 /**************** UI *****************/
 
 
-const SheetLineContainer = classed<any>('div')`flex flex-row space-x-2`
-const SheetLineContent = classed<any>('div')`flex flex-col space-y-1 flex-1`
-
-const VarNameInput = classed<any>(TextInput)`
-    hover:bg-gray-200 hover:text-slate-700
-    focus:bg-gray-200 focus:text-slate-700
-    outline-none
-    p-0.5 -ml-0.5
-    rounded
-`
-
 export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) {
     return block.create<SheetBlockState<State>>({
         init: [{ id: 0, name: '', isCollapsed: false, state: innerBlock.init, result: null }],
@@ -256,33 +245,27 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
 
 export const SheetLine = ({ block, line, update, env }) => {
     const subupdate = action => update(state => updateLineBlock(state, line.id, action, block, env))
-    if (line.isCollapsed) {
-        return (
-            <SheetLineContainer key={line.id}>
-                <SheetUIToggles line={line} update={update} block={block} />
-                <SheetLineContent>
+
+    return (
+        <div className="flex flex-row space-x-2">
+            <SheetUIToggles line={line} update={update} block={block} />
+            <div className="flex flex-col space-y-1 flex-1">
+                {line.isCollapsed ?
                     <AssignmentLine line={line} update={update}>
                         <ValueInspector value={line.result} expandLevel={0} />
                     </AssignmentLine>
-                </SheetLineContent>
-            </SheetLineContainer>
-        )
-    }
-    else {
-        return (
-            <SheetLineContainer key={line.id}>
-                <SheetUIToggles line={line} update={update} block={block} />
-                <SheetLineContent>
-                    <AssignmentLine line={line} update={update} />
-                    <ErrorBoundary title="There was an error in the subblock">
-                        {block.view({ state: line.state, update: subupdate, env })}
-                    </ErrorBoundary>
-                </SheetLineContent>
-            </SheetLineContainer>
-        )
-    }
+                :
+                    <>
+                        <AssignmentLine line={line} update={update} />
+                        <ErrorBoundary title="There was an error in the subblock">
+                            {block.view({ state: line.state, update: subupdate, env })}
+                        </ErrorBoundary>
+                    </>
+                }
+            </div>
+        </div>
+    )
 }
-
 
 
 interface AssignmentLineProps<State> {
@@ -305,12 +288,20 @@ export function AssignmentLine<State>(props: AssignmentLineProps<State>) {
             `}
             >
             <div>
-            <VarNameInput
-                value={line.name}
-                onUpdate={onUpdateName}
-                placeholder={lineDefaultName(line)}
-            />
-            &nbsp;=</div>
+                <TextInput
+                    className={`
+                        hover:bg-gray-200 hover:text-slate-700
+                        focus:bg-gray-200 focus:text-slate-700
+                        outline-none
+                        p-0.5 -ml-0.5
+                        rounded
+                    `}
+                    value={line.name}
+                    onUpdate={onUpdateName}
+                    placeholder={lineDefaultName(line)}
+                />
+                &nbsp;=
+            </div>
             {children}
         </div>
     )
@@ -321,56 +312,31 @@ export function AssignmentLine<State>(props: AssignmentLineProps<State>) {
 
 /****************** REPL Popover ******************/
 
-const MenuItemsStyled = classed<any>(Menu.Items)`
-    flex flex-col
-    bg-gray-100
-    shadow-md
-    rounded
-    items-stretch
-    w-max
-    text-sm
-    overflow-hidden
-    z-10
-    outline-none
-    absolute top-0 -right-1 translate-x-full
-`
-
-const MenuButton = classed<any>('button')`
-    text-left
-    text-slate-800
-
-    hover:bg-gray-200
-    focus:bg-gray-300
-
-    transition-colors
-
-    outline-none
-    h-7 px-1 space-x-1
-    w-full
-`
-
 function SheetUIToggles({ line, update, block }) {
     const onToggleCollapse = () => update(state => toggleCollapse(state, line.id))
     const onInsertBefore   = () => update(state => insertBeforeCode(state, line.id, block))
     const onInsertAfter    = () => update(state => insertAfterCode(state, line.id, block))
     const onDelete         = () => update(state => deleteCode(state, line.id))
 
-    const Button = ({ icon, label, ...props }) => (
-        <Menu.Item>
-            <MenuButton {...props}>
-                <FontAwesomeIcon icon={icon} />
-                <span>{label}</span>
-            </MenuButton>
-        </Menu.Item>
-    )
-
-    const collapseButton = (
-        <Button
-            onClick={onToggleCollapse}
-            icon={line.isCollapsed ? solidIcons.faSquarePlus : solidIcons.faSquareMinus}
-            label={line.isCollapsed ? "Expand" : "Collapse"}
-            />
-    )
+    function Button({ icon, label, ...props }) {
+        return (
+            <Menu.Item>
+                <button
+                    className={`
+                        text-left text-slate-800
+                        hover:bg-gray-200 focus:bg-gray-300
+                        transition-colors
+                        outline-none
+                        h-7 px-1 space-x-1 w-full
+                    `}
+                    {...props}
+                    >
+                    <FontAwesomeIcon icon={icon} />
+                    <span>{label}</span>
+                </button>
+            </Menu.Item>
+        )
+    }
 
     return (
         <div>
@@ -378,12 +344,25 @@ function SheetUIToggles({ line, update, block }) {
                 <Menu.Button className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                     <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
                 </Menu.Button>
-                <MenuItemsStyled>
-                    {collapseButton}
+                <Menu.Items
+                    className={`
+                        flex flex-col
+                        bg-gray-100 shadow-md
+                        rounded items-stretch
+                        w-max text-sm
+                        overflow-hidden outline-none
+                        absolute top-0 -right-1 translate-x-full z-10
+                    `}
+                    >
+                    <Button
+                        onClick={onToggleCollapse}
+                        icon={line.isCollapsed ? solidIcons.faSquarePlus : solidIcons.faSquareMinus}
+                        label={line.isCollapsed ? "Expand" : "Collapse"}
+                        />
                     <Button onClick={onInsertBefore} icon={solidIcons.faChevronUp}   label="Insert before" />
                     <Button onClick={onInsertAfter}  icon={solidIcons.faChevronDown} label="Insert after"  />
                     <Button onClick={onDelete}       icon={solidIcons.faTrash}       label="Delete"        />
-                </MenuItemsStyled>
+                </Menu.Items>
             </Menu>
         </div>
     )

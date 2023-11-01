@@ -37,7 +37,7 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
 export const Input = Block.create<string>({
     init: "",
     view({ state, update }) {
-        const onChange = ev => {
+        function onChange(ev) {
             update(() => ev.target.value)
         }
         return <input type="text" value={state} onChange={onChange} />
