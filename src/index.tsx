@@ -3,16 +3,16 @@ import ReactDOM from 'react-dom/client'
 
 import 'prismjs/themes/prism.css'
 
-import { CommandBlock, CommandModel } from './blocks/command'
 import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
 import { ErrorView } from './ui/utils'
 import { DocumentBlock, DocumentState } from './blocks/document'
+import { CommandBlock, CommandState } from './blocks/command'
 
 
 const blocks = library.blocks
 
-type ToplevelBlockState = DocumentState<CommandModel>
+type ToplevelBlockState = DocumentState<CommandState>
 const ToplevelBlock = DocumentBlock(CommandBlock('', null, blocks.StateEditor(blocks), blocks))
 
 

@@ -17,7 +17,7 @@ import * as babelTypes from '@babel/types'
 
 import * as codeJar from 'react-codejar'
 
-import * as blocks from '../blocks/blocks'
+import * as blocks from '../blocks'
 import * as codeEditor from '../ui/code-editor'
 import * as command from '../blocks/command'
 import * as block from '../logic/block'
@@ -40,7 +40,7 @@ export const LIBRARY_MAPPINGS = {
     "@babel/preset-react":                  babelReact,
     "@babel/parser":                        babelParser,
     "@babel/generator":                     babelGenerator,
-    "./blocks/blocks":                      blocks,
+    "./blocks":                             blocks,
     "./blocks/command":                     command,
     "./blocks/sheet":                       sheet,
     "./blocks/jsexpr":                      jsexpr,

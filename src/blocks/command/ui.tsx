@@ -1,162 +1,20 @@
 import * as React from 'react'
 import { Tab } from '@headlessui/react'
 
-import * as block from '../logic/block'
-import { BlockDesc } from '../logic/block'
-import { ErrorBoundary, ValueInspector } from '../ui/value'
-import { CodeEditor, EditableCode } from '../ui/code-editor'
-import { computeExpr } from '../logic/compute'
-import { catchAll } from '../utils'
+import * as block from '../../logic/block'
+import { BlockDesc } from '../../logic/block'
+import { ErrorBoundary, ValueInspector } from '../../ui/value'
+import { CodeEditor, EditableCode } from '../../ui/code-editor'
+import { computeExpr } from '../../logic/compute'
+import { catchAll } from '../../utils'
 
-
-export interface CommandModel {
-    expr: string
-    mode: Mode
-    innerBlockState: null | unknown
-    innerBlock: null | BlockDesc<unknown>
-}
-
-export type Mode = 'run' | 'choose'
-
-export function initCommandModel(
-    expr: string = '',
-    innerBlockInit: BlockDesc<unknown> = null
-): CommandModel {
-    return {
-        expr,
-        mode: expr ? 'run' : 'choose',
-        innerBlockState: innerBlockInit?.init,
-        innerBlock: innerBlockInit,
-    }
-}
-
-
-/**************** Command Actions **************/
-
-
-export function setCommandExpr(state: CommandModel, expr: string): CommandModel {
-    return { ...state, expr }
-}
-
-export function updateMode(state: CommandModel, mode: Mode): CommandModel {
-    return { ...state, mode }
-}
-
-export function setInnerBlockState(state: CommandModel, innerBlockState: unknown): CommandModel {
-    return { ...state, innerBlockState }
-}
-
-export function chooseBlock(
-    state: CommandModel,
-    env: block.Environment,
-    blockLibrary: block.Environment
-): CommandModel {
-    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
-    if (block.isBlock(blockCmdResult)) {
-        return {
-            ...state,
-            mode: 'run',
-            innerBlock: blockCmdResult,
-            innerBlockState:
-                state.innerBlockState === null || state.innerBlockState === undefined ?
-                    blockCmdResult.init
-                :
-                    state.innerBlockState
-            ,
-        }
-    }
-    return state
-}
-
-export function updateBlock(state: CommandModel, action: (state: unknown) => unknown): CommandModel {
-    return {
-        ...state,
-        innerBlockState: action(state.innerBlockState),
-    }
-}
-
-const loadBlock = ({ mode, inner, expr }, library, blockLibrary) => {
-    try {
-        const innerBlock = computeExpr(expr, { ...blockLibrary, ...library })
-        const innerBlockState = catchAll(
-            () => innerBlock.fromJSON(inner, library),
-            () => innerBlock.init,
-        )
-        return { mode, innerBlock, innerBlockState }
-    }
-    catch (e) {
-        return {
-            mode: 'choose',
-            innerBlock: null,
-            innerBlockState: null,
-         }
-    }
-}
-
-export function CommandBlock(
-    expr: string = '',
-    innerBlockInit: BlockDesc<unknown> = null,
-    stateEditorBlock: BlockDesc<unknown>,
-    blockLibrary: block.Environment,
-) {
-    return block.create<CommandModel>({
-        init: initCommandModel(expr, innerBlockInit),
-
-        view({ state, update, env }) {
-            return (
-                <CommandBlockUI
-                    state={state}
-                    update={update}
-                    env={env}
-                    stateEditorBlock={stateEditorBlock}
-                    blockLibrary={blockLibrary}
-                    />
-            )
-        },
-
-        getResult(state, env) {
-            if (state.mode === 'choose') { return null }
-        
-            return state.innerBlock.getResult(state.innerBlockState, env)
-        },
-
-        fromJSON(json: any, library) {
-            const { mode = 'choose', inner = null, expr = "" } = json
-            return {
-                mode,
-                expr,
-                ...loadBlock(json, library, blockLibrary),
-            }
-        },
-
-        toJSON({ mode, expr, innerBlock, innerBlockState }) {
-            return {
-                mode,
-                expr,
-                inner:
-                    mode === 'choose' ?
-                        catchAll(
-                            () => innerBlock.toJSON(innerBlockState),
-                            () => null,
-                        )
-                    : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
-                        innerBlock.toJSON(innerBlockState)
-                    :
-                        innerBlock.init
-                ,
-            }
-        },
-    })
-}
-
-
-/**************** UI *****************/
-
+import { CommandState } from './model'
+import * as Model from './model'
 
 
 export interface CommandBlockUIProps {
-    state: CommandModel
-    update: (action: (state: CommandModel) => CommandModel) => void
+    state: CommandState
+    update: (action: (state: CommandState) => CommandState) => void
     env: block.Environment
     stateEditorBlock: BlockDesc<unknown>
     blockLibrary: block.Environment
@@ -165,16 +23,16 @@ export interface CommandBlockUIProps {
 export function CommandBlockUI(props: CommandBlockUIProps) {
     const { state, update, env } = props
     const { stateEditorBlock, blockLibrary } = props
-    const onUpdateExpr  = expr   => update(state => setCommandExpr(state, expr))
-    const onSetMode     = mode   => update(state => updateMode(state, mode))
-    const onChooseBlock = env    => update(state => chooseBlock(state, env, blockLibrary))
-    const onResetState  = ()     => update(state => setInnerBlockState(state, blockCmdResult.init))
-    const subupdate     = action => update(state => updateBlock(state, action))
+    const onUpdateExpr  = expr   => update(state => Model.setCommandExpr(state, expr))
+    const onSetMode     = mode   => update(state => Model.updateMode(state, mode))
+    const onChooseBlock = env    => update(state => Model.chooseBlock(state, env, blockLibrary))
+    const onResetState  = ()     => update(state => Model.setInnerBlockState(state, blockCmdResult.init))
+    const subupdate     = action => update(state => Model.updateBlock(state, action))
 
     function onLoadInnerState(innerStateJSON) {
         update(state => {
             try {
-                return setInnerBlockState(state, blockCmdResult.fromJSON(innerStateJSON, env))
+                return Model.setInnerBlockState(state, blockCmdResult.fromJSON(innerStateJSON, env))
             }
             catch (e) {
                 return state
@@ -185,7 +43,7 @@ export function CommandBlockUI(props: CommandBlockUIProps) {
     function onCommitInnerState(innerState) {
         update(state => {
             try {
-                return setInnerBlockState(state, innerState)
+                return Model.setInnerBlockState(state, innerState)
             }
             catch (e) {
                 return state
@@ -265,7 +123,7 @@ function JSONEditor({ initialValue, onSave }) {
 
 interface BlockPreviewProps {
     env: block.Environment
-    state: CommandModel
+    state: CommandState
     blockCmdResult: block.BlockDesc<unknown>
     stateEditorBlock: block.BlockDesc<unknown>
     onChooseBlock: (env: any) => void
@@ -385,4 +243,3 @@ function ExprEditor({ editorBlock, currentBlock, oldBlock, state, env, onCommit 
         </div>
     )
 }
-

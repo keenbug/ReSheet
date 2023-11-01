@@ -1,118 +1,16 @@
+
 import * as React from 'react'
 import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput } from '../ui/utils'
-import * as block from '../logic/block'
-import { BlockDesc } from '../logic/block'
-import { ErrorBoundary, ValueInspector } from '../ui/value'
+import { TextInput } from '../../ui/utils'
+import * as block from '../../logic/block'
+import { BlockDesc } from '../../logic/block'
+import { ErrorBoundary, ValueInspector } from '../../ui/value'
+import { SheetBlockState, SheetBlockLine } from './model'
+import * as Model from './model'
 
-
-type SheetBlockState<InnerBlockState> =
-    SheetBlockLine<InnerBlockState>[]
-
-interface SheetBlockLine<InnerBlockState> {
-    readonly id: number
-    readonly name: string
-    readonly isCollapsed: boolean
-    readonly state: InnerBlockState
-    readonly result: unknown
-}
-
-
-const lineDefaultName = (line: SheetBlockLine<unknown>) => '$' + line.id
-const lineName = (line: SheetBlockLine<unknown>) => line.name.length > 0 ? line.name : lineDefaultName(line)
-
-function lineToEnv<State>(
-    line: SheetBlockLine<State>,
-) {
-    return {
-        [lineName(line)]: line.result
-    }
-}
-
-function nextFreeId(state: SheetBlockState<unknown>) {
-    const highestId = state
-        .map(line => line.id)
-        .reduce((a, b) => Math.max(a, b), -1)
-
-    return 1 + highestId
-}
-
-function updateLineWithId<Inner extends unknown>(
-    lines: SheetBlockLine<Inner>[],
-    id: number,
-    update: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
-) {
-    return lines.map(
-        line =>
-            line.id === id ?
-                update(line)
-            :
-                line
-    )
-}
-
-function insertLineBefore<Inner extends unknown>(
-    lines: SheetBlockLine<Inner>[],
-    id: number,
-    newLine: SheetBlockLine<Inner>,
-) {
-    return lines.flatMap(line =>
-        line.id === id ?
-            [newLine, line]
-        :
-            [line]
-    )
-}
-
-function insertLineAfter<Inner extends unknown>(
-    lines: SheetBlockLine<Inner>[],
-    id: number,
-    newLine: SheetBlockLine<Inner>,
-) {
-    return lines.flatMap(line =>
-        line.id === id ?
-            [line, newLine]
-        :
-            [line]
-    )
-}
-
-function recomputeSheetResults<State>(
-    lines: SheetBlockState<State>,
-    innerBlock: BlockDesc<State>,
-    env: block.Environment,
-    startFromId?: number,
-) {
-    const startIndex = lines.findIndex(line => line.id === startFromId) ?? 0
-    const linesBefore = lines.slice(0, startIndex)
-    const linesAfter = lines.slice(startIndex)
-
-    const envBefore = Object.assign(
-        {},
-        env,
-        ...linesBefore.map(lineToEnv),
-    )
-
-    const recomputedLines = block.mapWithEnv(
-        linesAfter,
-        (line, localEnv) => {
-            const result = innerBlock.getResult(line.state, localEnv)
-            return {
-                out: { ...line, result },
-                env: { [lineName(line)]: result },
-            }
-        },
-        envBefore,
-    )
-    return [ ...linesBefore, ...recomputedLines ]
-}
-
-function getResult<State>(lines: SheetBlockState<State>) {
-    return lines[lines.length - 1].result
-}
 
 /**************** Code Actions **************/
 
@@ -124,7 +22,7 @@ export function updateLineBlock<State>(
     innerBlock: BlockDesc<State>,
     env: block.Environment,
 ): SheetBlockState<State> {
-    return recomputeSheetResults(
+    return Model.recomputeSheetResults(
         lines.map(line =>
             line.id === id ?
                 { ...line, state: action(line.state) }
@@ -139,17 +37,17 @@ export function updateLineBlock<State>(
 
 
 export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
-    updateLineWithId(lines, id, line => ({ ...line, name }))
+    Model.updateLineWithId(lines, id, line => ({ ...line, name }))
 
 export function toggleCollapse<Inner>(state: SheetBlockState<Inner>, id: number) {
-    return updateLineWithId(state, id, line => {
+    return Model.updateLineWithId(state, id, line => {
         return { ...line, isCollapsed: !line.isCollapsed }
     })
 }
 
 export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    insertLineBefore(lines, id, {
-        id: nextFreeId(lines),
+    Model.insertLineBefore(lines, id, {
+        id: Model.nextFreeId(lines),
         name: '',
         isCollapsed: false,
         state: innerBlock.init,
@@ -157,8 +55,8 @@ export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<In
     })
 
 export const insertAfterCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    insertLineAfter(lines, id, {
-        id: nextFreeId(lines),
+    Model.insertLineAfter(lines, id, {
+        id: Model.nextFreeId(lines),
         name: '',
         isCollapsed: false,
         state: innerBlock.init,
@@ -177,47 +75,6 @@ export const deleteCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[]
 /**************** UI *****************/
 
 
-export function SheetBlock<State extends unknown>(innerBlock: BlockDesc<State>) {
-    return block.create<SheetBlockState<State>>({
-        init: [{ id: 0, name: '', isCollapsed: false, state: innerBlock.init, result: null }],
-        view({ state, update, env }) {
-            return <Sheet lines={state} update={update} innerBlock={innerBlock} env={env} />
-        },
-        getResult(state, env) {
-            return getResult(state)
-        },
-        fromJSON(json: any[], env) {
-            return block.mapWithEnv(
-                json,
-                (jsonLine, localEnv) => {
-                    const { id, name, isCollapsed = false, state } = jsonLine
-                    const loadedState = innerBlock.fromJSON(state, localEnv)
-                    const result = innerBlock.getResult(loadedState, localEnv)
-                    const line: SheetBlockLine<State> = { id, name, isCollapsed, state: loadedState, result }
-                    return {
-                        out: line,
-                        env: lineToEnv(line)
-                    }
-                },
-                env,
-            )
-        },
-        toJSON(lines) {
-            return lines.map(
-                ({ id, name, isCollapsed, state }) => (
-                    {
-                        id,
-                        name,
-                        isCollapsed,
-                        state: innerBlock.toJSON(state),
-                    }
-                )
-            )
-        },
-    })
-} 
-
-
 export interface SheetProps<InnerState> {
     lines: SheetBlockLine<InnerState>[]
     update: block.BlockUpdater<SheetBlockState<InnerState>>
@@ -233,7 +90,7 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
                 (line, localEnv) => {
                     return {
                         out: <SheetLine key={line.id} block={innerBlock} line={line} update={update} env={localEnv} />,
-                        env: lineToEnv(line),
+                        env: Model.lineToEnv(line),
                     }
                 },
                 env
@@ -248,7 +105,7 @@ export const SheetLine = ({ block, line, update, env }) => {
 
     return (
         <div className="flex flex-row space-x-2">
-            <SheetUIToggles line={line} update={update} block={block} />
+            <MenuPopover line={line} update={update} block={block} />
             <div className="flex flex-col space-y-1 flex-1">
                 {line.isCollapsed ?
                     <AssignmentLine line={line} update={update}>
@@ -298,7 +155,7 @@ export function AssignmentLine<State>(props: AssignmentLineProps<State>) {
                     `}
                     value={line.name}
                     onUpdate={onUpdateName}
-                    placeholder={lineDefaultName(line)}
+                    placeholder={Model.lineDefaultName(line)}
                 />
                 &nbsp;=
             </div>
@@ -310,9 +167,9 @@ export function AssignmentLine<State>(props: AssignmentLineProps<State>) {
 
 
 
-/****************** REPL Popover ******************/
+/****************** Menu Popover ******************/
 
-function SheetUIToggles({ line, update, block }) {
+function MenuPopover({ line, update, block }) {
     const onToggleCollapse = () => update(state => toggleCollapse(state, line.id))
     const onInsertBefore   = () => update(state => insertBeforeCode(state, line.id, block))
     const onInsertAfter    = () => update(state => insertAfterCode(state, line.id, block))
