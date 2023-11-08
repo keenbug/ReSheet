@@ -147,22 +147,37 @@ export const IconForButton: React.FC<{ icon: IconDefinition }> = ({ icon }) => (
 
 
 
-export type LoadFileButtonProps = React.LabelHTMLAttributes<HTMLLabelElement> & {
+export type LoadFileButtonProps = React.LabelHTMLAttributes<HTMLButtonElement> & {
     onLoad: (file: File) => void
 }
 
-export function LoadFileButton({ onLoad, children, ...props }: LoadFileButtonProps) {
-    const loadFile: React.ChangeEventHandler<HTMLInputElement> = event => {
-        onLoad(event.target.files[0])
-    }
+export const LoadFileButton = React.forwardRef(
+    function LoadFileButton(
+        { onLoad, children, ...props }: LoadFileButtonProps,
+        ref: React.Ref<HTMLButtonElement>
+    ) {
+        function loadFile(event) {
+            const fileInput = document.createElement('input')
+            fileInput.type = 'file'
+            fileInput.onchange = () => {
+                onLoad(fileInput.files[0])
 
-    return (
-        <label {...props}>
-            {children}
-            <input className="hidden" type="file" onChange={loadFile} />
-        </label>
-    )
-}
+                // Workaround for headlessui Menu.Item:
+                //  Menu.Item seems to inject an onClick handler, which closes the menu.
+                //  If the menu is closed, this fileInput doesn't work anymore, so we defer
+                //  the handler until the File Dialog is closed.
+                props.onClick?.(event)
+            }
+            fileInput.click()
+        }
+
+        return (
+            <button ref={ref} {...props} onClick={loadFile}>
+                {children}
+            </button>
+        )
+    }
+)
 
 
 export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename, children, ...props }) => {
