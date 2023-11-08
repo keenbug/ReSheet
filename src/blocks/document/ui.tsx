@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import { Menu } from '@headlessui/react'
 import { BlockDesc, Environment } from '../../logic/block'
 import { LoadFileButton, saveFile } from '../../ui/utils'
 import { useAutoretrigger } from '../../ui/hooks'
@@ -103,82 +104,122 @@ export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUi
 
 
 export function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName, onSave, onLoadFile }) {
-    const [startGoBack, stopGoBack] = useAutoretrigger(onGoBack)
-    const [startGoForward, stopGoForward] = useAutoretrigger(onGoForward)
+const [startGoBack, stopGoBack] = useAutoretrigger(onGoBack)
+const [startGoForward, stopGoForward] = useAutoretrigger(onGoForward)
 
-    switch (state.viewState.mode) {
-        case 'current':
-            return (
-                <div
-                    className={`
-                        sticky top-0 left-0 z-10
-                        bg-white backdrop-opacity-90 backdrop-blur
-                        shadow p-1 mb-2 flex space-x-2 items-baseline
-                    `}
-                    >
-                    <button
+switch (state.viewState.mode) {
+    case 'current':
+        return (
+            <div
+                className={`
+                    sticky top-0 left-0 z-10
+                    bg-white backdrop-opacity-90 backdrop-blur
+                    shadow mb-2 flex space-x-2 items-baseline
+                `}
+                >
+                <Menu as="div" className="relative">
+                    <Menu.Button as={React.Fragment}>
+                        {({ open }) => (
+                            <button
+                                className={`
+                                    px-2 py-0.5 h-full
+                                    ${open ?
+                                        "text-blue-50 bg-blue-500 hover:bg-blue-500"
+                                    :
+                                        "hover:text-blue-950 hover:bg-blue-200"
+                                    }
+                                `}>
+                                File
+                            </button>
+                        )}
+                    </Menu.Button>
+                    <Menu.Items
                         className={`
-                            px-2 py-0.5 rounded
-                            hover:text-blue-900 hover:bg-blue-200
+                            absolute left-0 origin-top-left
+                            w-56
+                            flex flex-col
+                            bg-white border rounded shadow
+                            text-sm
                         `}
-                        onClick={onOpenHistory}
                         >
-                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
-                        History
+                        <Menu.Item>
+                            {({ active }) => (
+                                <button
+                                    className={`
+                                        px-2 py-1 text-left
+                                        ${active && "bg-blue-100"}
+                                    `}
+                                    onClick={onSave}
+                                    >
+                                    Save File
+                                </button>
+                            )}
+                        </Menu.Item>
+                        <Menu.Item>
+                            {({ active }) => (
+                                <LoadFileButton
+                                    className={`
+                                        px-2 py-1 text-left
+                                        ${active && "bg-blue-100"}
+                                    `}
+                                    onLoad={onLoadFile}
+                                    >
+                                    Load File ...
+                                </LoadFileButton>
+                            )}
+                        </Menu.Item>
+                    </Menu.Items>
+                </Menu>
+                <div className="flex-1" />
+                <button
+                    className={`
+                        px-2 py-0.5 h-full
+                        hover:text-blue-900 hover:bg-blue-200
+                    `}
+                    onClick={onOpenHistory}
+                    >
+                    <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                    History
+                </button>
+            </div>
+        )
+    case 'history':
+    default:
+        return (
+            <div
+                className={`
+                    sticky top-0 left-0 z-10
+                    bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
+                    shadow mb-2 flex space-x-2 items-baseline
+                `}
+                >
+                <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={onUseState}>
+                    Use this state
+                </button>
+                <div className="flex-1 flex space-x-1 px-2">
+                    <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
+                        <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
                     </button>
-                    <div className="flex flex-1 space-x-2 justify-center items-baseline">
-                        <input
-                            className="w-14"
-                            type="text"
-                            value={state.name}
-                            onChange={e => { onChangeName(e.target.value) }}
-                            />
-                        <button className="text-sm" onClick={onSave}>
-                            save
-                        </button>
-                        <LoadFileButton className="text-sm" onLoad={onLoadFile}>
-                            load
-                        </LoadFileButton>
+                    <button className="px-2 hover:text-blue-500" onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
+                        <FontAwesomeIcon icon={solidIcons.faAngleRight} />
+                    </button>
+                    <div className="self-center px-1">
+                        {formatTime(state.history[state.viewState.position].time)}
                     </div>
                 </div>
-            )
-        case 'history':
-        default:
-            return (
-                <div
+                <button
                     className={`
-                        sticky top-0 left-0 z-10
-                        bg-white backdrop-opacity-90 backdrop-blur
-                        shadow p-1 mb-2 flex space-x-2 items-baseline
+                        px-2 py-0.5
+                        text-blue-50 bg-blue-700 hover:bg-blue-500
                     `}
+                    onClick={onCloseHistory}
                     >
-                    <button
-                        className={`
-                            px-2 py-0.5 rounded
-                            text-blue-50 bg-blue-700 hover:bg-blue-500
-                        `}
-                        onClick={onCloseHistory}
-                        >
-                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
-                        History
-                    </button>
-                    <div className="self-center flex space-x-1 px-2">
-                        <button onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
-                            <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
-                        </button>
-                        <button onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
-                            <FontAwesomeIcon icon={solidIcons.faAngleRight} />
-                        </button>
-                        <div className="self-center px-1">
-                            {formatTime(state.history[state.viewState.position].time)}
-                        </div>
-                    </div>
-                    <button style={{ marginLeft: 'auto' }} onClick={onUseState}>
-                        Use this state
-                    </button>
-                </div>
-            )
-    }
+                    <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                    History
+                </button>
+            </div>
+        )
+}
 }
 
 
