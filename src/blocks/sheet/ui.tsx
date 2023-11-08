@@ -14,30 +14,8 @@ import * as Model from './model'
 
 /**************** Code Actions **************/
 
-
-export function updateLineBlock<State>(
-    lines: SheetBlockState<State>,
-    id: number,
-    action: (state: State) => State,
-    innerBlock: BlockDesc<State>,
-    env: block.Environment,
-): SheetBlockState<State> {
-    return Model.recomputeSheetResults(
-        lines.map(line =>
-            line.id === id ?
-                { ...line, state: action(line.state) }
-            :
-                line
-        ),
-        innerBlock,
-        env,
-        id,
-    )
-}
-
-
-export const setName = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, name: string) =>
-    Model.updateLineWithId(lines, id, line => ({ ...line, name }))
+export const setName = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, name: string) =>
+    Model.updateLineWithId(state, id, line => ({ ...line, name }))
 
 export function toggleCollapse<Inner>(state: SheetBlockState<Inner>, id: number) {
     return Model.updateLineWithId(state, id, line => {
@@ -45,29 +23,33 @@ export function toggleCollapse<Inner>(state: SheetBlockState<Inner>, id: number)
     })
 }
 
-export const insertBeforeCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    Model.insertLineBefore(lines, id, {
-        id: Model.nextFreeId(lines),
+export const insertBeforeCode = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, innerBlock: BlockDesc<Inner>) =>
+    Model.insertLineBefore(state, id, {
+        id: Model.nextFreeId(state),
         name: '',
         isCollapsed: false,
         state: innerBlock.init,
         result: null,
     })
 
-export const insertAfterCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number, innerBlock: BlockDesc<Inner>) =>
-    Model.insertLineAfter(lines, id, {
-        id: Model.nextFreeId(lines),
+export const insertAfterCode = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, innerBlock: BlockDesc<Inner>) =>
+    Model.insertLineAfter(state, id, {
+        id: Model.nextFreeId(state),
         name: '',
         isCollapsed: false,
         state: innerBlock.init,
         result: null,
     })
 
-export const deleteCode = <Inner extends unknown>(lines: SheetBlockLine<Inner>[], id: number) =>
-    lines.length > 1 ?
-        lines.filter(line => line.id !== id)
-    :
-        lines
+export function deleteCode<Inner extends unknown>(state: SheetBlockState<Inner>, id: number) {
+    return {
+        ...state,
+        lines: state.lines.length > 1 ?
+            state.lines.filter(line => line.id !== id)
+        :
+            state.lines
+    }
+}
 
 
 
@@ -101,7 +83,7 @@ export function Sheet<InnerState>({ lines, update, innerBlock, env }: SheetProps
 
 
 export const SheetLine = ({ block, line, update, env }) => {
-    const subupdate = action => update(state => updateLineBlock(state, line.id, action, block, env))
+    const subupdate = action => update(state => Model.updateLineBlock(state, line.id, action, block, env))
 
     return (
         <div className="flex flex-row space-x-2">
