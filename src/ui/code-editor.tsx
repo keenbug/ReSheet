@@ -32,21 +32,6 @@ const CodeContent = classed<any>(CodeWithPlaceholder)`
 `
 
 
-export const EditableCode: React.FC<any> = ({ code, onUpdate, highlight, className, ...props }) => {
-    const [isEditing, setEditing] = React.useState(false)
-
-    const stopEditing = () => { setEditing(false) }
-    const startEditing = () => { setEditing(true) }
-
-    if (isEditing) {
-        return <CodeEditor code={code} onUpdate={onUpdate} highlight={highlight} onBlur={stopEditing} className={className} {...props} />
-    }
-    else {
-        return <CodeView code={code} onClick={startEditing} highlight={highlight} className={'cursor-text ' + className} {...props} />
-    }
-}
-
-
 export const CodeView: React.FC<any> = ({ code, container, highlight = highlightJS, ...props }) => {
     const ref = React.useRef(null)
 
@@ -91,3 +76,5 @@ export const highlightJS = code => (
         'javascript'
     )
 )
+
+export const EditableCode = CodeEditor
