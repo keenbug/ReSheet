@@ -157,7 +157,7 @@ export function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoFo
                             px-2 py-0.5 rounded
                             text-blue-50 bg-blue-700 hover:bg-blue-500
                         `}
-                        onClick={onOpenHistory}
+                        onClick={onCloseHistory}
                         >
                         <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
                         History
