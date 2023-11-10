@@ -3,7 +3,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { TextInput, Button, IconForButton } from '../../ui/utils'
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block, BlockUpdater } from '../../logic/block'
 import { ErrorBoundary } from '../../ui/value'
 
 import { DirectoryState } from './model'
@@ -12,8 +12,8 @@ import * as Model from './model'
 
 export interface DirectoryProps<State> {
     state: DirectoryState<State>
-    update: block.BlockUpdater<DirectoryState<State>>
-    innerBlock: BlockDesc<State>
+    update: BlockUpdater<DirectoryState<State>>
+    innerBlock: Block<State>
     env: block.Environment
 }
 

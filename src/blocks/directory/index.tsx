@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block } from '../../logic/block'
 
 import { DirectoryState } from './model'
 import * as Model from './model'
@@ -9,7 +9,7 @@ import * as UI from './ui'
 
 export type { DirectoryState }
 
-export function DirectoryOf<State>(innerBlock: BlockDesc<State>) {
+export function DirectoryOf<State>(innerBlock: Block<State>) {
     return block.create<DirectoryState<State>>({
         init: {
             openedEntryId: null,

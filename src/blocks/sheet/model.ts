@@ -1,5 +1,5 @@
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block } from '../../logic/block'
 
 export interface SheetBlockState<InnerBlockState> {
     readonly lines: SheetBlockLine<InnerBlockState>[]
@@ -97,7 +97,7 @@ export function insertLineAfter<Inner extends unknown>(
 
 export function recomputeSheetResults<State>(
     state: SheetBlockState<State>,
-    innerBlock: BlockDesc<State>,
+    innerBlock: Block<State>,
     env: block.Environment,
     startFromId?: number,
 ) {
@@ -137,7 +137,7 @@ export function updateLineBlock<State>(
     state: SheetBlockState<State>,
     id: number,
     action: (state: State) => State,
-    innerBlock: BlockDesc<State>,
+    innerBlock: Block<State>,
     env: block.Environment,
 ): SheetBlockState<State> {
     return recomputeSheetResults(

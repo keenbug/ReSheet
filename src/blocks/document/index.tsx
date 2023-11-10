@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import * as block from '../../logic/block'
-import { BlockDesc, Environment } from '../../logic/block'
+import { Block, Environment, BlockViewerProps } from '../../logic/block'
 import { DocumentState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
@@ -9,10 +9,10 @@ import * as UI from './ui'
 
 export type { DocumentState }
 
-export function DocumentOf<State>(innerBlock: BlockDesc<State>) {
+export function DocumentOf<State>(innerBlock: Block<State>) {
     return block.create({
         init: Model.init(innerBlock.init),
-        view({ state, update, env }: block.BlockViewerProps<DocumentState<State>>) {
+        view({ state, update, env }: BlockViewerProps<DocumentState<State>>) {
             return (
                 <UI.DocumentUi
                     state={state}

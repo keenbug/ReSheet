@@ -3,7 +3,7 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { Menu } from '@headlessui/react'
-import { BlockDesc, Environment } from '../../logic/block'
+import { Block, Environment } from '../../logic/block'
 import { LoadFileButton, saveFile } from '../../ui/utils'
 import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState } from './model'
@@ -14,7 +14,7 @@ export interface DocumentUiProps<State> {
     state: DocumentState<State>
     update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
     env: Environment
-    innerBlock: BlockDesc<State>
+    innerBlock: Block<State>
 }
 
 export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUiProps<State>) {

@@ -50,22 +50,34 @@ export const CodeView: React.FC<any> = ({ code, container, highlight = highlight
 }
 
 
-export const CodeEditor: React.FC<any> = ({ code, onUpdate, highlight = highlightJS, ...props }) => {
-    const highlightCodeJar = editor => {
-        editor.innerHTML = highlight(editor.textContent)
-    }
-    const ref = useCodeJar({
-        code,
-        onUpdate,
-        highlight: highlightCodeJar,
-        style: {},
-        options: {
-            tab: "  ",
-        },
-    })
-
-    return <pre><CodeContent ref={ref} placeholder="<code/>" {...props} /></pre>
+interface CodeEditorProps extends Omit<React.HTMLProps<HTMLElement>, 'ref'> {
+    code: string
+    onUpdate: (code: string) => void
+    highlight?: (code: string) => string
 }
+
+export const CodeEditor = React.forwardRef(
+    function CodeEditor(
+        { code, onUpdate, highlight = highlightJS, ...props }: CodeEditorProps,
+        ref
+    ) {
+        const highlightCodeJar = editor => {
+            editor.innerHTML = highlight(editor.textContent)
+        }
+        const codeRef = useCodeJar({
+            code,
+            onUpdate,
+            highlight: highlightCodeJar,
+            style: {},
+            options: {
+                tab: "  ",
+            },
+        })
+        React.useImperativeHandle(ref, () => codeRef.current)
+
+        return <pre><CodeContent ref={codeRef} placeholder="<code/>" {...props} /></pre>
+    }
+)
 
 export const highlightNothing = code => new Option(code).innerHTML
 

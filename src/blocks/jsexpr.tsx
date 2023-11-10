@@ -11,8 +11,8 @@ import { Inspector } from 'react-inspector'
 
 export const JSExpr = block.create<string>({
     init: "",
-    view({ env, state, update }) {
-        return <JSExprUi code={state} update={update} env={env} />
+    view({ env, state, update }, ref) {
+        return <JSExprUi ref={ref} code={state} update={update} env={env} />
     },
     getResult(state, env) {
         return computeScript(state, env)
@@ -31,15 +31,23 @@ export const JSExpr = block.create<string>({
 })
 
 
-export function JSExprUi({ code, update, env }) {
-    const setCode = newCode => update(() => newCode)
-    return (
-        <div className="flex flex-col space-y-1 flex-1">
-            <EditableCode code={code} onUpdate={setCode} />
-            <PreviewValue code={code} env={env} />
-        </div>
-    )
+interface JSExprUiProps {
+    code: string
+    update: block.BlockUpdater<string>
+    env: block.Environment
 }
+
+export const JSExprUi = React.forwardRef(
+    function JSExprUi({ code, update, env }: JSExprUiProps, ref) {
+        const setCode = newCode => update(() => newCode)
+        return (
+            <div className="flex flex-col space-y-1 flex-1">
+                <EditableCode ref={ref} code={code} onUpdate={setCode} />
+                <PreviewValue code={code} env={env} />
+            </div>
+        )
+    }
+)
 
 
 export function PreviewValue({ code, env }) {

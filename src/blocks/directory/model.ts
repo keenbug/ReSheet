@@ -1,5 +1,5 @@
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block } from '../../logic/block'
 
 export interface DirectoryState<InnerBlockState> {
     readonly openedEntryId: null | number
@@ -42,7 +42,7 @@ export function annotateDirectoryMap<InnerState>(
 
 export function recomputeEntryResults<InnerState>(
     state: DirectoryState<InnerState>,
-    innerBlock: BlockDesc<InnerState>,
+    innerBlock: Block<InnerState>,
     env: block.Environment,
 ) {
     const recomputedEntries = block.mapWithEnv(
@@ -101,7 +101,7 @@ export function setName<State>(
 
 export function addNewEntry<State>(
     state: DirectoryState<State>,
-    innerBlock: BlockDesc<State>,
+    innerBlock: Block<State>,
 ): DirectoryState<State> {
     const id = nextFreeId(state.entries)
     return {

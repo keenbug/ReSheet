@@ -1,5 +1,5 @@
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block, Environment } from '../../logic/block'
 import { computeExpr } from '../../logic/compute'
 import { catchAll } from '../../utils'
 
@@ -8,14 +8,14 @@ export interface BlockSelectorState {
     expr: string
     mode: Mode
     innerBlockState: null | unknown
-    innerBlock: null | BlockDesc<unknown>
+    innerBlock: null | Block<unknown>
 }
 
 export type Mode = 'run' | 'choose'
 
 export function init(
     expr: string = '',
-    innerBlockInit: BlockDesc<unknown> = null
+    innerBlockInit: Block<unknown> = null
 ): BlockSelectorState {
     return {
         expr,
@@ -43,8 +43,8 @@ export function setInnerBlockState(state: BlockSelectorState, innerBlockState: u
 
 export function chooseBlock(
     state: BlockSelectorState,
-    env: block.Environment,
-    blockLibrary: block.Environment
+    env: Environment,
+    blockLibrary: Environment
 ): BlockSelectorState {
     const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {

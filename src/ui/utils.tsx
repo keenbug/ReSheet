@@ -44,28 +44,31 @@ const space = String.fromCharCode(32)
 const fixedWidth = String.fromCharCode(160)
 const fixedWidthToSpace = str => str.replaceAll(fixedWidth, space)
 
-export const TextInput: React.FC<any> = ({ value, onUpdate, ...props }) => {
-    const ref = React.useRef(null)
-    React.useLayoutEffect(() => {
-        if (fixedWidthToSpace(ref.current.textContent) !== fixedWidthToSpace(value)) {
-            ref.current.textContent = fixedWidthToSpace(value)
+export const TextInput: React.FC<any> = React.forwardRef(
+    function TextInput({ value, onUpdate, ...props }, ref) {
+        const textInputRef = React.useRef(null)
+        React.useImperativeHandle(ref, () => textInputRef.current)
+        React.useLayoutEffect(() => {
+            if (fixedWidthToSpace(textInputRef.current.textContent) !== fixedWidthToSpace(value)) {
+                textInputRef.current.textContent = fixedWidthToSpace(value)
+            }
+        })
+        const onInput = event => {
+            const { textContent } = event.target
+            const text = fixedWidthToSpace(textContent.replaceAll('\n', ''))
+            onUpdate(text)
         }
-    })
-    const onInput = event => {
-        const { textContent } = event.target
-        const text = fixedWidthToSpace(textContent.replaceAll('\n', ''))
-        onUpdate(text)
+        return (
+            <TextInputHTML
+                contentEditable="plaintext-only"
+                ref={textInputRef}
+                onInput={onInput}
+                spellcheck={false}
+                {...props}
+            />
+        )
     }
-    return (
-        <TextInputHTML
-            contentEditable="plaintext-only"
-            ref={ref}
-            onInput={onInput}
-            spellcheck={false}
-            {...props}
-        />
-    )
-}
+)
 
 
 const ErrorViewContainer = classed<any>('div')`

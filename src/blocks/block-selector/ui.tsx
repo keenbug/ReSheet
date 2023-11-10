@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Tab } from '@headlessui/react'
 
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block, Environment } from '../../logic/block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { CodeEditor, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'
@@ -15,9 +15,9 @@ import * as Model from './model'
 export interface BlockSelectorUIProps {
     state: BlockSelectorState
     update: (action: (state: BlockSelectorState) => BlockSelectorState) => void
-    env: block.Environment
-    stateEditorBlock: BlockDesc<unknown>
-    blockLibrary: block.Environment
+    env: Environment
+    stateEditorBlock: Block<unknown>
+    blockLibrary: Environment
 }
 
 export function BlockSelectorUI(props: BlockSelectorUIProps) {
@@ -122,10 +122,10 @@ function JSONEditor({ initialValue, onSave }) {
 }
 
 interface BlockPreviewProps {
-    env: block.Environment
+    env: Environment
     state: BlockSelectorState
-    blockCmdResult: block.BlockDesc<unknown>
-    stateEditorBlock: block.BlockDesc<unknown>
+    blockCmdResult: Block<unknown>
+    stateEditorBlock: Block<unknown>
     onChooseBlock: (env: any) => void
     onLoadInnerState: (innerStateJSON: any) => void
     onCommitInnerState: (innerState: any) => void
@@ -219,9 +219,9 @@ function BlockPreview({ env, state, blockCmdResult, stateEditorBlock, onChooseBl
 }
 
 interface ExprEditorProps {
-    editorBlock: BlockDesc<unknown>
-    currentBlock: BlockDesc<unknown>
-    oldBlock: BlockDesc<unknown>
+    editorBlock: Block<unknown>
+    currentBlock: Block<unknown>
+    oldBlock: Block<unknown>
     state: unknown
     env: block.Environment
     onCommit: (newState: any) => void

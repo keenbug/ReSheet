@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import { Block } from '../../logic/block'
 import { catchAll } from '../../utils'
 
 import { BlockSelectorState } from './model'
@@ -12,8 +12,8 @@ export type { BlockSelectorState }
 
 export function BlockSelector(
     expr: string = '',
-    innerBlockInit: BlockDesc<unknown> = null,
-    stateEditorBlock: BlockDesc<unknown>,
+    innerBlockInit: Block<unknown> = null,
+    stateEditorBlock: Block<unknown>,
     blockLibrary: block.Environment,
 ) {
     return block.create<BlockSelectorState>({

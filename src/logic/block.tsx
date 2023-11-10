@@ -5,7 +5,7 @@ export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
 
 export const BlockTag = Symbol('block')
-export const isBlock = (obj): obj is BlockDesc<unknown> => obj?.[BlockTag] === BlockTag
+export const isBlock = (obj): obj is Block<unknown> => obj?.[BlockTag] === BlockTag
 
 export type BlockUpdater<State> =
     (action: (state: State) => State) => void
@@ -16,10 +16,22 @@ export interface BlockViewerProps<State> {
     update: BlockUpdater<State>
 }
 
-export type BlockViewer<State> =
-    (props: BlockViewerProps<State>) => JSX.Element
+export type BlockViewerDesc<State> =
+    (props: BlockViewerProps<State>, ref?: React.Ref<HTMLElement>) => JSX.Element
 
 export interface BlockDesc<State> {
+    init: State
+    view: BlockViewerDesc<State>
+    getResult(state: State, env: Environment): any
+    fromJSON(json: any, env: Environment): State
+    toJSON(state: State): {}
+}
+
+export type BlockViewer<State> =
+    (props: BlockViewerProps<State> & { ref?: React.Ref<HTMLElement> }) => JSX.Element
+
+export interface Block<State> {
+    [BlockTag]: typeof BlockTag
     init: State
     view: BlockViewer<State>
     getResult(state: State, env: Environment): any
@@ -27,14 +39,15 @@ export interface BlockDesc<State> {
     toJSON(state: State): {}
 }
 
-export function create<State>(description: BlockDesc<State>) {
+export function create<State>(description: BlockDesc<State>): Block<State> {
+    const forwardRefView = React.forwardRef(description.view)
     return {
         ...description,
         [BlockTag]: BlockTag,
-        view(props: BlockViewerProps<State>) {
+        view(props: BlockViewerProps<State> & { ref?: React.Ref<HTMLElement> }) {
             return (
                 <ErrorBoundary title="There was an error in this block">
-                    {React.createElement(description.view, props)}
+                    {React.createElement(forwardRefView, props)}
                 </ErrorBoundary>
             )
         },
