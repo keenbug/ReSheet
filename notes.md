@@ -69,21 +69,37 @@ Something like Notion, but local (not cloud) and more flexible (customizable thr
 
 # Used Technologies
 
-Babel - https://babeljs.io/docs/en/babel-core
-        https://babeljs.io/docs/en/babel-parser
-        https://github.com/babel/babel/blob/main/packages/babel-parser/ast/spec.md
-Fontawesome - https://fontawesome.com/v5.15/icons?d=gallery
-              https://fontawesome.com/v5.15/how-to-use/on-the-web/using-with/react
-Tailwindcss - https://tailwindcss.com/docs/utility-first
-              https://tailwindcomponents.com/cheatsheet/
-headlessui - https://headlessui.dev
-react-inspector - https://www.npmjs.com/package/react-inspector
-CodeJar
+Babel
+https://babeljs.io/docs/en/babel-core
+https://babeljs.io/docs/en/babel-parser
+https://github.com/babel/babel/blob/main/packages/babel-parser/ast/spec.md
+
+Fontawesome
+https://fontawesome.com/v5.15/icons?d=gallery
+https://fontawesome.com/v5.15/how-to-use/on-the-web/using-with/react
+
+Tailwindcss
+https://tailwindcss.com/docs/utility-first
+https://tailwindcomponents.com/cheatsheet/
+
+headlessui
+https://headlessui.dev
+
+react-inspector
+https://www.npmjs.com/package/react-inspector
+
+react-simple-code-editor
+https://github.com/react-simple-code-editor/react-simple-code-editor
+
 PrismJS
 ReactJS
 
 
 # Interesting Technologies
+
+puck - WYSIWYG React Editor
+https://measured.co/blog/building-a-react-page-builder-an-introduction-to-puck
+https://github.com/measuredco/puck
 
 skypack.dev - alternative to unpkg that bundles for a browser
 
@@ -96,14 +112,26 @@ https://deno.land/
 immer - immutability in JS with "mutable" API
 https://immerjs.github.io/immer/
 
-source-map - Source-map library in js
-https://www.npmjs.com/package/source-map
-
 Haskell Retrie - Refactor haskell code by stating simple rules
 https://hackage.haskell.org/package/retrie
 
+
+# Maybe useful libs
+
+Rich Text Editors
+https://github.com/brillout/awesome-react-components#rich-text-editor
+
+kbar - Command Palette similar to macOS's Spotlight
+https://github.com/timc1/kbar
+
+source-map - Source-map library in js
+https://www.npmjs.com/package/source-map
+
 Draft.js - Rich Text Editor Framework for React (uses contenteditable)
 https://draftjs.org/
+
+Promise Hooks
+https://github.com/aiven715/promise-hook
 
 
 # Interesting Fun Stuff
@@ -121,8 +149,3 @@ https://rough-notation.com/
 Stacktraces in JS - https://code-maven.com/stack-trace-in-javascript
 Babel stuff - https://github.com/jamiebuilds/babel-handbook/blob/master/translations/en/plugin-handbook.md#babel-traverse
 HTML multiple sticky header levels - https://stackoverflow.com/questions/55941019/how-can-i-create-different-levels-of-sticky-headers
-
-
-# Maybe useful
-
-Promise Hooks - https://github.com/aiven715/promise-hook

@@ -15,8 +15,6 @@ import * as babelGenerator from '@babel/generator'
 import babelTraverse from '@babel/traverse'
 import * as babelTypes from '@babel/types'
 
-import * as codeJar from 'react-codejar'
-
 import * as blocks from '../blocks'
 import * as codeEditor from '../ui/code-editor'
 import * as blockSelector from '../blocks/block-selector'
@@ -77,8 +75,6 @@ export const library = {
         traverse: babelTraverse,
         types: babelTypes,
     },
-
-    codeJar,
 
     block,
     blocks,

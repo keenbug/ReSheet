@@ -1,8 +1,8 @@
 import * as React from 'react'
 import styled, { css } from 'styled-components'
 
-import { useCodeJar } from 'react-codejar'
 import Prism from 'prismjs'
+import Editor from 'react-simple-code-editor'
 
 import { classed } from './utils'
 
@@ -61,21 +61,14 @@ export const CodeEditor = React.forwardRef(
         { code, onUpdate, highlight = highlightJS, ...props }: CodeEditorProps,
         ref
     ) {
-        const highlightCodeJar = editor => {
-            editor.innerHTML = highlight(editor.textContent)
-        }
-        const codeRef = useCodeJar({
-            code,
-            onUpdate,
-            highlight: highlightCodeJar,
-            style: {},
-            options: {
-                tab: "  ",
-            },
-        })
-        React.useImperativeHandle(ref, () => codeRef.current)
-
-        return <pre><CodeContent ref={codeRef} placeholder="<code/>" {...props} /></pre>
+        return (
+            <Editor
+                value={code}
+                onValueChange={onUpdate}
+                highlight={highlight}
+                autoFocus={false}
+                />
+        )
     }
 )
 
