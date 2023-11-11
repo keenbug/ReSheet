@@ -70,7 +70,13 @@ export const CodeEditor = React.forwardRef(
                 onValueChange={onUpdate}
                 highlight={highlight}
                 autoFocus={false}
+                className="focus-within:bg-gray-100"
                 textareaId={id}
+                textareaClassName="focus-visible:outline-none"
+                preClassName={`
+                    ${code.trim() === "" && "before:content-['<code/>']"}
+                    before:text-gray-300 before:text-xs
+                `}
                 style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
                 }}
