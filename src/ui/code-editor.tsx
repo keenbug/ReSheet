@@ -61,12 +61,19 @@ export const CodeEditor = React.forwardRef(
         { code, onUpdate, highlight = highlightJS, ...props }: CodeEditorProps,
         ref
     ) {
+        const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
+        React.useImperativeHandle(ref, () => document.getElementById(id), [id])
+
         return (
             <Editor
                 value={code}
                 onValueChange={onUpdate}
                 highlight={highlight}
                 autoFocus={false}
+                textareaId={id}
+                style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                }}
                 />
         )
     }
