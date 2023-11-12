@@ -63,7 +63,7 @@ export const TextInput: React.FC<any> = React.forwardRef(
                 contentEditable="plaintext-only"
                 ref={textInputRef}
                 onInput={onInput}
-                spellcheck={false}
+                spellCheck={false}
                 {...props}
             />
         )
