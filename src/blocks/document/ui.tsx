@@ -212,7 +212,7 @@ switch (state.viewState.mode) {
                 `}
                 >
                 <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={onUseState}>
-                    Use this state
+                    Restore
                 </button>
                 <div className="flex-1 flex space-x-1 px-2">
                     <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
