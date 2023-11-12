@@ -32,6 +32,10 @@ export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUi
         })
     }
 
+    function onNew() {
+        update(() => Model.init(innerBlock.init))
+    }
+
     function onSave() {
         const content = JSON.stringify(Model.toJSON(state, innerBlock))
         saveFile(
@@ -84,7 +88,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUi
     const onChangeName   = name => update(state => ({ ...state, name }))
 
     return (
-        <React.Fragment>
+        <>
             <MenuBar
                 state={state}
                 onOpenHistory={onOpenHistory}
@@ -93,17 +97,18 @@ export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUi
                 onGoForward={onGoForward}
                 onUseState={onUseState}
                 onChangeName={onChangeName}
+                onNew={onNew}
                 onSave={onSave}
                 onLoadFile={onLoadFile}
                 />
             {viewToplevelBlock()}
-        </React.Fragment>
+        </>
     )
 }
 
 
 
-export function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName, onSave, onLoadFile }) {
+export function MenuBar({ state, onOpenHistory, onCloseHistory, onGoBack, onGoForward, onUseState, onChangeName, onNew, onSave, onLoadFile }) {
 const [startGoBack, stopGoBack] = useAutoretrigger(onGoBack)
 const [startGoForward, stopGoForward] = useAutoretrigger(onGoForward)
 
@@ -112,7 +117,7 @@ switch (state.viewState.mode) {
         return (
             <div
                 className={`
-                    sticky top-0 left-0 z-10
+                    relative z-10
                     bg-white backdrop-opacity-90 backdrop-blur
                     shadow mb-2 flex space-x-2 items-baseline
                 `}
@@ -142,6 +147,19 @@ switch (state.viewState.mode) {
                             text-sm
                         `}
                         >
+                        <Menu.Item>
+                            {({ active }) => (
+                                <button
+                                    className={`
+                                        px-2 py-1 text-left
+                                        ${active && "bg-blue-100"}
+                                    `}
+                                    onClick={onNew}
+                                    >
+                                    New File
+                                </button>
+                            )}
+                        </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
                                 <button
@@ -188,7 +206,7 @@ switch (state.viewState.mode) {
         return (
             <div
                 className={`
-                    sticky top-0 left-0 z-10
+                    sticky top-0 left-0 right-0 z-10
                     bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
                     shadow mb-2 flex space-x-2 items-baseline
                 `}

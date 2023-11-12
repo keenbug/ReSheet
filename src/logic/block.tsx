@@ -7,6 +7,10 @@ export const emptyEnv: Environment = Object.create(null)
 export const BlockTag = Symbol('block')
 export const isBlock = (obj): obj is Block<unknown> => obj?.[BlockTag] === BlockTag
 
+export interface BlockRef {
+    focus(): void
+}
+
 export type BlockUpdater<State> =
     (action: (state: State) => State) => void
 
@@ -17,7 +21,7 @@ export interface BlockViewerProps<State> {
 }
 
 export type BlockViewerDesc<State> =
-    (props: BlockViewerProps<State>, ref?: React.Ref<HTMLElement>) => JSX.Element
+    (props: BlockViewerProps<State>, ref?: React.Ref<BlockRef>) => JSX.Element
 
 export interface BlockDesc<State> {
     init: State
@@ -28,7 +32,7 @@ export interface BlockDesc<State> {
 }
 
 export type BlockViewer<State> =
-    (props: BlockViewerProps<State> & { ref?: React.Ref<HTMLElement> }) => JSX.Element
+    (props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef> }) => JSX.Element
 
 export interface Block<State> {
     [BlockTag]: typeof BlockTag
@@ -44,7 +48,7 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
     return {
         ...description,
         [BlockTag]: BlockTag,
-        view(props: BlockViewerProps<State> & { ref?: React.Ref<HTMLElement> }) {
+        view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef> }) {
             return (
                 <ErrorBoundary title="There was an error in this block">
                     {React.createElement(forwardRefView, props)}

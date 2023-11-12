@@ -6,7 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { TextInput } from '../../ui/utils'
 import * as block from '../../logic/block'
-import { Block, BlockUpdater, Environment } from '../../logic/block'
+import { Block, BlockUpdater, BlockRef, Environment } from '../../logic/block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
@@ -14,43 +14,163 @@ import * as Model from './model'
 
 /**************** Code Actions **************/
 
-export const setName = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, name: string) =>
-    Model.updateLineWithId(state, id, line => ({ ...line, name }))
+type Effect = () => void
+type EffectfulAction<State> = (state: State) => [State, ...Effect[]]
+type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
 
-export function toggleCollapse<Inner>(state: SheetBlockState<Inner>, id: number) {
-    return Model.updateLineWithId(state, id, line => {
-        return { ...line, isCollapsed: !line.isCollapsed }
-    })
+function findFocused(refMap: Map<number, SheetLineRef>) {
+    if (!document.activeElement) {
+        return undefined
+    }
+    return [...refMap.entries()].find(([id, ref]) => ref.isFocused())
 }
 
-export const insertBeforeCode = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>) =>
-    Model.insertLineBefore(state, id, {
-        id: Model.nextFreeId(state),
-        name: '',
-        isCollapsed: false,
-        state: innerBlock.init,
-        result: null,
-    })
+function findRelativeTo<Id, Line extends { id: Id }>(lines: Line[], id: Id, relativeIndex: number): Line | null {
+    if (lines.length === 0) { return null }
+    const index = lines.findIndex(line => line.id === id)
+    if (index < 0) { return null }
+    const newIndex = Math.max(0, Math.min(lines.length - 1, index + relativeIndex))
+    return lines[newIndex]
+}
 
-export const insertAfterCode = <Inner extends unknown>(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>) =>
-    Model.insertLineAfter(state, id, {
-        id: Model.nextFreeId(state),
-        name: '',
-        isCollapsed: false,
-        state: innerBlock.init,
-        result: null,
-    })
 
-export function deleteCode<Inner extends unknown>(state: SheetBlockState<Inner>, id: number) {
-    return {
-        ...state,
-        lines: state.lines.length > 1 ?
-            state.lines.filter(line => line.id !== id)
-        :
-            state.lines
+type FocusTarget = 'line' | 'var' | 'inner'
+
+function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
+    switch (target) {
+        case 'line':
+            ref.focus()
+            return
+
+        case 'var':
+            ref.focusVar()
+            return
+
+        case 'inner':
+            ref.focusInner()
+            return
     }
 }
 
+type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
+
+const ACTIONS = <Inner extends unknown>(
+    update: EffectfulUpdater<SheetBlockState<Inner>>,
+    lineMapRef: { current: Map<number, SheetLineRef> }
+) => ({
+    focusUp() {
+        update(state => [
+            state,
+            () => {
+                const focused = findFocused(lineMapRef.current)
+                if (focused === undefined) {
+                    lineMapRef.current
+                        .get(state.lines[0].id)
+                        ?.focus()
+                }
+                else {
+                    const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
+                    lineMapRef.current
+                        .get(prevId)
+                        ?.focus()
+                }
+            }
+        ])
+    },
+
+    focusDown() {
+        update(state => [
+            state,
+            () => {
+                const focused = findFocused(lineMapRef.current)
+                if (focused === undefined) {
+                    lineMapRef.current
+                        .get(state.lines[state.lines.length - 1].id)
+                        ?.focus()
+                }
+                else {
+                    const prevId = findRelativeTo(state.lines, focused[0], 1)?.id
+                    lineMapRef.current
+                        .get(prevId)
+                        ?.focus()
+                }
+            }
+        ])
+    },
+
+    setName(id: number, name: string) {
+        update(state => [
+            Model.updateLineWithId(state, id, line => ({ ...line, name }))
+        ])
+    },
+
+    toggleCollapse(id: number) {
+        update(state => [
+            Model.updateLineWithId(state, id, line => {
+                return { ...line, isCollapsed: !line.isCollapsed }
+            })
+        ])
+    },
+
+    updateInner(
+        id: number,
+        action: (state: Inner) => Inner,
+        innerBlock: Block<Inner>,
+        env: Environment
+    ) {
+        update(state => [
+            Model.updateLineBlock(state, id, action, innerBlock, env)
+        ])
+    },
+
+    insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+        update(state => {
+            const newId = Model.nextFreeId(state)
+            return [
+                Model.insertLineBefore(state, id, {
+                    id: newId,
+                    name: '',
+                    isCollapsed: false,
+                    state: innerBlock.init,
+                    result: null,
+                }),
+                () => focusLineRef(lineMapRef.current.get(newId), focusTarget)
+            ]
+        })
+    },
+
+    insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+        update(state => {
+            const newId = Model.nextFreeId(state)
+            return [
+                Model.insertLineAfter(state, id, {
+                    id: newId,
+                    name: '',
+                    isCollapsed: false,
+                    state: innerBlock.init,
+                    result: null,
+                }),
+                () => focusLineRef(lineMapRef.current.get(newId), focusTarget)
+            ]
+        })
+    },
+
+    deleteCode(id: number) {
+        update(state => {
+            const nextFocus = findRelativeTo(state.lines, id, -1)?.id
+            return [
+                {
+                    ...state,
+                    lines: state.lines.length > 1 ?
+                        state.lines.filter(line => line.id !== id)
+                    :
+                        state.lines
+                },
+                () => lineMapRef.current.get(nextFocus)?.focus()
+            ]
+        })
+    },
+})
 
 
 
@@ -69,8 +189,21 @@ export const Sheet = React.forwardRef(
         { state, update, innerBlock, env }: SheetProps<InnerState>,
         ref
     ) {
-        const [changeFocusableElement, changeFocus, focusableElements] = useFocusList(state.lines)
-        React.useImperativeHandle(ref, () => focusableElements.current.get(state.lines[0].id), [state])
+        const [setLineRef, lineMapRef] = useRefMap<number, SheetLineRef>()
+        const updateWithEffect = useEffectfulUpdate(update)
+        React.useImperativeHandle(
+            ref,
+            () => ({
+                focus() {
+                    lineMapRef.current
+                        .get(state.lines[0].id)
+                        .focus()
+                }
+            }),
+            [state]
+        )
+
+        const actions = ACTIONS(updateWithEffect, lineMapRef)
 
         return (
             <div>
@@ -80,13 +213,12 @@ export const Sheet = React.forwardRef(
                         return {
                             out: (
                                 <SheetLine
-                                    ref={changeFocusableElement(line.id)}
+                                    ref={setLineRef(line.id)}
                                     key={line.id}
-                                    block={innerBlock}
                                     line={line}
-                                    update={update}
+                                    actions={actions}
+                                    block={innerBlock}
                                     env={localEnv}
-                                    onChangeFocus={changeFocus}
                                     />
                             ),
                             env: Model.lineToEnv(line),
@@ -101,31 +233,62 @@ export const Sheet = React.forwardRef(
 
 export interface SheetLineProps<InnerState> {
     line: SheetBlockLine<InnerState>
-    update: BlockUpdater<SheetBlockState<InnerState>>
+    actions: Actions<InnerState>
     block: Block<InnerState>
     env: Environment
+}
 
-    onChangeFocus: ChangeFocusHandlers
+export interface SheetLineRef {
+    isFocused(): boolean
+    focus(): void
+    focusVar(): void
+    focusInner(): void
+}
+
+function getFullKey(event: React.KeyboardEvent) {
+    return [
+        (event.ctrlKey || event.metaKey) ? "C-" : "",
+        event.shiftKey ? "Shift-" : "",
+        event.altKey ? "Alt-" : "",
+        event.key,
+    ].join('')
 }
 
 export const SheetLine = React.forwardRef(
     function SheetLine(
-        { block, line, update, env, onChangeFocus }: SheetLineProps<unknown>,
-        ref: React.Ref<HTMLDivElement>
+        { block, line, env, actions }: SheetLineProps<unknown>,
+        ref: React.Ref<SheetLineRef>
     ) {
         const containerRef = React.useRef<HTMLDivElement | null>(null)
-        React.useImperativeHandle(ref, () => containerRef.current)
-        const varInputRef = React.useRef(null)
-        const innerBlockRef = React.useRef(null)
+        const varInputRef = React.useRef<HTMLElement | null>(null)
+        const innerBlockRef = React.useRef<BlockRef | null>(null)
 
-        const subupdate = action => update(state => Model.updateLineBlock(state, line.id, action, block, env))
+        React.useImperativeHandle(
+            ref,
+            () => ({
+                isFocused() {
+                    return document.activeElement === containerRef.current
+                },
+                focus() {
+                    containerRef.current.focus()
+                },
+                focusVar() {
+                    varInputRef.current.focus()
+                },
+                focusInner() {
+                    innerBlockRef.current.focus()
+                }
+            })
+        )
+
+        const subupdate = action => actions.updateInner(line.id, action, block, env)
 
         function onContainerKeyDown(event: React.KeyboardEvent) {
-            switch (event.key) {
+            switch (getFullKey(event)) {
                 case "ArrowUp":
                 case "k":
                     if (event.currentTarget === event.target) {
-                        onChangeFocus.UP()
+                        actions.focusUp()
                         event.stopPropagation()
                         event.preventDefault()
                     }
@@ -134,7 +297,7 @@ export const SheetLine = React.forwardRef(
                 case "ArrowDown":
                 case "j":
                     if (event.currentTarget === event.target) {
-                        onChangeFocus.DOWN()
+                        actions.focusDown()
                         event.stopPropagation()
                         event.preventDefault()
                     }
@@ -156,15 +319,53 @@ export const SheetLine = React.forwardRef(
                         event.preventDefault()
                     }
                     return
+
+                case "C-Enter":
+                case "o":
+                    if (event.currentTarget !== event.target) {
+                        actions.insertAfterCode(line.id, block, 'inner')
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    else if (event.currentTarget === event.target) {
+                        actions.insertAfterCode(line.id, block)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
+
+                case "C-Shift-Enter":
+                case "Shift-O":
+                    if (event.currentTarget !== event.target && event.target !== varInputRef.current) {
+                        // The focus has to be in `innerBlock`
+                        varInputRef.current?.focus()
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    else if (event.currentTarget === event.target) {
+                        actions.insertBeforeCode(line.id, block)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
+
+                case "C-Backspace":
+                case "Backspace":
+                    if (event.currentTarget === event.target) {
+                        actions.deleteCode(line.id)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
             }
         }
 
         function onInputKeyDown(event: React.KeyboardEvent) {
-            switch (event.key) {
+            switch (getFullKey(event)) {
                 case "ArrowDown":
                 case "Enter":
                     if (line.isCollapsed) {
-                        update(state => toggleCollapse(state, line.id))
+                        actions.toggleCollapse(line.id)
                     }
                     else {
                         innerBlockRef.current?.focus()
@@ -186,13 +387,13 @@ export const SheetLine = React.forwardRef(
                 tabIndex={-1}
                 onKeyDown={onContainerKeyDown}
                 >
-                <MenuPopover line={line} update={update} block={block} />
+                <MenuPopover line={line} actions={actions} block={block} />
                 <div className="flex flex-col space-y-1 flex-1">
                     {line.isCollapsed ?
                         <AssignmentLine
                             ref={varInputRef}
                             line={line}
-                            update={update}
+                            actions={actions}
                             onKeyDown={onInputKeyDown}
                             >
                             <ValueInspector value={line.result} expandLevel={0} />
@@ -202,7 +403,7 @@ export const SheetLine = React.forwardRef(
                             <AssignmentLine
                                 ref={varInputRef}
                                 line={line}
-                                update={update}
+                                actions={actions}
                                 onKeyDown={onInputKeyDown}
                                 />
                             <ErrorBoundary title="There was an error in the subblock">
@@ -219,14 +420,14 @@ export const SheetLine = React.forwardRef(
 
 interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
     line: SheetBlockLine<State>
-    update: (action: (state: SheetBlockState<State>) => SheetBlockState<State>) => void
     children?: any
+    actions: Actions<State>
 }
 
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
-        const { line, update, children = null, ...inputProps } = props
-        const onUpdateName = name => update(state => setName(state, line.id, name))
+        const { line, children = null, actions, ...inputProps } = props
+        const onUpdateName = name => actions.setName(line.id, name)
         return (
             <div
                 className={`
@@ -265,11 +466,11 @@ export const AssignmentLine = React.forwardRef(
 
 /****************** Menu Popover ******************/
 
-function MenuPopover({ line, update, block }) {
-    const onToggleCollapse = () => update(state => toggleCollapse(state, line.id))
-    const onInsertBefore   = () => update(state => insertBeforeCode(state, line.id, block))
-    const onInsertAfter    = () => update(state => insertAfterCode(state, line.id, block))
-    const onDelete         = () => update(state => deleteCode(state, line.id))
+function MenuPopover({ line, actions, block }) {
+    const onToggleCollapse = () => actions.toggleCollapse(line.id)
+    const onInsertBefore   = () => actions.insertBeforeCode(line.id, block)
+    const onInsertAfter    = () => actions.insertAfterCode(line.id, block)
+    const onDelete         = () => actions.deleteCode(line.id)
 
     function Button({ icon, label, ...props }) {
         return (
@@ -324,66 +525,54 @@ function MenuPopover({ line, update, block }) {
 
 
 
-/****************** Focus Utility Hook ******************/
+/****************** Utility Hooks ******************/
 
-interface ChangeFocusHandlers {
-    UP(): void
-    DOWN(): void
+function useEffectQueue() {
+    const effectQueue = React.useRef([])
+
+    React.useEffect(() => {
+        if (effectQueue.current.length > 0) {
+            effectQueue.current.forEach(effect => {
+                effect()
+            })
+            effectQueue.current.splice(0, effectQueue.current.length)
+        }
+    })
+
+    function queue(...effects) {
+        effectQueue.current.push(...effects)
+    }
+
+    return queue
 }
 
-type FocusElementRef<Id> = (id: Id) => (element: HTMLElement) => void
+function useEffectfulUpdate<State>(
+    update: (action: (state: State) => State) => void
+): EffectfulUpdater<State> {
+    const queueEffects = useEffectQueue()
 
-function useFocusList<Id>(lines: { id: Id }[]): [FocusElementRef<Id>, ChangeFocusHandlers, { current: Map<Id, HTMLElement> }] {
-    const focusableElements = React.useRef(new Map<Id, HTMLElement>())
+    return (effectfulAction: EffectfulAction<State>) => {
+        update(state => {
+            const [newState, ...effects] = effectfulAction(state)
+            queueEffects(...effects)
+            return newState
+        })
+    }
+}
 
-    const changeFocusableElement = (id: Id) => (element: HTMLElement) => {
-        if (element === null) {
-            focusableElements.current.delete(id)
+function useRefMap<Key, Ref>(
+): [
+    (key: Key) => (ref: Ref) => void,
+    { current: Map<Key, Ref> }
+] {
+    const refMap = React.useRef(new Map<Key, Ref>())
+    const setRef = (key: Key) => (ref: Ref | null) => {
+        if (ref === null) {
+            refMap.current.delete(key)
         }
-        focusableElements.current.set(id, element)
-    }
-
-    function getFocused() {
-        if (!document.activeElement) {
-            return null
+        else {
+            refMap.current.set(key, ref)
         }
-        const focusedLine = lines.find(line =>
-            focusableElements.current.get(line.id) === document.activeElement
-        )
-        return !!focusedLine ? focusedLine.id : null
     }
-
-    const changeFocus: ChangeFocusHandlers = {
-        DOWN() {
-            if (lines.length === 0) { return }
-            const focusedId = getFocused()
-            if (focusedId === null) {
-                const lastId = lines[lines.length - 1].id
-                focusableElements.current.get(lastId)?.focus()
-                return
-            }
-
-            const focusedIndex = lines.findIndex(line => line.id === focusedId)
-            const nextIndex = Math.min(lines.length - 1, focusedIndex + 1)
-            const nextId = lines[nextIndex].id
-            focusableElements.current.get(nextId)?.focus()
-        },
-
-        UP() {
-            if (lines.length === 0) { return }
-            const focusedId = getFocused()
-            if (focusedId === null) {
-                const firstId = lines[0].id
-                focusableElements.current.get(firstId)?.focus()
-                return
-            }
-
-            const focusedIndex = lines.findIndex(line => line.id === focusedId)
-            const prevIndex = Math.max(0, focusedIndex - 1)
-            const prevId = lines[prevIndex].id
-            focusableElements.current.get(prevId)?.focus()
-        },
-    }
-
-    return [changeFocusableElement, changeFocus, focusableElements]
+    return [setRef, refMap]
 }
