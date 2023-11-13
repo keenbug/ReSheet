@@ -5,6 +5,7 @@ import * as babel from '@babel/types'
 import { ValueInspector } from '../ui/value'
 import { EditableCode, highlightJS } from '../ui/code-editor'
 import { computeExpr, computeScript, parseJSExpr } from '../logic/compute'
+import { BlockRef } from '../logic/block'
 import * as block from '../logic/block'
 import { Inspector } from 'react-inspector'
 
@@ -38,21 +39,47 @@ interface JSExprUiProps {
 }
 
 export const JSExprUi = React.forwardRef(
-    function JSExprUi({ code, update, env }: JSExprUiProps, ref) {
+    function JSExprUi(
+        { code, update, env }: JSExprUiProps,
+        ref: React.Ref<BlockRef>
+    ) {
+        const editorRef = React.useRef<HTMLTextAreaElement>()
+        React.useImperativeHandle(
+            ref,
+            () => ({
+                focus() {
+                    editorRef.current?.focus()
+                }
+            })
+        )
+        const [isFocused, setFocused] = React.useState(false)
+
         const setCode = newCode => update(() => newCode)
+
         return (
             <div className="flex flex-col space-y-1 flex-1">
-                <EditableCode ref={ref} code={code} onUpdate={setCode} />
-                <PreviewValue code={code} env={env} />
+                <EditableCode
+                    ref={editorRef}
+                    code={code}
+                    onUpdate={setCode}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    />
+                <PreviewValue
+                    code={code}
+                    env={env}
+                    isFocused={isFocused}
+                    />
             </div>
         )
     }
 )
 
 
-export function PreviewValue({ code, env }) {
+export function PreviewValue({ code, env, isFocused }) {
+    const defaultExpandLevel = isFocused ? 1 : 0
     if (code.trim() === '') {
-        return <ValueInspector value={env} expandLevel={1} />
+        return <ValueInspector value={env} expandLevel={defaultExpandLevel} />
     }
 
     try {
@@ -74,7 +101,7 @@ export function PreviewValue({ code, env }) {
             return (
                 <>
                     <ValueInspector value={obj[parsed.property.name]} />
-                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
+                    <Inspector table={false} data={obj} expandLevel={defaultExpandLevel} showNonenumerable={true} />
                 </>
             )
         }
@@ -83,7 +110,7 @@ export function PreviewValue({ code, env }) {
             return (
                 <>
                     <ValueInspector value={computeExpr(parsed.name, env)} />
-                    <ValueInspector value={env} expandLevel={1} />
+                    <ValueInspector value={env} expandLevel={defaultExpandLevel} />
                 </>
             )
         }
