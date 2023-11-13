@@ -10,10 +10,10 @@ powerful as possible. I'm currently very pleased with the state in this regard.
 In `src/index.tsx` you can see the hard-coded root "Block", which can be thought
 of as a cell in Excel or a line/page/database in notion.
 
-This is still a prototype. The code is neither documented nor has any tests.
+This is still a prototype. The code is neither documented nor has it any tests.
 This made it easier for me to experiment with different ideas and discard them.
 Despite efforts to make it stable, it can crash because of errors in the code a
-user writes in it. Also, tables still has enough bugs. ;)
+user writes in it. Also, I'm sure tables itself still has enough bugs. ;)
 
 
 ## "Tutorial"
@@ -24,10 +24,10 @@ in a menu line. You can find example documents to load in `examples/`. It uses
 another Block, which is shown below the menu line.
 
 That is the Selector Block, which gives you the possibility to choose a Block
-yourself. You can choose from the blocks exported in `blocks/blocks.tsx`. The
-input expects a JavaScript expression where the blocks are in scope. You can
-also define and use custom Blocks, but you have to do this in a Block where you
-can define variables (like the `SheetOf` Block).
+yourself. You can choose from the blocks exported in `blocks/index.tsx`. The
+input expects a JavaScript expression where the blocks from `blocks/index.tsx`
+are in scope. You can also define and use custom Blocks, but you have to do this
+in a Block where you can define variables (like the `SheetOf` Block).
 
 After typing a valid Block, for example `JSExpr` or `SheetOf(JSExpr)`, you can
 see two areas below: a preview of the Block and the state of the block. Clicking
