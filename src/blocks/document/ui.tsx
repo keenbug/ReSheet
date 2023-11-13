@@ -104,19 +104,20 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         })
     )
 
-    React.useEffect(() => {
-        innerRef.current?.focus()
-    }, [])
-
     const actions = ACTIONS(update, innerBlock, env)
 
     function onKeyDown(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             // not sure about capturing this...
             case "C-n":
-                actions.reset()
-                event.stopPropagation()
-                event.preventDefault()
+                if (
+                    !(document.activeElement instanceof HTMLTextAreaElement)
+                    && !(document.activeElement instanceof HTMLInputElement)
+                ) {
+                    actions.reset()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
                 return
 
             case "C-o":
@@ -174,9 +175,11 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 return
 
             case "Enter":
-                innerRef.current?.focus()
-                event.stopPropagation()
-                event.preventDefault()
+                if (containerRef.current === document.activeElement) {
+                    innerRef.current?.focus()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
                 return
         }
     }
