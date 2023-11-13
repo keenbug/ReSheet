@@ -2,6 +2,8 @@
 
 *working title*
 
+[Live demo](https://keenbug.github.io/tables/)
+
 The initial idea was to create some sort of Excel and Notion hybrid. Currently
 it is more of a Jupyter Notebook for JavaScript and React.
 
