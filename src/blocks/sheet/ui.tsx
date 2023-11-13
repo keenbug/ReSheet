@@ -358,6 +358,14 @@ export const SheetLine = React.forwardRef(
                         event.preventDefault()
                     }
                     return
+
+                case "C-m":
+                    if (event.currentTarget === event.target) {
+                        actions.toggleCollapse(line.id)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
             }
         }
 

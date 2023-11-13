@@ -3,7 +3,7 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { Menu } from '@headlessui/react'
-import { Block, Environment } from '../../block'
+import { Block, BlockRef, Environment } from '../../block'
 import { LoadFileButton, saveFile } from '../../ui/utils'
 import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState } from './model'
@@ -15,9 +15,10 @@ export interface DocumentUiProps<State> {
     update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
     env: Environment
     innerBlock: Block<State>
+    blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
 }
 
-export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUiProps<State>) {
+export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: DocumentUiProps<State>) {
     function updateInner(action: (state: State) => State) {
         update((state: DocumentState<State>): DocumentState<State> => {
             const blockState = action(state.blockState)
@@ -62,6 +63,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock }: DocumentUi
         switch (state.viewState.mode) {
             case 'current':
                 return innerBlock.view({
+                    ref: blockRef,
                     state: state.blockState,
                     update: updateInner,
                     env: localEnv,

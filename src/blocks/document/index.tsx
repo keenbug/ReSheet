@@ -12,13 +12,14 @@ export type { DocumentState }
 export function DocumentOf<State>(innerBlock: Block<State>) {
     return block.create({
         init: Model.init(innerBlock.init),
-        view({ state, update, env }: BlockViewerProps<DocumentState<State>>) {
+        view({ state, update, env }: BlockViewerProps<DocumentState<State>>, ref) {
             return (
                 <UI.DocumentUi
                     state={state}
                     update={update}
                     env={env}
                     innerBlock={innerBlock}
+                    blockRef={ref}
                     />
             )
         },
