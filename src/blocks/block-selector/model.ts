@@ -1,5 +1,5 @@
-import * as block from '../../logic/block'
-import { Block, Environment } from '../../logic/block'
+import * as block from '../../block'
+import { Block, Environment } from '../../block'
 import { computeExpr } from '../../logic/compute'
 import { catchAll } from '../../utils'
 

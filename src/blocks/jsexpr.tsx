@@ -5,8 +5,8 @@ import * as babel from '@babel/types'
 import { ValueInspector } from '../ui/value'
 import { EditableCode, highlightJS } from '../ui/code-editor'
 import { computeExpr, computeScript, parseJSExpr } from '../logic/compute'
-import { BlockRef } from '../logic/block'
-import * as block from '../logic/block'
+import { BlockRef } from '../block'
+import * as block from '../block'
 import { Inspector } from 'react-inspector'
 
 

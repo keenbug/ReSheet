@@ -1,7 +1,6 @@
 import * as React from 'react'
 
-import * as block from '../../logic/block'
-import { BlockDesc } from '../../logic/block'
+import * as block from '../../block'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
 import * as UI from './ui'

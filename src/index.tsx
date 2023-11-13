@@ -3,11 +3,12 @@ import ReactDOM from 'react-dom/client'
 
 import 'prismjs/themes/prism.css'
 
-import { ErrorBoundary, ErrorInspector } from './ui/value'
 import { library } from './utils/std-library'
-import { ErrorView } from './ui/utils'
 import { DocumentOf, DocumentState } from './blocks/document'
 import { BlockSelector, BlockSelectorState } from './blocks/block-selector'
+import { Block } from './block/component'
+import { getFullKey } from './ui/utils'
+import { BlockRef } from './block'
 
 
 const blocks = library.blocks
@@ -15,18 +16,15 @@ const blocks = library.blocks
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks.StateEditor(blocks), blocks))
 
-
-/****************** Main Application ******************/
-
 const App = () => {
-    const [state, setState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
-    const [updateError, setUpdateError] = React.useState<null | Error>(null)
+    const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
+    const toplevelBlockRef = React.useRef<BlockRef>()
 
     const safeUpdate = action => {
         setState(state => {
             try {
                 return action(state)
-            }
+        }
             catch (error) {
                 setUpdateError(error)
                 return state
@@ -43,36 +41,15 @@ const App = () => {
     }
 
     return (
-        <React.Fragment>
-            <ViewInternalError
-                title="Last action could not be completed"
-                error={updateError}
-                onDismiss={() => setUpdateError(null)}
+        <Block
+            state={toplevelState}
+            update={setToplevelState}
+            block={ToplevelBlock}
+            env={library}
+            blockRef={toplevelBlockRef}
             />
-            <ErrorBoundary title="There was an Error in the Toplevel Block">
-                {viewToplevelBlock()}
-            </ErrorBoundary>
-        </React.Fragment>
     )
 }
-
-
-
-const ViewInternalError = ({ title, error, onDismiss }) => {
-    if (error === null) { return null }
-
-    return (
-        <ErrorView title={"Internal Error: " + title} error={error} className="sticky top-1 my-1 z-20 shadow-lg">
-            <button onClick={onDismiss}>Dismiss</button>
-            <ErrorInspector error={error} />
-        </ErrorView>
-    )
-}
-
-
-
-
-/*** Script ***/
 
 const root = ReactDOM.createRoot(document.getElementById('app'))
 root.render(<App />)

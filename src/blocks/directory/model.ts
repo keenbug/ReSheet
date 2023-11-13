@@ -1,5 +1,5 @@
-import * as block from '../../logic/block'
-import { Block } from '../../logic/block'
+import * as block from '../../block'
+import { Block } from '../../block'
 
 export interface DirectoryState<InnerBlockState> {
     readonly openedEntryId: null | number

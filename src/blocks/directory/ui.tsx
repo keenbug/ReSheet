@@ -2,8 +2,8 @@ import * as React from 'react'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { TextInput, Button, IconForButton } from '../../ui/utils'
-import * as block from '../../logic/block'
-import { Block, BlockUpdater } from '../../logic/block'
+import * as block from '../../block'
+import { Block, BlockUpdater } from '../../block'
 import { ErrorBoundary } from '../../ui/value'
 
 import { DirectoryState } from './model'

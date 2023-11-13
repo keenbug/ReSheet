@@ -1,4 +1,4 @@
-import { BlockDesc, Environment } from '../../logic/block'
+import { BlockDesc, Environment } from '../../block'
 import { catchAll } from '../../utils'
 
 export type ViewState =

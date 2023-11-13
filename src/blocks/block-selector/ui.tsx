@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { Tab } from '@headlessui/react'
 
-import * as block from '../../logic/block'
-import { Block, BlockRef, Environment } from '../../logic/block'
+import * as block from '../../block'
+import { Block, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { CodeEditor, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'

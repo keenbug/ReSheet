@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { classed, LoadFileButton } from '../ui/utils'
-import * as Block from '../logic/block'
+import * as Block from '../block'
 import { SheetOf } from './sheet'
 import { BlockSelector } from './block-selector'
 import { JSExpr } from './jsexpr'

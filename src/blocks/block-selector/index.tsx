@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import * as block from '../../logic/block'
-import { Block } from '../../logic/block'
+import * as block from '../../block'
+import { Block, Environment } from '../../block'
 import { catchAll } from '../../utils'
 
 import { BlockSelectorState } from './model'
@@ -14,7 +14,7 @@ export function BlockSelector(
     expr: string = '',
     innerBlockInit: Block<unknown> = null,
     stateEditorBlock: Block<unknown>,
-    blockLibrary: block.Environment,
+    blockLibrary: Environment,
 ) {
     return block.create<BlockSelectorState>({
         init: Model.init(expr, innerBlockInit),
