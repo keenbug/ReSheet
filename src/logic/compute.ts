@@ -102,6 +102,14 @@ export function computeScript(code: string | null, env: Environment) {
             ...Object.keys(env),
             transformedCode,
         )
+
+        if (isAsync) {
+            const promise = exprFunc(...Object.values(env))
+            // so I don't trigger the error overlay in dev mode
+            //  theoretically I do catch the error, but too late
+            promise.catch(e => e)
+            return promise
+        }
         return exprFunc(...Object.values(env))
     }
     catch (e) {
