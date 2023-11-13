@@ -4,19 +4,17 @@ import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput } from '../../ui/utils'
+import { TextInput, getFullKey } from '../../ui/utils'
 import * as block from '../../logic/block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../logic/block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
+import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
 
 
 /**************** Code Actions **************/
 
-type Effect = () => void
-type EffectfulAction<State> = (state: State) => [State, ...Effect[]]
-type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
 
 function findFocused(refMap: Map<number, SheetLineRef>) {
     if (!document.activeElement) {
@@ -56,21 +54,22 @@ type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 const ACTIONS = <Inner extends unknown>(
     update: EffectfulUpdater<SheetBlockState<Inner>>,
-    lineMapRef: { current: Map<number, SheetLineRef> }
+    refMap: Map<number, SheetLineRef>,
+    innerBlock: Block<Inner>
 ) => ({
     focusUp() {
         update(state => [
             state,
             () => {
-                const focused = findFocused(lineMapRef.current)
+                const focused = findFocused(refMap)
                 if (focused === undefined) {
-                    lineMapRef.current
+                    refMap
                         .get(state.lines[0].id)
                         ?.focus()
                 }
                 else {
                     const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
-                    lineMapRef.current
+                    refMap
                         .get(prevId)
                         ?.focus()
                 }
@@ -82,15 +81,15 @@ const ACTIONS = <Inner extends unknown>(
         update(state => [
             state,
             () => {
-                const focused = findFocused(lineMapRef.current)
+                const focused = findFocused(refMap)
                 if (focused === undefined) {
-                    lineMapRef.current
+                    refMap
                         .get(state.lines[state.lines.length - 1].id)
                         ?.focus()
                 }
                 else {
                     const prevId = findRelativeTo(state.lines, focused[0], 1)?.id
-                    lineMapRef.current
+                    refMap
                         .get(prevId)
                         ?.focus()
                 }
@@ -134,7 +133,7 @@ const ACTIONS = <Inner extends unknown>(
                     state: innerBlock.init,
                     result: null,
                 }),
-                () => focusLineRef(lineMapRef.current.get(newId), focusTarget)
+                () => focusLineRef(refMap.get(newId), focusTarget)
             ]
         })
     },
@@ -150,23 +149,25 @@ const ACTIONS = <Inner extends unknown>(
                     state: innerBlock.init,
                     result: null,
                 }),
-                () => focusLineRef(lineMapRef.current.get(newId), focusTarget)
+                () => focusLineRef(refMap.get(newId), focusTarget)
             ]
         })
     },
 
     deleteCode(id: number) {
         update(state => {
-            const nextFocus = findRelativeTo(state.lines, id, -1)?.id
+            if (state.lines.length <= 1) {
+                return [Model.init(innerBlock.init)]
+            }
+
+            const idIndex = state.lines.findIndex(line => line.id === id)
+            const linesWithoutId = state.lines.filter(line => line.id !== id)
+            const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1))
+            const nextFocusId = linesWithoutId[nextFocusIndex].id
+
             return [
-                {
-                    ...state,
-                    lines: state.lines.length > 1 ?
-                        state.lines.filter(line => line.id !== id)
-                    :
-                        state.lines
-                },
-                () => lineMapRef.current.get(nextFocus)?.focus()
+                { ...state, lines: linesWithoutId },
+                () => refMap.get(nextFocusId)?.focus()
             ]
         })
     },
@@ -189,13 +190,13 @@ export const Sheet = React.forwardRef(
         { state, update, innerBlock, env }: SheetProps<InnerState>,
         ref
     ) {
-        const [setLineRef, lineMapRef] = useRefMap<number, SheetLineRef>()
+        const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const updateWithEffect = useEffectfulUpdate(update)
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
-                    lineMapRef.current
+                    refMap
                         .get(state.lines[0].id)
                         .focus()
                 }
@@ -203,7 +204,7 @@ export const Sheet = React.forwardRef(
             [state]
         )
 
-        const actions = ACTIONS(updateWithEffect, lineMapRef)
+        const actions = ACTIONS(updateWithEffect, refMap, innerBlock)
 
         return (
             <div>
@@ -243,15 +244,6 @@ export interface SheetLineRef {
     focus(): void
     focusVar(): void
     focusInner(): void
-}
-
-function getFullKey(event: React.KeyboardEvent) {
-    return [
-        (event.ctrlKey || event.metaKey) ? "C-" : "",
-        event.shiftKey ? "Shift-" : "",
-        event.altKey ? "Alt-" : "",
-        event.key,
-    ].join('')
 }
 
 export const SheetLine = React.forwardRef(
@@ -321,13 +313,15 @@ export const SheetLine = React.forwardRef(
                     return
 
                 case "C-Enter":
-                case "o":
                     if (event.currentTarget !== event.target) {
                         actions.insertAfterCode(line.id, block, 'inner')
                         event.stopPropagation()
                         event.preventDefault()
+                        return
                     }
-                    else if (event.currentTarget === event.target) {
+                    // fall-through
+                case "o":
+                    if (event.currentTarget === event.target) {
                         actions.insertAfterCode(line.id, block)
                         event.stopPropagation()
                         event.preventDefault()
@@ -335,14 +329,21 @@ export const SheetLine = React.forwardRef(
                     return
 
                 case "C-Shift-Enter":
-                case "Shift-O":
-                    if (event.currentTarget !== event.target && event.target !== varInputRef.current) {
-                        // The focus has to be in `innerBlock`
-                        varInputRef.current?.focus()
+                    if (event.currentTarget !== event.target) {
+                        if (event.target === varInputRef.current) {
+                            actions.insertBeforeCode(line.id, block)
+                        }
+                        else {
+                            // The focus has to be in `innerBlock`
+                            varInputRef.current?.focus()
+                        }
                         event.stopPropagation()
                         event.preventDefault()
+                        return
                     }
-                    else if (event.currentTarget === event.target) {
+                    // fall-through
+                case "Shift-O":
+                    if (event.currentTarget === event.target) {
                         actions.insertBeforeCode(line.id, block)
                         event.stopPropagation()
                         event.preventDefault()
@@ -520,59 +521,4 @@ function MenuPopover({ line, actions, block }) {
             </Menu>
         </div>
     )
-}
-
-
-
-
-/****************** Utility Hooks ******************/
-
-function useEffectQueue() {
-    const effectQueue = React.useRef([])
-
-    React.useEffect(() => {
-        if (effectQueue.current.length > 0) {
-            effectQueue.current.forEach(effect => {
-                effect()
-            })
-            effectQueue.current.splice(0, effectQueue.current.length)
-        }
-    })
-
-    function queue(...effects) {
-        effectQueue.current.push(...effects)
-    }
-
-    return queue
-}
-
-function useEffectfulUpdate<State>(
-    update: (action: (state: State) => State) => void
-): EffectfulUpdater<State> {
-    const queueEffects = useEffectQueue()
-
-    return (effectfulAction: EffectfulAction<State>) => {
-        update(state => {
-            const [newState, ...effects] = effectfulAction(state)
-            queueEffects(...effects)
-            return newState
-        })
-    }
-}
-
-function useRefMap<Key, Ref>(
-): [
-    (key: Key) => (ref: Ref) => void,
-    { current: Map<Key, Ref> }
-] {
-    const refMap = React.useRef(new Map<Key, Ref>())
-    const setRef = (key: Key) => (ref: Ref | null) => {
-        if (ref === null) {
-            refMap.current.delete(key)
-        }
-        else {
-            refMap.current.set(key, ref)
-        }
-    }
-    return [setRef, refMap]
 }
