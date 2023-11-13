@@ -24,7 +24,7 @@ jobs:
       - run: yarn build
       - run: |
           git add dist
-          git commit -m 'Build for Pages'
+          git commit -m 'Build for Pages' || echo "Build seems not to have changed"
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
