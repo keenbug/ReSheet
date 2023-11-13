@@ -50,7 +50,11 @@ export const CodeView: React.FC<any> = ({ code, container, highlight = highlight
 }
 
 
-interface CodeEditorProps extends Omit<React.HTMLProps<HTMLElement>, 'ref'> {
+type EditorProps = React.ComponentProps<typeof Editor>
+type EditorDefaultProps = keyof typeof Editor.defaultProps
+type CodeEditorControlledProps = 'value' | 'onValueChange' | 'highlight'
+
+type CodeEditorProps = Omit<EditorProps, CodeEditorControlledProps | EditorDefaultProps> & {
     code: string
     onUpdate: (code: string) => void
     highlight?: (code: string) => string
@@ -59,10 +63,10 @@ interface CodeEditorProps extends Omit<React.HTMLProps<HTMLElement>, 'ref'> {
 export const CodeEditor = React.forwardRef(
     function CodeEditor(
         { code, onUpdate, highlight = highlightJS, ...props }: CodeEditorProps,
-        ref
+        ref: React.Ref<HTMLTextAreaElement>
     ) {
         const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
-        React.useImperativeHandle(ref, () => document.getElementById(id), [id])
+        React.useImperativeHandle(ref, () => document.getElementById(id) as HTMLTextAreaElement, [id])
 
         return (
             <Editor
@@ -80,6 +84,7 @@ export const CodeEditor = React.forwardRef(
                 style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
                 }}
+                {...props}
                 />
         )
     }

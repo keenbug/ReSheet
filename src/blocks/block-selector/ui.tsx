@@ -2,15 +2,87 @@ import * as React from 'react'
 import { Tab } from '@headlessui/react'
 
 import * as block from '../../logic/block'
-import { Block, Environment } from '../../logic/block'
+import { Block, BlockRef, Environment } from '../../logic/block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { CodeEditor, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'
+import { EffectfulUpdater, useEffectQueue, useEffectfulUpdate } from '../../ui/hooks'
+import { getFullKey } from '../../ui/utils'
 import { catchAll } from '../../utils'
 
 import { BlockSelectorState } from './model'
 import * as Model from './model'
 
+
+function ACTIONS(
+    update: EffectfulUpdater<BlockSelectorState>,
+    inputRef: React.MutableRefObject<HTMLTextAreaElement>,
+    innerBlockRef: React.MutableRefObject<BlockRef>,
+    blockCmdResult: any,
+    blockLibrary: Environment
+) {
+    return {
+        updateExpr(expr: string) {
+            update(state => {
+                return [Model.setExpr(state, expr)]
+            })
+        },
+
+        setChooseMode() {
+            update(state => {
+                return [
+                    Model.updateMode(state, 'choose'),
+                    () => inputRef.current?.focus()
+                ]
+            })
+        },
+
+        chooseBlock(env: Environment) {
+            update((state: BlockSelectorState) => {
+                return [
+                    Model.chooseBlock(state, env, blockLibrary),
+                    () => innerBlockRef.current?.focus()
+                ]
+            })
+        },
+
+        resetState() {
+            update((state: BlockSelectorState) => {
+                return [Model.setInnerBlockState(state, blockCmdResult.init)]
+            })
+        },
+
+        subupdate(action: (state: unknown) => unknown) {
+            update((state: BlockSelectorState) => {
+                return [Model.updateBlock(state, action)]
+            })
+        },
+
+        loadInnerState(innerStateJSON: any, env: Environment) {
+            update(state => {
+                try {
+                    return [Model.setInnerBlockState(state, blockCmdResult.fromJSON(innerStateJSON, env))]
+                }
+                catch (e) {
+                    return [state]
+                }
+            })
+        },
+
+        commitInnerState(innerState: unknown, env: Environment) {
+            update(state => {
+                try {
+                    return [Model.setInnerBlockState(state, innerState)]
+                }
+                catch (e) {
+                    return [state]
+                }
+            })
+        },
+
+
+    }
+}
 
 export interface BlockSelectorUIProps {
     state: BlockSelectorState
@@ -20,95 +92,114 @@ export interface BlockSelectorUIProps {
     blockLibrary: Environment
 }
 
-export function BlockSelectorUI(props: BlockSelectorUIProps) {
-    const { state, update, env } = props
-    const { stateEditorBlock, blockLibrary } = props
-    const onUpdateExpr  = expr   => update(state => Model.setExpr(state, expr))
-    const onSetMode     = mode   => update(state => Model.updateMode(state, mode))
-    const onChooseBlock = env    => update(state => Model.chooseBlock(state, env, blockLibrary))
-    const onResetState  = ()     => update(state => Model.setInnerBlockState(state, blockCmdResult.init))
-    const subupdate     = action => update(state => Model.updateBlock(state, action))
+export const BlockSelectorUI = React.forwardRef(
+    function BlockSelectorUI(
+        props: BlockSelectorUIProps,
+        ref: React.Ref<BlockRef>
+    ) {
+        const { state, update, env } = props
+        const { stateEditorBlock, blockLibrary } = props
 
-    function onLoadInnerState(innerStateJSON) {
-        update(state => {
-            try {
-                return Model.setInnerBlockState(state, blockCmdResult.fromJSON(innerStateJSON, env))
-            }
-            catch (e) {
-                return state
-            }
-        })
-    }
+        const updateWithEffect = useEffectfulUpdate(update)
+        const inputRef = React.useRef<HTMLTextAreaElement>()
+        const innerBlockRef = React.useRef<BlockRef>()
 
-    function onCommitInnerState(innerState) {
-        update(state => {
-            try {
-                return Model.setInnerBlockState(state, innerState)
-            }
-            catch (e) {
-                return state
-            }
-        })
-    }
+        const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
+        const actions = ACTIONS(updateWithEffect, inputRef, innerBlockRef, blockCmdResult, blockLibrary)
 
+        React.useImperativeHandle(
+            ref,
+            () => {
+                switch (state.mode) {
+                    case 'choose':
+                        return {
+                            focus() {
+                                inputRef.current?.focus()
+                            }
+                        }
+                    case 'run':
+                        return {
+                            focus() {
+                                innerBlockRef.current?.focus()
+                            }
+                        }
+                }
+            },
+            [state.mode]
+        )
 
-    function onChooseKeyPress(env) {
-        return event => {
-            if (event.key === 'Enter' && event.metaKey) {
-                event.preventDefault()
-                event.stopPropagation()
-                onChooseBlock(env)
-            }
-        }
-    }     
-
-    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
-
-    switch (state.mode) {
-        case 'run':
-            return (
-                <div className="flex flex-col space-y-1 flex-1">
-                    <div>
-                        <button
-                            className={`
-                                text-xs text-gray-400 rounded-full
-                                hover:text-gray-700 hover:bg-gray-200 hover:px-1
-                                transition-all duration-100
-                            `}
-                            onClick={() => onSetMode('choose')}
-                            >
-                            {state.expr}
-                        </button>
-                    </div>
-                    <ErrorBoundary title={"There was an error in: " + state.expr}>
-                        {state.innerBlock.view({ state: state.innerBlockState, update: subupdate, env }) }
-                    </ErrorBoundary>
-                </div>
-            )
-
-        case 'choose':
-        default:
-            return (
-                <div className="flex flex-col space-y-1 flex-1">
-                    <EditableCode code={state.expr} onUpdate={onUpdateExpr} onKeyPress={onChooseKeyPress(env)} />
-                    {block.isBlock(blockCmdResult) ?
-                        <BlockPreview
-                            env={env}
-                            state={state}
-                            blockCmdResult={blockCmdResult}
-                            stateEditorBlock={stateEditorBlock}
-                            onLoadInnerState={onLoadInnerState}
-                            onChooseBlock={onChooseBlock}
-                            onCommitInnerState={onCommitInnerState}
-                            onResetState={onResetState}
-                            />
-                    :
-                        <ValueInspector value={blockCmdResult} />
+        function onKeyDown(event: React.KeyboardEvent) {
+            switch (getFullKey(event)) {
+                case "C-Enter":
+                    if (state.mode === 'choose') {
+                        actions.chooseBlock(env)
+                        event.stopPropagation()
+                        event.preventDefault()
                     }
-                </div>
-            )
+                    return
+
+                case "Shift-Escape":
+                    if (state.mode === 'run') {
+                        actions.setChooseMode()
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
+
+                case "C-r":
+                    actions.resetState()
+                    event.stopPropagation()
+                    event.preventDefault()
+                    return
+            }
+        }     
+
+        switch (state.mode) {
+            case 'run':
+                return (
+                    <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>
+                        <div>
+                            <button
+                                className={`
+                                    text-xs text-gray-400 rounded-full
+                                    hover:text-gray-700 hover:bg-gray-200 hover:px-1
+                                    transition-all duration-100
+                                `}
+                                onClick={() => actions.setChooseMode()}
+                                >
+                                {state.expr}
+                            </button>
+                        </div>
+                        <ErrorBoundary title={"There was an error in: " + state.expr}>
+                            {state.innerBlock.view({ ref: innerBlockRef, state: state.innerBlockState, update: actions.subupdate, env }) }
+                        </ErrorBoundary>
+                    </div>
+                )
+
+            case 'choose':
+            default:
+                return (
+                    <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>
+                        <EditableCode ref={inputRef} code={state.expr} onUpdate={actions.updateExpr} />
+                        {block.isBlock(blockCmdResult) ?
+                            <BlockPreview
+                                env={env}
+                                state={state}
+                                blockCmdResult={blockCmdResult}
+                                stateEditorBlock={stateEditorBlock}
+                                onLoadInnerState={innerState => actions.loadInnerState(innerState, env)}
+                                onChooseBlock={actions.chooseBlock}
+                                onCommitInnerState={innerState => actions.commitInnerState(innerState, env)}
+                                onResetState={actions.resetState}
+                                />
+                        :
+                            <ValueInspector value={blockCmdResult} />
+                        }
+                    </div>
+                )
+        }
     }
-}
+)
 
 function JSONEditor({ initialValue, onSave }) {
     const [json, setJson] = React.useState<string>(() => JSON.stringify(initialValue, null, 4))
@@ -126,7 +217,7 @@ interface BlockPreviewProps {
     state: BlockSelectorState
     blockCmdResult: Block<unknown>
     stateEditorBlock: Block<unknown>
-    onChooseBlock: (env: any) => void
+    onChooseBlock: (env: Environment) => void
     onLoadInnerState: (innerStateJSON: any) => void
     onCommitInnerState: (innerState: any) => void
     onResetState: () => void

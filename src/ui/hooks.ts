@@ -47,3 +47,57 @@ export function useAutoretrigger(onTrigger: () => void) {
 
     return [triggerStart, triggerStop]
 }
+
+
+export function useEffectQueue() {
+    const effectQueue = React.useRef([])
+
+    React.useEffect(() => {
+        if (effectQueue.current.length > 0) {
+            effectQueue.current.forEach(effect => {
+                effect()
+            })
+            effectQueue.current.splice(0, effectQueue.current.length)
+        }
+    })
+
+    function queue(...effects) {
+        effectQueue.current.push(...effects)
+    }
+
+    return queue
+}
+
+export type EffectfulAction<State> = (state: State) => [State, ...Array<() => void>]
+export type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
+
+export function useEffectfulUpdate<State>(
+    update: (action: (state: State) => State) => void
+): EffectfulUpdater<State> {
+    const queueEffects = useEffectQueue()
+
+    return (effectfulAction: EffectfulAction<State>) => {
+        update(state => {
+            const [newState, ...effects] = effectfulAction(state)
+            queueEffects(...effects)
+            return newState
+        })
+    }
+}
+
+export function useRefMap<Key, Ref>(
+): [
+    (key: Key) => (ref: Ref) => void,
+    Map<Key, Ref>
+] {
+    const refMap = React.useRef(new Map<Key, Ref>())
+    const setRef = (key: Key) => (ref: Ref | null) => {
+        if (ref === null) {
+            refMap.current.delete(key)
+        }
+        else {
+            refMap.current.set(key, ref)
+        }
+    }
+    return [setRef, refMap.current]
+}

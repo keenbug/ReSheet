@@ -19,9 +19,10 @@ export function BlockSelector(
     return block.create<BlockSelectorState>({
         init: Model.init(expr, innerBlockInit),
 
-        view({ state, update, env }) {
+        view({ state, update, env }, ref) {
             return (
                 <UI.BlockSelectorUI
+                    ref={ref}
                     state={state}
                     update={update}
                     env={env}

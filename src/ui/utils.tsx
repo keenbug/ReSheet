@@ -7,6 +7,16 @@ import { interpolate } from '../utils'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
 
+export function getFullKey(event: React.KeyboardEvent) {
+    return [
+        (event.ctrlKey || event.metaKey) ? "C-" : "",
+        event.shiftKey ? "Shift-" : "",
+        event.altKey ? "Alt-" : "",
+        event.key,
+    ].join('')
+}
+
+
 type ClassedElemType<P> = React.FunctionComponent<P> | React.ComponentClass<P> | string
 
 export const classed = <P extends { className?: string }>(
