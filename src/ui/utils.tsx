@@ -174,6 +174,7 @@ export function selectFile(): Promise<File> {
         fileInput.type = 'file'
         fileInput.onchange = () => {
             resolve(fileInput.files[0])
+            fileInput.remove()
         }
         fileInput.click()
     })
@@ -190,7 +191,7 @@ export const LoadFileButton = React.forwardRef(
         ref: React.Ref<HTMLButtonElement>
     ) {
         async function loadFile(event) {
-            const file = await selectFile()
+            onLoad(await selectFile())
 
             // Workaround for headlessui Menu.Item:
             //  Menu.Item seems to inject an onClick handler, which closes the menu.
