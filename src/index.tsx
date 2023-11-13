@@ -16,16 +16,27 @@ const blocks = library.blocks
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks.StateEditor(blocks), blocks))
 
-const App = () => {
+function App() {
     const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
     React.useEffect(() => {
+        toplevelBlockRef.current?.focus()
         document.addEventListener('keydown', onKeyDown)
+        rootElement.addEventListener('focusout', onFocusout)
         return () => {
             document.removeEventListener('keydown', onKeyDown)
+            rootElement.removeEventListener('focusout', onFocusout)
         }
-    })
+    }, [])
+
+    // keep the focus on the toplevel block, so its KeyEventHandlers keep working
+    function onFocusout(event: FocusEvent) {
+        // this could be problematic, but let's wait until problems arise
+        if (!(event.relatedTarget instanceof Element) || !rootElement.contains(event.relatedTarget)) {
+            toplevelBlockRef.current?.focus()
+        }
+    }
 
     function onKeyDown(event: KeyboardEvent) {
         switch (getFullKey(event)) {
@@ -57,5 +68,6 @@ const App = () => {
     )
 }
 
-const root = ReactDOM.createRoot(document.getElementById('app'))
+const rootElement = document.getElementById('app')
+const root = ReactDOM.createRoot(rootElement)
 root.render(<App />)

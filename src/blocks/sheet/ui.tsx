@@ -304,7 +304,7 @@ export const SheetLine = React.forwardRef(
                     return
 
                 case "Escape":
-                    if (event.currentTarget !== event.target) {
+                    if (event.currentTarget !== event.target && document.activeElement !== containerRef.current) {
                         (event.target as any).blur?.()
                         containerRef.current?.focus()
                         event.stopPropagation()

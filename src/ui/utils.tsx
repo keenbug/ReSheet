@@ -168,8 +168,19 @@ export const IconForButton: React.FC<{ icon: IconDefinition }> = ({ icon }) => (
 )
 
 
+export function selectFile(): Promise<File> {
+    return new Promise(resolve => {
+        const fileInput = document.createElement('input')
+        fileInput.type = 'file'
+        fileInput.onchange = () => {
+            resolve(fileInput.files[0])
+        }
+        fileInput.click()
+    })
+}
 
-export type LoadFileButtonProps = React.LabelHTMLAttributes<HTMLButtonElement> & {
+
+export interface LoadFileButtonProps extends Omit<React.LabelHTMLAttributes<HTMLButtonElement>, 'onLoad'> {
     onLoad: (file: File) => void
 }
 
@@ -178,19 +189,14 @@ export const LoadFileButton = React.forwardRef(
         { onLoad, children, ...props }: LoadFileButtonProps,
         ref: React.Ref<HTMLButtonElement>
     ) {
-        function loadFile(event) {
-            const fileInput = document.createElement('input')
-            fileInput.type = 'file'
-            fileInput.onchange = () => {
-                onLoad(fileInput.files[0])
+        async function loadFile(event) {
+            const file = await selectFile()
 
-                // Workaround for headlessui Menu.Item:
-                //  Menu.Item seems to inject an onClick handler, which closes the menu.
-                //  If the menu is closed, this fileInput doesn't work anymore, so we defer
-                //  the handler until the File Dialog is closed.
-                props.onClick?.(event)
-            }
-            fileInput.click()
+            // Workaround for headlessui Menu.Item:
+            //  Menu.Item seems to inject an onClick handler, which closes the menu.
+            //  If the menu is closed, this fileInput doesn't work anymore, so we defer
+            //  the handler until the File Dialog is closed.
+            props.onClick?.(event)
         }
 
         return (

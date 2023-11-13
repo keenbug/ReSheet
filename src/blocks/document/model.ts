@@ -90,10 +90,14 @@ export function viewStateFromHistory<State>(
 ): DocumentState<State> {
     if (state.viewState.mode === 'history') {
         const historicState = state.history[state.viewState.position]
+        const historicEnv = {
+            ...env,
+            history: state.history.slice(0, state.viewState.position)
+        }
         return {
             ...state,
             history: [ ...state.history, historicState ],
-            blockState: getHistoryState(historicState, innerBlock, env),
+            blockState: getHistoryState(historicState, innerBlock, historicEnv),
             viewState: { mode: 'current' },
         }
     }

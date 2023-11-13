@@ -147,9 +147,11 @@ export const BlockSelectorUI = React.forwardRef(
                     return
 
                 case "C-r":
-                    actions.resetState()
-                    event.stopPropagation()
-                    event.preventDefault()
+                    if (state.mode === 'choose' && block.isBlock(blockCmdResult)) {
+                        actions.resetState()
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
                     return
             }
         }     
