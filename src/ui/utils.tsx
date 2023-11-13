@@ -7,7 +7,16 @@ import { interpolate } from '../utils'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
 
-export function getFullKey(event: React.KeyboardEvent) {
+// Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent
+interface KeyboardEvent {
+    ctrlKey: boolean
+    metaKey: boolean
+    shiftKey: boolean
+    altKey: boolean
+    key: string
+}
+
+export function getFullKey(event: KeyboardEvent) {
     return [
         (event.ctrlKey || event.metaKey) ? "C-" : "",
         event.shiftKey ? "Shift-" : "",

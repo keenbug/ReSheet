@@ -20,24 +20,30 @@ const App = () => {
     const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
-    const safeUpdate = action => {
-        setState(state => {
-            try {
-                return action(state)
+    React.useEffect(() => {
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('keydown', onKeyDown)
         }
-            catch (error) {
-                setUpdateError(error)
-                return state
-            }
-        })
-    }
+    })
 
-    const viewToplevelBlock = () => {
-        return ToplevelBlock.view({
-            state: state,
-            update: safeUpdate,
-            env: library,
-        })
+    function onKeyDown(event: KeyboardEvent) {
+        switch (getFullKey(event)) {
+            case 'Enter':
+                if (document.activeElement === document.body) {
+                    toplevelBlockRef.current?.focus()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case 'Escape':
+                // don't exit full-screen in Safari
+                //   I hope nobody really wants this. Personally, this annoys me all the time.
+                //   So I prevent it until somebody complains.
+                event.preventDefault()
+                return
+        }
     }
 
     return (
