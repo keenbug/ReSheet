@@ -61,7 +61,7 @@ export function ValueInspector(props: ValueInspectorProps) {
         )
     }
 
-    return <div><Inspector table={table} data={value} expandLevel={expandLevel} /></div>
+    return <Inspector table={table} data={value} expandLevel={expandLevel} />
 }
 
 export type PromiseState =
@@ -83,7 +83,7 @@ export function PromiseValueInspector(props: ValueInspectorProps) {
         case 'pending':
             return <>Promise pending...</>
         case 'fulfilled':
-            return <>Promise fulfilled: <ValueInspector {...props} value={promiseState.value} /></>
+            return <ValueInspector {...props} value={promiseState.value} />
         case 'rejected':
             return <>Promise rejected: <ValueInspector {...props} value={promiseState.error} /></>
     }

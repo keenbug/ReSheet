@@ -57,6 +57,21 @@ const ACTIONS = <State extends unknown>(
         }
     },
 
+    async loadRemoteFile() {
+        const url = window.prompt('Which URL should be loaded?')
+        if (url === null) { return }
+
+        try {
+            const response = await fetch(url)
+            const content = await response.json()
+            const newState = Model.fromJSON(content, env, innerBlock)
+            update(() => newState)
+        }
+        catch (e) {
+            window.alert(`Could not load file from URL: ${e}`)
+        }
+    },
+
     openHistory() {
         update(Model.openHistory)
     },
@@ -352,6 +367,19 @@ function NormalMenuBar<State>({ state, actions }: MenuBarProps<State>) {
                                 >
                                 Load local File ...
                             </LoadFileButton>
+                        )}
+                    </Menu.Item>
+                    <Menu.Item>
+                        {({ active }) => (
+                            <button
+                                className={`
+                                    px-2 py-1 text-left
+                                    ${active && "bg-blue-100"}
+                                `}
+                                onClick={actions.loadRemoteFile}
+                                >
+                                Load File from URL ...
+                            </button>
                         )}
                     </Menu.Item>
                 </Menu.Items>

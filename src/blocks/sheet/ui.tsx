@@ -392,33 +392,26 @@ export const SheetLine = React.forwardRef(
                     flex flex-row space-x-2
                     focus:ring-0
                     focus:bg-gray-100
+                    group
                 `}
                 tabIndex={-1}
                 onKeyDown={onContainerKeyDown}
                 >
                 <MenuPopover line={line} actions={actions} block={block} />
                 <div className="flex flex-col space-y-1 flex-1">
+                    <AssignmentLine
+                        ref={varInputRef}
+                        line={line}
+                        actions={actions}
+                        onKeyDown={onInputKeyDown}
+                        isCollapsed={line.isCollapsed}
+                        />
                     {line.isCollapsed ?
-                        <AssignmentLine
-                            ref={varInputRef}
-                            line={line}
-                            actions={actions}
-                            onKeyDown={onInputKeyDown}
-                            >
-                            <ValueInspector value={line.result} expandLevel={0} />
-                        </AssignmentLine>
+                        <ValueInspector value={line.result} expandLevel={0} />
                     :
-                        <>
-                            <AssignmentLine
-                                ref={varInputRef}
-                                line={line}
-                                actions={actions}
-                                onKeyDown={onInputKeyDown}
-                                />
-                            <ErrorBoundary title="There was an error in the subblock">
-                                {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
-                            </ErrorBoundary>
-                        </>
+                        <ErrorBoundary title="There was an error in the subblock">
+                            {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
+                        </ErrorBoundary>
                     }
                 </div>
             </div>
@@ -431,11 +424,12 @@ interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
     line: SheetBlockLine<State>
     children?: any
     actions: Actions<State>
+    isCollapsed: boolean
 }
 
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
-        const { line, children = null, actions, ...inputProps } = props
+        const { line, children = null, actions, isCollapsed, ...inputProps } = props
         const onUpdateName = name => actions.setName(line.id, name)
         return (
             <div
@@ -444,26 +438,24 @@ export const AssignmentLine = React.forwardRef(
                     pr-2 -mb-1 mt-1
                     text-slate-500 font-light text-xs
                     truncate
-                    flex flex-row space-x-2 align-baseline
+                    ${isCollapsed && 'h-0 group-focus-within:h-fit'}
                 `}
                 >
-                <div>
-                    <TextInput
-                        ref={ref}
-                        className={`
-                            hover:bg-gray-200 hover:text-slate-700
-                            focus:bg-gray-200 focus:text-slate-700
-                            outline-none
-                            p-0.5 -ml-0.5
-                            rounded
-                        `}
-                        value={line.name}
-                        onUpdate={onUpdateName}
-                        placeholder={Model.lineDefaultName(line)}
-                        {...inputProps}
-                    />
-                    &nbsp;=
-                </div>
+                <TextInput
+                    ref={ref}
+                    className={`
+                        hover:bg-gray-200 hover:text-slate-700
+                        focus:bg-gray-200 focus:text-slate-700
+                        outline-none
+                        p-0.5 -ml-0.5
+                        rounded
+                    `}
+                    value={line.name}
+                    onUpdate={onUpdateName}
+                    placeholder={Model.lineDefaultName(line)}
+                    {...inputProps}
+                />
+                &nbsp;=
                 {children}
             </div>
         )

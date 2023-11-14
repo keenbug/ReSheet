@@ -16,8 +16,10 @@ const blocks = library.blocks
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks.StateEditor(blocks), blocks))
 
-function App() {
-    const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
+
+
+function App({ initState }: { initState: ToplevelBlockState }) {
+    const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(initState)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
     React.useEffect(() => {
@@ -68,6 +70,30 @@ function App() {
     )
 }
 
+
+async function loadInitState() {
+    const loadParam = new URLSearchParams(document.location.search).get('load')
+    if (loadParam === null) {
+        return ToplevelBlock.init
+    }
+
+    try {
+        const response = await fetch(loadParam)
+        const content = await response.json()
+        return ToplevelBlock.fromJSON(content, library)
+    }
+    catch (e) {
+        window.alert(`Could not load file from URL: ${e}`)
+        return ToplevelBlock.init
+    }
+}
+
+
+async function start(root) {
+    const initState = await loadInitState()
+    root.render(<App initState={initState} />)
+}
+
 const rootElement = document.getElementById('app')
 const root = ReactDOM.createRoot(rootElement)
-root.render(<App />)
+start(root)
