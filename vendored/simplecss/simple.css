@@ -1,493 +1,689 @@
 /* Global variables. */
-:root {
-    /* Set sans-serif & mono fonts */
-    --simple-sans-font: -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir,
-      "Nimbus Sans L", Roboto, Noto, "Segoe UI", Arial, Helvetica,
-      "Helvetica Neue", sans-serif;
-    --simple-mono-font: Consolas, Menlo, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
-  
-    /* Default (light) theme */
-    --simple-bg: #fff;
-    --simple-accent-bg: #f5f7ff;
-    --simple-text: #212121;
-    --simple-text-light: #585858;
-    --simple-border: #d8dae1;
-    --simple-accent: #0d47a1;
-    --simple-code: #d81b60;
-    --simple-preformatted: #444;
-    --simple-marked: #ffdd33;
-    --simple-disabled: #efefef;
+:root,
+::backdrop {
+  /* Set sans-serif & mono fonts */
+  --simple-sans-font: -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir,
+    "Nimbus Sans L", Roboto, "Noto Sans", "Segoe UI", Arial, Helvetica,
+    "Helvetica Neue", sans-serif;
+  --simple-mono-font: Consolas, Menlo, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  --simple-standard-border-radius: 5px;
+
+  /* Default (light) theme */
+  --simple-bg: #fff;
+  --simple-accent-bg: #f5f7ff;
+  --simple-text: #212121;
+  --simple-text-light: #585858;
+  --simple-border: #898EA4;
+  --simple-accent: #0d47a1;
+  --simple-code: #d81b60;
+  --simple-preformatted: #444;
+  --simple-marked: #ffdd33;
+  --simple-disabled: #efefef;
+}
+
+/* Dark theme */
+/* Commented out, because it clashes with the light theme of tables. Dark theme not implemented yet. */
+/* @media (prefers-color-scheme: dark) {
+  :root,
+  ::backdrop {
+    color-scheme: dark;
+    --simple-bg: #212121;
+    --simple-accent-bg: #2b2b2b;
+    --simple-text: #dcdcdc;
+    --simple-text-light: #ababab;
+    --simple-accent: #ffb300;
+    --simple-code: #f06292;
+    --simple-preformatted: #ccc;
+    --simple-disabled: #111;
   }
-  
-  /* Dark theme */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --simple-bg: #212121;
-      --simple-accent-bg: #2b2b2b;
-      --simple-text: #dcdcdc;
-      --simple-text-light: #ababab;
-      --simple-border: #666;
-      --simple-accent: #ffb300;
-      --simple-code: #f06292;
-      --simple-preformatted: #ccc;
-      --simple-disabled: #111;
-    }
-    /* Add a bit of transparancy so light media isn't so glaring in dark mode */
-    .simplecss img,
-    .simplecss video {
-      opacity: 0.8;
-    }
+  .simplecss img,
+  .simplecss video {
+    opacity: 0.8;
   }
-  
-  .simplecss {
-    /* Set the font globally */
-    font-family: var(--simple-sans-font);
-    scroll-behavior: smooth;
-  }
-  
-  /* Make the body a nice central block */
-  .simplecss {
-    color: var(--simple-text);
-    background: var(--simple-bg);
-    font-size: 1.15rem;
-    line-height: 1.5;
-    display: grid;
-    grid-template-columns:
-      1fr min(45rem, 90%) 1fr;
-    margin: 0;
-  }
-  
-  .simplecss>* {
-    grid-column: 2;
-  }
-  
-  /* Make the header bg full width, but the content inline with body */
-  .simplecss header {
-    background: var(--simple-accent-bg);
-    border-bottom: 1px solid var(--simple-border);
-    text-align: center;
-    padding: 0 0.5rem 2rem 0.5rem;
-    grid-column: 1 / -1;
-    box-sizing: border-box;
-  }
-  
-  .simplecss header h1 {
-    max-width: 1200px;
-    margin: 1rem auto;
-  }
-  
-  .simplecss header p {
-    max-width: 40rem;
-    margin: 1rem auto;
-  }
-  
-  /* Add a little padding to ensure spacing is correct between content and nav */
-  .simplecss main {
-    padding-top: 1.5rem;
-  }
-  
-  .simplecss footer {
-    margin-top: 4rem;
-    padding: 2rem 1rem 1.5rem 1rem;
-    color: var(--simple-text-light);
-    font-size: 0.9rem;
-    text-align: center;
-    border-top: 1px solid var(--simple-border);
-  }
-  
-  /* Format headers */
+} */
+
+/* Reset box-sizing */
+.simplecss *, .simplecss *::before, .simplecss *::after {
+  box-sizing: border-box;
+}
+
+/* Reset default appearance */
+.simplecss textarea,
+.simplecss select,
+.simplecss input,
+.simplecss progress {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.simplecss {
+  /* Set the font globally */
+  font-family: var(--simple-sans-font);
+  scroll-behavior: smooth;
+}
+
+/* Make the body a nice central block */
+.simplecss {
+  color: var(--simple-text);
+  background-color: var(--simple-bg);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  display: grid;
+  grid-template-columns: 1fr min(45rem, 90%) 1fr;
+  margin: 0;
+}
+.simplecss > * {
+  grid-column: 2;
+}
+
+/* Make the header bg full width, but the content inline with .simplecss */
+.simplecss > header {
+  background-color: var(--simple-accent-bg);
+  border-bottom: 1px solid var(--simple-border);
+  text-align: center;
+  padding: 0 0.5rem 2rem 0.5rem;
+  grid-column: 1 / -1;
+}
+
+.simplecss > header > *:only-child {
+  margin-block-start: 2rem;
+}
+
+.simplecss > header h1 {
+  max-width: 1200px;
+  margin: 1rem auto;
+}
+
+.simplecss > header p {
+  max-width: 40rem;
+  margin: 1rem auto;
+}
+
+/* Add a little padding to ensure spacing is correct between content and header > nav */
+.simplecss main {
+  padding-top: 1.5rem;
+}
+
+.simplecss > footer {
+  margin-top: 4rem;
+  padding: 2rem 1rem 1.5rem 1rem;
+  color: var(--simple-text-light);
+  font-size: 0.9rem;
+  text-align: center;
+  border-top: 1px solid var(--simple-border);
+}
+
+/* Format headers */
+.simplecss h1 {
+  font-size: 3rem;
+}
+
+.simplecss h2 {
+  font-size: 2.6rem;
+  margin-top: 3rem;
+}
+
+.simplecss h3 {
+  font-size: 2rem;
+  margin-top: 3rem;
+}
+
+.simplecss h4 {
+  font-size: 1.44rem;
+}
+
+.simplecss h5 {
+  font-size: 1.15rem;
+}
+
+.simplecss h6 {
+  font-size: 0.96rem;
+}
+
+.simplecss p {
+  margin: 1.5rem 0;
+}
+
+/* Prevent long strings from overflowing container */
+.simplecss p, .simplecss h1, h2, .simplecss h3, .simplecss h4, .simplecss h5, .simplecss h6 {
+  overflow-wrap: break-word;
+}
+
+/* Fix line height when title wraps */
+.simplecss h1,
+.simplecss h2,
+.simplecss h3 {
+  line-height: 1.1;
+}
+
+/* Reduce header size on mobile */
+@media only screen and (max-width: 720px) {
   .simplecss h1 {
-    font-size: 3rem;
+    font-size: 2.5rem;
   }
-  
+
   .simplecss h2 {
-    font-size: 2.6rem;
-    margin-top: 3rem;
+    font-size: 2.1rem;
   }
-  
+
   .simplecss h3 {
-    font-size: 2rem;
-    margin-top: 3rem;
+    font-size: 1.75rem;
   }
-  
+
   .simplecss h4 {
-    font-size: 1.44rem;
+    font-size: 1.25rem;
   }
-  
-  .simplecss h5 {
-    font-size: 1.15rem;
-  }
-  
-  .simplecss h6 {
-    font-size: 0.96rem;
-  }
-  
-  /* Fix line height when title wraps */
-  .simplecss h1,
-  .simplecss h2,
-  .simplecss h3 {
-    line-height: 1.1;
-  }
-  
-  /* Reduce header size on mobile */
-  @media only screen and (max-width: 720px) {
-    .simplecss h1 {
-      font-size: 2.5rem;
-    }
-  
-    .simplecss h2 {
-      font-size: 2.1rem;
-    }
-  
-    .simplecss h3 {
-      font-size: 1.75rem;
-    }
-  
-    .simplecss h4 {
-      font-size: 1.25rem;
-    }
-  }
-  
-  /* Format links & buttons */
-  .simplecss a,
-  .simplecss a:visited {
-    color: var(--simple-accent);
-  }
-  
-  .simplecss a:hover {
-    text-decoration: none;
-  }
-  
-  .simplecss a button,
-  .simplecss button,
-  .simplecss [role="button"],
-  .simplecss input[type="submit"],
-  .simplecss input[type="reset"],
-  .simplecss input[type="button"] {
+}
+
+/* Format links & buttons */
+.simplecss a,
+.simplecss a:visited {
+  color: var(--simple-accent);
+}
+
+.simplecss a:hover {
+  text-decoration: none;
+}
+
+.simplecss button,
+.simplecss .button,
+.simplecss a.button, /* extra specificity to override a */
+.simplecss input[type="submit"],
+.simplecss input[type="reset"],
+.simplecss input[type="button"],
+.simplecss label[type="button"] {
+  border: 1px solid var(--simple-accent);
+  background-color: var(--simple-accent);
+  color: var(--simple-bg);
+  padding: 0.5rem 0.9rem;
+  text-decoration: none;
+  line-height: normal;
+}
+
+.simplecss .button[aria-disabled="true"], 
+.simplecss input:disabled,
+.simplecss textarea:disabled,
+.simplecss select:disabled,
+.simplecss button[disabled] {
+  cursor: not-allowed;
+  background-color: var(--simple-disabled);
+  border-color: var(--simple-disabled);
+  color: var(--simple-text-light);
+}
+
+.simplecss input[type="range"] {
+  padding: 0;
+}
+
+/* Set the cursor to '?' on an abbreviation and style the abbreviation to show that there is more information underneath */
+.simplecss abbr[title] {
+  cursor: help;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+}
+
+.simplecss button:enabled:hover,
+.simplecss .button:not([aria-disabled="true"]):hover,
+.simplecss input[type="submit"]:enabled:hover,
+.simplecss input[type="reset"]:enabled:hover,
+.simplecss input[type="button"]:enabled:hover,
+.simplecss label[type="button"]:hover {
+  filter: brightness(1.4);
+  cursor: pointer;
+}
+
+.simplecss .button:focus-visible,
+.simplecss button:focus-visible:where(:enabled),
+.simplecss input:enabled:focus-visible:where(
+  [type="submit"],
+  [type="reset"],
+  [type="button"]
+) {
+  outline: 2px solid var(--simple-accent);
+  outline-offset: 1px;
+}
+
+/* Format navigation */
+.simplecss header > nav {
+  font-size: 1rem;
+  line-height: 2;
+  padding: 1rem 0 0 0;
+}
+
+/* Use flexbox to allow items to wrap, as needed */
+.simplecss header > nav ul,
+.simplecss header > nav ol {
+  align-content: space-around;
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* List items are inline elements, make them behave more like blocks */
+.simplecss header > nav ul li,
+.simplecss header > nav ol li {
+  display: inline-block;
+}
+
+.simplecss header > nav a,
+.simplecss header > nav a:visited {
+  margin: 0 0.5rem 1rem 0.5rem;
+  border: 1px solid var(--simple-border);
+  border-radius: var(--simple-standard-border-radius);
+  color: var(--simple-text);
+  display: inline-block;
+  padding: 0.1rem 1rem;
+  text-decoration: none;
+}
+
+.simplecss header > nav a:hover,
+.simplecss header > nav a.current,
+.simplecss header > nav a[aria-current="page"] {
+  border-color: var(--simple-accent);
+  color: var(--simple-accent);
+  cursor: pointer;
+}
+
+/* Reduce nav side on mobile */
+@media only screen and (max-width: 720px) {
+  .simplecss header > nav a {
     border: none;
-    border-radius: 5px;
-    background: var(--simple-accent);
-    font-size: 1rem;
-    color: var(--simple-bg);
-    padding: 0.7rem 0.9rem;
-    margin: 0.5rem 0;
-  }
-  
-  .simplecss a button[disabled],
-  .simplecss button[disabled],
-  .simplecss [role="button"][aria-disabled="true"],
-  .simplecss input[type="submit"][disabled],
-  .simplecss input[type="reset"][disabled],
-  .simplecss input[type="button"][disabled],
-  .simplecss input[type="checkbox"][disabled],
-  .simplecss input[type="radio"][disabled],
-  .simplecss select[disabled] {
-    cursor: default;
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .simplecss input:disabled,
-  .simplecss textarea:disabled,
-  .simplecss select:disabled {
-    cursor: not-allowed;
-    background-color: var(--simple-disabled);
-  }
-  
-  .simplecss input[type="range"] {
     padding: 0;
+    text-decoration: underline;
+    line-height: 1;
   }
-  
-  /* Set the cursor to '?' while hovering over an abbreviation */
-  .simplecss abbr {
-    cursor: help;
-  }
-  
-  .simplecss button:focus,
-  .simplecss button:enabled:hover,
-  .simplecss [role="button"]:focus,
-  .simplecss [role="button"]:not([aria-disabled="true"]):hover,
-  .simplecss input[type="submit"]:focus,
-  .simplecss input[type="submit"]:enabled:hover,
-  .simplecss input[type="reset"]:focus,
-  .simplecss input[type="reset"]:enabled:hover,
-  .simplecss input[type="button"]:focus,
-  .simplecss input[type="button"]:enabled:hover {
-    filter: brightness(1.4);
-    cursor: pointer;
-  }
-  
-  /* Format navigation */
-  .simplecss nav {
-    font-size: 1rem;
-    line-height: 2;
-    padding: 1rem 0;
-  }
-  
-  .simplecss nav a,
-  .simplecss nav a:visited {
-    margin: 0 1rem 0 0;
-    border: 1px solid var(--simple-border);
-    border-radius: 5px;
-    color: var(--simple-text);
-    display: inline-block;
-    padding: 0.1rem 1rem;
-    text-decoration: none;
-  }
-  
-  .simplecss nav a:hover {
-    color: var(--simple-accent);
-    border-color: var(--simple-accent);
-  }
-  
-  /* Reduce nav side on mobile */
-  @media only screen and (max-width: 750px) {
-    .simplecss nav a {
-      border: none;
-      padding: 0;
-      color: var(--simple-accent);
-      text-decoration: underline;
-      line-height: 1;
-    }
-  }
-  
-  /* Format the expanding box */
-  .simplecss details {
-    background: var(--simple-accent-bg);
-    border: 1px solid var(--simple-border);
-    border-radius: 5px;
-    margin-bottom: 1rem;
-  }
-  
-  .simplecss summary {
-    cursor: pointer;
-    font-weight: bold;
-    padding: 0.6rem 1rem;
-  }
-  
-  .simplecss details[open] {
-    padding: 0.6rem 1rem 0.75rem 1rem;
-  }
-  
-  .simplecss details[open] summary {
-    margin-bottom: 0.5rem;
-    padding: 0;
-  }
-  
-  .simplecss details[open] > *:last-child {
-    margin-bottom: 0;
-  }
-  
-  /* Format tables */
-  .simplecss table {
-    border-collapse: collapse;
+}
+
+/* Consolidate box styling */
+.simplecss aside, .simplecss details, .simplecss pre, .simplecss progress {
+  background-color: var(--simple-accent-bg);
+  border: 1px solid var(--simple-border);
+  border-radius: var(--simple-standard-border-radius);
+  margin-bottom: 1rem;
+}
+
+.simplecss aside {
+  font-size: 1rem;
+  width: 30%;
+  padding: 0 15px;
+  margin-inline-start: 15px;
+  float: right;
+}
+.simplecss *[dir="rtl"] aside {
+  float: left;
+}
+
+/* Make aside full-width on mobile */
+@media only screen and (max-width: 720px) {
+  .simplecss aside {
     width: 100%;
-    margin: 1.5rem 0;
+    float: none;
+    margin-inline-start: 0;
   }
-  
-  .simplecss td,
-  .simplecss th {
-    border: 1px solid var(--simple-border);
-    text-align: left;
-    padding: 0.5rem;
-  }
-  
-  .simplecss th {
-    background: var(--simple-accent-bg);
-    font-weight: bold;
-  }
-  
-  .simplecss tr:nth-child(even) {
-    /* Set every other cell slightly darker. Improves readability. */
-    background: var(--simple-accent-bg);
-  }
-  
-  .simplecss table caption {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-  }
-  
-  /* Format forms */
+}
+
+.simplecss article, .simplecss fieldset, .simplecss dialog {
+  border: 1px solid var(--simple-border);
+  padding: 1rem;
+  border-radius: var(--simple-standard-border-radius);
+  margin-bottom: 1rem;
+}
+
+.simplecss article h2:first-child,
+.simplecss section h2:first-child {
+  margin-top: 1rem;
+}
+
+.simplecss section {
+  border-top: 1px solid var(--simple-border);
+  border-bottom: 1px solid var(--simple-border);
+  padding: 2rem 1rem;
+  margin: 3rem 0;
+}
+
+/* Don't double separators when chaining sections */
+.simplecss section + .simplecss section,
+.simplecss section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.simplecss section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.simplecss details {
+  padding: 0.7rem 1rem;
+}
+
+.simplecss summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 0.7rem 1rem;
+  margin: -0.7rem -1rem;
+  word-break: break-all;
+}
+
+.simplecss details[open] > summary + * {
+  margin-top: 0;
+}
+
+.simplecss details[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+.simplecss details[open] > :last-child {
+  margin-bottom: 0;
+}
+
+/* Format tables */
+.simplecss table {
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.simplecss td,
+.simplecss th {
+  border: 1px solid var(--simple-border);
+  text-align: start;
+  padding: 0.5rem;
+}
+
+.simplecss th {
+  background-color: var(--simple-accent-bg);
+  font-weight: bold;
+}
+
+.simplecss tr:nth-child(even) {
+  /* Set every other cell slightly darker. Improves readability. */
+  background-color: var(--simple-accent-bg);
+}
+
+.simplecss table caption {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+/* Format forms */
+.simplecss textarea,
+.simplecss select,
+.simplecss input,
+.simplecss button,
+.simplecss .button {
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--simple-standard-border-radius);
+  box-shadow: none;
+  max-width: 100%;
+  display: inline-block;
+}
+.simplecss textarea,
+.simplecss select,
+.simplecss input {
+  color: var(--simple-text);
+  background-color: var(--simple-bg);
+  border: 1px solid var(--simple-border);
+}
+.simplecss label {
+  display: block;
+}
+.simplecss textarea:not([cols]) {
+  width: 100%;
+}
+
+/* Add arrow to drop-down */
+.simplecss select:not([multiple]) {
+  background-image: linear-gradient(45deg, transparent 49%, var(--simple-text) 51%),
+    linear-gradient(135deg, var(--simple-text) 51%, transparent 49%);
+  background-position: calc(100% - 15px), calc(100% - 10px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-inline-end: 25px;
+}
+.simplecss *[dir="rtl"] select:not([multiple]) {
+  background-position: 10px, 15px;
+}
+
+/* checkbox and radio button style */
+.simplecss input[type="checkbox"],
+.simplecss input[type="radio"] {
+  vertical-align: middle;
+  position: relative;
+  width: min-content;
+}
+
+.simplecss input[type="checkbox"] + label,
+.simplecss input[type="radio"] + label {
+  display: inline-block;
+}
+
+.simplecss input[type="radio"] {
+  border-radius: 100%;
+}
+
+.simplecss input[type="checkbox"]:checked,
+.simplecss input[type="radio"]:checked {
+  background-color: var(--simple-accent);
+}
+
+.simplecss input[type="checkbox"]:checked::after {
+  /* Creates a rectangle with colored right and bottom borders which is rotated to look like a check mark */
+  content: " ";
+  width: 0.18em;
+  height: 0.32em;
+  border-radius: 0;
+  position: absolute;
+  top: 0.05em;
+  left: 0.17em;
+  background-color: transparent;
+  border-right: solid var(--simple-bg) 0.08em;
+  border-bottom: solid var(--simple-bg) 0.08em;
+  font-size: 1.8em;
+  transform: rotate(45deg);
+}
+.simplecss input[type="radio"]:checked::after {
+  /* creates a colored circle for the checked radio button  */
+  content: " ";
+  width: 0.25em;
+  height: 0.25em;
+  border-radius: 100%;
+  position: absolute;
+  top: 0.125em;
+  background-color: var(--simple-bg);
+  left: 0.125em;
+  font-size: 32px;
+}
+
+/* Makes input fields wider on smaller screens */
+@media only screen and (max-width: 720px) {
   .simplecss textarea,
   .simplecss select,
   .simplecss input {
-    font-size: inherit;
-    font-family: inherit;
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--simple-text);
-    background: var(--simple-bg);
-    border: 1px solid var(--simple-border);
-    border-radius: 5px;
-    box-shadow: none;
-    box-sizing: border-box;
-    width: 60%;
-    -moz-appearance: none;
-    -webkit-appearance: none;
-    appearance: none;
+    width: 100%;
   }
-  
-  /* Add arrow to drop-down */
-  .simplecss select {
-    background-image: linear-gradient(45deg, transparent 49%, var(--simple-text) 51%),
-      linear-gradient(135deg, var(--simple-text) 51%, transparent 49%);
-    background-position: calc(100% - 20px), calc(100% - 15px);
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
-  }
-  
-  .simplecss select[multiple] {
-    background-image: none !important;
-  }
-  
-  /* checkbox and radio button style */
-  .simplecss input[type="checkbox"],
-  .simplecss input[type="radio"] {
-    vertical-align: bottom;
-    position: relative;
-  }
-  
-  .simplecss input[type="radio"] {
-    border-radius: 100%;
-  }
-  
-  .simplecss input[type="checkbox"]:checked,
-  .simplecss input[type="radio"]:checked {
-    background: var(--simple-accent);
-  }
-  
-  .simplecss input[type="checkbox"]:checked::after {
-    /* Creates a rectangle with colored right and bottom borders which is rotated to look like a check mark */
-    content: " ";
-    width: 0.1em;
-    height: 0.25em;
-    border-radius: 0;
-    position: absolute;
-    top: 0.05em;
-    left: 0.18em;
-    background: transparent;
-    border-right: solid var(--simple-bg) 0.08em;
-    border-bottom: solid var(--simple-bg) 0.08em;
-    font-size: 1.8em;
-    transform: rotate(45deg);
-  }
-  .simplecss input[type="radio"]:checked::after {
-    /* creates a colored circle for the checked radio button  */
-    content: " ";
-    width: 0.25em;
-    height: 0.25em;
-    border-radius: 100%;
-    position: absolute;
-    top: 0.125em;
-    background: var(--simple-bg);
-    left: 0.125em;
-    font-size: 32px;
-  }
-  
-  /* Make the textarea wider than other inputs */
-  .simplecss textarea {
-    width: 80%;
-  }
-  
-  /* Makes input fields wider on smaller screens */
-  @media only screen and (max-width: 720px) {
-    .simplecss textarea,
-    .simplecss select,
-    .simplecss input {
-      width: 100%;
-    }
-  }
-  
-  /* Ensures the checkbox and radio inputs do not have a set width like other input fields */
-  .simplecss input[type="checkbox"],
-  .simplecss input[type="radio"] {
-    width: auto;
-  }
-  
-  /* do not show border around file selector button */
-  .simplecss input[type="file"] {
-    border: 0;
-  }
-  
-  /* Misc body elements */
-  .simplecss hr {
-    color: var(--simple-border);
-    border-top: 1px;
-    margin: 1rem auto;
-  }
-  
-  .simplecss mark {
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: var(--simple-marked);
-  }
-  
-  .simplecss main img,
-  .simplecss main video {
+}
+
+/* Set a height for color input */
+.simplecss input[type="color"] {
+  height: 2.5rem;
+  padding:  0.2rem;
+}
+
+/* do not show border around file selector button */
+.simplecss input[type="file"] {
+  border: 0;
+}
+
+/* Misc body elements */
+.simplecss hr {
+  border: none;
+  height: 1px;
+  background: var(--simple-border);
+  margin: 1rem auto;
+}
+
+.simplecss mark {
+  padding: 2px 5px;
+  border-radius: var(--simple-standard-border-radius);
+  background-color: var(--simple-marked);
+  color: black;
+}
+
+.simplecss mark a {
+  color: #0d47a1;
+}
+
+.simplecss img,
+.simplecss video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--simple-standard-border-radius);
+}
+
+.simplecss figure {
+  margin: 0;
+  display: block;
+  overflow-x: auto;
+}
+
+.simplecss figcaption {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--simple-text-light);
+  margin-bottom: 1rem;
+}
+
+.simplecss blockquote {
+  margin-inline-start: 2rem;
+  margin-inline-end: 0;
+  margin-block: 2rem;
+  padding: 0.4rem 0.8rem;
+  border-inline-start: 0.35rem solid var(--simple-accent);
+  color: var(--simple-text-light);
+  font-style: italic;
+}
+
+.simplecss cite {
+  font-size: 0.9rem;
+  color: var(--simple-text-light);
+  font-style: normal;
+}
+
+.simplecss dt {
+    color: var(--simple-text-light);
+}
+
+/* Use mono font for code elements */
+.simplecss code,
+.simplecss pre,
+.simplecss pre span,
+.simplecss kbd,
+.simplecss samp {
+  font-family: var(--simple-mono-font);
+  color: var(--simple-code);
+}
+
+.simplecss kbd {
+  color: var(--simple-preformatted);
+  border: 1px solid var(--simple-preformatted);
+  border-bottom: 3px solid var(--simple-preformatted);
+  border-radius: var(--simple-standard-border-radius);
+  padding: 0.1rem 0.4rem;
+}
+
+.simplecss pre {
+  padding: 1rem 1.4rem;
+  max-width: 100%;
+  overflow: auto;
+  color: var(--simple-preformatted);
+}
+
+/* Fix embedded code within pre */
+.simplecss pre code {
+  color: var(--simple-preformatted);
+  background: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Progress bars */
+/* Declarations are repeated because you */
+/* cannot combine vendor-specific selectors */
+.simplecss progress {
+  width: 100%;
+}
+
+.simplecss progress:indeterminate {
+  background-color: var(--simple-accent-bg);
+}
+
+.simplecss progress::-webkit-progress-bar {
+  border-radius: var(--simple-standard-border-radius);
+  background-color: var(--simple-accent-bg);
+}
+
+.simplecss progress::-webkit-progress-value {
+  border-radius: var(--simple-standard-border-radius);
+  background-color: var(--simple-accent);
+}
+
+.simplecss progress::-moz-progress-bar {
+  border-radius: var(--simple-standard-border-radius);
+  background-color: var(--simple-accent);
+  transition-property: width;
+  transition-duration: 0.3s;
+}
+
+.simplecss progress:indeterminate::-moz-progress-bar {
+  background-color: var(--simple-accent-bg);
+}
+
+.simplecss dialog {
+  max-width: 40rem;
+  margin: auto;
+}
+
+.simplecss dialog::backdrop {
+  background-color: var(--simple-bg);
+  opacity: 0.8;
+}
+
+@media only screen and (max-width: 720px) {
+  .simplecss dialog {
     max-width: 100%;
-    height: auto;
-    border-radius: 5px;
+    margin: auto 1em;
   }
-  
-  .simplecss figure {
-    margin: 0;
-    text-align: center;
-  }
-  
-  .simplecss figcaption {
-    font-size: 0.9rem;
-    color: var(--simple-text-light);
-    margin-bottom: 1rem;
-  }
-  
-  .simplecss blockquote {
-    margin: 2rem 0 2rem 2rem;
-    padding: 0.4rem 0.8rem;
-    border-left: 0.35rem solid var(--simple-accent);
-    color: var(--simple-text-light);
-    font-style: italic;
-  }
-  
-  .simplecss cite {
-    font-size: 0.9rem;
-    color: var(--simple-text-light);
-    font-style: normal;
-  }
-  
-  /* Use mono font for code elements */
-  .simplecss code,
-  .simplecss pre,
-  .simplecss pre span,
-  .simplecss kbd,
-  .simplecss samp {
-    font-size: 1.075rem;
-    font-family: var(--simple-mono-font);
-    color: var(--simple-code);
-  }
-  
-  .simplecss kbd {
-    color: var(--simple-preformatted);
-    border: 1px solid var(--simple-preformatted);
-    border-bottom: 3px solid var(--simple-preformatted);
-    border-radius: 5px;
-    padding: 0.1rem;
-  }
-  
-  .simplecss pre {
-    padding: 1rem 1.4rem;
-    max-width: 100%;
-    overflow: auto;
-    overflow-x: auto;
-    color: var(--simple-preformatted);
-    background: var(--simple-accent-bg);
-    border: 1px solid var(--simple-border);
-    border-radius: 5px;
-  }
-  
-  /* Fix embedded code within pre */
-  .simplecss pre code {
-    color: var(--simple-preformatted);
-    background: none;
-    margin: 0;
-    padding: 0;
-  }
+}
+
+/* Superscript & Subscript */
+/* Prevent scripts from affecting line-height. */
+.simplecss sup, .simplecss sub {
+  vertical-align: baseline;
+  position: relative;
+}
+
+.simplecss sup {
+  top: -0.4em;
+}
+
+.simplecss sub { 
+  top: 0.3em; 
+}
+
+/* Classes for notices */
+.simplecss .notice {
+  background: var(--simple-accent-bg);
+  border: 2px solid var(--simple-border);
+  border-radius: 5px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
