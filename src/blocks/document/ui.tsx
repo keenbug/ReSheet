@@ -8,6 +8,7 @@ import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils
 import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState } from './model'
 import * as Model from './model'
+import * as Multiple from '../../block/multiple'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -23,14 +24,30 @@ const ACTIONS = <State extends unknown>(
 ) => ({
     updateInner(action: (state: State) => State) {
         update((state: DocumentState<State>): DocumentState<State> => {
-            const blockState = action(state.blockState)
+            const openPage = state.pages.find(page => page.id === state.viewState.openPage)
+            if (!openPage) {
+                const blockState = action(state.blockState)
+                return {
+                    ...state,
+                    blockState,
+                    history: Model.reduceHistory([
+                        ...state.history,
+                        { type: 'state', time: new Date(), blockState },
+                    ]),
+                }
+            }
+
             return {
                 ...state,
-                blockState,
-                history: Model.reduceHistory([
-                    ...state.history,
-                    { type: 'state', time: new Date(), blockState },
-                ]),
+                pages: state.pages.map(page =>
+                    page.id === openPage.id ?
+                        {
+                            ...page,
+                            state: action(openPage.state)
+                        }
+                    :
+                        page
+                ),
             }
         })
     },
@@ -75,6 +92,38 @@ const ACTIONS = <State extends unknown>(
         catch (e) {
             window.alert(`Could not load file from URL: ${e}`)
         }
+    },
+
+    addPage() {
+        update(state => {
+            const newId = Multiple.nextFreeId(state.pages)
+            const newPage = {
+                id: newId,
+                name: "Untitled " + newId,
+                state: innerBlock.init,
+                result: null,
+            }
+            return {
+                ...state,
+                viewState: {
+                    ...state.viewState,
+                    openPage: newId,
+                },
+                pages: [newPage, ...state.pages]
+            }
+        })
+    },
+
+    openPage(pageId) {
+        update(state => {
+            return {
+                ...state,
+                viewState: {
+                    ...state.viewState,
+                    openPage: pageId,
+                }
+            }
+        })
     },
 
     openHistory() {
@@ -220,15 +269,29 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         }
     }
 
-    function viewToplevelBlock() {
+    function viewPage() {
+        const openPage = state.pages.find(page => page.id === state.viewState.openPage)
+        if (!openPage) {
+            return innerBlock.view({
+                ref: innerRef,
+                state: state.blockState,
+                update: actions.updateInner,
+                env: { ...env, history: state.history },
+            })
+        }
+
+        return innerBlock.view({
+            ref: innerRef,
+            state: openPage.state,
+            update: actions.updateInner,
+            env: { ...env, history: state.history },
+        })
+    }
+
+    function viewMode() {
         switch (state.viewState.mode.type) {
             case 'current':
-                return innerBlock.view({
-                    ref: innerRef,
-                    state: state.blockState,
-                    update: actions.updateInner,
-                    env: { ...env, history: state.history },
-                })
+                return viewPage()
             
             case 'history':
                 const entryInHistory = state.history[state.viewState.mode.position]
@@ -257,7 +320,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
             <SidebarButton state={state} actions={actions} />
             <div className={`h-full overflow-y-scroll flex-1 transition-all ${state.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
                 <HistoryModePanel state={state} actions={actions} />
-                {viewToplevelBlock()}
+                {viewMode()}
             </div>
         </div>
     )
@@ -311,27 +374,10 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
         }
     }
 
-    type MenuItemProps<Elem extends React.ElementType> =
-        React.ComponentPropsWithoutRef<Elem>
-        & { as?: Elem }
-
-    function MenuItem<Elem extends React.ElementType = 'button'>(props: MenuItemProps<Elem>) {
-        const { as: Element = 'button', children = null, ...restProps } = props
-        return (
-            <Menu.Item>
-                {({ active }) => (
-                    <Element className={`px-2 py-1 text-left ${active && "bg-blue-200"}`} {...restProps}>
-                        {children}
-                    </Element>
-                )}
-            </Menu.Item>
-        )
-    }
-
     return (
         <div
             className={`
-                flex flex-col whitespace-nowrap overflow-scroll bg-gray-100 transition-all
+                flex flex-col space-y-1 whitespace-nowrap overflow-scroll bg-gray-100 transition-all
                 sticky h-screen top-0
                 ${state.viewState.sidebarOpen ? 'min-w-min w-56' : 'w-0'}
             `}
@@ -348,43 +394,97 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
 
             <HistoryButton />
 
-            <Menu as="div" className="relative">
-                <Menu.Button as={React.Fragment}>
-                    {({ open }) => (
-                        <button
-                            className={`
-                                px-2 py-0.5 w-full text-left
-                                ring-0 ring-blue-500 focus:ring-1
-                                ${open ?
-                                    "text-blue-50 bg-blue-500 hover:bg-blue-500"
-                                :
-                                    "hover:text-blue-950 hover:bg-blue-200"
-                                }
-                            `}>
-                            File
-                        </button>
-                    )}
-                </Menu.Button>
+            <SidebarMenu state={state} actions={actions} />
 
-                <Menu.Items className="w-full flex flex-col bg-gray-200 text-sm">
-                    <MenuItem onClick={actions.reset}>
-                        New File
-                    </MenuItem>
-                    <MenuItem onClick={actions.save}>
-                        Save File
-                    </MenuItem>
-                    <MenuItem as={LoadFileButton} onLoad={actions.loadLocalFile}>
-                        Load local File ...
-                    </MenuItem>
-                    <MenuItem onClick={actions.loadRemoteFile}>
-                        Load File from URL ...
-                    </MenuItem>
-                </Menu.Items>
-            </Menu>
+            <hr />
+
+            <button
+                className="px-2 py-0.5 w-full text-left text-sm text-gray-500 hover:text-blue-700"
+                onClick={actions.addPage}
+                >
+                Add Page
+            </button>
+            {state.pages.map(page => (
+                <button
+                    key={page.id}
+                    className={`
+                        px-2 py-1 text-left
+                        ${page.id === state.viewState.openPage && "bg-gray-300"}
+                    `}
+                    onClick={() => actions.openPage(page.id)}
+                    >
+                    {page.name}
+                </button>
+            ))}
+            <button
+                className={`
+                    px-2 py-1 text-left
+                    ${state.viewState.openPage === null && "bg-gray-300"}
+                `}
+                onClick={() => actions.openPage(null)}
+                >
+                Home
+            </button>
         </div>
     )
 }
 
+
+function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
+    type MenuItemProps<Elem extends React.ElementType> =
+        React.ComponentPropsWithoutRef<Elem>
+        & { as?: Elem }
+
+    function MenuItem<Elem extends React.ElementType = 'button'>(
+        props: MenuItemProps<Elem>
+    ) {
+        const { as: Element = 'button', children = null, ...restProps } = props
+        return (
+            <Menu.Item>
+                {({ active }) => (
+                    <Element className={`px-2 py-1 text-left ${active && "bg-blue-200"}`} {...restProps}>
+                        {children}
+                    </Element>
+                )}
+            </Menu.Item>
+        )
+    }
+
+    return (
+        <Menu as="div" className="relative">
+            <Menu.Button as={React.Fragment}>
+                {({ open }) => (
+                    <button
+                        className={`
+                                    px-2 py-0.5 w-full text-left
+                                    ring-0 ring-blue-500 focus:ring-1
+                                    ${open ?
+                                "text-blue-50 bg-blue-500 hover:bg-blue-500"
+                                :
+                                "hover:text-blue-950 hover:bg-blue-200"}
+                                `}>
+                        File
+                    </button>
+                )}
+            </Menu.Button>
+
+            <Menu.Items className="w-full flex flex-col bg-gray-200 text-sm">
+                <MenuItem onClick={actions.reset}>
+                    New File
+                </MenuItem>
+                <MenuItem onClick={actions.save}>
+                    Save File
+                </MenuItem>
+                <MenuItem as={LoadFileButton} onLoad={actions.loadLocalFile}>
+                    Load local File ...
+                </MenuItem>
+                <MenuItem onClick={actions.loadRemoteFile}>
+                    Load File from URL ...
+                </MenuItem>
+            </Menu.Items>
+        </Menu>
+    )
+}
 
 function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
     const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)

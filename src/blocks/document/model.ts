@@ -1,9 +1,12 @@
-import { BlockDesc, Environment } from '../../block'
+import { Block, BlockDesc, Environment } from '../../block'
+import { BlockEntry } from '../../block/multiple'
+import * as Multiple from '../../block/multiple'
 import { catchAll } from '../../utils'
 
 export interface ViewState {
     mode: ViewMode
     sidebarOpen: boolean
+    openPage: PageId | null
 }
 
 export type ViewMode =
@@ -12,6 +15,7 @@ export type ViewMode =
 
 
 export interface DocumentState<State> {
+    readonly pages: Array<PageState<State>>
     readonly blockState: State
     readonly history: Array<HistoryEntry<State>>
     readonly viewState: ViewState
@@ -20,16 +24,25 @@ export interface DocumentState<State> {
 
 export function init<State>(initBlockState: State): DocumentState<State> {
     return {
+        pages: [],
         blockState: initBlockState,
         history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
         viewState: {
             mode: { type: 'current' },
             sidebarOpen: true,
+            openPage: null,
         },
         name: '',
     }
 }
 
+export type PageId = number
+
+export interface PageState<State> extends BlockEntry<State> {
+    id: PageId
+    name: string
+    state: State
+}
 
 
 export type HistoryEntry<State> =
@@ -177,13 +190,18 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
 }
 
 
-export function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<State>): DocumentState<State> {
+export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<State>): DocumentState<State> {
     const {
         block,
         history,
         name = '',
-        viewState = { sidebarOpen: true }
+        pages = [],
+        viewState = {},
     } = json
+    const {
+        sidebarOpen = false,
+        openPage = null,
+    } = viewState
     const blockState = catchAll(
         () => innerBlock.fromJSON(block, env),
         (e) => innerBlock.init,
@@ -192,12 +210,15 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDe
         () => historyFromJSON(history),
         (e) => [{ type: 'state', time: new Date(), blockState }],
     )
+    const loadedPages = Multiple.fromJSON(pages, innerBlock, env, entry => entry)
     return {
+        pages: loadedPages,
         blockState,
         history: savedHistory,
         viewState: {
-            ...viewState,
             mode: { type: 'current' },
+            sidebarOpen,
+            openPage,
         },
         name,
     }
@@ -207,5 +228,10 @@ export function toJSON<State>(state: DocumentState<State>, innerBlock: BlockDesc
     const block = innerBlock.toJSON(state.blockState)
     const history = historyToJSON(state.history, innerBlock)
     const viewState = { sidebarOpen: state.viewState.sidebarOpen }
-    return { block, history, name: state.name, viewState }
+    const pages = state.pages.map(page => ({
+        id: page.id,
+        name: page.name,
+        blockState: innerBlock.toJSON(page.state),
+    }))
+    return { pages, block, history, name: state.name, viewState }
 }
