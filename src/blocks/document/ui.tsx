@@ -6,7 +6,7 @@ import { Menu } from '@headlessui/react'
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
 import { useAutoretrigger } from '../../ui/hooks'
-import { DocumentState } from './model'
+import { DocumentState, PageId, PageState } from './model'
 import * as Model from './model'
 import * as Multiple from '../../block/multiple'
 
@@ -39,14 +39,12 @@ const ACTIONS = <State extends unknown>(
 
             return {
                 ...state,
-                pages: state.pages.map(page =>
-                    page.id === openPage.id ?
-                        {
-                            ...page,
-                            state: action(openPage.state)
-                        }
-                    :
-                        page
+                pages: Multiple.updateBlockEntry(
+                    state.pages,
+                    openPage.id,
+                    action,
+                    innerBlock,
+                    env,
                 ),
             }
         })
@@ -109,7 +107,21 @@ const ACTIONS = <State extends unknown>(
                     ...state.viewState,
                     openPage: newId,
                 },
-                pages: [newPage, ...state.pages]
+                pages: [...state.pages, newPage]
+            }
+        })
+    },
+
+    setPageName(id: PageId, name: string) {
+        update(state => {
+            return {
+                ...state,
+                pages: state.pages.map(page =>
+                    page.id === id ?
+                        { ...page, name }
+                    :
+                        page
+                ),
             }
         })
     },
@@ -163,29 +175,13 @@ const ACTIONS = <State extends unknown>(
 })
 
 
-export interface DocumentUiProps<State> {
-    state: DocumentState<State>
-    update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
-    env: Environment
-    innerBlock: Block<State>
-    blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
-}
-
-export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: DocumentUiProps<State>) {
-    const containerRef = React.useRef<HTMLDivElement>()
-    const innerRef = React.useRef<BlockRef>()
-    React.useImperativeHandle(
-        blockRef,
-        () => ({
-            focus() {
-                containerRef.current?.focus()
-            }
-        })
-    )
-
-    const actions = ACTIONS(update, innerBlock, env)
-
-    function onKeyDown(event: React.KeyboardEvent) {
+function DocumentKeyHandler<State>(
+    state: DocumentState<State>,
+    actions: Actions<State>,
+    containerRef: React.MutableRefObject<HTMLDivElement>,
+    innerRef: React.MutableRefObject<BlockRef>,
+) {
+    return function onKeyDown(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             // not sure about capturing this...
             case "C-n":
@@ -268,23 +264,50 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 return
         }
     }
+}
+
+
+export interface DocumentUiProps<State> {
+    state: DocumentState<State>
+    update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
+    env: Environment
+    innerBlock: Block<State>
+    blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
+}
+
+export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: DocumentUiProps<State>) {
+    const containerRef = React.useRef<HTMLDivElement>()
+    const innerRef = React.useRef<BlockRef>()
+    React.useImperativeHandle(
+        blockRef,
+        () => ({
+            focus() {
+                containerRef.current?.focus()
+            }
+        })
+    )
+
+    const actions = ACTIONS(update, innerBlock, env)
+    const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef)
 
     function viewPage() {
         const openPage = state.pages.find(page => page.id === state.viewState.openPage)
         if (!openPage) {
+            const childrenEnv = Multiple.getResultEnv(state.pages)
             return innerBlock.view({
                 ref: innerRef,
                 state: state.blockState,
                 update: actions.updateInner,
-                env: { ...env, history: state.history },
+                env: { history: state.history, ...env, ...childrenEnv },
             })
         }
 
+        const pageEnv = Multiple.getEntryEnvBefore(state.pages, openPage.id)
         return innerBlock.view({
             ref: innerRef,
             state: openPage.state,
             update: actions.updateInner,
-            env: { ...env, history: state.history },
+            env: { history: state.history, ...env, ...pageEnv },
         })
     }
 
@@ -318,6 +341,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
             >
             <Sidebar state={state} actions={actions} />
             <SidebarButton state={state} actions={actions} />
+
             <div className={`h-full overflow-y-scroll flex-1 transition-all ${state.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
                 <HistoryModePanel state={state} actions={actions} />
                 {viewMode()}
@@ -340,6 +364,8 @@ function SidebarButton<State>({ state, actions }: ActionProps<State>) {
         </div>
     )
 }
+
+
 
 function Sidebar<State>({ state, actions }: ActionProps<State>) {
     function HistoryButton() {
@@ -399,24 +425,6 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
             <hr />
 
             <button
-                className="px-2 py-0.5 w-full text-left text-sm text-gray-500 hover:text-blue-700"
-                onClick={actions.addPage}
-                >
-                Add Page
-            </button>
-            {state.pages.map(page => (
-                <button
-                    key={page.id}
-                    className={`
-                        px-2 py-1 text-left
-                        ${page.id === state.viewState.openPage && "bg-gray-300"}
-                    `}
-                    onClick={() => actions.openPage(page.id)}
-                    >
-                    {page.name}
-                </button>
-            ))}
-            <button
                 className={`
                     px-2 py-1 text-left
                     ${state.viewState.openPage === null && "bg-gray-300"}
@@ -425,9 +433,77 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
                 >
                 Home
             </button>
+            {state.pages.map(page => (
+                <PageButton page={page} state={state} actions={actions} />
+            ))}
+            <button
+                className="pl-4 pr-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
+                onClick={actions.addPage}
+                >
+                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                Add Page
+            </button>
         </div>
     )
 }
+
+
+interface PageButtonProps<State> extends ActionProps<State> {
+    page: PageState<State>
+}
+
+function PageButton<State>({ page, state, actions }: PageButtonProps<State>) {
+    const [editing, setIsEditing] = React.useState(false)
+
+    if (editing) {
+        function onChange(event: React.ChangeEvent<HTMLInputElement>) {
+            actions.setPageName(page.id, event.target.value)
+        }
+        function onKeyDown(event: React.KeyboardEvent) {
+            if (getFullKey(event) === 'Enter') {
+                onCommitName()
+                event.stopPropagation()
+                event.preventDefault()
+            }
+        }
+        function onCommitName() {
+            if (page.name.trim() === '') {
+                actions.setPageName(page.id, 'Untitled ' + page.id)
+            }
+            else if (page.name !== page.name.trim()) {
+                actions.setPageName(page.id, page.name.trim())
+            }
+            setIsEditing(false)
+        }
+        return (
+            <div
+                key={page.id}
+                className={`
+                    pl-4 pr-2 py-1 text-left
+                    ${page.id === state.viewState.openPage && "bg-gray-300"}
+                `}
+                >
+                <input type="text" autoFocus value={page.name} onChange={onChange} onBlur={onCommitName} onKeyDown={onKeyDown} />
+            </div>
+        )
+    }
+
+    return (
+        <button
+            key={page.id}
+            className={`
+                pl-4 pr-2 py-1 text-left
+                ${page.id === state.viewState.openPage && "bg-gray-300"}
+            `}
+            onClick={() => actions.openPage(page.id)}
+            onDoubleClick={() => setIsEditing(true)}
+            >
+            {page.name}
+        </button>
+    )
+}
+
+
 
 
 function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
@@ -451,7 +527,7 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
     }
 
     return (
-        <Menu as="div" className="relative">
+        <Menu as="div">
             <Menu.Button as={React.Fragment}>
                 {({ open }) => (
                     <button
@@ -485,6 +561,9 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
         </Menu>
     )
 }
+
+
+
 
 function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
     const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)

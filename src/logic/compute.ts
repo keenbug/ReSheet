@@ -39,14 +39,25 @@ export const transformJSExpr = sourcecode =>
     )
 
 
+export function cleanupEnv(env: Environment) {
+    const cleanEntries = (
+        Object.entries(env).filter(([name]) =>
+            name.match(/^[a-zA-Z_$][\w\$]*$/)
+        )
+    )
+    return Object.fromEntries([["$VAR", env], ...cleanEntries])
+}
+
+
 export const computeExpr = (code: string | null, env: Environment) => {
-    if (!code) { return }
+    if (!code?.trim()) { return }
     try {
+        const cleanEnv = cleanupEnv(env)
         const exprFunc = new Function(
-            ...Object.keys(env),
+            ...Object.keys(cleanEnv),
             transformJSExpr(code),
         )
-        return exprFunc(...Object.values(env))
+        return exprFunc(...Object.values(cleanEnv))
     }
     catch (e) {
         if (e instanceof SyntaxError && (e as any).loc !== undefined) {
@@ -94,23 +105,24 @@ export function transformJSScript(sourcecode) {
 export const AsyncFunction = (async function(){}).constructor
 
 export function computeScript(code: string | null, env: Environment) {
-    if (!code) { return }
+    if (!code?.trim()) { return }
     try {
+        const cleanEnv = cleanupEnv(env)
         const { transformedCode, isAsync } = transformJSScript(code)
         const funcConstructor = isAsync ? AsyncFunction : Function
         const exprFunc = funcConstructor(
-            ...Object.keys(env),
+            ...Object.keys(cleanEnv),
             transformedCode,
         )
 
         if (isAsync) {
-            const promise = exprFunc(...Object.values(env))
+            const promise = exprFunc(...Object.values(cleanEnv))
             // so I don't trigger the error overlay in dev mode
             //  theoretically I do catch the error, but too late
             promise.catch(e => e)
             return promise
         }
-        return exprFunc(...Object.values(env))
+        return exprFunc(...Object.values(cleanEnv))
     }
     catch (e) {
         if (e instanceof SyntaxError && (e as any).loc !== undefined) {

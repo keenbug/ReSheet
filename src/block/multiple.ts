@@ -21,8 +21,14 @@ export function entryName(entry: BlockEntry<unknown>) {
     return entry.name
 }
 
-export function getResult<State>(entries: BlockEntry<State>[]) {
+export function getLastResult<State>(entries: BlockEntry<State>[]) {
     return entries[entries.length - 1]?.result
+}
+
+export function getResultEnv<State>(entries: BlockEntry<State>[]) {
+    return Object.fromEntries(
+        entries.map(entry => [entry.name, entry.result])
+    )
 }
 
 
@@ -79,6 +85,15 @@ export function insertEntryAfter<Inner, Entry extends BlockEntry<Inner>>(
         :
             [entry]
     )
+}
+
+export function getEntryEnvBefore<State>(
+    entries: BlockEntry<State>[],
+    beforeId: number
+) {
+    const entryIndex = entries.findIndex(entry => entry.id === beforeId) ?? 0
+    const entriesBefore = entries.slice(0, entryIndex)
+    return Object.assign({}, ...entriesBefore.map(entryToEnv))
 }
 
 export function recomputeResults<State, Entry extends BlockEntry<State>>(

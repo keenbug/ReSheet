@@ -83,7 +83,7 @@ export function recomputeSheetResults<State>(
 }
 
 export function getResult<State>(state: SheetBlockState<State>) {
-    return Multiple.getResult(state.lines)
+    return Multiple.getLastResult(state.lines)
 }
 
 
