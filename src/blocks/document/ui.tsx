@@ -11,6 +11,11 @@ import * as Model from './model'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
+interface ActionProps<State> {
+    state: DocumentState<State>
+    actions: Actions<State>
+}
+
 const ACTIONS = <State extends unknown>(
     update: BlockUpdater<DocumentState<State>>,
     innerBlock: Block<State>,
@@ -92,10 +97,20 @@ const ACTIONS = <State extends unknown>(
         update(state => Model.viewStateFromHistory(state, innerBlock, env))
     },
     
-    changeName(name) {
+    changeName(name: string) {
         update(state => ({ ...state, name }))
     },
-    
+
+    toggleSidebar() {
+        update(state => ({
+            ...state,
+            viewState: {
+                ...state.viewState,
+                sidebarOpen: !state.viewState.sidebarOpen,
+            }
+        }))
+    },
+
 })
 
 
@@ -149,8 +164,14 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 event.preventDefault()
                 return
 
+            case "C-b":
+                actions.toggleSidebar()
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
             case "C-z":
-                if (state.viewState.mode === 'history') {
+                if (state.viewState.mode.type === 'history') {
                     actions.goBack()
                 }
                 else {
@@ -161,7 +182,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 return
 
             case "C-y":
-                if (state.viewState.mode === 'history') {
+                if (state.viewState.mode.type === 'history') {
                     actions.goForward()
                     event.stopPropagation()
                     event.preventDefault()
@@ -169,7 +190,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 return
 
             case "Escape":
-                if (state.viewState.mode === 'history') {
+                if (state.viewState.mode.type === 'history') {
                     actions.closeHistory()
                     event.stopPropagation()
                     event.preventDefault()
@@ -182,7 +203,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 return
 
             case "C-Enter":
-                if (state.viewState.mode === 'history') {
+                if (state.viewState.mode.type === 'history') {
                     actions.useState()
                     event.stopPropagation()
                     event.preventDefault()
@@ -200,9 +221,8 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     }
 
     function viewToplevelBlock() {
-        switch (state.viewState.mode) {
+        switch (state.viewState.mode.type) {
             case 'current':
-                
                 return innerBlock.view({
                     ref: innerRef,
                     state: state.blockState,
@@ -211,7 +231,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                 })
             
             case 'history':
-                const entryInHistory = state.history[state.viewState.position]
+                const entryInHistory = state.history[state.viewState.mode.position]
                 if (entryInHistory === undefined) { return null }
 
                 const stateInHistory = Model.getHistoryState(entryInHistory, innerBlock, env)
@@ -220,47 +240,52 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     update: () => {},
                     env: {
                         ...env,
-                        history: state.history.slice(0, state.viewState.position)
+                        history: state.history.slice(0, state.viewState.mode.position)
                     },
                 })
         }
     }
 
     return (
-        <div ref={containerRef} className="min-h-full" tabIndex={-1} onKeyDown={onKeyDown}>
-            <MenuBar
-                state={state}
-                actions={actions}
-                />
-            {viewToplevelBlock()}
+        <div
+            ref={containerRef}
+            tabIndex={-1}
+            onKeyDown={onKeyDown}
+            className="h-full relative flex"
+            >
+            <Sidebar state={state} actions={actions} />
+            <SidebarButton state={state} actions={actions} />
+            <div className={`h-full overflow-y-scroll flex-1 transition-all ${state.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                <HistoryModePanel state={state} actions={actions} />
+                {viewToplevelBlock()}
+            </div>
         </div>
     )
 }
 
 
-interface MenuBarProps<State> {
-    state: DocumentState<State>
-    actions: Actions<State>
+function SidebarButton<State>({ state, actions }: ActionProps<State>) {
+    if (state.viewState.sidebarOpen) {
+        return null
+    }
+
+    return (
+        <div className="absolute top-1 left-2">
+            <button className="text-gray-300 hover:text-gray-500 transition" onClick={actions.toggleSidebar}>
+                <FontAwesomeIcon icon={solidIcons.faBars} />
+            </button>
+        </div>
+    )
 }
 
-export function MenuBar<State>({ state, actions }: MenuBarProps<State>) {
-    switch (state.viewState.mode) {
-        case 'current':
-            return (
-                <div
-                    className={`
-                        relative z-10
-                        bg-white backdrop-opacity-90 backdrop-blur
-                        shadow mb-2 flex space-x-2 items-baseline
-                    `}
-                    >
-                    <NormalMenuBar state={state} actions={actions} />
-
-                    <div className="flex-1" />
-
+function Sidebar<State>({ state, actions }: ActionProps<State>) {
+    function HistoryButton() {
+        switch (state.viewState.mode.type) {
+            case 'current':
+                return (
                     <button
                         className={`
-                            px-2 py-0.5 h-full
+                            px-2 py-0.5 w-full text-left
                             hover:text-blue-900 hover:bg-blue-200
                         `}
                         onClick={actions.openHistory}
@@ -268,24 +293,13 @@ export function MenuBar<State>({ state, actions }: MenuBarProps<State>) {
                         <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
                         History
                     </button>
-                </div>
-            )
+                )
 
-        case 'history':
-        default:
-            return (
-                <div
-                    className={`
-                        sticky top-0 left-0 right-0 z-10
-                        bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
-                        shadow mb-2 flex space-x-2 items-baseline
-                    `}
-                    >
-                    <HistoryModeMenuBar state={state} actions={actions} />
-
+            case 'history':
+                return (
                     <button
                         className={`
-                            px-2 py-0.5
+                            px-2 py-0.5 w-full text-left
                             text-blue-50 bg-blue-700 hover:bg-blue-500
                         `}
                         onClick={actions.closeHistory}
@@ -293,24 +307,54 @@ export function MenuBar<State>({ state, actions }: MenuBarProps<State>) {
                         <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
                         History
                     </button>
-                </div>
-            )
+                )
+        }
     }
-}
 
-function NormalMenuBar<State>({ state, actions }: MenuBarProps<State>) {
-    if (state.viewState.mode !== 'current') {
-        return null
+    type MenuItemProps<Elem extends React.ElementType> =
+        React.ComponentPropsWithoutRef<Elem>
+        & { as?: Elem }
+
+    function MenuItem<Elem extends React.ElementType = 'button'>(props: MenuItemProps<Elem>) {
+        const { as: Element = 'button', children = null, ...restProps } = props
+        return (
+            <Menu.Item>
+                {({ active }) => (
+                    <Element className={`px-2 py-1 text-left ${active && "bg-blue-200"}`} {...restProps}>
+                        {children}
+                    </Element>
+                )}
+            </Menu.Item>
+        )
     }
 
     return (
-        <>
+        <div
+            className={`
+                flex flex-col whitespace-nowrap overflow-scroll bg-gray-100 transition-all
+                sticky h-screen top-0
+                ${state.viewState.sidebarOpen ? 'min-w-min w-56' : 'w-0'}
+            `}
+            >
+            <button
+                className={`
+                    px-2 py-0.5 self-end text-gray-400
+                    hover:text-gray-800 hover:bg-gray-200
+                `}
+                onClick={actions.toggleSidebar}
+                >
+                <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
+            </button>
+
+            <HistoryButton />
+
             <Menu as="div" className="relative">
                 <Menu.Button as={React.Fragment}>
                     {({ open }) => (
                         <button
                             className={`
-                                px-2 py-0.5 h-full
+                                px-2 py-0.5 w-full text-left
+                                ring-0 ring-blue-500 focus:ring-1
                                 ${open ?
                                     "text-blue-50 bg-blue-500 hover:bg-blue-500"
                                 :
@@ -321,87 +365,47 @@ function NormalMenuBar<State>({ state, actions }: MenuBarProps<State>) {
                         </button>
                     )}
                 </Menu.Button>
-                <Menu.Items
-                    className={`
-                        absolute left-0 origin-top-left
-                        w-56
-                        flex flex-col
-                        bg-white border rounded shadow
-                        text-sm
-                    `}
-                    >
-                    <Menu.Item>
-                        {({ active }) => (
-                            <button
-                                className={`
-                                    px-2 py-1 text-left
-                                    ${active && "bg-blue-100"}
-                                `}
-                                onClick={actions.reset}
-                                >
-                                New File
-                            </button>
-                        )}
-                    </Menu.Item>
-                    <Menu.Item>
-                        {({ active }) => (
-                            <button
-                                className={`
-                                    px-2 py-1 text-left
-                                    ${active && "bg-blue-100"}
-                                `}
-                                onClick={actions.save}
-                                >
-                                Save File
-                            </button>
-                        )}
-                    </Menu.Item>
-                    <Menu.Item>
-                        {({ active }) => (
-                            <LoadFileButton
-                                className={`
-                                    px-2 py-1 text-left
-                                    ${active && "bg-blue-100"}
-                                `}
-                                onLoad={actions.loadLocalFile}
-                                >
-                                Load local File ...
-                            </LoadFileButton>
-                        )}
-                    </Menu.Item>
-                    <Menu.Item>
-                        {({ active }) => (
-                            <button
-                                className={`
-                                    px-2 py-1 text-left
-                                    ${active && "bg-blue-100"}
-                                `}
-                                onClick={actions.loadRemoteFile}
-                                >
-                                Load File from URL ...
-                            </button>
-                        )}
-                    </Menu.Item>
+
+                <Menu.Items className="w-full flex flex-col bg-gray-200 text-sm">
+                    <MenuItem onClick={actions.reset}>
+                        New File
+                    </MenuItem>
+                    <MenuItem onClick={actions.save}>
+                        Save File
+                    </MenuItem>
+                    <MenuItem as={LoadFileButton} onLoad={actions.loadLocalFile}>
+                        Load local File ...
+                    </MenuItem>
+                    <MenuItem onClick={actions.loadRemoteFile}>
+                        Load File from URL ...
+                    </MenuItem>
                 </Menu.Items>
             </Menu>
-        </>
+        </div>
     )
 }
 
 
-function HistoryModeMenuBar<State>({ state, actions }: MenuBarProps<State>) {
+function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
     const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
     const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
 
-    if (state.viewState.mode !== 'history') {
+    if (state.viewState.mode.type !== 'history') {
         return null
     }
 
     return (
-        <>
+        <div
+            className={`
+                sticky top-0 left-0 right-0 z-10
+                bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
+                shadow mb-2 flex space-x-2 items-baseline
+            `}
+            >
             <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.useState}>
                 Restore
             </button>
+
             <div className="flex-1 flex space-x-1 px-2">
                 <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
                     <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
@@ -410,10 +414,10 @@ function HistoryModeMenuBar<State>({ state, actions }: MenuBarProps<State>) {
                     <FontAwesomeIcon icon={solidIcons.faAngleRight} />
                 </button>
                 <div className="self-center px-1">
-                    {formatTime(state.history[state.viewState.position].time)}
+                    {formatTime(state.history[state.viewState.mode.position].time)}
                 </div>
             </div>
-        </>
+        </div>
     )
 }
 

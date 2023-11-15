@@ -1,9 +1,14 @@
 import { BlockDesc, Environment } from '../../block'
 import { catchAll } from '../../utils'
 
-export type ViewState =
-    | { mode: 'current' }
-    | { mode: 'history', position: number }
+export interface ViewState {
+    mode: ViewMode
+    sidebarOpen: boolean
+}
+
+export type ViewMode =
+    | { type: 'current' }
+    | { type: 'history', position: number }
 
 
 export interface DocumentState<State> {
@@ -17,7 +22,10 @@ export function init<State>(initBlockState: State): DocumentState<State> {
     return {
         blockState: initBlockState,
         history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
-        viewState: { mode: 'current' },
+        viewState: {
+            mode: { type: 'current' },
+            sidebarOpen: true,
+        },
         name: '',
     }
 }
@@ -42,8 +50,11 @@ export function openHistory<State>(state: DocumentState<State>): DocumentState<S
         return {
             ...state,
             viewState: {
-                mode: 'history',
-                position: state.history.length - 1,
+                ...state.viewState,
+                mode: {
+                    type: 'history',
+                    position: state.history.length - 1,
+                },
             },
         }
     }
@@ -53,17 +64,23 @@ export function openHistory<State>(state: DocumentState<State>): DocumentState<S
 export function closeHistory<State>(state: DocumentState<State>): DocumentState<State> {
     return {
         ...state,
-        viewState: { mode: 'current' },
+        viewState: {
+            ...state.viewState,
+            mode: { type: 'current' },
+        },
     }
 }
 
 export function goBackInHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    if (state.viewState.mode === 'history') {
+    if (state.viewState.mode.type === 'history') {
         return {
             ...state,
             viewState: {
                 ...state.viewState,
-                position: Math.max(0, state.viewState.position - 1),
+                mode: {
+                    ...state.viewState.mode,
+                    position: Math.max(0, state.viewState.mode.position - 1),
+                }
             }
         }
     }
@@ -71,12 +88,15 @@ export function goBackInHistory<State>(state: DocumentState<State>): DocumentSta
 }
 
 export function goForwardInHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    if (state.viewState.mode === 'history') {
+    if (state.viewState.mode.type === 'history') {
         return {
             ...state,
             viewState: {
                 ...state.viewState,
-                position: Math.min(state.viewState.position + 1, state.history.length - 1),
+                mode: {
+                    ...state.viewState.mode,
+                    position: Math.min(state.viewState.mode.position + 1, state.history.length - 1),
+                }
             }
         }
     }
@@ -88,17 +108,20 @@ export function viewStateFromHistory<State>(
     innerBlock: BlockDesc<State>,
     env: Environment,
 ): DocumentState<State> {
-    if (state.viewState.mode === 'history') {
-        const historicState = state.history[state.viewState.position]
+    if (state.viewState.mode.type === 'history') {
+        const historicState = state.history[state.viewState.mode.position]
         const historicEnv = {
             ...env,
-            history: state.history.slice(0, state.viewState.position)
+            history: state.history.slice(0, state.viewState.mode.position)
         }
         return {
             ...state,
             history: [ ...state.history, historicState ],
             blockState: getHistoryState(historicState, innerBlock, historicEnv),
-            viewState: { mode: 'current' },
+            viewState: {
+                ...state.viewState,
+                mode: { type: 'current' },
+            },
         }
     }
     return state
@@ -155,7 +178,12 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
 
 
 export function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDesc<State>): DocumentState<State> {
-    const { block, history, name = '' } = json
+    const {
+        block,
+        history,
+        name = '',
+        viewState = { sidebarOpen: true }
+    } = json
     const blockState = catchAll(
         () => innerBlock.fromJSON(block, env),
         (e) => innerBlock.init,
@@ -167,7 +195,10 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDe
     return {
         blockState,
         history: savedHistory,
-        viewState: { mode: 'current' },
+        viewState: {
+            ...viewState,
+            mode: { type: 'current' },
+        },
         name,
     }
 }
