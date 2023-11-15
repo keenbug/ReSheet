@@ -251,24 +251,24 @@ export const SheetLine = React.forwardRef(
         { block, line, env, actions }: SheetLineProps<unknown>,
         ref: React.Ref<SheetLineRef>
     ) {
-        const containerRef = React.useRef<HTMLDivElement | null>(null)
-        const varInputRef = React.useRef<HTMLElement | null>(null)
-        const innerBlockRef = React.useRef<BlockRef | null>(null)
+        const containerRef = React.useRef<HTMLDivElement>()
+        const varInputRef = React.useRef<HTMLElement>()
+        const innerBlockRef = React.useRef<BlockRef>()
 
         React.useImperativeHandle(
             ref,
             () => ({
                 isFocused() {
-                    return document.activeElement === containerRef.current
+                    return !!containerRef.current && document.activeElement === containerRef.current
                 },
                 focus() {
-                    containerRef.current.focus()
+                    containerRef.current?.focus()
                 },
                 focusVar() {
-                    varInputRef.current.focus()
+                    varInputRef.current?.focus()
                 },
                 focusInner() {
-                    innerBlockRef.current.focus()
+                    innerBlockRef.current?.focus()
                 }
             })
         )
