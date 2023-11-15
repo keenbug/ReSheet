@@ -1,16 +1,19 @@
 import * as block from '../../block'
 import { Block } from '../../block'
+import { BlockEntry } from '../../block/multiple'
+import * as Multiple from '../../block/multiple'
 
 export interface SheetBlockState<InnerBlockState> {
     readonly lines: SheetBlockLine<InnerBlockState>[]
 }
 
-export interface SheetBlockLine<InnerBlockState> {
+export interface SheetBlockLine<InnerBlockState> extends BlockEntry<InnerBlockState> {
     readonly id: number
     readonly name: string
-    readonly isCollapsed: boolean
     readonly state: InnerBlockState
     readonly result: unknown
+
+    readonly isCollapsed: boolean
 }
 
 
@@ -27,71 +30,43 @@ export function init<InnerBlockState>(innerBlockInit: InnerBlockState): SheetBlo
 }
 
 
-export const lineDefaultName = (line: SheetBlockLine<unknown>) => '$' + line.id
-export const lineName = (line: SheetBlockLine<unknown>) => line.name.length > 0 ? line.name : lineDefaultName(line)
-
-export function lineToEnv<State>(
-    line: SheetBlockLine<State>,
-) {
-    return {
-        [lineName(line)]: line.result
-    }
-}
+export const lineDefaultName = Multiple.entryDefaultName
+export const lineToEnv = Multiple.entryToEnv
 
 export function nextFreeId(state: SheetBlockState<unknown>) {
-    const highestId = state.lines
-        .map(line => line.id)
-        .reduce((a, b) => Math.max(a, b), -1)
-
-    return 1 + highestId
+    return Multiple.nextFreeId(state.lines)
 }
 
-export function updateLineWithId<Inner extends unknown>(
+export function updateLineWithId<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     update: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
 ) {
     return {
         ...state,
-        lines: state.lines.map(
-            line =>
-                line.id === id ?
-                    update(line)
-                :
-                    line
-        )
+        lines: Multiple.updateBlockWithId(state.lines, id, update),
     }
 }
 
-export function insertLineBefore<Inner extends unknown>(
+export function insertLineBefore<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
 ) {
     return {
         ...state,
-        lines: state.lines.flatMap(line =>
-            line.id === id ?
-                [newLine, line]
-            :
-                [line]
-        )
+        lines: Multiple.insertEntryBefore(state.lines, id, newLine),
     }
 }
 
-export function insertLineAfter<Inner extends unknown>(
+export function insertLineAfter<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
 ) {
     return {
         ...state,
-        lines: state.lines.flatMap(line =>
-            line.id === id ?
-                [line, newLine]
-            :
-                [line]
-        )
+        lines: Multiple.insertEntryAfter(state.lines, id, newLine),
     }
 }
 
@@ -101,35 +76,14 @@ export function recomputeSheetResults<State>(
     env: block.Environment,
     startFromId?: number,
 ) {
-    const startIndex = state.lines.findIndex(line => line.id === startFromId) ?? 0
-    const linesBefore = state.lines.slice(0, startIndex)
-    const linesAfter = state.lines.slice(startIndex)
-
-    const envBefore = Object.assign(
-        {},
-        env,
-        ...linesBefore.map(lineToEnv),
-    )
-
-    const recomputedLines = block.mapWithEnv(
-        linesAfter,
-        (line, localEnv) => {
-            const result = innerBlock.getResult(line.state, localEnv)
-            return {
-                out: { ...line, result },
-                env: { [lineName(line)]: result },
-            }
-        },
-        envBefore,
-    )
     return {
         ...state,
-        lines: [ ...linesBefore, ...recomputedLines ],
+        lines: Multiple.recomputeResults(state.lines, innerBlock, env, startFromId)
     }
 }
 
 export function getResult<State>(state: SheetBlockState<State>) {
-    return state.lines[state.lines.length - 1]?.result
+    return Multiple.getResult(state.lines)
 }
 
 
@@ -140,18 +94,14 @@ export function updateLineBlock<State>(
     innerBlock: Block<State>,
     env: block.Environment,
 ): SheetBlockState<State> {
-    return recomputeSheetResults(
-        {
-            ...state,
-            lines: state.lines.map(line =>
-                line.id === id ?
-                    { ...line, state: action(line.state) }
-                :
-                    line
-            ),
-        },
-        innerBlock,
-        env,
-        id,
-    )
+    return {
+        ...state,
+        lines: Multiple.updateBlockEntry(
+            state.lines,
+            id,
+            action,
+            innerBlock,
+            env,
+        ),
+    }
 }
