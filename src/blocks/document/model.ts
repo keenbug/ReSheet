@@ -45,6 +45,56 @@ export interface PageState<State> extends BlockEntry<State> {
 }
 
 
+export function addPage<State>(state: DocumentState<State>, innerBlock: Block<State>) {
+    const newId = Multiple.nextFreeId(state.pages)
+    const newPage = {
+        id: newId,
+        name: "Untitled " + newId,
+        state: innerBlock.init,
+        result: null,
+    }
+    return {
+        ...state,
+        viewState: {
+            ...state.viewState,
+            openPage: newId,
+        },
+        pages: [...state.pages, newPage]
+    }
+}
+
+export function updateInner<State>(
+    state: DocumentState<State>,
+    action: (state: State) => State,
+    innerBlock: Block<State>,
+    env: Environment,
+) {
+    const openPage = state.pages.find(page => page.id === state.viewState.openPage)
+    if (!openPage) {
+        const blockState = action(state.blockState)
+        return {
+            ...state,
+            blockState,
+            history: reduceHistory([
+                ...state.history,
+                { type: 'state', time: new Date(), blockState },
+            ]),
+        }
+    }
+
+    return {
+        ...state,
+        pages: Multiple.updateBlockEntry(
+            state.pages,
+            openPage.id,
+            action,
+            innerBlock,
+            env,
+        ),
+    }
+}
+
+
 export type HistoryEntry<State> =
     | {
         readonly type: 'state'
@@ -116,7 +166,7 @@ export function goForwardInHistory<State>(state: DocumentState<State>): Document
     return state
 }
 
-export function viewStateFromHistory<State>(
+export function restoreStateFromHistory<State>(
     state: DocumentState<State>,
     innerBlock: BlockDesc<State>,
     env: Environment,

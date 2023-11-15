@@ -54,3 +54,21 @@ export function filterEntries<V>(
         )
     )
 }
+
+
+// Unfortunately not type-safe. Let's see how this experiment develops.
+export function $update(
+    update: (value: any) => any,
+    obj: any,
+    ...path: Array<string | number>
+) {
+    if (path.length === 0) {
+        return update(obj)
+    }
+
+    const key = path[0]
+    return {
+        ...obj,
+        [key]: $update(update, obj[key], ...path.slice(1)),
+    }
+}

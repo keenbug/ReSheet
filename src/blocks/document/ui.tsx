@@ -9,6 +9,7 @@ import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState, PageId, PageState } from './model'
 import * as Model from './model'
 import * as Multiple from '../../block/multiple'
+import { $update } from '../../utils'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -23,31 +24,9 @@ const ACTIONS = <State extends unknown>(
     env: Environment,
 ) => ({
     updateInner(action: (state: State) => State) {
-        update((state: DocumentState<State>): DocumentState<State> => {
-            const openPage = state.pages.find(page => page.id === state.viewState.openPage)
-            if (!openPage) {
-                const blockState = action(state.blockState)
-                return {
-                    ...state,
-                    blockState,
-                    history: Model.reduceHistory([
-                        ...state.history,
-                        { type: 'state', time: new Date(), blockState },
-                    ]),
-                }
-            }
-
-            return {
-                ...state,
-                pages: Multiple.updateBlockEntry(
-                    state.pages,
-                    openPage.id,
-                    action,
-                    innerBlock,
-                    env,
-                ),
-            }
-        })
+        update(state => 
+            Model.updateInner(state, action, innerBlock, env)
+        )
     },
 
     reset() {
@@ -93,23 +72,7 @@ const ACTIONS = <State extends unknown>(
     },
 
     addPage() {
-        update(state => {
-            const newId = Multiple.nextFreeId(state.pages)
-            const newPage = {
-                id: newId,
-                name: "Untitled " + newId,
-                state: innerBlock.init,
-                result: null,
-            }
-            return {
-                ...state,
-                viewState: {
-                    ...state.viewState,
-                    openPage: newId,
-                },
-                pages: [...state.pages, newPage]
-            }
-        })
+        update(state => Model.addPage(state, innerBlock))
     },
 
     setPageName(id: PageId, name: string) {
@@ -127,15 +90,9 @@ const ACTIONS = <State extends unknown>(
     },
 
     openPage(pageId) {
-        update(state => {
-            return {
-                ...state,
-                viewState: {
-                    ...state.viewState,
-                    openPage: pageId,
-                }
-            }
-        })
+        update(state => 
+            $update(() => pageId, state,'viewState','openPage')
+        )
     },
 
     openHistory() {
@@ -154,8 +111,8 @@ const ACTIONS = <State extends unknown>(
         update(Model.goForwardInHistory)
     },
     
-    useState() {
-        update(state => Model.viewStateFromHistory(state, innerBlock, env))
+    restoreStateFromHistory() {
+        update(state => Model.restoreStateFromHistory(state, innerBlock, env))
     },
     
     changeName(name: string) {
@@ -163,13 +120,9 @@ const ACTIONS = <State extends unknown>(
     },
 
     toggleSidebar() {
-        update(state => ({
-            ...state,
-            viewState: {
-                ...state.viewState,
-                sidebarOpen: !state.viewState.sidebarOpen,
-            }
-        }))
+        update(state => 
+            $update(open => !open, state,'viewState','sidebarOpen')
+        )
     },
 
 })
@@ -249,7 +202,7 @@ function DocumentKeyHandler<State>(
 
             case "C-Enter":
                 if (state.viewState.mode.type === 'history') {
-                    actions.useState()
+                    actions.restoreStateFromHistory()
                     event.stopPropagation()
                     event.preventDefault()
                 }
@@ -581,7 +534,7 @@ function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
                 shadow mb-2 flex space-x-2 items-baseline
             `}
             >
-            <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.useState}>
+            <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.restoreStateFromHistory}>
                 Restore
             </button>
 
