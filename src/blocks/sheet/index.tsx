@@ -18,30 +18,7 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
             return Model.getResult(state)
         },
         fromJSON(json: any[], env) {
-            return {
-                lines: (
-                    block.mapWithEnv(
-                        json,
-                        (jsonLine, localEnv) => {
-                            const { id, name, isCollapsed = false, state } = jsonLine
-                            const loadedState = innerBlock.fromJSON(state, localEnv)
-                            const result = innerBlock.getResult(loadedState, localEnv)
-                            const line: SheetBlockLine<State> = {
-                                id,
-                                name,
-                                isCollapsed,
-                                state: loadedState,
-                                result
-                            }
-                            return {
-                                out: line,
-                                env: Model.lineToEnv(line)
-                            }
-                        },
-                        env,
-                    )
-                ),
-            }
+            return Model.fromJSON(json, innerBlock, env)
         },
         toJSON(state) {
             return state.lines.map(

@@ -105,3 +105,17 @@ export function updateLineBlock<State>(
         ),
     }
 }
+
+
+export function fromJSON<State>(json: any[], innerBlock: Block<State>, env: block.Environment) {
+    return {
+        lines: Multiple.fromJSON(
+            json,
+            innerBlock,
+            env,
+            (entry, { isCollapsed = false }) => ({
+                ...entry,
+                isCollapsed
+            }))
+    }
+}

@@ -127,3 +127,32 @@ export function updateBlockEntry<State, Entry extends BlockEntry<State>>(
         id,
     )
 }
+
+
+export function fromJSON<State, Entry extends BlockEntry<State>>(
+    json: any[],
+    innerBlock: Block<State>,
+    env: Environment,
+    parseEntryRest: (entry: BlockEntry<State>, json: any) => Entry,
+) {
+    return block.mapWithEnv(
+        json,
+        (jsonEntry, localEnv) => {
+            const { id, name, state, ...jsonRest } = jsonEntry
+            const loadedState = innerBlock.fromJSON(state, localEnv)
+            const result = innerBlock.getResult(loadedState, localEnv)
+            const entry: BlockEntry<State> = {
+                id,
+                name,
+                state: loadedState,
+                result
+            }
+            const fullEntry = parseEntryRest(entry, jsonRest)
+            return {
+                out: fullEntry,
+                env: entryToEnv(fullEntry)
+            }
+        },
+        env,
+    )
+}
