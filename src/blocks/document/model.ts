@@ -206,5 +206,6 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: BlockDe
 export function toJSON<State>(state: DocumentState<State>, innerBlock: BlockDesc<State>) {
     const block = innerBlock.toJSON(state.blockState)
     const history = historyToJSON(state.history, innerBlock)
-    return { block, history, name: state.name }
+    const viewState = { sidebarOpen: state.viewState.sidebarOpen }
+    return { block, history, name: state.name, viewState }
 }
