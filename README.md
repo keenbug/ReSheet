@@ -21,20 +21,20 @@ user writes in it. Also, I'm sure tables itself still has enough bugs. ;)
 ## "Tutorial"
 
 When you open tables you see an empty document, realized by the Document Block
-(the hard-coded root block). It offers saving, loading and history functionality
-in a menu line. You can find example documents to load in `examples/`. It uses
-another Block, which is shown below the menu line.
+(the hard-coded root block). It offers a sidebar with saving, loading and
+history functionality. You can find example documents to load in `examples/`.
+There is a tree of pages in the sidebar, where you can work with another type of
+Blocks. The main area shows the Block of a selected page.
 
 That is the Selector Block, which gives you the possibility to choose a Block
-yourself. You can choose from the blocks exported in `blocks/index.tsx`. The
-input expects a JavaScript expression where the blocks from `blocks/index.tsx`
-are in scope. You can also define and use custom Blocks, but you have to do this
-in a Block where you can define variables (like the `SheetOf` Block).
+yourself. `blocks/index.tsx` offers Blocks to choose from. The
+input expects a JavaScript expression where the Blocks from `blocks/index.tsx`
+are in scope. You can also define custom Blocks and then use them there.
 
-After typing a valid Block, for example `JSExpr` or `SheetOf(JSExpr)`, you can
-see two areas below: a preview of the Block and the state of the block. Clicking
-on the "Block" area activates the Block and hides the Command Block interface.
-You can get back to choosing the Block by clicking on the small gray "JSExpr" or
+After typing a valid Block, for example `JSExpr` or `SheetOf(JSExpr)`, there are
+two areas below: a preview of the Block and the state of the block. Clicking on
+the "Block" area activates the Block and hides the Command Block interface. You
+can get back to choosing the Block by clicking on the small gray "JSExpr" or
 "SheetOf(JSExpr)" label at the top.
 
 I think this should be enough to start playing around.
