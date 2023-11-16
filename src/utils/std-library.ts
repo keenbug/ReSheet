@@ -15,13 +15,16 @@ import * as babelGenerator from '@babel/generator'
 import babelTraverse from '@babel/traverse'
 import * as babelTypes from '@babel/types'
 
+import * as block from '../block'
+import * as multiple from '../block/multiple'
+import * as blockComponent from '../block/component'
 import * as blocks from '../blocks'
 import * as codeEditor from '../ui/code-editor'
 import * as blockSelector from '../blocks/block-selector'
-import * as block from '../block'
 import * as compute from '../logic/compute'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
+import * as document from '../blocks/document'
 import * as ui from '../ui/utils'
 import * as utils from '.'
 import * as value from '../ui/value'
@@ -76,16 +79,24 @@ export const library = {
         types: babelTypes,
     },
 
-    block,
     blocks,
-    ui,
-    blockSelector,
-    compute,
-    sheet,
-    jsexpr,
-    codeEditor,
-    value,
-    utils,
+
+    tables: {
+        block,
+        multiple,
+        blockComponent,
+        ui,
+        blocks: {
+            blockSelector,
+            compute,
+            sheet,
+            document,
+            jsexpr,
+        },
+        codeEditor,
+        value,
+        utils,
+    }
 }
 
 export default { $stdLibrary: library, $import, React }

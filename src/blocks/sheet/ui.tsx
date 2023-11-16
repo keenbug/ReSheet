@@ -207,7 +207,7 @@ export const Sheet = React.forwardRef(
         const actions = ACTIONS(updateWithEffect, refMap, innerBlock)
 
         return (
-            <div>
+            <div className="pb-96">
                 {block.mapWithEnv(
                     state.lines,
                     (line, localEnv) => {
