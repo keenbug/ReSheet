@@ -75,11 +75,15 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
+export function countParens(str: string, paren: string) {
+    const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
+    return str.replace(findStringRegex, '').split('').filter(char => char === paren).length
+}
+
 
 export function PreviewValue({ code, env, isFocused }) {
-    const defaultExpandLevel = isFocused ? 1 : 0
-    if (code.trim() === '') {
-        return <ValueInspector value={env} expandLevel={defaultExpandLevel} />
+    if (!isFocused) {
+        return <ValueInspector value={computeScript(code, env)} expandLevel={0} />
     }
 
     try {
@@ -92,6 +96,11 @@ export function PreviewValue({ code, env, isFocused }) {
                 babel.identifier(''),
             )
         }
+        else if (countParens(code, '(') > countParens(code, ')')) {
+            const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
+            const missingClosingParens = ")".repeat(missingClosingParensCount)
+            parsed = parseJSExpr(code + missingClosingParens)
+        }
         else {
             parsed = parseJSExpr(code)
         }
@@ -101,7 +110,7 @@ export function PreviewValue({ code, env, isFocused }) {
             return (
                 <>
                     <ValueInspector value={obj[parsed.property.name]} />
-                    <Inspector table={false} data={obj} expandLevel={defaultExpandLevel} showNonenumerable={true} />
+                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
                 </>
             )
         }
@@ -110,7 +119,23 @@ export function PreviewValue({ code, env, isFocused }) {
             return (
                 <>
                     <ValueInspector value={computeExpr(parsed.name, env)} />
-                    <ValueInspector value={env} expandLevel={defaultExpandLevel} />
+                    <ValueInspector value={env} expandLevel={1} />
+                </>
+            )
+        }
+        if (parsed.type === 'CallExpression') {
+            const func = computeExpr(babelGenerator(parsed.callee).code, env)
+            const args = parsed.arguments
+            const missingArgs = func.length - args.length
+            return (
+                <>
+                    {missingArgs > 0 &&
+                        <div className="my-1 font-mono text-xs text-gray-700">
+                            {missingArgs} arguments missing
+                        </div>
+                    }
+                    <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
+                    <ValueInspector value={func} />
                 </>
             )
         }

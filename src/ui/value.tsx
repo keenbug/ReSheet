@@ -60,6 +60,9 @@ export function ValueInspector(props: ValueInspectorProps) {
             </ErrorView>
         )
     }
+    if (typeof value === 'function') {
+        return <CodeView className="ml-4 text-xs" code={value.toString()} />
+    }
 
     return <Inspector table={table} data={value} expandLevel={expandLevel} />
 }
