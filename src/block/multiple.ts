@@ -126,6 +126,37 @@ export function recomputeResults<State, Entry extends BlockEntry<State>>(
 export function updateBlockEntry<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number,
+    action: (state: Entry, localEnv: Environment) => Entry,
+    getResult: (state: Entry, localEnv: Environment) => unknown,
+    env: Environment,
+): Entry[] {
+    const index = entries.findIndex(entry => entry.id === id)
+    if (index < 0) { return entries }
+
+    const entriesBefore = entries.slice(0, index)
+    const entriesAfter = entries.slice(index)
+
+    const envBefore = Object.assign({}, env, ...entriesBefore.map(entryToEnv))
+
+    const recomputedEntries = block.mapWithEnv(
+        entriesAfter,
+        (entry, localEnv) => {
+            const newEntry = entry.id === id ? action(entry, localEnv) : entry
+            const result = getResult(newEntry, localEnv)
+            return {
+                out: { ...newEntry, result },
+                env: { [entryName(entry)]: result },
+            }
+        },
+        envBefore,
+    )
+    return [ ...entriesBefore, ...recomputedEntries ]
+}
+
+
+export function updateEntryState<State, Entry extends BlockEntry<State>>(
+    entries: Entry[],
+    id: number,
     action: (state: State) => State,
     innerBlock: Block<State>,
     env: Environment,
@@ -148,7 +179,7 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
     json: any[],
     innerBlock: Block<State>,
     env: Environment,
-    parseEntryRest: (entry: BlockEntry<State>, json: any) => Entry,
+    parseEntryRest: (entry: BlockEntry<State>, json: any, localEnv: Environment) => Entry,
 ) {
     return block.mapWithEnv(
         json,
@@ -162,7 +193,7 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
                 state: loadedState,
                 result
             }
-            const fullEntry = parseEntryRest(entry, jsonRest)
+            const fullEntry = parseEntryRest(entry, jsonRest, localEnv)
             return {
                 out: fullEntry,
                 env: entryToEnv(fullEntry)

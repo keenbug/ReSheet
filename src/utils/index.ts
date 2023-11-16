@@ -30,6 +30,33 @@ export function interpolate(strings: TemplateStringsArray, interpolations: Array
     )
 }
 
+export function arrayEquals<E>(
+    arr1: E[],
+    arr2: E[],
+    eq?: (left: E, right: E) => boolean,
+): boolean {
+    if (arr1.length !== arr2.length) {
+        return false
+    }
+
+    if (!eq) {
+        for (let i = 0; i < arr1.length; i++) {
+            if (arr1[i] !== arr2[i]) {
+                return false
+            }
+        }
+    }
+    else {
+        for (let i = 0; i < arr1.length; i++) {
+            if (!eq(arr1[i], arr2[i])) {
+                return false
+            }
+        }
+    }
+
+    return true
+}
+
 
 export function mapObject<V, V1>(
     obj: { [s: string]: V },

@@ -9,7 +9,7 @@ import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState, PageId, PageState } from './model'
 import * as Model from './model'
 import * as Multiple from '../../block/multiple'
-import { $update } from '../../utils'
+import { $update, arrayEquals } from '../../utils'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -25,7 +25,7 @@ const ACTIONS = <State extends unknown>(
 ) => ({
     updateInner(action: (state: State) => State) {
         update(state => 
-            Model.updateInner(state, action, innerBlock, env)
+            Model.updateOpenPage(state, action, innerBlock, env)
         )
     },
 
@@ -71,27 +71,33 @@ const ACTIONS = <State extends unknown>(
         }
     },
 
-    addPage() {
-        update(state => Model.addPage(state, innerBlock))
+    addPage(path: PageId[]) {
+        update(state => Model.addPageAt(path, state, innerBlock, env))
     },
 
-    setPageName(id: PageId, name: string) {
+    setPageName(path: PageId[], name: string) {
         update(state => {
             return {
                 ...state,
-                pages: state.pages.map(page =>
-                    page.id === id ?
-                        { ...page, name }
-                    :
-                        page
+                pages: Model.updatePages(
+                    [],
+                    state.pages,
+                    (currentPath, page) => (
+                        arrayEquals(path, currentPath) ?
+                            { ...page, name }
+                        :
+                            page
+                    ),
+                    innerBlock,
+                    env,
                 ),
             }
         })
     },
 
-    openPage(pageId) {
+    openPage(path) {
         update(state => 
-            $update(() => pageId, state,'viewState','openPage')
+            $update(() => path, state,'viewState','openPage')
         )
     },
 
@@ -244,7 +250,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef)
 
     function viewPage() {
-        const openPage = state.pages.find(page => page.id === state.viewState.openPage)
+        const openPage = Model.getOpenPage(state)
         if (!openPage) {
             const childrenEnv = Multiple.getResultEnv(state.pages)
             return innerBlock.view({
@@ -255,7 +261,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
             })
         }
 
-        const pageEnv = Multiple.getEntryEnvBefore(state.pages, openPage.id)
+        const pageEnv = Model.getOpenPageEnv(state, env)
         return innerBlock.view({
             ref: innerRef,
             state: openPage.state,
@@ -382,16 +388,16 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
                     px-2 py-1 text-left
                     ${state.viewState.openPage === null && "bg-gray-300"}
                 `}
-                onClick={() => actions.openPage(null)}
+                onClick={() => actions.openPage([])}
                 >
                 Home
             </button>
             {state.pages.map(page => (
-                <PageButton page={page} state={state} actions={actions} />
+                <PageButton key={page.id} page={page} state={state} actions={actions} />
             ))}
             <button
-                className="pl-4 pr-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
-                onClick={actions.addPage}
+                className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
+                onClick={() => actions.addPage([])}
                 >
                 <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
                 Add Page
@@ -403,14 +409,33 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
 
 interface PageButtonProps<State> extends ActionProps<State> {
     page: PageState<State>
+    path?: PageId[]
 }
 
-function PageButton<State>({ page, state, actions }: PageButtonProps<State>) {
+function PageButton<State>({ page, path = [], state, actions }: PageButtonProps<State>) {
     const [editing, setIsEditing] = React.useState(false)
+
+    const depth = path.length
+    const indentDepth = 0.5
+
+    const pathHere = [ ...path, page.id ]
+    const keyHere = pathHere.join('.')
+
+    const pageChildren = (
+        page.children.map(child =>
+            <PageButton
+                key={keyHere + '.' + child.id}
+                page={child}
+                path={pathHere}
+                state={state}
+                actions={actions}
+                />
+        )
+    )
 
     if (editing) {
         function onChange(event: React.ChangeEvent<HTMLInputElement>) {
-            actions.setPageName(page.id, event.target.value)
+            actions.setPageName(pathHere, event.target.value)
         }
         function onKeyDown(event: React.KeyboardEvent) {
             if (getFullKey(event) === 'Enter') {
@@ -421,38 +446,56 @@ function PageButton<State>({ page, state, actions }: PageButtonProps<State>) {
         }
         function onCommitName() {
             if (page.name.trim() === '') {
-                actions.setPageName(page.id, 'Untitled ' + page.id)
+                actions.setPageName(pathHere, 'Untitled ' + page.id)
             }
             else if (page.name !== page.name.trim()) {
-                actions.setPageName(page.id, page.name.trim())
+                actions.setPageName(pathHere, page.name.trim())
             }
             setIsEditing(false)
         }
         return (
-            <div
-                key={page.id}
-                className={`
-                    pl-4 pr-2 py-1 text-left
-                    ${page.id === state.viewState.openPage && "bg-gray-300"}
-                `}
-                >
-                <input type="text" autoFocus value={page.name} onChange={onChange} onBlur={onCommitName} onKeyDown={onKeyDown} />
-            </div>
+            <>
+                <div
+                    key={keyHere}
+                    className={`
+                        pl-[${0.5 + depth * indentDepth}rem] pr-2 py-1 text-left
+                        ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
+                    `}
+                    >
+                    <input type="text" autoFocus value={page.name} onChange={onChange} onBlur={onCommitName} onKeyDown={onKeyDown} />
+                </div>
+                {pageChildren}
+            </>
         )
     }
 
+    function onAddChild(event: React.MouseEvent) {
+        actions.addPage(pathHere)
+        event.stopPropagation()
+    }
+
     return (
-        <button
-            key={page.id}
-            className={`
-                pl-4 pr-2 py-1 text-left
-                ${page.id === state.viewState.openPage && "bg-gray-300"}
-            `}
-            onClick={() => actions.openPage(page.id)}
-            onDoubleClick={() => setIsEditing(true)}
-            >
-            {page.name}
-        </button>
+        <>
+            <div
+                key={keyHere}
+                className={`
+                    pr-2 py-1 text-left group flex cursor-pointer
+                    pl-[${0.5 + depth * indentDepth}rem]
+                    ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
+                `}
+                onClick={() => actions.openPage(pathHere)}
+                onDoubleClick={() => setIsEditing(true)}
+                >
+                <span className="flex-1">{page.name}</span>
+                <button
+                    className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
+                    onClick={onAddChild}
+                    >
+                    <FontAwesomeIcon icon={solidIcons.faPlus} />
+                </button>
+            </div>
+            {pageChildren}
+        </>
     )
 }
 

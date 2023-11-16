@@ -96,7 +96,7 @@ export function updateLineBlock<State>(
 ): SheetBlockState<State> {
     return {
         ...state,
-        lines: Multiple.updateBlockEntry(
+        lines: Multiple.updateEntryState(
             state.lines,
             id,
             action,
