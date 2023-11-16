@@ -57,6 +57,18 @@ export function arrayEquals<E>(
     return true
 }
 
+export function arrayStartsWith<E>(
+    prefix: E[],
+    array: E[],
+    eq?: (left: E, right: E) => boolean,
+): boolean {
+    return arrayEquals(
+        prefix,
+        array.slice(0, prefix.length),
+        eq,
+    )
+}
+
 
 export function mapObject<V, V1>(
     obj: { [s: string]: V },

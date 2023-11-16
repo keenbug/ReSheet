@@ -105,6 +105,48 @@ export function getOpenPageEnv<State>(
 }
 
 
+export function deletePageAt<State>(
+    path: PageId[],
+    state: DocumentState<State>,
+    innerBlock: Block<State>,
+    env: Environment,
+): DocumentState<State> {
+    if (path.length === 0) { return state }
+    const parentPath = path.slice(0, -1)
+    const childIdToRemove = path.slice(-1)[0]
+    if (parentPath.length === 0) {
+        return {
+            ...state,
+            pages: updatePages(
+                [],
+                state.pages.filter(page => page.id !== childIdToRemove),
+                (_currentPath, page) => page,
+                innerBlock,
+                env,
+            ),
+        }
+    }
+    return {
+        ...state,
+        pages: updatePages(
+            [],
+            state.pages,
+            (currentPath, page) => {
+                if (!arrayEquals(currentPath, parentPath)) {
+                    return page
+                }
+                return {
+                    ...page,
+                    children: page.children.filter(child => child.id !== childIdToRemove),
+                }
+            },
+            innerBlock,
+            env,
+        ),
+    }
+}
+
+
 export function addPageAt<State>(
     path: PageId[],
     state: DocumentState<State>,
@@ -119,6 +161,7 @@ export function addPageAt<State>(
             state: innerBlock.init,
             result: null,
 
+            isCollapsed: true,
             children: [],
         }
         return [
@@ -222,6 +265,7 @@ export interface PageState<State> extends BlockEntry<State> {
     state: State
     result: unknown
 
+    isCollapsed: boolean
     children: Array<PageState<State>>
 }
 
@@ -279,6 +323,7 @@ function pagesToJSON<State>(pages: PageState<State>[], innerBlock: Block<State>)
         name: page.name,
         state: innerBlock.toJSON(page.state),
         result: page.result,
+        isCollapsed: page.isCollapsed,
         children: pagesToJSON(page.children, innerBlock),
     }))
 }
@@ -287,7 +332,7 @@ function pagesFromJSON<State>(json: any[], env: Environment, innerBlock: Block<S
     return mapWithEnv(
         json,
         (jsonEntry, localEnv) => {
-            const { id, name, state, children } = jsonEntry
+            const { id, name, state, children, isCollapsed = true } = jsonEntry
             const loadedChildren = pagesFromJSON(children, localEnv, innerBlock)
             const pageEnv = { ...localEnv, ...Multiple.getResultEnv(children) }
             const loadedState = innerBlock.fromJSON(state, pageEnv)
@@ -297,6 +342,7 @@ function pagesFromJSON<State>(json: any[], env: Environment, innerBlock: Block<S
                 name,
                 state: loadedState,
                 result,
+                isCollapsed,
                 children: loadedChildren,
             }
             return {

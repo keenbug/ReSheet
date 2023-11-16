@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Menu } from '@headlessui/react'
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
@@ -9,7 +10,7 @@ import { useAutoretrigger } from '../../ui/hooks'
 import { DocumentState, PageId, PageState } from './model'
 import * as Model from './model'
 import * as Multiple from '../../block/multiple'
-import { $update, arrayEquals } from '../../utils'
+import { $update, arrayEquals, arrayStartsWith } from '../../utils'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -75,6 +76,10 @@ const ACTIONS = <State extends unknown>(
         update(state => Model.addPageAt(path, state, innerBlock, env))
     },
 
+    deletePage(path: PageId[]) {
+        update(state => Model.deletePageAt(path, state, innerBlock, env))
+    },
+
     setPageName(path: PageId[], name: string) {
         update(state => {
             return {
@@ -99,6 +104,24 @@ const ACTIONS = <State extends unknown>(
         update(state => 
             $update(() => path, state,'viewState','openPage')
         )
+    },
+
+    toggleCollapsed(path) {
+        update(state => ({
+            ...state,
+            pages: Model.updatePages(
+                [], 
+                state.pages,
+                (currentPath, page) => (
+                    arrayEquals(path, currentPath) ?
+                        { ...page, isCollapsed: !page.isCollapsed }
+                    :
+                        page
+                ),
+                innerBlock,
+                env,
+            ),
+        }))
     },
 
     openHistory() {
@@ -393,7 +416,7 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
                 Home
             </button>
             {state.pages.map(page => (
-                <PageButton key={page.id} page={page} state={state} actions={actions} />
+                <PageEntry key={page.id} page={page} state={state} actions={actions} />
             ))}
             <button
                 className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
@@ -407,30 +430,54 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
 }
 
 
-interface PageButtonProps<State> extends ActionProps<State> {
+interface PageEntryProps<State> extends ActionProps<State> {
     page: PageState<State>
     path?: PageId[]
 }
 
-function PageButton<State>({ page, path = [], state, actions }: PageButtonProps<State>) {
+// TODO: break up
+function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<State>) {
     const [editing, setIsEditing] = React.useState(false)
 
     const depth = path.length
     const indentDepth = 0.5
+    const indentClass = (depth: number) => `pl-[${0.5 + depth * indentDepth}rem] pr-2`
 
     const pathHere = [ ...path, page.id ]
     const keyHere = pathHere.join('.')
 
+    const pageInOpenPath = arrayStartsWith(pathHere, state.viewState.openPage.slice(0, -1))
+    const pageCollapsed = page.isCollapsed && !pageInOpenPath
     const pageChildren = (
-        page.children.map(child =>
-            <PageButton
-                key={keyHere + '.' + child.id}
-                page={child}
-                path={pathHere}
-                state={state}
-                actions={actions}
-                />
+        pageCollapsed ?
+            null
+        : page.children.length === 0 ? (
+            <button
+                className={`${indentClass(depth + 1)} py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700`}
+                onClick={() => actions.addPage(pathHere)}
+                >
+                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                Add Page
+            </button>
+        ) : (
+            page.children.map(child => (
+                <PageEntry
+                    key={keyHere + '.' + child.id}
+                    page={child}
+                    path={pathHere}
+                    state={state}
+                    actions={actions}
+                    />
+            ))
         )
+    )
+    const collapseIcon = (
+        <button onClick={() => actions.toggleCollapsed(pathHere)}>
+            <FontAwesomeIcon
+                className="text-gray-500"
+                icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
+                />
+        </button>
     )
 
     if (editing) {
@@ -458,10 +505,11 @@ function PageButton<State>({ page, path = [], state, actions }: PageButtonProps<
                 <div
                     key={keyHere}
                     className={`
-                        pl-[${0.5 + depth * indentDepth}rem] pr-2 py-1 text-left
+                        ${indentClass(depth)} py-1 text-left
                         ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
                     `}
                     >
+                    {collapseIcon}
                     <input type="text" autoFocus value={page.name} onChange={onChange} onBlur={onCommitName} onKeyDown={onKeyDown} />
                 </div>
                 {pageChildren}
@@ -473,20 +521,30 @@ function PageButton<State>({ page, path = [], state, actions }: PageButtonProps<
         actions.addPage(pathHere)
         event.stopPropagation()
     }
+    function onDeleteChild(event: React.MouseEvent) {
+        actions.deletePage(pathHere)
+        event.stopPropagation()
+    }
 
     return (
         <>
             <div
                 key={keyHere}
                 className={`
-                    pr-2 py-1 text-left group flex cursor-pointer
-                    pl-[${0.5 + depth * indentDepth}rem]
+                    ${indentClass(depth)} py-1 text-left group cursor-pointer flex space-x-2
                     ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
                 `}
                 onClick={() => actions.openPage(pathHere)}
                 onDoubleClick={() => setIsEditing(true)}
                 >
+                {collapseIcon}
                 <span className="flex-1">{page.name}</span>
+                <button
+                    className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
+                    onClick={onDeleteChild}
+                    >
+                    <FontAwesomeIcon icon={regularIcons.faTrashCan} />
+                </button>
                 <button
                     className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
                     onClick={onAddChild}
