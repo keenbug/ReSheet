@@ -275,13 +275,26 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     function viewPage() {
         const openPage = Model.getOpenPage(state)
         if (!openPage) {
-            const childrenEnv = Multiple.getResultEnv(state.pages)
-            return innerBlock.view({
-                ref: innerRef,
-                state: state.blockState,
-                update: actions.updateInner,
-                env: { history: state.history, ...env, ...childrenEnv },
-            })
+            function Link({ onClick, children }) {
+                return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
+            }
+            return (
+                <div className="h-full w-full flex justify-center items-center">
+                    <div className="text-center text-lg text-gray-900">
+                        <Link onClick={() => actions.addPage([])}>
+                            Add new Page
+                        </Link><br />
+                        or select one from the{' '}
+                        {state.viewState.sidebarOpen ?
+                            "Sidebar"
+                        :
+                            <Link onClick={() => !state.viewState.sidebarOpen && actions.toggleSidebar()}>
+                                Sidebar
+                            </Link>
+                        }
+                    </div>
+                </div>
+            )
         }
 
         const pageEnv = Model.getOpenPageEnv(state, env)
@@ -406,15 +419,6 @@ function Sidebar<State>({ state, actions }: ActionProps<State>) {
 
             <hr />
 
-            <button
-                className={`
-                    px-2 py-1 text-left
-                    ${state.viewState.openPage === null && "bg-gray-300"}
-                `}
-                onClick={() => actions.openPage([])}
-                >
-                Home
-            </button>
             {state.pages.map(page => (
                 <PageEntry key={page.id} page={page} state={state} actions={actions} />
             ))}

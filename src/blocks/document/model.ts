@@ -16,7 +16,6 @@ export type ViewMode =
 
 export interface DocumentState<State> {
     readonly pages: Array<PageState<State>>
-    readonly blockState: State
     readonly history: Array<HistoryEntry<State>>
     readonly viewState: ViewState
     readonly name: string
@@ -25,7 +24,6 @@ export interface DocumentState<State> {
 export function init<State>(initBlockState: State): DocumentState<State> {
     return {
         pages: [],
-        blockState: initBlockState,
         history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
         viewState: {
             mode: { type: 'current' },
@@ -47,20 +45,36 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<S
     } = json
     const {
         sidebarOpen = false,
+    } = viewState
+    let {
         openPage = [],
     } = viewState
-    const blockState = catchAll(
-        () => innerBlock.fromJSON(block, env),
-        (e) => innerBlock.init,
-    )
+    const legacyBlockPage: PageState<State>[] = []
+    if (block !== undefined) {
+        const blockState = catchAll(
+            () => innerBlock.fromJSON(block, env),
+            (e) => innerBlock.init,
+        )
+        legacyBlockPage.push({
+            id: -1, // hacky
+            name: "Home",
+            state: blockState,
+            result: innerBlock.getResult(blockState, env),
+
+            isCollapsed: true,
+            children: [],
+        })
+        if (openPage.length === 0) {
+            openPage = [-1]
+        }
+    }
     const savedHistory = catchAll<HistoryEntry<State>[]>(
         () => historyFromJSON(history),
-        (e) => [{ type: 'state', time: new Date(), blockState }],
+        (e) => [], // hurts an invariant? will be changed when reworking history for pages
     )
     const loadedPages = pagesFromJSON(pages, env, innerBlock)
     return {
-        pages: loadedPages,
-        blockState,
+        pages: [ ...legacyBlockPage, ...loadedPages],
         history: savedHistory,
         viewState: {
             mode: { type: 'current' },
@@ -72,11 +86,10 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<S
 }
 
 export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<State>) {
-    const block = innerBlock.toJSON(state.blockState)
     const history = historyToJSON(state.history, innerBlock)
     const viewState = { sidebarOpen: state.viewState.sidebarOpen }
     const pages = pagesToJSON(state.pages, innerBlock)
-    return { pages, block, history, name: state.name, viewState }
+    return { pages, history, name: state.name, viewState }
 }
 
 
@@ -218,15 +231,7 @@ export function updateOpenPage<State>(
     env: Environment,
 ): DocumentState<State> {
     if (state.viewState.openPage.length === 0) {
-        const blockState = action(state.blockState)
-        return {
-            ...state,
-            blockState,
-            history: reduceHistory([
-                ...state.history,
-                { type: 'state', time: new Date(), blockState },
-            ]),
-        }
+        return state
     }
 
     return {
@@ -443,7 +448,7 @@ export function restoreStateFromHistory<State>(
         return {
             ...state,
             history: [ ...state.history, historicState ],
-            blockState: getHistoryState(historicState, innerBlock, historicEnv),
+            // blockState: getHistoryState(historicState, innerBlock, historicEnv),
             viewState: {
                 ...state.viewState,
                 mode: { type: 'current' },
