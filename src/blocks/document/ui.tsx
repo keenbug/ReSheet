@@ -4,18 +4,20 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Menu } from '@headlessui/react'
+
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
-import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
 import { useAutoretrigger } from '../../ui/hooks'
-import { DocumentState, PageId, PageState } from './model'
-import * as Model from './model'
-import * as Multiple from '../../block/multiple'
+import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, arrayStartsWith } from '../../utils'
+
+import { DocumentState, DocumentInner, PageId, PageState } from './model'
+import * as Model from './model'
+import * as History from './history'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
 interface ActionProps<State> {
-    state: DocumentState<State>
+    state: DocumentInner<State>
     actions: Actions<State>
 }
 
@@ -26,19 +28,24 @@ const ACTIONS = <State extends unknown>(
 ) => ({
     updateInner(action: (state: State) => State) {
         update(state => 
-            Model.updateOpenPage(state, action, innerBlock, env)
+            History.updateHistoryInner(
+                state,
+                inner => Model.updateOpenPage(inner, action, innerBlock, env),
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
         )
     },
 
     reset() {
-        update(() => Model.init(innerBlock.init))
+        update(() => Model.init)
     },
 
     save() {
         update(state => {
             const content = JSON.stringify(Model.toJSON(state, innerBlock))
             saveFile(
-                state.name + '.json',
+                'tables.json',
                 'application/json',
                 content,
             )
@@ -73,84 +80,120 @@ const ACTIONS = <State extends unknown>(
     },
 
     addPage(path: PageId[]) {
-        update(state => Model.addPageAt(path, state, innerBlock, env))
+        update(state =>
+            History.updateHistoryInner(
+                state,
+                inner => Model.addPageAt(path, inner, innerBlock, env),
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
+        )
     },
 
     deletePage(path: PageId[]) {
-        update(state => Model.deletePageAt(path, state, innerBlock, env))
+        update(state =>
+            History.updateHistoryInner(
+                state,
+                inner => Model.deletePageAt(path, inner, innerBlock, env),
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
+        )
     },
 
     setPageName(path: PageId[], name: string) {
         update(state => {
-            return {
-                ...state,
-                pages: Model.updatePages(
-                    [],
-                    state.pages,
-                    (currentPath, page) => (
-                        arrayEquals(path, currentPath) ?
-                            { ...page, name }
-                        :
-                            page
-                    ),
-                    innerBlock,
-                    env,
-                ),
-            }
+            return History.updateHistoryInner(
+                state,
+                innerState => {
+                    return {
+                        ...innerState,
+                        pages: Model.updatePages(
+                            [],
+                            innerState.pages,
+                            (currentPath, page) => (
+                                arrayEquals(path, currentPath) ?
+                                    { ...page, name }
+                                :
+                                    page
+                            ),
+                            innerBlock,
+                            env,
+                        ),
+                    }
+                },
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
         })
     },
 
     openPage(path) {
         update(state => 
-            $update(() => path, state,'viewState','openPage')
+            History.updateHistoryInner(
+                state,
+                inner => $update(() => path, inner,'viewState','openPage'),
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
         )
     },
 
     toggleCollapsed(path) {
-        update(state => ({
-            ...state,
-            pages: Model.updatePages(
-                [], 
-                state.pages,
-                (currentPath, page) => (
-                    arrayEquals(path, currentPath) ?
-                        { ...page, isCollapsed: !page.isCollapsed }
-                    :
-                        page
-                ),
-                innerBlock,
+        update(state => {
+            return History.updateHistoryInner(
+                state,
+                innerState => {
+                    return {
+                        ...innerState,
+                        pages: Model.updatePages(
+                            [], 
+                            innerState.pages,
+                            (currentPath, page) => (
+                                arrayEquals(path, currentPath) ?
+                                    { ...page, isCollapsed: !page.isCollapsed }
+                                :
+                                    page
+                            ),
+                            innerBlock,
+                            env,
+                        ),
+                    }
+                },
                 env,
-            ),
-        }))
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
+        })
     },
 
     openHistory() {
-        update(Model.openHistory)
+        update(History.openHistory)
     },
     
     closeHistory() {
-        update(Model.closeHistory)
+        update(History.closeHistory)
     },
     
     goBack() {
-        update(Model.goBackInHistory)
+        update(History.goBackInHistory)
     },
     
     goForward() {
-        update(Model.goForwardInHistory)
+        update(History.goForwardInHistory)
     },
     
     restoreStateFromHistory() {
-        update(state => Model.restoreStateFromHistory(state, innerBlock, env))
+        update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, env, innerBlock)))
     },
     
-    changeName(name: string) {
-        update(state => ({ ...state, name }))
-    },
-
     toggleSidebar() {
         update(state => 
-            $update(open => !open, state,'viewState','sidebarOpen')
+            History.updateHistoryInner(
+                state,
+                inner => $update(open => !open, inner,'viewState','sidebarOpen'),
+                env,
+                json => Model.innerFromJSON(json, env, innerBlock),
+            )
         )
     },
 
@@ -198,7 +241,7 @@ function DocumentKeyHandler<State>(
                 return
 
             case "C-z":
-                if (state.viewState.mode.type === 'history') {
+                if (state.mode.type === 'history') {
                     actions.goBack()
                 }
                 else {
@@ -209,7 +252,7 @@ function DocumentKeyHandler<State>(
                 return
 
             case "C-y":
-                if (state.viewState.mode.type === 'history') {
+                if (state.mode.type === 'history') {
                     actions.goForward()
                     event.stopPropagation()
                     event.preventDefault()
@@ -217,7 +260,7 @@ function DocumentKeyHandler<State>(
                 return
 
             case "Escape":
-                if (state.viewState.mode.type === 'history') {
+                if (state.mode.type === 'history') {
                     actions.closeHistory()
                     event.stopPropagation()
                     event.preventDefault()
@@ -230,7 +273,7 @@ function DocumentKeyHandler<State>(
                 return
 
             case "C-Enter":
-                if (state.viewState.mode.type === 'history') {
+                if (state.mode.type === 'history') {
                     actions.restoreStateFromHistory()
                     event.stopPropagation()
                     event.preventDefault()
@@ -272,8 +315,11 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     const actions = ACTIONS(update, innerBlock, env)
     const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef)
 
-    function viewPage() {
-        const openPage = Model.getOpenPage(state)
+    function viewPage(
+        innerState: DocumentInner<State>,
+        updateInner: (action: (state: State) => State) => void,
+    ) {
+        const openPage = Model.getOpenPage(innerState)
         if (!openPage) {
             function Link({ onClick, children }) {
                 return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
@@ -285,10 +331,10 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             Add new Page
                         </Link><br />
                         or select one from the{' '}
-                        {state.viewState.sidebarOpen ?
+                        {state.inner.viewState.sidebarOpen ?
                             "Sidebar"
                         :
-                            <Link onClick={() => !state.viewState.sidebarOpen && actions.toggleSidebar()}>
+                            <Link onClick={actions.toggleSidebar}>
                                 Sidebar
                             </Link>
                         }
@@ -297,52 +343,48 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
             )
         }
 
-        const pageEnv = Model.getOpenPageEnv(state, env)
+        const pageEnv = Model.getOpenPageEnv(innerState, env)
         return innerBlock.view({
             ref: innerRef,
             state: openPage.state,
-            update: actions.updateInner,
-            env: { history: state.history, ...env, ...pageEnv },
+            update: updateInner,
+            env: { ...env, ...pageEnv },
         })
     }
 
-    function viewMode() {
-        switch (state.viewState.mode.type) {
-            case 'current':
-                return viewPage()
-            
-            case 'history':
-                const entryInHistory = state.history[state.viewState.mode.position]
-                if (entryInHistory === undefined) { return null }
+    function viewDocument(
+        innerState: DocumentInner<State>,
+        updateInner: (action: (state: State) => State) => void,
+    ) {
+        return (
+            <div
+                ref={containerRef}
+                tabIndex={-1}
+                onKeyDown={onKeyDown}
+                className="h-full relative flex"
+                >
+                <Sidebar state={innerState} actions={actions} isHistoryOpen={state.mode.type === 'history'} />
+                <SidebarButton state={innerState} actions={actions} />
 
-                const stateInHistory = Model.getHistoryState(entryInHistory, innerBlock, env)
-                return innerBlock.view({
-                    state: stateInHistory,
-                    update: () => {},
-                    env: {
-                        ...env,
-                        history: state.history.slice(0, state.viewState.mode.position)
-                    },
-                })
-        }
+                <div className={`h-full overflow-y-scroll flex-1 transition-all ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                    <HistoryModePanel state={state} actions={actions} />
+                    {viewPage(innerState, updateInner)}
+                </div>
+            </div>
+        )
     }
 
-    return (
-        <div
-            ref={containerRef}
-            tabIndex={-1}
-            onKeyDown={onKeyDown}
-            className="h-full relative flex"
-            >
-            <Sidebar state={state} actions={actions} />
-            <SidebarButton state={state} actions={actions} />
+    switch (state.mode.type) {
+        case 'current':
+            return viewDocument(state.inner, actions.updateInner)
+        
+        case 'history':
+            const entryInHistory = state.history[state.mode.position]
+            if (entryInHistory === undefined) { return null }
 
-            <div className={`h-full overflow-y-scroll flex-1 transition-all ${state.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
-                <HistoryModePanel state={state} actions={actions} />
-                {viewMode()}
-            </div>
-        </div>
-    )
+            const stateInHistory = History.getHistoryState(entryInHistory, env, (state, env) => Model.innerFromJSON(state, env, innerBlock))
+            return viewDocument(stateInHistory, actions.updateInner)
+    }
 }
 
 
@@ -362,37 +404,39 @@ function SidebarButton<State>({ state, actions }: ActionProps<State>) {
 
 
 
-function Sidebar<State>({ state, actions }: ActionProps<State>) {
-    function HistoryButton() {
-        switch (state.viewState.mode.type) {
-            case 'current':
-                return (
-                    <button
-                        className={`
-                            px-2 py-0.5 w-full text-left
-                            hover:text-blue-900 hover:bg-blue-200
-                        `}
-                        onClick={actions.openHistory}
-                        >
-                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
-                        History
-                    </button>
-                )
+interface SidebarProps<State> extends ActionProps<State> {
+    isHistoryOpen: boolean
+}
 
-            case 'history':
-                return (
-                    <button
-                        className={`
-                            px-2 py-0.5 w-full text-left
-                            text-blue-50 bg-blue-700 hover:bg-blue-500
-                        `}
-                        onClick={actions.closeHistory}
-                        >
-                        <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
-                        History
-                    </button>
-                )
+function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) {
+    function HistoryButton() {
+        if (isHistoryOpen) {
+            return (
+                <button
+                    className={`
+                        px-2 py-0.5 w-full text-left
+                        text-blue-50 bg-blue-700 hover:bg-blue-500
+                    `}
+                    onClick={actions.closeHistory}
+                    >
+                    <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                    History
+                </button>
+            )
         }
+
+        return (
+            <button
+                className={`
+                    px-2 py-0.5 w-full text-left
+                    hover:text-blue-900 hover:bg-blue-200
+                `}
+                onClick={actions.openHistory}
+                >
+                <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
+                History
+            </button>
+        )
     }
 
     return (
@@ -441,7 +485,7 @@ interface PageEntryProps<State> extends ActionProps<State> {
 
 // TODO: break up
 function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<State>) {
-    const [editing, setIsEditing] = React.useState(false)
+    const [editing, setIsNameEditing] = React.useState(false)
 
     const depth = path.length
     const indentDepth = 0.5
@@ -502,7 +546,7 @@ function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<St
             else if (page.name !== page.name.trim()) {
                 actions.setPageName(pathHere, page.name.trim())
             }
-            setIsEditing(false)
+            setIsNameEditing(false)
         }
         return (
             <>
@@ -539,7 +583,7 @@ function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<St
                     ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
                 `}
                 onClick={() => actions.openPage(pathHere)}
-                onDoubleClick={() => setIsEditing(true)}
+                onDoubleClick={() => setIsNameEditing(true)}
                 >
                 {collapseIcon}
                 <span className="flex-1">{page.name}</span>
@@ -622,12 +666,16 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
 
 
 
+interface HistoryModePanelProps<State> {
+    state: DocumentState<State>
+    actions: Actions<State>
+}
 
-function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
+function HistoryModePanel<State>({ state, actions }: HistoryModePanelProps<State>) {
     const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
     const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
 
-    if (state.viewState.mode.type !== 'history') {
+    if (state.mode.type !== 'history') {
         return null
     }
 
@@ -651,7 +699,7 @@ function HistoryModePanel<State>({ state, actions }: ActionProps<State>) {
                     <FontAwesomeIcon icon={solidIcons.faAngleRight} />
                 </button>
                 <div className="self-center px-1">
-                    {formatTime(state.history[state.viewState.mode.position].time)}
+                    {formatTime(state.history[state.mode.position].time)}
                 </div>
             </div>
         </div>

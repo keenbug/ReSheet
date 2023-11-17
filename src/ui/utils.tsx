@@ -226,5 +226,4 @@ export function saveFile(filename: string, mimeType: string, textContent: string
     downloadButton.download = filename
     downloadButton.click()
     downloadButton.remove()
-    // setTimeout(() => { downloadButton.remove() })
 }

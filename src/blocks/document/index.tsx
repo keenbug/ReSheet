@@ -12,7 +12,7 @@ export type { DocumentState }
 
 export function DocumentOf<State>(innerBlock: Block<State>) {
     return block.create({
-        init: Model.init(innerBlock.init),
+        init: Model.init,
         view({ state, update, env }: BlockViewerProps<DocumentState<State>>, ref) {
             return (
                 <UI.DocumentUi
@@ -25,7 +25,11 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
             )
         },
         getResult(state: DocumentState<State>, env: Environment) {
-            return innerBlock.getResult(state.blockState, env)
+            if (state.inner.pages.length === 0) {
+                return undefined
+            }
+
+            return state.inner.pages.slice(-1)[0].result
         },
         fromJSON(json: any, env: Environment): DocumentState<State> {
             return Model.fromJSON(json, env, innerBlock)

@@ -1,45 +1,69 @@
-import { Block, BlockDesc, Environment, mapWithEnv } from '../../block'
+import { Block, Environment, mapWithEnv } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 import { arrayEquals, catchAll } from '../../utils'
+import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 
 export interface ViewState {
-    mode: ViewMode
     sidebarOpen: boolean
     openPage: PageId[]
 }
 
-export type ViewMode =
-    | { type: 'current' }
-    | { type: 'history', position: number }
+export type ViewStateJSON = ViewState
 
 
-export interface DocumentState<State> {
-    readonly pages: Array<PageState<State>>
-    readonly history: Array<HistoryEntry<State>>
+export type DocumentState<State> = HistoryWrapper<DocumentInner<State>>
+
+export interface DocumentInner<State> {
     readonly viewState: ViewState
-    readonly name: string
+    readonly pages: Array<PageState<State>>
 }
 
-export function init<State>(initBlockState: State): DocumentState<State> {
-    return {
-        pages: [],
-        history: [{ type: 'state', time: new Date(), blockState: initBlockState }],
+export const init: DocumentState<any> = (
+    initHistory({
         viewState: {
-            mode: { type: 'current' },
             sidebarOpen: true,
             openPage: [],
         },
-        name: '',
+        pages: [],
+    })
+)
+
+
+export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Block<State>) {
+    const {
+        pages = [],
+        viewState = {},
+    } = json
+    const {
+        sidebarOpen = false,
+        openPage = [],
+    } = viewState
+
+    const loadedPages = pagesFromJSON(pages, env, innerBlock)
+    return {
+        pages: loadedPages,
+        viewState: {
+            sidebarOpen,
+            openPage,
+        },
     }
 }
 
-
 export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<State>): DocumentState<State> {
+    try {
+        return historyFromJSON(json, env, (stateJSON, env) => {
+            return innerFromJSON(stateJSON, env, innerBlock)
+        })
+    }
+    catch (e) {
+        return legacyFromJSON(json, env, innerBlock)
+    }
+}
+
+function legacyFromJSON<State>(json: any, env: Environment, innerBlock: Block<State>): DocumentState<State> {
     const {
         block,
-        history,
-        name = '',
         pages = [],
         viewState = {},
     } = json
@@ -68,28 +92,27 @@ export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<S
             openPage = [-1]
         }
     }
-    const savedHistory = catchAll<HistoryEntry<State>[]>(
-        () => historyFromJSON(history),
-        (e) => [], // hurts an invariant? will be changed when reworking history for pages
-    )
     const loadedPages = pagesFromJSON(pages, env, innerBlock)
     return {
-        pages: [ ...legacyBlockPage, ...loadedPages],
-        history: savedHistory,
-        viewState: {
-            mode: { type: 'current' },
-            sidebarOpen,
-            openPage,
-        },
-        name,
+        mode: { type: 'current' },
+        history: [],
+        inner: {
+            pages: [ ...legacyBlockPage, ...loadedPages],
+            viewState: {
+                sidebarOpen,
+                openPage,
+            },
+        }
     }
+
 }
 
 export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<State>) {
-    const history = historyToJSON(state.history, innerBlock)
-    const viewState = { sidebarOpen: state.viewState.sidebarOpen }
-    const pages = pagesToJSON(state.pages, innerBlock)
-    return { pages, history, name: state.name, viewState }
+    return historyToJSON(state, innerState => {
+        const { viewState } = innerState
+        const pages = pagesToJSON(innerState.pages, innerBlock)
+        return { pages, viewState }
+    })
 }
 
 
@@ -97,12 +120,12 @@ export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<Sta
 
 
 
-export function getOpenPage<State>(state: DocumentState<State>): PageState<State> | null {
+export function getOpenPage<State>(state: DocumentInner<State>): PageState<State> | null {
     return getPageAt(state.viewState.openPage, state.pages)
 }
 
 export function getOpenPageEnv<State>(
-    state: DocumentState<State>,
+    state: DocumentInner<State>,
     env: Environment,
 ) {
     const page = getOpenPage(state)
@@ -114,19 +137,20 @@ export function getOpenPageEnv<State>(
         :
             getPageAt(state.viewState.openPage.slice(0, -1), state.pages).children
 
-    return getPageEnv(page, siblings, { ...env, history: state.history })
+    return getPageEnv(page, siblings, env)
 }
 
 
 export function deletePageAt<State>(
     path: PageId[],
-    state: DocumentState<State>,
+    state: DocumentInner<State>,
     innerBlock: Block<State>,
     env: Environment,
-): DocumentState<State> {
+): DocumentInner<State> {
     if (path.length === 0) { return state }
     const parentPath = path.slice(0, -1)
     const childIdToRemove = path.slice(-1)[0]
+
     if (parentPath.length === 0) {
         return {
             ...state,
@@ -162,10 +186,10 @@ export function deletePageAt<State>(
 
 export function addPageAt<State>(
     path: PageId[],
-    state: DocumentState<State>,
+    state: DocumentInner<State>,
     innerBlock: Block<State>,
     env: Environment,
-): DocumentState<State> {
+): DocumentInner<State> {
     function addSibling(siblings: PageState<State>[]): [ PageId, PageState<State>[] ] {
         const newId = Multiple.nextFreeId(siblings)
         const newPage = {
@@ -225,11 +249,11 @@ export function addPageAt<State>(
 }
 
 export function updateOpenPage<State>(
-    state: DocumentState<State>,
+    state: DocumentInner<State>,
     action: (state: State) => State,
     innerBlock: Block<State>,
     env: Environment,
-): DocumentState<State> {
+): DocumentInner<State> {
     if (state.viewState.openPage.length === 0) {
         return state
     }
@@ -240,7 +264,6 @@ export function updateOpenPage<State>(
             [],
             state.pages,
             (path, page) => {
-                console.log(state.viewState.openPage, path)
                 if (arrayEquals(path, state.viewState.openPage)) {
                     return {
                         ...page,
@@ -359,150 +382,3 @@ function pagesFromJSON<State>(json: any[], env: Environment, innerBlock: Block<S
     )
 }
 
-
-
-/**************** History **************/
-
-export type HistoryEntry<State> =
-    | {
-        readonly type: 'state'
-        readonly time: Date
-        readonly blockState: State
-    }
-    | {
-        readonly type: 'json'
-        readonly time: Date
-        readonly blockJSON: any
-    }
-
-
-export function openHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    if (state.history.length > 0) {
-        return {
-            ...state,
-            viewState: {
-                ...state.viewState,
-                mode: {
-                    type: 'history',
-                    position: state.history.length - 1,
-                },
-            },
-        }
-    }
-    return state
-}
-
-export function closeHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    return {
-        ...state,
-        viewState: {
-            ...state.viewState,
-            mode: { type: 'current' },
-        },
-    }
-}
-
-export function goBackInHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    if (state.viewState.mode.type === 'history') {
-        return {
-            ...state,
-            viewState: {
-                ...state.viewState,
-                mode: {
-                    ...state.viewState.mode,
-                    position: Math.max(0, state.viewState.mode.position - 1),
-                }
-            }
-        }
-    }
-    return state
-}
-
-export function goForwardInHistory<State>(state: DocumentState<State>): DocumentState<State> {
-    if (state.viewState.mode.type === 'history') {
-        return {
-            ...state,
-            viewState: {
-                ...state.viewState,
-                mode: {
-                    ...state.viewState.mode,
-                    position: Math.min(state.viewState.mode.position + 1, state.history.length - 1),
-                }
-            }
-        }
-    }
-    return state
-}
-
-export function restoreStateFromHistory<State>(
-    state: DocumentState<State>,
-    innerBlock: BlockDesc<State>,
-    env: Environment,
-): DocumentState<State> {
-    if (state.viewState.mode.type === 'history') {
-        const historicState = state.history[state.viewState.mode.position]
-        const historicEnv = {
-            ...env,
-            history: state.history.slice(0, state.viewState.mode.position)
-        }
-        return {
-            ...state,
-            history: [ ...state.history, historicState ],
-            // blockState: getHistoryState(historicState, innerBlock, historicEnv),
-            viewState: {
-                ...state.viewState,
-                mode: { type: 'current' },
-            },
-        }
-    }
-    return state
-}
-
-
-
-export function getHistoryState<State>(entry: HistoryEntry<State>, innerBlock: BlockDesc<State>, env: Environment) {
-    switch (entry.type) {
-        case 'state':
-            return entry.blockState
-        case 'json':
-            return innerBlock.fromJSON(entry.blockJSON, env)
-    }
-}
-
-export function historyToJSON<State>(history: Array<HistoryEntry<State>>, innerBlock: BlockDesc<State>) {
-    return history.map(entry => {
-        switch (entry.type) {
-            case 'json':
-                return {
-                    time: entry.time.getTime(),
-                    state: entry.blockJSON,
-                }
-            case 'state':
-                return {
-                    time: entry.time.getTime(),
-                    state: innerBlock.toJSON(entry.blockState),
-                }
-        }
-    })
-}
-
-export function historyFromJSON<State>(
-    json: { time: number, state: any }[],
-): HistoryEntry<State>[] {
-    return json.map(historyEntryJson => (
-        {
-            type: 'json',
-            time: new Date(historyEntryJson.time),
-            blockJSON: historyEntryJson.state,
-        }
-    ))
-}
-
-export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array<HistoryEntry<State>> {
-    return history.filter((entry, index) => {
-        const nextTime = history[index + 1]?.time?.getTime() ?? Number.POSITIVE_INFINITY
-        const differenceMS = nextTime - entry.time.getTime()
-        const reverseIndex = history.length - index
-        return differenceMS / 100 > reverseIndex ** 2
-    })
-}
