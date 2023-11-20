@@ -2,18 +2,19 @@ import * as React from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
-import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
-import { useAutoretrigger } from '../../ui/hooks'
 import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
-import { $update, arrayEquals, arrayStartsWith } from '../../utils'
+import { $update, arrayEquals } from '../../utils'
 
-import { DocumentState, DocumentInner, PageId, PageState } from './model'
+import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
-import { HistoryWrapper } from './history'
+import { PageEntry, PageId } from './pages'
+import * as Pages from './pages'
+import { HistoryView } from './history'
 import * as History from './history'
+import { HistoryModePanel } from './history'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -109,7 +110,7 @@ const ACTIONS = <State extends unknown>(
                 innerState => {
                     return {
                         ...innerState,
-                        pages: Model.updatePages(
+                        pages: Pages.updatePages(
                             [],
                             innerState.pages,
                             (currentPath, page) => (
@@ -147,7 +148,7 @@ const ACTIONS = <State extends unknown>(
                 innerState => {
                     return {
                         ...innerState,
-                        pages: Model.updatePages(
+                        pages: Pages.updatePages(
                             [], 
                             innerState.pages,
                             (currentPath, page) => (
@@ -486,150 +487,6 @@ function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) 
 }
 
 
-interface PageActions {
-    addPage(path: PageId[]): void
-    setPageName(path: PageId[], name: string): void
-    openPage(path: PageId[]): void
-    toggleCollapsed(path: PageId[]): void
-    deletePage(path: PageId[]): void
-}
-
-interface PageEntryProps<State> {
-    page: PageState<State>
-    path?: PageId[]
-    openPage: PageId[]
-    actions: PageActions
-}
-
-const pageStyle = {
-    paddingX: 0.5,
-    indentDepth: 0.5,
-    indentClass(depth: number) {
-        const paddingLeft = pageStyle.paddingX + depth * pageStyle.indentDepth
-        return `pl-[${paddingLeft}rem] pr-[${pageStyle.paddingX}]`
-    },
-}
-
-function PageEntry<State>({ page, path = [], openPage, actions }: PageEntryProps<State>) {
-    const [isNameEditing, setIsNameEditing] = React.useState(false)
-
-    const depth = path.length
-    const pathHere = [ ...path, page.id ]
-
-    const pageInOpenPath = arrayStartsWith(pathHere, openPage.slice(0, -1))
-    const pageCollapsed = page.isCollapsed && !pageInOpenPath
-
-    const untitledName = 'Untitled ' + page.id
-
-    function onChangeName(event: React.ChangeEvent<HTMLInputElement>) {
-        actions.setPageName(pathHere, event.target.value)
-    }
-    function onInputKeyDown(event: React.KeyboardEvent) {
-        if (getFullKey(event) === 'Enter') {
-            onCommitName()
-            event.stopPropagation()
-            event.preventDefault()
-        }
-    }
-    function onCommitName() {
-        if (page.name.trim() === '') {
-            actions.setPageName(pathHere, untitledName)
-        }
-        else if (page.name !== page.name.trim()) {
-            actions.setPageName(pathHere, page.name.trim())
-        }
-        setIsNameEditing(false)
-    }
-    function onAddChild(event: React.MouseEvent) {
-        actions.addPage(pathHere)
-        event.stopPropagation()
-    }
-    function onDeleteChild(event: React.MouseEvent) {
-        actions.deletePage(pathHere)
-        event.stopPropagation()
-    }
-
-
-    return (
-        <>
-            <div
-                className={`
-                    ${pageStyle.indentClass(depth)} py-1 text-left group cursor-pointer flex space-x-2
-                    ${arrayEquals(pathHere, openPage) && "bg-gray-300"}
-                `}
-                onClick={() => actions.openPage(pathHere)}
-                >
-                <button onClick={() => actions.toggleCollapsed(pathHere)}>
-                    <FontAwesomeIcon
-                        className="text-gray-500"
-                        icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
-                        />
-                </button>
-
-                {isNameEditing ? (
-                    <input
-                        type="text"
-                        autoFocus
-                        value={page.name}
-                        placeholder={untitledName}
-                        onChange={onChangeName}
-                        onBlur={onCommitName}
-                        onKeyDown={onInputKeyDown}
-                        />
-                ) : (
-                    <>
-                        <span onDoubleClick={() => setIsNameEditing(true)}>{page.name}</span>
-                        <div className="flex-1" />
-                        <button
-                            className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
-                            onClick={onDeleteChild}
-                            >
-                            <FontAwesomeIcon icon={regularIcons.faTrashCan} />
-                        </button>
-                        <button
-                            className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
-                            onClick={onAddChild}
-                            >
-                            <FontAwesomeIcon icon={solidIcons.faPlus} />
-                        </button>
-                    </>
-                )}
-            </div>
-            {!pageCollapsed && <PageChildren page={page} path={pathHere} actions={actions} openPage={openPage} />}
-        </>
-    )
-}
-
-
-function PageChildren<State>({ page, actions, path, openPage }: PageEntryProps<State>) {
-    if (page.children.length === 0) {
-        const depth = path.length
-        return (
-            <button
-                className={`${pageStyle.indentClass(depth)} py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700`}
-                onClick={() => actions.addPage(path)}
-            >
-                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
-                Add Page
-            </button>
-        )
-    }
-
-    const keyHere = path.join('.')
-    return (
-        <>
-            {page.children.map(child => (
-                <PageEntry
-                    key={keyHere + '.' + child.id}
-                    page={child}
-                    path={path}
-                    openPage={openPage}
-                    actions={actions} />
-            ))}
-        </>
-    )
-}
-
 
 
 function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
@@ -688,94 +545,3 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
     )
 }
 
-
-interface HistoryActions {
-    goBack(): void
-    goForward(): void
-    restoreStateFromHistory(): void
-}
-
-interface HistoryModePanelProps<Inner> {
-    state: HistoryWrapper<Inner>
-    actions: HistoryActions
-}
-
-function HistoryModePanel<Inner>({ state, actions }: HistoryModePanelProps<Inner>) {
-    const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
-    const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
-
-    if (state.mode.type !== 'history') {
-        return null
-    }
-
-    return (
-        <div
-            className={`
-                sticky top-0 left-0 right-0 z-10
-                bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
-                shadow mb-2 flex space-x-2 items-baseline
-            `}
-            >
-            <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.restoreStateFromHistory}>
-                Restore
-            </button>
-
-            <div className="flex-1 flex space-x-1 px-2">
-                <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
-                    <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
-                </button>
-                <button className="px-2 hover:text-blue-500" onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
-                    <FontAwesomeIcon icon={solidIcons.faAngleRight} />
-                </button>
-                <div className="self-center px-1">
-                    {formatTime(state.history[state.mode.position].time)}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-
-interface HistoryViewProps<Inner> {
-    state: HistoryWrapper<Inner>
-    children: (state: Inner) => JSX.Element
-    env: Environment
-    fromJSON: (json: any, env: Environment) => Inner
-}
-
-function HistoryView<Inner>({ state, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
-    switch (state.mode.type) {
-        case 'current':
-            return viewInner(state.inner)
-        
-        case 'history':
-            const entryInHistory = state.history[state.mode.position]
-            if (entryInHistory === undefined) { return null }
-
-            const stateInHistory = History.getHistoryState(entryInHistory, env, fromJSON)
-            return viewInner(stateInHistory)
-    }
-}
-
-const secondInMs = 1000
-const minuteInMs = 60 * secondInMs
-const hourInMs = 60 * minuteInMs
-const dayInMs = 24 * hourInMs
-
-const formatTime = (date: Date) => {
-    const diffInMs = Date.now() - date.getTime()
-    if (diffInMs < dayInMs) {
-        return Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)
-    }
-    else {
-        const formatOptions: Intl.DateTimeFormatOptions = {
-            year: '2-digit',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        }
-        return Intl.DateTimeFormat(undefined, formatOptions).format(date)
-    }
-}

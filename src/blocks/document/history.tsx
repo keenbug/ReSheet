@@ -1,4 +1,11 @@
+import * as React from "react"
+
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
+import * as solidIcons from "@fortawesome/free-solid-svg-icons"
+
 import { Environment } from "../../block"
+import { useAutoretrigger } from "../../ui/hooks"
+
 
 export type HistoryMode =
     | { type: 'current' }
@@ -195,4 +202,102 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
         const reverseIndex = history.length - index
         return differenceMS / 100 > reverseIndex ** 2
     })
+}
+
+
+
+
+
+export interface HistoryViewProps<Inner> {
+    state: HistoryWrapper<Inner>
+    children: (state: Inner) => JSX.Element
+    env: Environment
+    fromJSON: (json: any, env: Environment) => Inner
+}
+
+export function HistoryView<Inner>({ state, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
+    switch (state.mode.type) {
+        case 'current':
+            return viewInner(state.inner)
+        
+        case 'history':
+            const entryInHistory = state.history[state.mode.position]
+            if (entryInHistory === undefined) { return null }
+
+            const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
+            return viewInner(stateInHistory)
+    }
+}
+
+
+
+export interface HistoryActions {
+    goBack(): void
+    goForward(): void
+    restoreStateFromHistory(): void
+}
+
+export interface HistoryModePanelProps<Inner> {
+    state: HistoryWrapper<Inner>
+    actions: HistoryActions
+}
+
+
+export function HistoryModePanel<Inner>({ state, actions }: HistoryModePanelProps<Inner>) {
+    const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
+    const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
+
+    if (state.mode.type !== 'history') {
+        return null
+    }
+
+    return (
+        <div
+            className={`
+                sticky top-0 left-0 right-0 z-10
+                bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
+                shadow mb-2 flex space-x-2 items-baseline
+            `}
+        >
+            <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.restoreStateFromHistory}>
+                Restore
+            </button>
+
+            <div className="flex-1 flex space-x-1 px-2">
+                <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
+                    <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
+                </button>
+                <button className="px-2 hover:text-blue-500" onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
+                    <FontAwesomeIcon icon={solidIcons.faAngleRight} />
+                </button>
+                <div className="self-center px-1">
+                    {formatTime(state.history[state.mode.position].time)}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+
+const secondInMs = 1000
+const minuteInMs = 60 * secondInMs
+const hourInMs = 60 * minuteInMs
+const dayInMs = 24 * hourInMs
+
+const formatTime = (date: Date) => {
+    const diffInMs = Date.now() - date.getTime()
+    if (diffInMs < dayInMs) {
+        return Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)
+    }
+    else {
+        const formatOptions: Intl.DateTimeFormatOptions = {
+            year: '2-digit',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        }
+        return Intl.DateTimeFormat(undefined, formatOptions).format(date)
+    }
 }

@@ -1,8 +1,9 @@
 import { Block, Environment, mapWithEnv } from '../../block'
-import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 import { arrayEquals, catchAll } from '../../utils'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
+import { PageId, PageState } from './pages'
+import * as Pages from './pages'
 
 export interface ViewState {
     sidebarOpen: boolean
@@ -45,7 +46,7 @@ export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Bl
         openPage = [],
     } = viewState
 
-    const loadedPages = pagesFromJSON(pages, env, innerBlock)
+    const loadedPages = Pages.fromJSON(pages, env, innerBlock)
     return {
         pages: loadedPages,
         viewState: {
@@ -97,7 +98,7 @@ function legacyFromJSON<State>(json: any, env: Environment, innerBlock: Block<St
             openPage = [-1]
         }
     }
-    const loadedPages = pagesFromJSON(pages, env, innerBlock)
+    const loadedPages = Pages.fromJSON(pages, env, innerBlock)
     return {
         mode: { type: 'current' },
         history: [],
@@ -115,7 +116,7 @@ function legacyFromJSON<State>(json: any, env: Environment, innerBlock: Block<St
 export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<State>) {
     return historyToJSON(state, innerState => {
         const { viewState } = innerState
-        const pages = pagesToJSON(innerState.pages, innerBlock)
+        const pages = Pages.toJSON(innerState.pages, innerBlock)
         return { pages, viewState }
     })
 }
@@ -126,7 +127,7 @@ export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<Sta
 
 
 export function getOpenPage<State>(state: DocumentInner<State>): PageState<State> | null {
-    return getPageAt(state.viewState.openPage, state.pages)
+    return Pages.getPageAt(state.viewState.openPage, state.pages)
 }
 
 export function getOpenPageEnv<State>(
@@ -140,9 +141,9 @@ export function getOpenPageEnv<State>(
         state.viewState.openPage.length <= 1 ?
             state.pages
         :
-            getPageAt(state.viewState.openPage.slice(0, -1), state.pages).children
+            Pages.getPageAt(state.viewState.openPage.slice(0, -1), state.pages).children
 
-    return getPageEnv(page, siblings, env)
+    return Pages.getPageEnv(page, siblings, env)
 }
 
 
@@ -159,7 +160,7 @@ export function deletePageAt<State>(
     if (parentPath.length === 0) {
         return {
             ...state,
-            pages: updatePages(
+            pages: Pages.updatePages(
                 [],
                 state.pages.filter(page => page.id !== childIdToRemove),
                 (_currentPath, page) => page,
@@ -170,7 +171,7 @@ export function deletePageAt<State>(
     }
     return {
         ...state,
-        pages: updatePages(
+        pages: Pages.updatePages(
             [],
             state.pages,
             (currentPath, page) => {
@@ -226,7 +227,7 @@ export function addPageAt<State>(
 
     let newId = null
 
-    const newPages = updatePages(
+    const newPages = Pages.updatePages(
         [],
         state.pages,
         (currentPath, page) => {
@@ -265,7 +266,7 @@ export function updateOpenPage<State>(
 
     return {
         ...state,
-        pages: updatePages(
+        pages: Pages.updatePages(
             [],
             state.pages,
             (path, page) => {
@@ -286,104 +287,4 @@ export function updateOpenPage<State>(
 
 
 
-
-
-/**************** Pages **************/
-
-export type PageId = number
-
-export interface PageState<State> extends BlockEntry<State> {
-    id: PageId
-    name: string
-    state: State
-    result: unknown
-
-    isCollapsed: boolean
-    children: Array<PageState<State>>
-}
-
-export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>) {
-    if (path.length === 0) { return null }
-
-    const page = pages.find(page => page.id === path[0])
-    if (page === undefined) { return null }
-    if (path.length === 1) { return page }
-
-    return getPageAt(path.slice(1), page.children)
-}
-
-export function getPageEnv<State>(
-    page: PageState<State>,
-    siblings: PageState<State>[],
-    env: Environment,
-) {
-    const siblingsEnv = Multiple.getEntryEnvBefore(siblings, page.id)
-    const childrenEnv = Multiple.getResultEnv(page.children)
-    
-    return { ...env, ...siblingsEnv, ...childrenEnv }
-}
-
-
-export function updatePages<State>(
-    currentPath: PageId[],
-    pages: Array<PageState<State>>,
-    update: (path: PageId[], page: PageState<State>, localEnv: Environment) => PageState<State>,
-    innerBlock: Block<State>,
-    env: Environment,
-) {
-    return mapWithEnv(
-        pages,
-        (page, localEnv) => {
-            const pathHere = [...currentPath, page.id]
-
-            const children = updatePages(pathHere, page.children, update, innerBlock, localEnv)
-            const localEnvWithChildren = { ...localEnv, ...Multiple.getResultEnv(children) }
-
-            const newPage = update(pathHere, { ...page, children }, localEnvWithChildren)
-            const result = innerBlock.getResult(newPage.state, localEnvWithChildren)
-            return {
-                out: { ...newPage, result },
-                env: { [Multiple.entryName(newPage)]: result },
-            }
-        },
-        env,
-    )
-}
-
-function pagesToJSON<State>(pages: PageState<State>[], innerBlock: Block<State>) {
-    return pages.map(page => ({
-        id: page.id,
-        name: page.name,
-        state: innerBlock.toJSON(page.state),
-        result: page.result,
-        isCollapsed: page.isCollapsed,
-        children: pagesToJSON(page.children, innerBlock),
-    }))
-}
-
-function pagesFromJSON<State>(json: any[], env: Environment, innerBlock: Block<State>): Array<PageState<State>> {
-    return mapWithEnv(
-        json,
-        (jsonEntry, localEnv) => {
-            const { id, name, state, children, isCollapsed = true } = jsonEntry
-            const loadedChildren = pagesFromJSON(children, localEnv, innerBlock)
-            const pageEnv = { ...localEnv, ...Multiple.getResultEnv(children) }
-            const loadedState = innerBlock.fromJSON(state, pageEnv)
-            const result = innerBlock.getResult(loadedState, pageEnv)
-            const page: PageState<State> = {
-                id,
-                name,
-                state: loadedState,
-                result,
-                isCollapsed,
-                children: loadedChildren,
-            }
-            return {
-                out: page,
-                env: Multiple.entryToEnv(page)
-            }
-        },
-        env,
-    )
-}
 
