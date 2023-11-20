@@ -34,6 +34,26 @@ export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>)
     return getPageAt(path.slice(1), page.children)
 }
 
+export function getSiblingsOf<State>(
+    path: PageId[],
+    pages: Array<PageState<State>>
+): [ PageState<State>[], PageState<State>[] ] {
+    const siblings = (
+        path.length <= 1 ?
+            pages
+        :
+            getPageAt(path.slice(0, -1), pages)
+                .children
+    )
+
+    const selfId = path.slice(-1)[0] ?? -1
+    const selfIndex = Math.min(Number.MAX_SAFE_INTEGER, siblings.findIndex(page => page.id === selfId))
+    const siblingsBefore = siblings.slice(0, selfIndex)
+    const siblingsAfter = siblings.slice(selfIndex + 1)
+    
+    return [siblingsBefore, siblingsAfter]
+}
+
 export function getPageEnv<State>(
     page: PageState<State>,
     siblings: PageState<State>[],
@@ -128,6 +148,8 @@ export interface PageEntryProps<State> {
     path?: PageId[]
     openPage: PageId[]
     actions: PageActions
+    isNameEditing: boolean
+    setIsNameEditing: (editing: boolean) => void
 }
 
 const pageStyle = {
@@ -139,25 +161,33 @@ const pageStyle = {
     },
 }
 
-export function PageEntry<State>({ page, path = [], openPage, actions }: PageEntryProps<State>) {
-    const [isNameEditing, setIsNameEditing] = React.useState(false)
-
+export function PageEntry<State>({
+    page,
+    path = [],
+    openPage,
+    actions,
+    isNameEditing,
+    setIsNameEditing,
+}: PageEntryProps<State>) {
     const depth = path.length
     const pathHere = [ ...path, page.id ]
 
     const pageInOpenPath = arrayStartsWith(pathHere, openPage.slice(0, -1))
     const pageCollapsed = page.isCollapsed && !pageInOpenPath
 
-    const untitledName = 'Untitled ' + page.id
+    const untitledName = 'Untitled_' + page.id
 
     function onChangeName(event: React.ChangeEvent<HTMLInputElement>) {
         actions.setPageName(pathHere, event.target.value)
     }
     function onInputKeyDown(event: React.KeyboardEvent) {
-        if (getFullKey(event) === 'Enter') {
-            onCommitName()
-            event.stopPropagation()
-            event.preventDefault()
+        switch (getFullKey(event)) {
+            case "Enter":
+            case "Escape":
+                onCommitName()
+                event.stopPropagation()
+                event.preventDefault()
+                return
         }
     }
     function onCommitName() {
@@ -224,13 +254,22 @@ export function PageEntry<State>({ page, path = [], openPage, actions }: PageEnt
                     </>
                 )}
             </div>
-            {!pageCollapsed && <PageChildren page={page} path={pathHere} actions={actions} openPage={openPage} />}
+            {!pageCollapsed &&
+                <PageChildren
+                    page={page}
+                    path={pathHere}
+                    actions={actions}
+                    openPage={openPage}
+                    isNameEditing={isNameEditing}
+                    setIsNameEditing={setIsNameEditing}
+                    />
+            }
         </>
     )
 }
 
 
-export function PageChildren<State>({ page, actions, path, openPage }: PageEntryProps<State>) {
+export function PageChildren<State>({ page, actions, path, openPage, ...props }: PageEntryProps<State>) {
     if (page.children.length === 0) {
         const depth = path.length
         return (
@@ -253,7 +292,9 @@ export function PageChildren<State>({ page, actions, path, openPage }: PageEntry
                     page={child}
                     path={path}
                     openPage={openPage}
-                    actions={actions} />
+                    actions={actions}
+                    {...props}
+                    />
             ))}
         </>
     )

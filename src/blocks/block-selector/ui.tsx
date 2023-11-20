@@ -146,7 +146,7 @@ export const BlockSelectorUI = React.forwardRef(
                     }
                     return
 
-                case "C-r":
+                case "C-R":
                     if (state.mode === 'choose' && block.isBlock(blockCmdResult)) {
                         actions.resetState()
                         event.stopPropagation()

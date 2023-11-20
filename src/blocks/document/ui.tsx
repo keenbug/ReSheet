@@ -23,183 +23,194 @@ interface ActionProps<State> {
     actions: Actions<State>
 }
 
-const ACTIONS = <State extends unknown>(
+function ACTIONS<State extends unknown>(
     update: BlockUpdater<DocumentState<State>>,
     innerBlock: Block<State>,
     env: Environment,
-) => ({
-    updateInner(action: (state: State) => State) {
-        update(state => 
-            History.updateHistoryInner(
-                state,
-                inner => Model.updateOpenPage(inner, action, innerBlock, env),
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
-            )
-        )
-    },
-
-    reset() {
-        update(() => Model.init)
-    },
-
-    save() {
-        update(state => {
-            const content = JSON.stringify(Model.toJSON(state, innerBlock))
-            saveFile(
-                'tables.json',
-                'application/json',
-                content,
-            )
-            return state
-        })
-    },
-
-    async loadLocalFile(file: File) {
-        const content = JSON.parse(await file.text())
-        try {
-            const newState = Model.fromJSON(content, env, innerBlock)
-            update(() => newState)
-        }
-        catch (e) {
-            window.alert(`Could not load file: ${e}`)
-        }
-    },
-
-    async loadRemoteFile() {
-        const url = window.prompt('Which URL should be loaded?')
-        if (url === null) { return }
-
-        try {
-            const response = await fetch(url)
-            const content = await response.json()
-            const newState = Model.fromJSON(content, env, innerBlock)
-            update(() => newState)
-        }
-        catch (e) {
-            window.alert(`Could not load file from URL: ${e}`)
-        }
-    },
-
-    addPage(path: PageId[]) {
+) {
+    function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
         update(state =>
             History.updateHistoryInner(
                 state,
-                inner => Model.addPageAt(path, inner, innerBlock, env),
+                action,
                 env,
                 json => Model.innerFromJSON(json, env, innerBlock),
             )
         )
-    },
+    }
 
-    deletePage(path: PageId[]) {
-        update(state =>
-            History.updateHistoryInner(
-                state,
-                inner => Model.deletePageAt(path, inner, innerBlock, env),
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
+    return {
+        updateOpenPageInner(action: (state: State) => State) {
+            updateInner(inner =>
+                Model.updateOpenPage(inner, action, innerBlock, env)
             )
-        )
-    },
+        },
 
-    setPageName(path: PageId[], name: string) {
-        update(state => {
-            return History.updateHistoryInner(
-                state,
-                innerState => {
-                    return {
-                        ...innerState,
-                        pages: Pages.updatePages(
-                            [],
-                            innerState.pages,
-                            (currentPath, page) => (
-                                arrayEquals(path, currentPath) ?
-                                    { ...page, name }
-                                :
-                                    page
-                            ),
-                            innerBlock,
-                            env,
+        reset() {
+            update(() => Model.init)
+        },
+
+        save() {
+            update(state => {
+                const content = JSON.stringify(Model.toJSON(state, innerBlock))
+                saveFile(
+                    'tables.json',
+                    'application/json',
+                    content,
+                )
+                return state
+            })
+        },
+
+        async loadLocalFile(file: File) {
+            const content = JSON.parse(await file.text())
+            try {
+                const newState = Model.fromJSON(content, env, innerBlock)
+                update(() => newState)
+            }
+            catch (e) {
+                window.alert(`Could not load file: ${e}`)
+            }
+        },
+
+        async loadRemoteFile() {
+            const url = window.prompt('Which URL should be loaded?')
+            if (url === null) { return }
+
+            try {
+                const response = await fetch(url)
+                const content = await response.json()
+                const newState = Model.fromJSON(content, env, innerBlock)
+                update(() => newState)
+            }
+            catch (e) {
+                window.alert(`Could not load file from URL: ${e}`)
+            }
+        },
+
+        addPage(path: PageId[]) {
+            updateInner(inner =>
+                Model.addPageAt(path, inner, innerBlock, env)
+            )
+        },
+
+        deletePage(path: PageId[]) {
+            updateInner(inner =>
+                Model.deletePageAt(path, inner, innerBlock, env)
+            )
+        },
+
+        setPageName(path: PageId[], name: string) {
+            updateInner(innerState => {
+                return {
+                    ...innerState,
+                    pages: Pages.updatePages(
+                        [],
+                        innerState.pages,
+                        (currentPath, page) => (
+                            arrayEquals(path, currentPath) ?
+                                { ...page, name }
+                            :
+                                page
                         ),
-                    }
-                },
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
-            )
-        })
-    },
+                        innerBlock,
+                        env,
+                    ),
+                }
+            })
+        },
 
-    openPage(path) {
-        update(state => 
-            History.updateHistoryInner(
-                state,
-                inner => $update(() => path, inner,'viewState','openPage'),
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
+        openPage(path) {
+            updateInner(inner =>
+                $update(() => path, inner,'viewState','openPage')
             )
-        )
-    },
+        },
 
-    toggleCollapsed(path) {
-        update(state => {
-            return History.updateHistoryInner(
-                state,
-                innerState => {
-                    return {
-                        ...innerState,
-                        pages: Pages.updatePages(
-                            [], 
-                            innerState.pages,
-                            (currentPath, page) => (
-                                arrayEquals(path, currentPath) ?
-                                    { ...page, isCollapsed: !page.isCollapsed }
-                                :
-                                    page
-                            ),
-                            innerBlock,
-                            env,
+        openFirstChild(path) {
+            updateInner(inner => {
+                const parent = Pages.getPageAt(path, inner.pages)
+                if (parent === null || parent.children.length === 0) { return inner }
+
+                return $update(() => [...path, parent.children[0].id], inner,'viewState','openPage')
+            })
+        },
+
+        openParent(path) {
+            updateInner(inner =>
+                $update(() => path.slice(0, -1), inner,'viewState','openPage')
+            )
+        },
+
+        openNextSibling(path) {
+            updateInner(inner => {
+                const [prev, after] = Pages.getSiblingsOf(path, inner.pages)
+                if (after.length === 0) { return inner }
+
+                const newPath = [...path.slice(0, -1), after[0].id]
+                return $update(() => newPath, inner,'viewState','openPage')
+            })
+        },
+
+        openPrevSibling(path) {
+            updateInner(inner => {
+                const [prev, after] = Pages.getSiblingsOf(path, inner.pages)
+                if (prev.length === 0) {
+                    return $update(() => path.slice(0, -1), inner,'viewState','openPage')
+                }
+
+                const newPath = [...path.slice(0, -1), prev.slice(-1)[0].id]
+                return $update(() => newPath, inner,'viewState','openPage')
+            })
+        },
+
+        toggleCollapsed(path) {
+            updateInner(innerState => {
+                return {
+                    ...innerState,
+                    pages: Pages.updatePages(
+                        [], 
+                        innerState.pages,
+                        (currentPath, page) => (
+                            arrayEquals(path, currentPath) ?
+                                { ...page, isCollapsed: !page.isCollapsed }
+                            :
+                                page
                         ),
-                    }
-                },
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
-            )
-        })
-    },
+                        innerBlock,
+                        env,
+                    ),
+                }
+            })
+        },
 
-    openHistory() {
-        update(History.openHistory)
-    },
-    
-    closeHistory() {
-        update(History.closeHistory)
-    },
-    
-    goBack() {
-        update(History.goBackInHistory)
-    },
-    
-    goForward() {
-        update(History.goForwardInHistory)
-    },
-    
-    restoreStateFromHistory() {
-        update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, env, innerBlock)))
-    },
-    
-    toggleSidebar() {
-        update(state => 
-            History.updateHistoryInner(
-                state,
-                inner => $update(open => !open, inner,'viewState','sidebarOpen'),
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
+        openHistory() {
+            update(History.openHistory)
+        },
+        
+        closeHistory() {
+            update(History.closeHistory)
+        },
+        
+        goBack() {
+            update(History.goBackInHistory)
+        },
+        
+        goForward() {
+            update(History.goForwardInHistory)
+        },
+        
+        restoreStateFromHistory() {
+            update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, env, innerBlock)))
+        },
+        
+        toggleSidebar() {
+            updateInner(inner =>
+                $update(open => !open, inner,'viewState','sidebarOpen')
             )
-        )
-    },
+        },
 
-})
+    }
+}
 
 
 function DocumentKeyHandler<State>(
@@ -207,22 +218,78 @@ function DocumentKeyHandler<State>(
     actions: Actions<State>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerRef: React.MutableRefObject<BlockRef>,
+    setIsNameEditing: (editing: boolean) => void,
 ) {
     return function onKeyDown(event: React.KeyboardEvent) {
+        console.log(getFullKey(event))
+        const isTargetAnInput = (
+            event.target instanceof HTMLTextAreaElement
+            || event.target instanceof HTMLInputElement
+        )
+
         switch (getFullKey(event)) {
             // not sure about capturing this...
-            case "C-n":
-                if (
-                    !(document.activeElement instanceof HTMLTextAreaElement)
-                    && !(document.activeElement instanceof HTMLInputElement)
-                ) {
-                    actions.reset()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
+            case "C-N":
+                actions.addPage(state.inner.viewState.openPage.slice(0, -1))
+                setIsNameEditing(true)
+                event.stopPropagation()
+                event.preventDefault()
                 return
 
-            case "C-o":
+            case "C-Shift-N":
+                actions.addPage(state.inner.viewState.openPage)
+                setIsNameEditing(true)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Backspace":
+                if (isTargetAnInput) { return }
+                actions.deletePage(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "J":
+            case "ArrowDown":
+                if (isTargetAnInput) { return }
+                actions.openNextSibling(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "K":
+            case "ArrowUp":
+                if (isTargetAnInput) { return }
+                actions.openPrevSibling(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "L":
+            case "ArrowRight":
+                if (isTargetAnInput) { return }
+                actions.openFirstChild(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "H":
+            case "ArrowLeft":
+                if (isTargetAnInput) { return }
+                actions.openParent(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case " ":
+                if (isTargetAnInput) { return }
+                actions.toggleCollapsed(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-O":
                 selectFile().then(file => {
                     actions.loadLocalFile(file)
                 })
@@ -230,19 +297,19 @@ function DocumentKeyHandler<State>(
                 event.preventDefault()
                 return
 
-            case "C-s":
+            case "C-S":
                 actions.save()
                 event.stopPropagation()
                 event.preventDefault()
                 return
 
-            case "C-b":
+            case "C-B":
                 actions.toggleSidebar()
                 event.stopPropagation()
                 event.preventDefault()
                 return
 
-            case "C-z":
+            case "C-Z":
                 if (state.mode.type === 'history') {
                     actions.goBack()
                 }
@@ -253,7 +320,7 @@ function DocumentKeyHandler<State>(
                 event.preventDefault()
                 return
 
-            case "C-y":
+            case "C-Y":
                 if (state.mode.type === 'history') {
                     actions.goForward()
                     event.stopPropagation()
@@ -277,12 +344,16 @@ function DocumentKeyHandler<State>(
             case "C-Enter":
                 if (state.mode.type === 'history') {
                     actions.restoreStateFromHistory()
-                    event.stopPropagation()
-                    event.preventDefault()
                 }
+                else {
+                    setIsNameEditing(true)
+                }
+                event.stopPropagation()
+                event.preventDefault()
                 return
 
             case "Enter":
+                if (isTargetAnInput) { return }
                 if (containerRef.current === document.activeElement) {
                     innerRef.current?.focus()
                     event.stopPropagation()
@@ -313,9 +384,17 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
             }
         })
     )
+    const [isNameEditing, setIsNameEditing] = React.useState(false)
+
+    function setIsNameEditingInVisibleSidebar(editing: boolean) {
+        if (editing && !state.inner.viewState.sidebarOpen) {
+            actions.toggleSidebar()
+        }
+        setIsNameEditing(editing)
+    }
 
     const actions = ACTIONS(update, innerBlock, env)
-    const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef)
+    const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar)
 
     return (
         <HistoryView state={state} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, env, innerBlock)}>
@@ -326,7 +405,13 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     onKeyDown={onKeyDown}
                     className="h-full relative flex"
                     >
-                    <Sidebar state={innerState} actions={actions} isHistoryOpen={state.mode.type === 'history'} />
+                    <Sidebar
+                        state={innerState}
+                        actions={actions}
+                        isHistoryOpen={state.mode.type === 'history'}
+                        isNameEditing={isNameEditing}
+                        setIsNameEditing={setIsNameEditingInVisibleSidebar}
+                        />
                     <SidebarButton state={innerState} actions={actions} />
 
                     <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
@@ -391,7 +476,7 @@ function MainView<State>({
     return innerBlock.view({
         ref: innerRef,
         state: openPage.state,
-        update: actions.updateInner,
+        update: actions.updateOpenPageInner,
         env: { ...env, ...pageEnv },
     })
 }
@@ -415,9 +500,11 @@ function SidebarButton<State>({ state, actions }: ActionProps<State>) {
 
 interface SidebarProps<State> extends ActionProps<State> {
     isHistoryOpen: boolean
+    isNameEditing: boolean
+    setIsNameEditing: (editing: boolean) => void
 }
 
-function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) {
+function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNameEditing }: SidebarProps<State>) {
     function HistoryButton() {
         if (isHistoryOpen) {
             return (
@@ -473,7 +560,14 @@ function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) 
             <hr />
 
             {state.pages.map(page => (
-                <PageEntry key={page.id} page={page} openPage={state.viewState.openPage} actions={actions} />
+                <PageEntry
+                    key={page.id}
+                    page={page}
+                    openPage={state.viewState.openPage}
+                    actions={actions}
+                    isNameEditing={isNameEditing}
+                    setIsNameEditing={setIsNameEditing}
+                    />
             ))}
             <button
                 className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"

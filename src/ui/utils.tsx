@@ -21,7 +21,7 @@ export function getFullKey(event: KeyboardEvent) {
         (event.ctrlKey || event.metaKey) ? "C-" : "",
         event.shiftKey ? "Shift-" : "",
         event.altKey ? "Alt-" : "",
-        event.key,
+        event.key.length > 1 ? event.key : event.key.toUpperCase(),
     ].join('')
 }
 

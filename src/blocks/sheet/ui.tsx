@@ -278,7 +278,7 @@ export const SheetLine = React.forwardRef(
         function onContainerKeyDown(event: React.KeyboardEvent) {
             switch (getFullKey(event)) {
                 case "ArrowUp":
-                case "k":
+                case "K":
                     if (event.currentTarget === event.target) {
                         actions.focusUp()
                         event.stopPropagation()
@@ -287,7 +287,7 @@ export const SheetLine = React.forwardRef(
                    return
 
                 case "ArrowDown":
-                case "j":
+                case "J":
                     if (event.currentTarget === event.target) {
                         actions.focusDown()
                         event.stopPropagation()
@@ -320,7 +320,7 @@ export const SheetLine = React.forwardRef(
                         return
                     }
                     // fall-through
-                case "o":
+                case "O":
                     if (event.currentTarget === event.target) {
                         actions.insertAfterCode(line.id, block)
                         event.stopPropagation()
@@ -359,7 +359,7 @@ export const SheetLine = React.forwardRef(
                     }
                     return
 
-                case "C-m":
+                case "C-M":
                     if (event.currentTarget === event.target) {
                         actions.toggleCollapse(line.id)
                         event.stopPropagation()

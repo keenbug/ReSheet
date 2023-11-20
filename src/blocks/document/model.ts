@@ -200,7 +200,7 @@ export function addPageAt<State>(
         const newId = Multiple.nextFreeId(siblings)
         const newPage = {
             id: newId,
-            name: "Untitled " + newId,
+            name: "Untitled_" + newId,
             state: innerBlock.init,
             result: null,
 

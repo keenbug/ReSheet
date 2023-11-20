@@ -26,18 +26,29 @@ function App({ initState }: { initState: ToplevelBlockState }) {
         toplevelBlockRef.current?.focus()
         document.addEventListener('keydown', onKeyDown)
         rootElement.addEventListener('focusout', onFocusout)
+        const timeout = setInterval(fixFocus, 100)
         return () => {
             document.removeEventListener('keydown', onKeyDown)
             rootElement.removeEventListener('focusout', onFocusout)
+            clearInterval(timeout)
         }
     }, [])
 
     // keep the focus on the toplevel block, so its KeyEventHandlers keep working
     function onFocusout(event: FocusEvent) {
         // this could be problematic, but let's wait until problems arise
+        console.log('focusout', event.relatedTarget, event.relatedTarget instanceof Element && rootElement.contains(event.relatedTarget))
         if (!(event.relatedTarget instanceof Element) || !rootElement.contains(event.relatedTarget)) {
             toplevelBlockRef.current?.focus()
         }
+    }
+
+    function fixFocus() {
+        if (rootElement.contains(document.activeElement)) {
+            return
+        }
+
+        toplevelBlockRef.current?.focus()
     }
 
     function onKeyDown(event: KeyboardEvent) {
