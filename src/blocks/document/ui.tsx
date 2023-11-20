@@ -12,6 +12,7 @@ import { $update, arrayEquals, arrayStartsWith } from '../../utils'
 
 import { DocumentState, DocumentInner, PageId, PageState } from './model'
 import * as Model from './model'
+import { HistoryWrapper } from './history'
 import * as History from './history'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
@@ -315,76 +316,83 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     const actions = ACTIONS(update, innerBlock, env)
     const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef)
 
-    function viewPage(
-        innerState: DocumentInner<State>,
-        updateInner: (action: (state: State) => State) => void,
-    ) {
-        const openPage = Model.getOpenPage(innerState)
-        if (!openPage) {
-            function Link({ onClick, children }) {
-                return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
-            }
-            return (
-                <div className="h-full w-full flex justify-center items-center">
-                    <div className="text-center text-lg text-gray-900">
-                        <Link onClick={() => actions.addPage([])}>
-                            Add new Page
-                        </Link><br />
-                        or select one from the{' '}
-                        {state.inner.viewState.sidebarOpen ?
-                            "Sidebar"
-                        :
-                            <Link onClick={actions.toggleSidebar}>
-                                Sidebar
-                            </Link>
-                        }
+    return (
+        <HistoryView state={state} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, env, innerBlock)}>
+            {innerState => (
+                <div
+                    ref={containerRef}
+                    tabIndex={-1}
+                    onKeyDown={onKeyDown}
+                    className="h-full relative flex"
+                    >
+                    <Sidebar state={innerState} actions={actions} isHistoryOpen={state.mode.type === 'history'} />
+                    <SidebarButton state={innerState} actions={actions} />
+
+                    <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                        <HistoryModePanel state={state} actions={actions} />
+                        <MainView
+                            innerRef={innerRef}
+                            state={state}
+                            actions={actions}
+                            innerState={innerState}
+                            innerBlock={innerBlock}
+                            env={env}
+                            />
                     </div>
                 </div>
-            )
+            )}
+        </HistoryView>
+    )
+}
+
+interface MainViewProps<State> {
+    innerRef: React.Ref<BlockRef>
+    state: DocumentState<State>
+    actions: Actions<State>
+    innerState: DocumentInner<State>
+    innerBlock: Block<State>
+    env: Environment
+}
+
+function MainView<State>({
+    innerRef,
+    state,
+    actions,
+    innerState,
+    innerBlock,
+    env,
+}: MainViewProps<State>) {
+    const openPage = Model.getOpenPage(innerState)
+    if (!openPage) {
+        function Link({ onClick, children }) {
+            return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
         }
-
-        const pageEnv = Model.getOpenPageEnv(innerState, env)
-        return innerBlock.view({
-            ref: innerRef,
-            state: openPage.state,
-            update: updateInner,
-            env: { ...env, ...pageEnv },
-        })
-    }
-
-    function viewDocument(
-        innerState: DocumentInner<State>,
-        updateInner: (action: (state: State) => State) => void,
-    ) {
         return (
-            <div
-                ref={containerRef}
-                tabIndex={-1}
-                onKeyDown={onKeyDown}
-                className="h-full relative flex"
-                >
-                <Sidebar state={innerState} actions={actions} isHistoryOpen={state.mode.type === 'history'} />
-                <SidebarButton state={innerState} actions={actions} />
-
-                <div className={`h-full overflow-y-scroll flex-1 transition-all ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
-                    <HistoryModePanel state={state} actions={actions} />
-                    {viewPage(innerState, updateInner)}
+            <div className="h-full w-full flex justify-center items-center">
+                <div className="text-center text-lg text-gray-900">
+                    <Link onClick={() => actions.addPage([])}>
+                        Add new Page
+                    </Link><br />
+                    or select one from the{' '}
+                    {state.inner.viewState.sidebarOpen ?
+                        "Sidebar"
+                    :
+                        <Link onClick={actions.toggleSidebar}>
+                            Sidebar
+                        </Link>
+                    }
                 </div>
             </div>
         )
     }
 
-    switch (state.mode.type) {
-        case 'current':
-            return viewDocument(state.inner, actions.updateInner)
-        
-        case 'history':
-            const entryInHistory = state.history[state.mode.position]
-            if (entryInHistory === undefined) { return null }
-
-            const stateInHistory = History.getHistoryState(entryInHistory, env, (state, env) => Model.innerFromJSON(state, env, innerBlock))
-            return viewDocument(stateInHistory, actions.updateInner)
-    }
+    const pageEnv = Model.getOpenPageEnv(innerState, env)
+    return innerBlock.view({
+        ref: innerRef,
+        state: openPage.state,
+        update: actions.updateInner,
+        env: { ...env, ...pageEnv },
+    })
 }
 
 
@@ -464,7 +472,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) 
             <hr />
 
             {state.pages.map(page => (
-                <PageEntry key={page.id} page={page} state={state} actions={actions} />
+                <PageEntry key={page.id} page={page} openPage={state.viewState.openPage} actions={actions} />
             ))}
             <button
                 className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
@@ -478,93 +486,60 @@ function Sidebar<State>({ state, actions, isHistoryOpen }: SidebarProps<State>) 
 }
 
 
-interface PageEntryProps<State> extends ActionProps<State> {
-    page: PageState<State>
-    path?: PageId[]
+interface PageActions {
+    addPage(path: PageId[]): void
+    setPageName(path: PageId[], name: string): void
+    openPage(path: PageId[]): void
+    toggleCollapsed(path: PageId[]): void
+    deletePage(path: PageId[]): void
 }
 
-// TODO: break up
-function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<State>) {
-    const [editing, setIsNameEditing] = React.useState(false)
+interface PageEntryProps<State> {
+    page: PageState<State>
+    path?: PageId[]
+    openPage: PageId[]
+    actions: PageActions
+}
+
+const pageStyle = {
+    paddingX: 0.5,
+    indentDepth: 0.5,
+    indentClass(depth: number) {
+        const paddingLeft = pageStyle.paddingX + depth * pageStyle.indentDepth
+        return `pl-[${paddingLeft}rem] pr-[${pageStyle.paddingX}]`
+    },
+}
+
+function PageEntry<State>({ page, path = [], openPage, actions }: PageEntryProps<State>) {
+    const [isNameEditing, setIsNameEditing] = React.useState(false)
 
     const depth = path.length
-    const indentDepth = 0.5
-    const indentClass = (depth: number) => `pl-[${0.5 + depth * indentDepth}rem] pr-2`
-
     const pathHere = [ ...path, page.id ]
-    const keyHere = pathHere.join('.')
 
-    const pageInOpenPath = arrayStartsWith(pathHere, state.viewState.openPage.slice(0, -1))
+    const pageInOpenPath = arrayStartsWith(pathHere, openPage.slice(0, -1))
     const pageCollapsed = page.isCollapsed && !pageInOpenPath
-    const pageChildren = (
-        pageCollapsed ?
-            null
-        : page.children.length === 0 ? (
-            <button
-                className={`${indentClass(depth + 1)} py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700`}
-                onClick={() => actions.addPage(pathHere)}
-                >
-                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
-                Add Page
-            </button>
-        ) : (
-            page.children.map(child => (
-                <PageEntry
-                    key={keyHere + '.' + child.id}
-                    page={child}
-                    path={pathHere}
-                    state={state}
-                    actions={actions}
-                    />
-            ))
-        )
-    )
-    const collapseIcon = (
-        <button onClick={() => actions.toggleCollapsed(pathHere)}>
-            <FontAwesomeIcon
-                className="text-gray-500"
-                icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
-                />
-        </button>
-    )
 
-    if (editing) {
-        function onChange(event: React.ChangeEvent<HTMLInputElement>) {
-            actions.setPageName(pathHere, event.target.value)
-        }
-        function onKeyDown(event: React.KeyboardEvent) {
-            if (getFullKey(event) === 'Enter') {
-                onCommitName()
-                event.stopPropagation()
-                event.preventDefault()
-            }
-        }
-        function onCommitName() {
-            if (page.name.trim() === '') {
-                actions.setPageName(pathHere, 'Untitled ' + page.id)
-            }
-            else if (page.name !== page.name.trim()) {
-                actions.setPageName(pathHere, page.name.trim())
-            }
-            setIsNameEditing(false)
-        }
-        return (
-            <>
-                <div
-                    key={keyHere}
-                    className={`
-                        ${indentClass(depth)} py-1 text-left
-                        ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
-                    `}
-                    >
-                    {collapseIcon}
-                    <input type="text" autoFocus value={page.name} onChange={onChange} onBlur={onCommitName} onKeyDown={onKeyDown} />
-                </div>
-                {pageChildren}
-            </>
-        )
+    const untitledName = 'Untitled ' + page.id
+
+    function onChangeName(event: React.ChangeEvent<HTMLInputElement>) {
+        actions.setPageName(pathHere, event.target.value)
     }
-
+    function onInputKeyDown(event: React.KeyboardEvent) {
+        if (getFullKey(event) === 'Enter') {
+            onCommitName()
+            event.stopPropagation()
+            event.preventDefault()
+        }
+    }
+    function onCommitName() {
+        if (page.name.trim() === '') {
+            actions.setPageName(pathHere, untitledName)
+        }
+        else if (page.name !== page.name.trim()) {
+            actions.setPageName(pathHere, page.name.trim())
+        }
+        setIsNameEditing(false)
+    }
     function onAddChild(event: React.MouseEvent) {
         actions.addPage(pathHere)
         event.stopPropagation()
@@ -574,37 +549,86 @@ function PageEntry<State>({ page, path = [], state, actions }: PageEntryProps<St
         event.stopPropagation()
     }
 
+
     return (
         <>
             <div
-                key={keyHere}
                 className={`
-                    ${indentClass(depth)} py-1 text-left group cursor-pointer flex space-x-2
-                    ${String(pathHere) === String(state.viewState.openPage) && "bg-gray-300"}
+                    ${pageStyle.indentClass(depth)} py-1 text-left group cursor-pointer flex space-x-2
+                    ${arrayEquals(pathHere, openPage) && "bg-gray-300"}
                 `}
                 onClick={() => actions.openPage(pathHere)}
-                onDoubleClick={() => setIsNameEditing(true)}
                 >
-                {collapseIcon}
-                <span className="flex-1">{page.name}</span>
-                <button
-                    className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
-                    onClick={onDeleteChild}
-                    >
-                    <FontAwesomeIcon icon={regularIcons.faTrashCan} />
+                <button onClick={() => actions.toggleCollapsed(pathHere)}>
+                    <FontAwesomeIcon
+                        className="text-gray-500"
+                        icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
+                        />
                 </button>
-                <button
-                    className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
-                    onClick={onAddChild}
-                    >
-                    <FontAwesomeIcon icon={solidIcons.faPlus} />
-                </button>
+
+                {isNameEditing ? (
+                    <input
+                        type="text"
+                        autoFocus
+                        value={page.name}
+                        placeholder={untitledName}
+                        onChange={onChangeName}
+                        onBlur={onCommitName}
+                        onKeyDown={onInputKeyDown}
+                        />
+                ) : (
+                    <>
+                        <span onDoubleClick={() => setIsNameEditing(true)}>{page.name}</span>
+                        <div className="flex-1" />
+                        <button
+                            className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
+                            onClick={onDeleteChild}
+                            >
+                            <FontAwesomeIcon icon={regularIcons.faTrashCan} />
+                        </button>
+                        <button
+                            className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"
+                            onClick={onAddChild}
+                            >
+                            <FontAwesomeIcon icon={solidIcons.faPlus} />
+                        </button>
+                    </>
+                )}
             </div>
-            {pageChildren}
+            {!pageCollapsed && <PageChildren page={page} path={pathHere} actions={actions} openPage={openPage} />}
         </>
     )
 }
 
+
+function PageChildren<State>({ page, actions, path, openPage }: PageEntryProps<State>) {
+    if (page.children.length === 0) {
+        const depth = path.length
+        return (
+            <button
+                className={`${pageStyle.indentClass(depth)} py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700`}
+                onClick={() => actions.addPage(path)}
+            >
+                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                Add Page
+            </button>
+        )
+    }
+
+    const keyHere = path.join('.')
+    return (
+        <>
+            {page.children.map(child => (
+                <PageEntry
+                    key={keyHere + '.' + child.id}
+                    page={child}
+                    path={path}
+                    openPage={openPage}
+                    actions={actions} />
+            ))}
+        </>
+    )
+}
 
 
 
@@ -665,13 +689,18 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
 }
 
 
-
-interface HistoryModePanelProps<State> {
-    state: DocumentState<State>
-    actions: Actions<State>
+interface HistoryActions {
+    goBack(): void
+    goForward(): void
+    restoreStateFromHistory(): void
 }
 
-function HistoryModePanel<State>({ state, actions }: HistoryModePanelProps<State>) {
+interface HistoryModePanelProps<Inner> {
+    state: HistoryWrapper<Inner>
+    actions: HistoryActions
+}
+
+function HistoryModePanel<Inner>({ state, actions }: HistoryModePanelProps<Inner>) {
     const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
     const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
 
@@ -706,6 +735,27 @@ function HistoryModePanel<State>({ state, actions }: HistoryModePanelProps<State
     )
 }
 
+
+interface HistoryViewProps<Inner> {
+    state: HistoryWrapper<Inner>
+    children: (state: Inner) => JSX.Element
+    env: Environment
+    fromJSON: (json: any, env: Environment) => Inner
+}
+
+function HistoryView<Inner>({ state, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
+    switch (state.mode.type) {
+        case 'current':
+            return viewInner(state.inner)
+        
+        case 'history':
+            const entryInHistory = state.history[state.mode.position]
+            if (entryInHistory === undefined) { return null }
+
+            const stateInHistory = History.getHistoryState(entryInHistory, env, fromJSON)
+            return viewInner(stateInHistory)
+    }
+}
 
 const secondInMs = 1000
 const minuteInMs = 60 * secondInMs
