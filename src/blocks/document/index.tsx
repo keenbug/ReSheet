@@ -25,11 +25,7 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
             )
         },
         getResult(state: DocumentState<State>, env: Environment) {
-            if (state.inner.pages.length === 0) {
-                return undefined
-            }
-
-            return state.inner.pages.slice(-1)[0].result
+            return Model.getResult(state, env)
         },
         fromJSON(json: any, env: Environment): DocumentState<State> {
             return Model.fromJSON(json, env, innerBlock)

@@ -30,6 +30,11 @@ export const init: DocumentState<any> = (
 )
 
 
+export function getResult<State>(state: DocumentState<State>, env: Environment) {
+    return Multiple.getResultEnv(state.inner.pages)
+}
+
+
 export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Block<State>) {
     const {
         pages = [],
