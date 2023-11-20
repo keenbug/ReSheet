@@ -221,7 +221,6 @@ function DocumentKeyHandler<State>(
     setIsNameEditing: (editing: boolean) => void,
 ) {
     return function onKeyDown(event: React.KeyboardEvent) {
-        console.log(getFullKey(event))
         const isTargetAnInput = (
             event.target instanceof HTMLTextAreaElement
             || event.target instanceof HTMLInputElement

@@ -37,7 +37,6 @@ function App({ initState }: { initState: ToplevelBlockState }) {
     // keep the focus on the toplevel block, so its KeyEventHandlers keep working
     function onFocusout(event: FocusEvent) {
         // this could be problematic, but let's wait until problems arise
-        console.log('focusout', event.relatedTarget, event.relatedTarget instanceof Element && rootElement.contains(event.relatedTarget))
         if (!(event.relatedTarget instanceof Element) || !rootElement.contains(event.relatedTarget)) {
             toplevelBlockRef.current?.focus()
         }
