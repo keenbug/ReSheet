@@ -13,7 +13,6 @@ export type { BlockSelectorState }
 export function BlockSelector(
     expr: string = '',
     innerBlockInit: Block<unknown> = null,
-    stateEditorBlock: Block<unknown>,
     blockLibrary: Environment,
 ) {
     return block.create<BlockSelectorState>({
@@ -26,7 +25,6 @@ export function BlockSelector(
                     state={state}
                     update={update}
                     env={env}
-                    stateEditorBlock={stateEditorBlock}
                     blockLibrary={blockLibrary}
                     />
             )

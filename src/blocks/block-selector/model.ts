@@ -42,22 +42,19 @@ export function setInnerBlockState(state: BlockSelectorState, innerBlockState: u
 }
 
 export function chooseBlock(
+    expr: string,
     state: BlockSelectorState,
     env: Environment,
     blockLibrary: Environment
 ): BlockSelectorState {
-    const blockCmdResult = computeExpr(state.expr, { ...blockLibrary, ...env })
+    const blockCmdResult = computeExpr(expr, { ...blockLibrary, ...env })
     if (block.isBlock(blockCmdResult)) {
         return {
             ...state,
+            expr,
             mode: 'run',
             innerBlock: blockCmdResult,
-            innerBlockState:
-                state.innerBlockState === null || state.innerBlockState === undefined ?
-                    blockCmdResult.init
-                :
-                    state.innerBlockState
-            ,
+            innerBlockState: blockCmdResult.init,
         }
     }
     return state

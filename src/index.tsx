@@ -14,7 +14,7 @@ import { BlockRef } from './block'
 const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
-const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks.StateEditor(blocks), blocks))
+const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks))
 
 
 

@@ -9,8 +9,7 @@ import { DocumentOf } from './document'
 
 export { JSExpr, BlockSelector, SheetOf, DirectoryOf, DocumentOf }
 
-export const StateEditor = blocks => SheetOf(BlockSelector('JSExpr', JSExpr, JSExpr, blocks))
-export const Selector = blocks => BlockSelector('JSExpr', JSExpr, StateEditor(blocks), blocks)
+export const Selector = blocks => BlockSelector('JSExpr', JSExpr, blocks)
 export const Sheet = blocks => SheetOf(Selector(blocks))
 export const Dir = blocks => DirectoryOf(Selector(blocks))
 
