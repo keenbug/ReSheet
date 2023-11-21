@@ -34,6 +34,24 @@ export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>)
     return getPageAt(path.slice(1), page.children)
 }
 
+export function getExpandedPaths(pages: PageState<unknown>[], currentPath: PageId[] = []): Array<PageId[]> {
+    return pages.flatMap(page => {
+        const isInPath = page.id === currentPath[0]
+        const childPath = isInPath ? currentPath.slice(1) : []
+        const areChildrenVisible = !page.isCollapsed || childPath.length > 0
+        const childPaths = (
+            areChildrenVisible ?
+                getExpandedPaths(page.children, childPath)
+            :
+                []
+        )
+        return [
+            [page.id],
+            ...childPaths.map(path => [page.id, ...path]),
+        ]
+    })
+}
+
 export function getSiblingsOf<State>(
     path: PageId[],
     pages: Array<PageState<State>>
@@ -157,7 +175,7 @@ const pageStyle = {
     indentDepth: 0.5,
     indentClass(depth: number) {
         const paddingLeft = pageStyle.paddingX + depth * pageStyle.indentDepth
-        return `pl-[${paddingLeft}rem] pr-[${pageStyle.paddingX}]`
+        return `pl-[${paddingLeft}rem] pr-[${pageStyle.paddingX}rem]`
     },
 }
 
@@ -220,13 +238,14 @@ export function PageEntry<State>({
                 >
                 <button onClick={() => actions.toggleCollapsed(pathHere)}>
                     <FontAwesomeIcon
-                        className="text-gray-500"
+                        className="text-gray-500 w-4"
                         icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
                         />
                 </button>
 
-                {isNameEditing ? (
+                {isNameEditing && arrayEquals(pathHere, openPage) ? (
                     <input
+                        className="flex-1 min-w-0 w-full"
                         type="text"
                         autoFocus
                         value={page.name}

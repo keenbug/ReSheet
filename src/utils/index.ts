@@ -1,3 +1,9 @@
+export function clampTo(minimumInclusive: number, maximumExclusive: number, value: number) {
+    if (value < minimumInclusive) { return minimumInclusive }
+    if (value >= maximumExclusive) { return maximumExclusive - 1 }
+    return value
+}
+
 export function catchAll<Result>(fn: () => Result, onError: ((error: any) => Result) = e => e) {
     try {
         return fn()

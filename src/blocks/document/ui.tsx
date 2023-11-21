@@ -6,7 +6,7 @@ import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
-import { $update, arrayEquals } from '../../utils'
+import { $update, arrayEquals, clampTo } from '../../utils'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -120,50 +120,50 @@ function ACTIONS<State extends unknown>(
             })
         },
 
-        openPage(path) {
+        openPage(path: PageId[]) {
             updateInner(inner =>
                 $update(() => path, inner,'viewState','openPage')
             )
         },
 
-        openFirstChild(path) {
+        openFirstChild(currentPath: PageId[]) {
             updateInner(inner => {
-                const parent = Pages.getPageAt(path, inner.pages)
+                const parent = Pages.getPageAt(currentPath, inner.pages)
                 if (parent === null || parent.children.length === 0) { return inner }
 
-                return $update(() => [...path, parent.children[0].id], inner,'viewState','openPage')
+                return $update(() => [...currentPath, parent.children[0].id], inner,'viewState','openPage')
             })
         },
 
-        openParent(path) {
+        openParent(currentPath: PageId[]) {
             updateInner(inner =>
-                $update(() => path.slice(0, -1), inner,'viewState','openPage')
+                $update(() => currentPath.slice(0, -1), inner,'viewState','openPage')
             )
         },
 
-        openNextSibling(path) {
+        openNextPage(currentPath: PageId[]) {
             updateInner(inner => {
-                const [prev, after] = Pages.getSiblingsOf(path, inner.pages)
-                if (after.length === 0) { return inner }
+                const allPaths = Pages.getExpandedPaths(inner.pages, currentPath)
+                const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
+                const nextPageIndex = clampTo(0, allPaths.length, openPageIndex + 1)
 
-                const newPath = [...path.slice(0, -1), after[0].id]
+                const newPath = allPaths[nextPageIndex]
                 return $update(() => newPath, inner,'viewState','openPage')
             })
         },
 
-        openPrevSibling(path) {
+        openPrevPage(currentPath: PageId[]) {
             updateInner(inner => {
-                const [prev, after] = Pages.getSiblingsOf(path, inner.pages)
-                if (prev.length === 0) {
-                    return $update(() => path.slice(0, -1), inner,'viewState','openPage')
-                }
+                const allPaths = Pages.getExpandedPaths(inner.pages, currentPath)
+                const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
+                const prevPageIndex = clampTo(0, allPaths.length, openPageIndex - 1)
 
-                const newPath = [...path.slice(0, -1), prev.slice(-1)[0].id]
+                const newPath = allPaths[prevPageIndex]
                 return $update(() => newPath, inner,'viewState','openPage')
             })
         },
 
-        toggleCollapsed(path) {
+        toggleCollapsed(path: PageId[]) {
             updateInner(innerState => {
                 return {
                     ...innerState,
@@ -221,6 +221,7 @@ function DocumentKeyHandler<State>(
     setIsNameEditing: (editing: boolean) => void,
 ) {
     return function onKeyDown(event: React.KeyboardEvent) {
+        console.log(getFullKey(event), event.target)
         const isTargetAnInput = (
             event.target instanceof HTMLTextAreaElement
             || event.target instanceof HTMLInputElement
@@ -252,7 +253,7 @@ function DocumentKeyHandler<State>(
             case "J":
             case "ArrowDown":
                 if (isTargetAnInput) { return }
-                actions.openNextSibling(state.inner.viewState.openPage)
+                actions.openNextPage(state.inner.viewState.openPage)
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -260,7 +261,7 @@ function DocumentKeyHandler<State>(
             case "K":
             case "ArrowUp":
                 if (isTargetAnInput) { return }
-                actions.openPrevSibling(state.inner.viewState.openPage)
+                actions.openPrevPage(state.inner.viewState.openPage)
                 event.stopPropagation()
                 event.preventDefault()
                 return
