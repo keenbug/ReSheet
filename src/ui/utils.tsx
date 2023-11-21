@@ -43,6 +43,15 @@ export const classed = <P extends { className?: string }>(
     )
 
 
+export function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
+    if (!element) { return null }
+
+    const isScrollable = element.scrollHeight > element.clientHeight
+    if (isScrollable) { return element }
+
+    return findScrollableAncestor(element.parentElement)
+}
+
 
 
 const TextInputHTML = styled.span`

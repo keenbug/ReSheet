@@ -4,13 +4,14 @@ import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput, getFullKey } from '../../ui/utils'
+import { TextInput, findScrollableAncestor, getFullKey } from '../../ui/utils'
 import * as block from '../../block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
 import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
+import { clampTo } from '../../utils'
 
 
 /**************** Code Actions **************/
@@ -27,7 +28,7 @@ function findRelativeTo<Id, Line extends { id: Id }>(lines: Line[], id: Id, rela
     if (lines.length === 0) { return null }
     const index = lines.findIndex(line => line.id === id)
     if (index < 0) { return null }
-    const newIndex = Math.max(0, Math.min(lines.length - 1, index + relativeIndex))
+    const newIndex = clampTo(0, lines.length, index + relativeIndex)
     return lines[newIndex]
 }
 
@@ -54,9 +55,40 @@ type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 const ACTIONS = <Inner extends unknown>(
     update: EffectfulUpdater<SheetBlockState<Inner>>,
+    container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>
 ) => ({
+    scrollUp(fraction: number) {
+        update(state => [
+            state,
+            () => {
+                const scrollableContainer = findScrollableAncestor(container.current)
+                if (scrollableContainer) {
+                    scrollableContainer.scrollBy({
+                        top: -fraction * scrollableContainer.clientHeight,
+                        behavior: 'smooth',
+                    })
+                }
+            },
+        ])
+    },
+
+    scrollDown(fraction: number) {
+        update(state => [
+            state,
+            () => {
+                const scrollableContainer = findScrollableAncestor(container.current)
+                if (scrollableContainer) {
+                    scrollableContainer.scrollBy({
+                        top: fraction * scrollableContainer.clientHeight,
+                        behavior: 'smooth',
+                    })
+                }
+            },
+        ])
+    },
+
     focusUp() {
         update(state => [
             state,
@@ -88,9 +120,9 @@ const ACTIONS = <Inner extends unknown>(
                         ?.focus()
                 }
                 else {
-                    const prevId = findRelativeTo(state.lines, focused[0], 1)?.id
+                    const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
                     refMap
-                        .get(prevId)
+                        .get(nextId)
                         ?.focus()
                 }
             }
@@ -191,6 +223,7 @@ export const Sheet = React.forwardRef(
         ref
     ) {
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
+        const containerRef = React.useRef<HTMLDivElement>()
         const updateWithEffect = useEffectfulUpdate(update)
         React.useImperativeHandle(
             ref,
@@ -204,10 +237,10 @@ export const Sheet = React.forwardRef(
             [state]
         )
 
-        const actions = ACTIONS(updateWithEffect, refMap, innerBlock)
+        const actions = ACTIONS(updateWithEffect, containerRef, refMap, innerBlock)
 
         return (
-            <div className="pb-96">
+            <div ref={containerRef} className="pb-[80vh]">
                 {block.mapWithEnv(
                     state.lines,
                     (line, localEnv) => {
@@ -262,7 +295,13 @@ export const SheetLine = React.forwardRef(
                     return !!containerRef.current && document.activeElement === containerRef.current
                 },
                 focus() {
-                    containerRef.current?.focus()
+                    containerRef.current?.scrollIntoView({
+                        block: 'nearest',
+                        behavior: 'smooth',
+                    })
+                    containerRef.current?.focus({
+                        preventScroll: true
+                    })
                 },
                 focusVar() {
                     varInputRef.current?.focus()
@@ -277,6 +316,42 @@ export const SheetLine = React.forwardRef(
 
         function onContainerKeyDown(event: React.KeyboardEvent) {
             switch (getFullKey(event)) {
+                case "C-ArrowUp":
+                case "C-K":
+                    if (event.currentTarget === event.target) {
+                        actions.scrollUp(0.25)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                   return
+
+                case "C-ArrowDown":
+                case "C-J":
+                    if (event.currentTarget === event.target) {
+                        actions.scrollDown(0.25)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
+
+                case "C-Shift-ArrowUp":
+                case "C-Shift-K":
+                    if (event.currentTarget === event.target) {
+                        actions.scrollUp(0.1)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                   return
+
+                case "C-Shift-ArrowDown":
+                case "C-Shift-J":
+                    if (event.currentTarget === event.target) {
+                        actions.scrollDown(0.1)
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
+                    return
+
                 case "ArrowUp":
                 case "K":
                     if (event.currentTarget === event.target) {
