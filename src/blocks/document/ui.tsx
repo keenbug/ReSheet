@@ -474,6 +474,7 @@ function MainView<State>({
 
     const pageEnv = Model.getOpenPageEnv(innerState, env)
     return innerBlock.view({
+        key: innerState.viewState.openPage.join('.'),
         ref: innerRef,
         state: openPage.state,
         update: actions.updateOpenPageInner,

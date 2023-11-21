@@ -32,7 +32,7 @@ export interface BlockDesc<State> {
 }
 
 export type BlockViewer<State> =
-    (props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef> }) => JSX.Element
+    (props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) => JSX.Element
 
 export interface Block<State> {
     [BlockTag]: typeof BlockTag
@@ -48,7 +48,7 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
     return {
         ...description,
         [BlockTag]: BlockTag,
-        view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef> }) {
+        view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) {
             return (
                 <ErrorBoundary title="There was an error in this block">
                     {React.createElement(forwardRefView, props)}
