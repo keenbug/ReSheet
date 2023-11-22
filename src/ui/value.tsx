@@ -4,14 +4,12 @@ import { Inspector } from 'react-inspector'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { ParseResult, traverse } from '@babel/core'
+import * as babelParser from '@babel/parser'
 import babelGenerator from '@babel/generator'
-import { FunctionDeclaration, FunctionExpression } from '@babel/types'
 import * as babelAst from '@babel/types'
 
 import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
-import { parseJSExpr } from '../logic/compute'
 
 
 export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
@@ -81,16 +79,33 @@ export function FunctionInspector({ func }: { func: Function }) {
 
     let code = func.toString()
 
-    if (!isExpanded) {
-        const ast = parseJSExpr(code) as FunctionExpression
-        const truncatedAst = {
-            ...ast,
-            body: {
-                ...ast.body,
-                body: [],
-            },
+    if (code.length > 2000 || !isExpanded && !code.includes("[native code]")) {
+        try {
+            const ast = babelParser.parseExpression(code)
+
+            if (babelAst.isFunctionExpression(ast)) {
+                code = (
+                    babelGenerator({
+                        ...ast,
+                        body: {
+                            ...ast.body,
+                            body: [],
+                        },
+                    }).code
+                )
+            }
+            else if (babelAst.isArrowFunctionExpression(ast)) {
+                code = (
+                    babelGenerator({
+                        ...ast,
+                        body: babelAst.identifier("..."),
+                    }).code
+                )
+            }
         }
-        code = babelGenerator(truncatedAst).code
+        catch (e) {
+            code = `function ${func.name}() {}`
+        }
     }
 
     return (
