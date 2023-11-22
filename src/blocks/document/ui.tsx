@@ -416,6 +416,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
                         <HistoryModePanel state={state} actions={actions} />
                         <MainView
+                            key={innerState.viewState.openPage.join('.')}
                             innerRef={innerRef}
                             state={state}
                             actions={actions}
@@ -448,6 +449,14 @@ function MainView<State>({
     env,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(innerState)
+    React.useEffect(() => {
+        if (!openPage) { return }
+        const pageEnv = Model.getOpenPageEnv(innerState, env)
+
+        // We don't know if the environment changed, so we just assume it did
+        actions.updateOpenPageInner(inner => innerBlock.onEnvironmentChange(inner, actions.updateOpenPageInner, pageEnv))
+    }, [])
+
     if (!openPage) {
         function Link({ onClick, children }) {
             return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
@@ -473,7 +482,6 @@ function MainView<State>({
 
     const pageEnv = Model.getOpenPageEnv(innerState, env)
     return innerBlock.view({
-        key: innerState.viewState.openPage.join('.'),
         ref: innerRef,
         state: openPage.state,
         update: actions.updateOpenPageInner,
