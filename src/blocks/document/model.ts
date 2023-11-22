@@ -1,4 +1,4 @@
-import { Block, Environment, mapWithEnv } from '../../block'
+import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
 import * as Multiple from '../../block/multiple'
 import { arrayEquals, catchAll } from '../../utils'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
@@ -33,6 +33,45 @@ export const init: DocumentState<any> = (
 
 export function getResult<State>(state: DocumentState<State>, env: Environment) {
     return Multiple.getResultEnv(state.inner.pages)
+}
+
+export function onEnvironmentChange<State>(state: DocumentState<State>, update: BlockUpdater<DocumentState<State>>, env: Environment, innerBlock: Block<State>) {
+    function updatePageState(path: PageId[], action: (state: State) => State) {
+        update(state => ({
+            ...state,
+            inner: {
+                ...state.inner,
+                pages: updatePageAt(
+                    path,
+                    state.inner.pages,
+                    page => ({ ...page, state: action(page.state) }),
+                    env,
+                    innerBlock,
+                ),
+            }
+        }))
+    }
+    return {
+        ...state,
+        inner: {
+            ...state.inner,
+            pages: Pages.updatePages(
+                [],
+                state.inner.pages,
+                (path, page, localEnv) => {
+                    function localUpdate(action: (state: State) => State) {
+                        updatePageState(path, action)
+                    }
+                    return {
+                        ...page,
+                        state: innerBlock.onEnvironmentChange(page.state, localUpdate, localEnv),
+                    }
+                },
+                innerBlock,
+                env,
+            ),
+        },
+    }
 }
 
 
@@ -171,20 +210,17 @@ export function deletePageAt<State>(
     }
     return {
         ...state,
-        pages: Pages.updatePages(
-            [],
-            state.pages,
-            (currentPath, page) => {
-                if (!arrayEquals(currentPath, parentPath)) {
-                    return page
-                }
-                return {
+        pages: (
+            updatePageAt(
+                parentPath,
+                state.pages,
+                page => ({
                     ...page,
                     children: page.children.filter(child => child.id !== childIdToRemove),
-                }
-            },
-            innerBlock,
-            env,
+                }),
+                env,
+                innerBlock,
+            )
         ),
     }
 }
@@ -227,19 +263,18 @@ export function addPageAt<State>(
 
     let newId = null
 
-    const newPages = Pages.updatePages(
-        [],
-        state.pages,
-        (currentPath, page) => {
-            if (!arrayEquals(currentPath, path)) {
-                return page
-            }
-            const [id, children] = addSibling(page.children)
-            newId = id
-            return { ...page, children }
-        },
-        innerBlock,
-        env,
+    const newPages = (
+        updatePageAt(
+            path,
+            state.pages,
+            page => {
+                const [id, children] = addSibling(page.children)
+                newId = id
+                return { ...page, children }
+            },
+            env,
+            innerBlock,
+        )
     )
 
     if (newId === null) { return state }
@@ -254,32 +289,47 @@ export function addPageAt<State>(
     }
 }
 
+export function updatePageAt<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    action: (state: PageState<State>) => PageState<State>,
+    env: Environment,
+    innerBlock: Block<State>,
+) {
+    if (path.length === 0) { return pages }
+
+    return (
+        Pages.updatePages(
+            [],
+            pages,
+            (currentPath, page) => {
+                if (arrayEquals(currentPath, path)) {
+                    return action(page)
+                }
+                return page
+            },
+            innerBlock,
+            env,
+        )
+    )
+}
+
 export function updateOpenPage<State>(
     state: DocumentInner<State>,
     action: (state: State) => State,
     innerBlock: Block<State>,
     env: Environment,
 ): DocumentInner<State> {
-    if (state.viewState.openPage.length === 0) {
-        return state
-    }
-
     return {
         ...state,
-        pages: Pages.updatePages(
-            [],
-            state.pages,
-            (path, page) => {
-                if (arrayEquals(path, state.viewState.openPage)) {
-                    return {
-                        ...page,
-                        state: action(page.state),
-                    }
-                }
-                return page
-            },
-            innerBlock,
-            env,
+        pages: (
+            updatePageAt(
+                state.viewState.openPage,
+                state.pages,
+                page => ({ ...page, state: action(page.state) }),
+                env,
+                innerBlock,
+            )
         ),
     }
 }
