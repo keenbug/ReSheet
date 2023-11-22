@@ -4,8 +4,14 @@ import { Inspector } from 'react-inspector'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
+import { ParseResult, traverse } from '@babel/core'
+import babelGenerator from '@babel/generator'
+import { FunctionDeclaration, FunctionExpression } from '@babel/types'
+import * as babelAst from '@babel/types'
+
 import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
+import { parseJSExpr } from '../logic/compute'
 
 
 export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
@@ -63,10 +69,37 @@ export function ValueInspector(props: ValueInspectorProps) {
         )
     }
     if (typeof value === 'function') {
-        return <CodeView className="ml-4 text-xs" code={value.toString()} />
+        return <FunctionInspector func={value} />
     }
 
     return <Inspector table={table} data={value} expandLevel={expandLevel} />
+}
+
+
+export function FunctionInspector({ func }: { func: Function }) {
+    const [isExpanded, setIsExpanded] = React.useState(false)
+
+    let code = func.toString()
+
+    if (!isExpanded) {
+        const ast = parseJSExpr(code) as FunctionExpression
+        const truncatedAst = {
+            ...ast,
+            body: {
+                ...ast.body,
+                body: [],
+            },
+        }
+        code = babelGenerator(truncatedAst).code
+    }
+
+    return (
+        <CodeView
+            className="cursor-pointer ml-4 text-xs"
+            code={code}
+            onClick={() => setIsExpanded(expanded => !expanded)}
+            />
+    )
 }
 
 
