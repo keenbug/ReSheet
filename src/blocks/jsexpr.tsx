@@ -8,6 +8,7 @@ import { computeExpr, computeScript, isPromise, parseJSExpr } from '../logic/com
 import { BlockRef } from '../block'
 import * as block from '../block'
 import { Inspector } from 'react-inspector'
+import { getFullKey } from '../ui/utils'
 
 
 export interface JSExprModel {
@@ -93,6 +94,16 @@ export const JSExprUi = React.forwardRef(
 
         const onUpdateCode = (code: string) => update(state => updateResult({ ...state, code }, update, env))
 
+        function onKeyDown(event: React.KeyboardEvent) {
+            switch (getFullKey(event)) {
+                case "Alt-Enter":
+                    update(state => updateResult(state, update, env))
+                    event.stopPropagation()
+                    event.preventDefault()
+                    return
+            }
+        }
+
         return (
             <div className="flex flex-col space-y-1 flex-1">
                 <EditableCode
@@ -101,6 +112,7 @@ export const JSExprUi = React.forwardRef(
                     onUpdate={onUpdateCode}
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
+                    onKeyDown={onKeyDown}
                     />
                 <PreviewValue
                     state={state}
