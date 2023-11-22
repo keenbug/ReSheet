@@ -4,14 +4,12 @@ import * as Block from '../block'
 import { SheetOf } from './sheet'
 import { BlockSelector } from './block-selector'
 import { JSExpr } from './jsexpr'
-import { DirectoryOf } from './directory'
 import { DocumentOf } from './document'
 
-export { JSExpr, BlockSelector, SheetOf, DirectoryOf, DocumentOf }
+export { JSExpr, BlockSelector, SheetOf, DocumentOf }
 
 export const Selector = blocks => BlockSelector('JSExpr', JSExpr, blocks)
 export const Sheet = blocks => SheetOf(Selector(blocks))
-export const Dir = blocks => DirectoryOf(Selector(blocks))
 
 export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Block.create<State>({
     init: block.init,
