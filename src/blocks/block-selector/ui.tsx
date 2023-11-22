@@ -36,6 +36,9 @@ function ACTIONS(
 
         cancelChoose() {
             update(state => {
+                if (!block.isBlock(state.innerBlock)) {
+                    return [state]
+                }
                 return [
                     Model.updateMode(state, 'run'),
                     () => innerBlockRef.current?.focus(),
@@ -175,17 +178,6 @@ export const BlockSelectorUI = React.forwardRef(
         }
     }
 )
-
-function JSONEditor({ initialValue, onSave }) {
-    const [json, setJson] = React.useState<string>(() => JSON.stringify(initialValue, null, 4))
-
-    return (
-        <div>
-            <CodeEditor code={json} onUpdate={setJson} />
-            <button onClick={() => onSave(JSON.parse(json))}>Load</button>
-        </div>
-    )
-}
 
 interface BlockPreviewProps {
     env: Environment

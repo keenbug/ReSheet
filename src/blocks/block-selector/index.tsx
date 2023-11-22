@@ -49,7 +49,7 @@ export function BlockSelector(
         getResult(state, env) {
             if (state.mode === 'choose') { return null }
         
-            return state.innerBlock.getResult(state.innerBlockState, env)
+            return state.innerBlock?.getResult(state.innerBlockState, env)
         },
 
         fromJSON(json: any, library) {
