@@ -26,6 +26,7 @@ export type BlockViewerDesc<State> =
 export interface BlockDesc<State> {
     init: State
     view: BlockViewerDesc<State>
+    onEnvironmentChange?(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State, env: Environment): any
     fromJSON(json: any, env: Environment): State
     toJSON(state: State): {}
@@ -38,6 +39,7 @@ export interface Block<State> {
     [BlockTag]: typeof BlockTag
     init: State
     view: BlockViewer<State>
+    onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State, env: Environment): any
     fromJSON(json: any, env: Environment): State
     toJSON(state: State): {}
@@ -54,6 +56,12 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
                     {React.createElement(forwardRefView, props)}
                 </ErrorBoundary>
             )
+        },
+        onEnvironmentChange(state, update, env) {
+            if (!description.onEnvironmentChange) {
+                return state
+            }
+            return description.onEnvironmentChange(state, update, env)
         },
         fromJSON(json: any, env: Environment) {
             try { return description.fromJSON(json, env) }

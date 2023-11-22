@@ -53,157 +53,163 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
 
 type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
-const ACTIONS = <Inner extends unknown>(
+function ACTIONS<Inner extends unknown>(
     update: EffectfulUpdater<SheetBlockState<Inner>>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>
-) => ({
-    scrollUp(fraction: number) {
-        update(state => [
-            state,
-            () => {
-                const scrollableContainer = findScrollableAncestor(container.current)
-                if (scrollableContainer) {
-                    scrollableContainer.scrollBy({
-                        top: -fraction * scrollableContainer.clientHeight,
-                        behavior: 'smooth',
-                    })
-                }
-            },
-        ])
-    },
+) {
+    function effectlessUpdate(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
+        update(state => [action(state)])
+    }
 
-    scrollDown(fraction: number) {
-        update(state => [
-            state,
-            () => {
-                const scrollableContainer = findScrollableAncestor(container.current)
-                if (scrollableContainer) {
-                    scrollableContainer.scrollBy({
-                        top: fraction * scrollableContainer.clientHeight,
-                        behavior: 'smooth',
-                    })
-                }
-            },
-        ])
-    },
+    return {
+        scrollUp(fraction: number) {
+            update(state => [
+                state,
+                () => {
+                    const scrollableContainer = findScrollableAncestor(container.current)
+                    if (scrollableContainer) {
+                        scrollableContainer.scrollBy({
+                            top: -fraction * scrollableContainer.clientHeight,
+                            behavior: 'smooth',
+                        })
+                    }
+                },
+            ])
+        },
 
-    focusUp() {
-        update(state => [
-            state,
-            () => {
-                const focused = findFocused(refMap)
-                if (focused === undefined) {
-                    refMap
-                        .get(state.lines[0].id)
-                        ?.focus()
-                }
-                else {
-                    const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
-                    refMap
-                        .get(prevId)
-                        ?.focus()
-                }
-            }
-        ])
-    },
+        scrollDown(fraction: number) {
+            update(state => [
+                state,
+                () => {
+                    const scrollableContainer = findScrollableAncestor(container.current)
+                    if (scrollableContainer) {
+                        scrollableContainer.scrollBy({
+                            top: fraction * scrollableContainer.clientHeight,
+                            behavior: 'smooth',
+                        })
+                    }
+                },
+            ])
+        },
 
-    focusDown() {
-        update(state => [
-            state,
-            () => {
-                const focused = findFocused(refMap)
-                if (focused === undefined) {
-                    refMap
-                        .get(state.lines[state.lines.length - 1].id)
-                        ?.focus()
+        focusUp() {
+            update(state => [
+                state,
+                () => {
+                    const focused = findFocused(refMap)
+                    if (focused === undefined) {
+                        refMap
+                            .get(state.lines[0].id)
+                            ?.focus()
+                    }
+                    else {
+                        const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
+                        refMap
+                            .get(prevId)
+                            ?.focus()
+                    }
                 }
-                else {
-                    const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
-                    refMap
-                        .get(nextId)
-                        ?.focus()
+            ])
+        },
+
+        focusDown() {
+            update(state => [
+                state,
+                () => {
+                    const focused = findFocused(refMap)
+                    if (focused === undefined) {
+                        refMap
+                            .get(state.lines[state.lines.length - 1].id)
+                            ?.focus()
+                    }
+                    else {
+                        const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
+                        refMap
+                            .get(nextId)
+                            ?.focus()
+                    }
                 }
-            }
-        ])
-    },
+            ])
+        },
 
-    setName(id: number, name: string) {
-        update(state => [
-            Model.updateLineWithId(state, id, line => ({ ...line, name }))
-        ])
-    },
+        setName(id: number, name: string) {
+            update(state => [
+                Model.updateLineWithId(state, id, line => ({ ...line, name }))
+            ])
+        },
 
-    toggleCollapse(id: number) {
-        update(state => [
-            Model.updateLineWithId(state, id, line => {
-                return { ...line, isCollapsed: !line.isCollapsed }
+        toggleCollapse(id: number) {
+            update(state => [
+                Model.updateLineWithId(state, id, line => {
+                    return { ...line, isCollapsed: !line.isCollapsed }
+                })
+            ])
+        },
+
+        updateInner(
+            id: number,
+            action: (state: Inner) => Inner,
+            innerBlock: Block<Inner>,
+            env: Environment
+        ) {
+            effectlessUpdate(state =>
+                Model.updateLineBlock(state, id, action, innerBlock, env, effectlessUpdate)
+            )
+        },
+
+        insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+            update(state => {
+                const newId = Model.nextFreeId(state)
+                return [
+                    Model.insertLineBefore(state, id, {
+                        id: newId,
+                        name: '',
+                        isCollapsed: false,
+                        state: innerBlock.init,
+                        result: null,
+                    }),
+                    () => focusLineRef(refMap.get(newId), focusTarget)
+                ]
             })
-        ])
-    },
+        },
 
-    updateInner(
-        id: number,
-        action: (state: Inner) => Inner,
-        innerBlock: Block<Inner>,
-        env: Environment
-    ) {
-        update(state => [
-            Model.updateLineBlock(state, id, action, innerBlock, env)
-        ])
-    },
+        insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+            update(state => {
+                const newId = Model.nextFreeId(state)
+                return [
+                    Model.insertLineAfter(state, id, {
+                        id: newId,
+                        name: '',
+                        isCollapsed: false,
+                        state: innerBlock.init,
+                        result: null,
+                    }),
+                    () => focusLineRef(refMap.get(newId), focusTarget)
+                ]
+            })
+        },
 
-    insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-        update(state => {
-            const newId = Model.nextFreeId(state)
-            return [
-                Model.insertLineBefore(state, id, {
-                    id: newId,
-                    name: '',
-                    isCollapsed: false,
-                    state: innerBlock.init,
-                    result: null,
-                }),
-                () => focusLineRef(refMap.get(newId), focusTarget)
-            ]
-        })
-    },
+        deleteCode(id: number) {
+            update(state => {
+                if (state.lines.length <= 1) {
+                    return [Model.init(innerBlock.init)]
+                }
 
-    insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-        update(state => {
-            const newId = Model.nextFreeId(state)
-            return [
-                Model.insertLineAfter(state, id, {
-                    id: newId,
-                    name: '',
-                    isCollapsed: false,
-                    state: innerBlock.init,
-                    result: null,
-                }),
-                () => focusLineRef(refMap.get(newId), focusTarget)
-            ]
-        })
-    },
+                const idIndex = state.lines.findIndex(line => line.id === id)
+                const linesWithoutId = state.lines.filter(line => line.id !== id)
+                const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1))
+                const nextFocusId = linesWithoutId[nextFocusIndex].id
 
-    deleteCode(id: number) {
-        update(state => {
-            if (state.lines.length <= 1) {
-                return [Model.init(innerBlock.init)]
-            }
-
-            const idIndex = state.lines.findIndex(line => line.id === id)
-            const linesWithoutId = state.lines.filter(line => line.id !== id)
-            const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1))
-            const nextFocusId = linesWithoutId[nextFocusIndex].id
-
-            return [
-                { ...state, lines: linesWithoutId },
-                () => refMap.get(nextFocusId)?.focus()
-            ]
-        })
-    },
-})
+                return [
+                    { ...state, lines: linesWithoutId },
+                    () => refMap.get(nextFocusId)?.focus()
+                ]
+            })
+        },
+    }
+}
 
 
 

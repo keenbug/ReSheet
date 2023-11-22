@@ -70,18 +70,6 @@ export function insertLineAfter<Inner>(
     }
 }
 
-export function recomputeSheetResults<State>(
-    state: SheetBlockState<State>,
-    innerBlock: Block<State>,
-    env: block.Environment,
-    startFromId?: number,
-) {
-    return {
-        ...state,
-        lines: Multiple.recomputeResults(state.lines, innerBlock, env, startFromId)
-    }
-}
-
 export function getResult<State>(state: SheetBlockState<State>) {
     return Multiple.getLastResult(state.lines)
 }
@@ -93,15 +81,23 @@ export function updateLineBlock<State>(
     action: (state: State) => State,
     innerBlock: Block<State>,
     env: block.Environment,
+    update: block.BlockUpdater<SheetBlockState<State>>,
 ): SheetBlockState<State> {
+    function updateLines(action: (lines: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
+        update(state => ({
+            ...state,
+            lines: action(state.lines),
+        }))
+    }
     return {
         ...state,
         lines: Multiple.updateEntryState(
             state.lines,
             id,
             action,
-            innerBlock,
             env,
+            innerBlock,
+            updateLines,
         ),
     }
 }

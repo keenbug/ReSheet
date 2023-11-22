@@ -96,83 +96,49 @@ export function getEntryEnvBefore<State>(
     return Object.assign({}, ...entriesBefore.map(entryToEnv))
 }
 
-export function recomputeResults<State, Entry extends BlockEntry<State>>(
-    entries: Entry[],
-    innerBlock: Block<State>,
-    env: Environment,
-    startFromId?: number,
-) {
-    const startIndex = entries.findIndex(entry => entry.id === startFromId) ?? 0
-    const entriesBefore = entries.slice(0, startIndex)
-    const entriesAfter = entries.slice(startIndex)
-
-    const envBefore = Object.assign({}, env, ...entriesBefore.map(entryToEnv))
-
-    const recomputedEntries = block.mapWithEnv(
-        entriesAfter,
-        (entry, localEnv) => {
-            const result = innerBlock.getResult(entry.state, localEnv)
-            return {
-                out: { ...entry, result },
-                env: { [entryName(entry)]: result },
-            }
-        },
-        envBefore,
-    )
-    return [ ...entriesBefore, ...recomputedEntries ]
-}
-
-
-export function updateBlockEntry<State, Entry extends BlockEntry<State>>(
-    entries: Entry[],
-    id: number,
-    action: (state: Entry, localEnv: Environment) => Entry,
-    getResult: (state: Entry, localEnv: Environment) => unknown,
-    env: Environment,
-): Entry[] {
-    const index = entries.findIndex(entry => entry.id === id)
-    if (index < 0) { return entries }
-
-    const entriesBefore = entries.slice(0, index)
-    const entriesAfter = entries.slice(index)
-
-    const envBefore = Object.assign({}, env, ...entriesBefore.map(entryToEnv))
-
-    const recomputedEntries = block.mapWithEnv(
-        entriesAfter,
-        (entry, localEnv) => {
-            const newEntry = entry.id === id ? action(entry, localEnv) : entry
-            const result = getResult(newEntry, localEnv)
-            return {
-                out: { ...newEntry, result },
-                env: { [entryName(entry)]: result },
-            }
-        },
-        envBefore,
-    )
-    return [ ...entriesBefore, ...recomputedEntries ]
-}
-
 
 export function updateEntryState<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number,
     action: (state: State) => State,
-    innerBlock: Block<State>,
     env: Environment,
+    innerBlock: Block<State>,
+    update: block.BlockUpdater<Entry[]>,
 ): Entry[] {
-    return recomputeResults(
-        entries.map(entry =>
-            entry.id === id ?
-                { ...entry, state: action(entry.state) }
-            :
-                entry
-        ),
-        innerBlock,
-        env,
-        id,
+    const index = entries.findIndex(entry => entry.id === id)
+    if (index < 0) { return entries }
+
+    const entriesBefore = entries.slice(0, index)
+    const entriesFromId = entries.slice(index)
+
+    const envBefore = Object.assign({}, env, ...entriesBefore.map(entryToEnv))
+
+
+    const recomputedEntries = block.mapWithEnv(
+        entriesFromId,
+        (entry, localEnv) => {
+            function localUpdate(localAction: (state: State) => State) {
+                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
+            }
+
+            const state = (
+                entry.id === id ?
+                    action(entry.state)
+                :
+                    innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
+            )
+            const result = innerBlock.getResult(state, localEnv)
+
+            return {
+                out: { ...entry, state, result },
+                env: { [entryName(entry)]: result },
+            }
+        },
+        envBefore,
     )
+    return [ ...entriesBefore, ...recomputedEntries ]
 }
+
 
 
 export function fromJSON<State, Entry extends BlockEntry<State>>(

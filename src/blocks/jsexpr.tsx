@@ -17,7 +17,7 @@ export interface JSExprModel {
 
 export type Result =
     | { type: 'immediate', value: any }
-    | { type: 'promise' } & PromiseResult
+    | { type: 'promise', cancel(): void } & PromiseResult
 
 
 export const JSExpr = block.create<JSExprModel>({
@@ -27,6 +27,9 @@ export const JSExpr = block.create<JSExprModel>({
     },
     view({ env, state, update }, ref) {
         return <JSExprUi ref={ref} state={state} update={update} env={env} />
+    },
+    onEnvironmentChange(state, update, env) {
+        return updateResult(state, update, env)
     },
     getResult(state, env) {
         switch (state.result.type) {
@@ -87,14 +90,15 @@ export const JSExprUi = React.forwardRef(
             })
         )
         const [isFocused, setFocused] = React.useState(false)
-        const updateCode = useUpdateCode(update, env)
+
+        const onUpdateCode = (code: string) => update(state => updateResult({ ...state, code }, update, env))
 
         return (
             <div className="flex flex-col space-y-1 flex-1">
                 <EditableCode
                     ref={editorRef}
                     code={state.code}
-                    onUpdate={updateCode}
+                    onUpdate={onUpdateCode}
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                     />
@@ -108,57 +112,54 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
-function useUpdateCode(update: (action: (state: JSExprModel) => JSExprModel) => void, env: block.Environment) {
-    const cancelPromise = React.useRef<() => void>()
-
+function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel>, env: block.Environment): JSExprModel {
     function attachPromiseStateHandlers(promise: Promise<any>) {
         let cancelled = false
-        cancelPromise.current = () => { cancelled = true }
+
+        function cancel() {
+            cancelled = true
+        }
 
         promise.then(
             (value: any) => {
                 if (cancelled) { return }
                 update(state => ({
                     ...state,
-                    result: { type: 'promise', state: 'finished', value },
+                    result: { type: 'promise', cancel, state: 'finished', value },
                 }))
             },
             (error: any) => {
                 if (cancelled) { return }
                 update(state => ({
                     ...state,
-                    result: { type: 'promise', state: 'failed', error },
+                    result: { type: 'promise', cancel, state: 'failed', error },
                 }))
             }
         )
+
+        return cancel
     }
 
-    return function updateCode(newCode: string) {
-        cancelPromise.current?.()
-        update(state => {
-            const result = computeScript(newCode, env)
-            if (isPromise(result)) {
-                attachPromiseStateHandlers(result)
-            }
+    if (state.result.type === 'promise') {
+        state.result.cancel()
+    }
+    const result = computeScript(state.code, env)
+    if (isPromise(result)) {
+        const cancel = attachPromiseStateHandlers(result)
+        return {
+            ...state,
+            result: { type: 'promise', cancel, state: 'pending' },
+        }
+    }
 
-            return {
-                ...state,
-                code: newCode,
-                result: (
-                    isPromise(result) ?
-                        { type: 'promise', state: 'pending' }
-                    :
-                        { type: 'immediate', value: result }
-                ),
-            }
-        })
+    return {
+        ...state,
+        result: { type: 'immediate', value: result },
     }
 }
 
-export function countParens(str: string, paren: string) {
-    const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
-    return str.replace(findStringRegex, '').split('').filter(char => char === paren).length
-}
+
+
 
 
 export interface PreviewValueProps {
@@ -240,4 +241,9 @@ function ViewValue({ result }: { result: Result }) {
         case 'promise':
             return <PromiseView promiseResult={result} />
     }
+}
+
+export function countParens(str: string, paren: string) {
+    const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
+    return str.replace(findStringRegex, '').split('').filter(char => char === paren).length
 }
