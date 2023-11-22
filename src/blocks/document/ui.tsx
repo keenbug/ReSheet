@@ -224,6 +224,7 @@ function DocumentKeyHandler<State>(
         const isTargetAnInput = (
             event.target instanceof HTMLTextAreaElement
             || event.target instanceof HTMLInputElement
+            || (event.target instanceof HTMLElement && event.target.isContentEditable)
         )
 
         switch (getFullKey(event)) {
