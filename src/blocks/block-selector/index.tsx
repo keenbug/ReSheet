@@ -30,6 +30,22 @@ export function BlockSelector(
             )
         },
 
+        onEnvironmentChange(state, update, env) {
+            if (state.mode === 'choose') { return state }
+
+            function updateInner(action: (state: unknown) => unknown) {
+                update(state => ({
+                    ...state,
+                    innerBlockState: action(state.innerBlockState),
+                }))
+            }
+
+            return {
+                ...state,
+                innerBlockState: state.innerBlock.onEnvironmentChange(state.innerBlockState, updateInner, env)
+            }
+        },
+
         getResult(state, env) {
             if (state.mode === 'choose') { return null }
         
