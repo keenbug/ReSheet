@@ -68,6 +68,20 @@ export const computeExpr = (code: string | null, env: Environment) => {
 }
 
 
+export function containsToplevelAsync(ast: babel.types.File) {
+    let hasToplevelAwait = false
+    babelTraverse(ast, {
+        AwaitExpression(path) {
+            const isInFunction = path.findParent(path => path.isFunction())
+            if (!isInFunction) {
+                hasToplevelAwait = true
+            }
+        },
+    })
+
+    return hasToplevelAwait
+}
+
 
 export function transformJSScript(sourcecode) {
     const parserOpts: babelParser.ParserOptions = {
@@ -75,9 +89,9 @@ export function transformJSScript(sourcecode) {
         allowReturnOutsideFunction: true,
         allowAwaitOutsideFunction: true,
     }
-    const program = babelParser.parse(sourcecode, parserOpts).program
-    const statements = program.body
-    const ast = babelAst.program([
+    const ast = babelParser.parse(sourcecode, parserOpts)
+    const statements = ast.program.body
+    const astWithReturn = babelAst.program([
         ...statements.slice(0, -1),
         ...statements.slice(-1).map(stmt => {
             if (babelAst.isExpressionStatement(stmt)) {
@@ -89,14 +103,10 @@ export function transformJSScript(sourcecode) {
             return stmt
         }),
     ])
-    const isAsync = program.directives.find(directive => (
-        babelAst.isDirectiveLiteral(directive.value)
-        && directive.value.value === 'async'
-    ))
 
     return {
-        transformedCode: babel.transformFromAstSync(ast, sourcecode, transformReactOpts).code,
-        isAsync,
+        transformedCode: babel.transformFromAstSync(astWithReturn, sourcecode, transformReactOpts).code,
+        isAsync: containsToplevelAsync(ast),
     }
 }
 
@@ -130,4 +140,9 @@ export function computeScript(code: string | null, env: Environment) {
         }
         return e
     }
+}
+
+
+export function isPromise(value: any) {
+    return typeof value?.then === 'function'
 }

@@ -1,10 +1,12 @@
 import * as React from 'react'
 import { Inspector } from 'react-inspector'
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+
 import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
 
-
-/**************** Value Viewer *****************/
 
 export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
     const [showError, setShowError] = React.useState(false)
@@ -67,30 +69,61 @@ export function ValueInspector(props: ValueInspectorProps) {
     return <Inspector table={table} data={value} expandLevel={expandLevel} />
 }
 
-export type PromiseState =
+
+export type PromiseResult =
     | { state: 'pending' }
-    | { state: 'fulfilled', value: any }
-    | { state: 'rejected', error: any }
+    | { state: 'failed', error: any }
+    | { state: 'finished', value: any }
 
 export function PromiseValueInspector(props: ValueInspectorProps) {
-    const [promiseState, setPromiseState] = React.useState<PromiseState>({ state: 'pending' })
+    const [promiseResult, setPromiseResult] = React.useState<PromiseResult>({ state: 'pending' })
 
     React.useEffect(() => {
+        setPromiseResult({ state: 'pending' })
         props.value.then(
-            (value: any) => { setPromiseState({ state: 'fulfilled', value }) },
-            (error: any) => { setPromiseState({ state: 'rejected', error } ) },
+            (value: any) => { setPromiseResult({ state: 'finished', value }) },
+            (error: any) => { setPromiseResult({ state: 'failed', error } ) },
         )
     }, [props.value])
 
-    switch (promiseState.state) {
+    return <PromiseView promiseResult={promiseResult} />
+}
+
+export function PromiseView({ promiseResult }: { promiseResult: PromiseResult }) {
+    return (
+        <div className="group flex flex-row space-x-2">
+            <PromiseIndicator promiseResult={promiseResult} />
+            <PromiseViewValue promiseResult={promiseResult} />
+        </div>
+    )
+}
+
+function PromiseIndicator({ promiseResult }: { promiseResult: PromiseResult }) {
+    switch (promiseResult.state) {
         case 'pending':
-            return <>Promise pending...</>
-        case 'fulfilled':
-            return <ValueInspector {...props} value={promiseState.value} />
-        case 'rejected':
-            return <>Promise rejected: <ValueInspector {...props} value={promiseState.error} /></>
+            return <FontAwesomeIcon className="mr-2" icon={solidIcons.faSpinner} spinPulse />
+
+        case 'failed':
+            return <FontAwesomeIcon className="mr-2 text-red-700" icon={solidIcons.faCircleExclamation} />
+
+        case 'finished':
+            return <FontAwesomeIcon className="group-hover:block hidden mr-2 text-green-500" icon={solidIcons.faCircleCheck} />
     }
 }
+
+function PromiseViewValue({ promiseResult }: { promiseResult: PromiseResult }) {
+    switch (promiseResult.state) {
+        case 'pending':
+            return null
+
+        case 'failed':
+            return <ValueInspector value={promiseResult.error} />
+
+        case 'finished':
+            return <ValueInspector value={promiseResult.value} />
+    }
+}
+
 
 
 interface ErrorBoundaryProps {

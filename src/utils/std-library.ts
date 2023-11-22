@@ -93,6 +93,10 @@ export const library = {
             document,
             jsexpr,
         },
+        logic: {
+            block,
+            compute,
+        },
         codeEditor,
         value,
         utils,
