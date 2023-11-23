@@ -3,8 +3,10 @@ import * as React from "react"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import * as solidIcons from "@fortawesome/free-solid-svg-icons"
 
-import { Environment } from "../../block"
+import { BlockUpdater, Environment } from "../../block"
 import { useAutoretrigger } from "../../ui/hooks"
+import { getFullKey } from "../../ui/utils"
+import { clampTo } from "../../utils"
 
 
 export type HistoryMode =
@@ -98,26 +100,14 @@ export function closeHistory<State>(state: HistoryWrapper<State>): HistoryWrappe
     }
 }
 
-export function goBackInHistory<State>(state: HistoryWrapper<State>): HistoryWrapper<State> {
+export function moveInHistory<State>(steps: number, state: HistoryWrapper<State>): HistoryWrapper<State> {
     if (state.mode.type !== 'history') { return state }
 
     return {
         ...state,
         mode: {
             ...state.mode,
-            position: Math.max(0, state.mode.position - 1),
-        }
-    }
-}
-
-export function goForwardInHistory<State>(state: HistoryWrapper<State>): HistoryWrapper<State> {
-    if (state.mode.type !== 'history') { return state }
-
-    return {
-        ...state,
-        mode: {
-            ...state.mode,
-            position: Math.min(state.mode.position + 1, state.history.length - 1),
+            position: clampTo(0, state.history.length, state.mode.position + steps),
         }
     }
 }
@@ -127,16 +117,20 @@ export function restoreStateFromHistory<State>(
     env: Environment,
     fromJSON: (state: State, env: Environment) => State,
 ): HistoryWrapper<State> {
-    if (state.mode.type === 'history') {
-        const historicState = state.history[state.mode.position]
-        return {
-            ...state,
-            mode: { type: 'current' },
-            history: [ ...state.history, historicState ],
-            inner: getHistoryState(historicState, env, fromJSON),
-        }
+    if (state.mode.type === 'current') {
+        return state
     }
-    return state
+
+    const historicState = {
+        ...state.history[state.mode.position],
+        time: new Date(),
+    }
+    return {
+        ...state,
+        mode: { type: 'current' },
+        history: [ ...state.history, historicState ],
+        inner: getHistoryState(historicState, env, fromJSON),
+    }
 }
 
 
@@ -195,13 +189,44 @@ export function historyFromJSON<State>(
     }
 }
 
+
 export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array<HistoryEntry<State>> {
-    return history.filter((entry, index) => {
-        const nextTime = history[index + 1]?.time?.getTime() ?? Number.POSITIVE_INFINITY
-        const differenceMS = nextTime - entry.time.getTime()
-        const reverseIndex = history.length - index
-        return differenceMS / 100 > reverseIndex ** 2
-    })
+    const now = Date.now()
+    let entries = [...history].reverse()
+    let currentEntry = entries.splice(0, 1)[0]
+
+    const reducedEntries = [currentEntry]
+
+    while (entries.length > 0) {
+        const optimalNextEntryTime = currentEntry.time.getTime() - ((now - currentEntry.time.getTime()) / 12)
+
+        const lastEntryBeforeOptimalTime = entries.filter(entry => entry.time.getTime() > optimalNextEntryTime).slice(-1)[0]
+        const lastEntryBeforeTimeDiff = (
+            lastEntryBeforeOptimalTime === undefined ?
+                Number.POSITIVE_INFINITY
+            : (
+                lastEntryBeforeOptimalTime.time.getTime() - optimalNextEntryTime
+            )
+        )
+
+        const firstEntryAfterOptimalTime = entries.find(entry => entry.time.getTime() < optimalNextEntryTime)
+        const firstEntryAfterTimeDiff = optimalNextEntryTime - firstEntryAfterOptimalTime.time.getTime()
+
+        const nextEntry = (
+            lastEntryBeforeTimeDiff < firstEntryAfterTimeDiff ?
+                lastEntryBeforeOptimalTime
+            :
+                firstEntryAfterOptimalTime
+        )
+
+        const nextEntryIndex = entries.findIndex(entry => entry.time.getTime() === nextEntry.time.getTime())
+
+        currentEntry = nextEntry
+        entries.splice(0, nextEntryIndex + 1)
+        reducedEntries.push(nextEntry)
+    }
+
+    return reducedEntries.reverse()
 }
 
 
@@ -210,22 +235,82 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
 
 export interface HistoryViewProps<Inner> {
     state: HistoryWrapper<Inner>
+    update: BlockUpdater<HistoryWrapper<Inner>>
     children: (state: Inner) => JSX.Element
     env: Environment
     fromJSON: (json: any, env: Environment) => Inner
 }
 
-export function HistoryView<Inner>({ state, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
+export function HistoryView<Inner>({ state, update, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
+    // capture undo/redo, so no other component starts it's own undo/redo logic
+    function onKeyDownHistory(event: React.KeyboardEvent) {
+        switch (getFullKey(event)) {
+            case "C-Z":
+                update(state => moveInHistory(-1, state))
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-Z":
+                update(state => moveInHistory(-10, state))
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Y":
+                update(state => moveInHistory(1, state))
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-Y":
+                update(state => moveInHistory(10, state))
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "Escape":
+                update(closeHistory)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Enter":
+                update(state => restoreStateFromHistory(state, env, fromJSON))
+                event.stopPropagation()
+                event.preventDefault()
+                return
+        }
+    }
+
+    function onKeyDownCurrent(event: React.KeyboardEvent) {
+        switch (getFullKey(event)) {
+            case "C-Z":
+                update(openHistory)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+        }
+    }
+
     switch (state.mode.type) {
         case 'current':
-            return viewInner(state.inner)
+            return (
+                <div className="h-full w-full" onKeyDownCapture={onKeyDownCurrent}>
+                    {viewInner(state.inner)}
+                </div>
+            )
         
         case 'history':
             const entryInHistory = state.history[state.mode.position]
             if (entryInHistory === undefined) { return null }
 
             const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
-            return viewInner(stateInHistory)
+            return (
+                <div className="h-full w-full" onKeyDownCapture={onKeyDownHistory}>
+                    {viewInner(stateInHistory)}
+                </div>
+            )
     }
 }
 

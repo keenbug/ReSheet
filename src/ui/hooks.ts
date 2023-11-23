@@ -16,27 +16,24 @@ export function useThrottle<Callback extends (...args: unknown[]) => unknown>(
     return throttledFunc
 }
 
-export function useAutoretrigger(onTrigger: () => void) {
+export function useAutoretrigger<Args extends Array<any> = []>(
+    onTrigger: (...args: Args) => void
+): [
+    (...args: Args) => void,
+    () => void,
+] {
     const timeoutRef = React.useRef<null | number>(null)
 
-    React.useEffect(() => {
+    function triggerPeriodically(period: number, args: Args) {
         return () => {
-            if (timeoutRef.current !== null) {
-                clearTimeout(timeoutRef.current)
-            }
-        }
-    }, [timeoutRef])
-
-    function triggerPeriodically(period: number) {
-        return () => {
-            onTrigger()
-            timeoutRef.current = setTimeout(triggerPeriodically(period * 0.99), period)
+            onTrigger(...args)
+            timeoutRef.current = setTimeout(triggerPeriodically(period * 0.99, args), period)
         }
     }
 
-    function triggerStart() {
-        onTrigger()
-        timeoutRef.current = setTimeout(triggerPeriodically(100), 1000)
+    function triggerStart(...args: Args) {
+        onTrigger(...args)
+        timeoutRef.current = setTimeout(triggerPeriodically(100, args), 1000)
     }
 
     function triggerStop() {

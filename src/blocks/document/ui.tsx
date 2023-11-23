@@ -30,11 +30,16 @@ function ACTIONS<State extends unknown>(
 ) {
     function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
         update(state =>
-            History.updateHistoryInner(
-                state,
-                action,
-                env,
-                json => Model.innerFromJSON(json, env, innerBlock),
+            // If we don't ignore updates during viewing history, one can easily unintentionally exit history:
+            //   KeyDown C-Z -> automatic focus on new state -> KeyUp -> updateInner -> exit history
+            state.mode.type === 'history' ?
+                state
+            :
+                History.updateHistoryInner(
+                    state,
+                    action,
+                    env,
+                    json => Model.innerFromJSON(json, env, innerBlock),
             )
         )
     }
@@ -206,21 +211,22 @@ function ACTIONS<State extends unknown>(
         openHistory() {
             update(History.openHistory)
         },
-        
+
         closeHistory() {
             update(History.closeHistory)
         },
-        
+
         goBack() {
-            update(History.goBackInHistory)
+            update(state => History.moveInHistory(-1, state))
         },
-        
+
         goForward() {
-            update(History.goForwardInHistory)
+            update(state => History.moveInHistory(1, state))
         },
         
         restoreStateFromHistory() {
             update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, env, innerBlock)))
+            recomputeOpenPage()
         },
         
         toggleSidebar() {
@@ -329,32 +335,8 @@ function DocumentKeyHandler<State>(
                 event.preventDefault()
                 return
 
-            case "C-Z":
-                if (state.mode.type === 'history') {
-                    actions.goBack()
-                }
-                else {
-                    actions.openHistory()
-                }
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Y":
-                if (state.mode.type === 'history') {
-                    actions.goForward()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
             case "Escape":
-                if (state.mode.type === 'history') {
-                    actions.closeHistory()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                else if (document.activeElement !== containerRef.current) {
+                if (document.activeElement !== containerRef.current) {
                     containerRef.current?.focus()
                     event.stopPropagation()
                     event.preventDefault()
@@ -362,12 +344,7 @@ function DocumentKeyHandler<State>(
                 return
 
             case "C-Enter":
-                if (state.mode.type === 'history') {
-                    actions.restoreStateFromHistory()
-                }
-                else {
-                    setIsNameEditing(true)
-                }
+                setIsNameEditing(true)
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -417,38 +394,40 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar)
 
     return (
-        <HistoryView state={state} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, env, innerBlock)}>
-            {innerState => (
-                <div
-                    ref={containerRef}
-                    tabIndex={-1}
-                    onKeyDown={onKeyDown}
-                    className="h-full relative flex"
-                    >
-                    <Sidebar
-                        state={innerState}
-                        actions={actions}
-                        isHistoryOpen={state.mode.type === 'history'}
-                        isNameEditing={isNameEditing}
-                        setIsNameEditing={setIsNameEditingInVisibleSidebar}
-                        />
-                    <SidebarButton state={innerState} actions={actions} />
-
-                    <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
-                        <HistoryModePanel state={state} actions={actions} />
-                        <MainView
-                            key={innerState.viewState.openPage.join('.')}
-                            innerRef={innerRef}
-                            state={state}
+        <>
+            <HistoryModePanel state={state} actions={actions} />
+            <HistoryView state={state} update={update} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, env, innerBlock)}>
+                {innerState => (
+                    <div
+                        ref={containerRef}
+                        tabIndex={-1}
+                        onKeyDown={onKeyDown}
+                        className="h-full relative flex"
+                        >
+                        <Sidebar
+                            state={innerState}
                             actions={actions}
-                            innerState={innerState}
-                            innerBlock={innerBlock}
-                            env={env}
+                            isHistoryOpen={state.mode.type === 'history'}
+                            isNameEditing={isNameEditing}
+                            setIsNameEditing={setIsNameEditingInVisibleSidebar}
                             />
+                        <SidebarButton state={innerState} actions={actions} />
+
+                        <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                            <MainView
+                                key={innerState.viewState.openPage.join('.')}
+                                innerRef={innerRef}
+                                state={state}
+                                actions={actions}
+                                innerState={innerState}
+                                innerBlock={innerBlock}
+                                env={env}
+                                />
+                        </div>
                     </div>
-                </div>
-            )}
-        </HistoryView>
+                )}
+            </HistoryView>
+        </>
     )
 }
 
