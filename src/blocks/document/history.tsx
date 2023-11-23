@@ -209,7 +209,10 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
             )
         )
 
-        const firstEntryAfterOptimalTime = entries.find(entry => entry.time.getTime() < optimalNextEntryTime)
+        const firstEntryAfterOptimalTime = (
+            entries.find(entry => entry.time.getTime() < optimalNextEntryTime)
+            ?? entries.slice(-1)[0] // fall back to just keeping the last (oldest/first) history entry
+        )
         const firstEntryAfterTimeDiff = optimalNextEntryTime - firstEntryAfterOptimalTime.time.getTime()
 
         const nextEntry = (
