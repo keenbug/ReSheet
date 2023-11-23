@@ -53,47 +53,77 @@ export function findScrollableAncestor(element: HTMLElement): HTMLElement | null
 }
 
 
-
-const TextInputHTML = styled.span`
-    ${({ placeholder }) =>
-        placeholder ?
-            css`
-                &:empty:after {
-                    content: "${placeholder}";
-                    color: #aaa;
-                }
-            `
-        :
-            ''
-    }
-`
-
-const space = String.fromCharCode(32)
-const fixedWidth = String.fromCharCode(160)
-const fixedWidthToSpace = str => str.replaceAll(fixedWidth, space)
+const textInputChildStyle: React.CSSProperties = {
+    margin: "0px",
+    border: "0px",
+    background: "none",
+    boxSizing: "inherit",
+    display: "inherit",
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    fontStyle: "inherit",
+    fontVariantLigatures: "inherit",
+    fontWeight: "inherit",
+    letterSpacing: "inherit",
+    lineHeight: "inherit",
+    tabSize: "inherit",
+    textIndent: "inherit",
+    textRendering: "inherit",
+    textTransform: "inherit",
+    whiteSpace: "pre-wrap",
+    wordBreak: "keep-all",
+    overflowWrap: "break-word",
+    padding: "0px",
+    paddingInline: '2px',
+  }
 
 export const TextInput: React.FC<any> = React.forwardRef(
-    function TextInput({ value, onUpdate, ...props }, ref) {
-        const textInputRef = React.useRef(null)
-        React.useImperativeHandle(ref, () => textInputRef.current)
-        React.useLayoutEffect(() => {
-            if (fixedWidthToSpace(textInputRef.current.textContent) !== fixedWidthToSpace(value)) {
-                textInputRef.current.textContent = fixedWidthToSpace(value)
-            }
-        })
-        const onInput = event => {
-            const { textContent } = event.target
-            const text = fixedWidthToSpace(textContent.replaceAll('\n', ''))
-            onUpdate(text)
+    function TextInput({ value, onUpdate, placeholder, ...props }, ref: React.Ref<HTMLInputElement>) {
+        function onChange(event: React.ChangeEvent<HTMLInputElement>) {
+            onUpdate(event.target.value)
         }
         return (
-            <TextInputHTML
-                contentEditable="plaintext-only"
-                ref={textInputRef}
-                onInput={onInput}
-                spellCheck={false}
+            <div
+                style={{
+                    display: "inline-block",
+                    position: "relative",
+                    textAlign: "left",
+                    boxSizing: "border-box",
+                    padding: "0px",
+                }}
                 {...props}
-            />
+                >
+                <input
+                    ref={ref}
+                    type="text"
+                    placeholder={placeholder}
+                    autoCapitalize="off"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    data-gramm="false"
+                    onChange={onChange}
+                    style={{
+                        ...textInputChildStyle,
+                        position: "absolute",
+                        inset: "0px",
+                        resize: "none",
+                        color: "inherit",
+                    }}
+                    value={value}
+                    />
+                <div
+                    aria-hidden="true"
+                    style={{
+                        ...textInputChildStyle,
+                        position: "relative",
+                        pointerEvents: "none",
+                        color: "transparent",
+                    }}
+                    >
+                    {value || placeholder}
+                </div>
+            </div>
         )
     }
 )

@@ -526,7 +526,7 @@ export const AssignmentLine = React.forwardRef(
                     ref={ref}
                     className={`
                         hover:bg-gray-200 hover:text-slate-700
-                        focus:bg-gray-200 focus:text-slate-700
+                        focus-within:bg-gray-200 focus-within:text-slate-700
                         outline-none
                         p-0.5 -ml-0.5
                         rounded
