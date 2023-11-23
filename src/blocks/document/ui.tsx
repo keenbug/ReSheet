@@ -39,12 +39,32 @@ function ACTIONS<State extends unknown>(
         )
     }
 
+    function recomputeOpenPage() {
+        update(state => {
+            const pageEnv = Model.getOpenPageEnv(state.inner, env)
+            return {
+                ...state,
+                inner: (
+                    Model.updateOpenPage(
+                        state.inner,
+                        inner => innerBlock.onEnvironmentChange(inner, updateOpenPageInner, pageEnv),
+                        innerBlock,
+                        env,
+                    )
+                ),
+            }
+        })
+    }
+
+    function updateOpenPageInner(action: (state: State) => State) {
+        updateInner(inner =>
+            Model.updateOpenPage(inner, action, innerBlock, env)
+        )
+    }
+
     return {
-        updateOpenPageInner(action: (state: State) => State) {
-            updateInner(inner =>
-                Model.updateOpenPage(inner, action, innerBlock, env)
-            )
-        },
+        updateOpenPageInner,
+        recomputeOpenPage,
 
         reset() {
             update(() => Model.init)
@@ -452,10 +472,9 @@ function MainView<State>({
     const openPage = Model.getOpenPage(innerState)
     React.useEffect(() => {
         if (!openPage) { return }
-        const pageEnv = Model.getOpenPageEnv(innerState, env)
 
         // We don't know if the environment changed, so we just assume it did
-        actions.updateOpenPageInner(inner => innerBlock.onEnvironmentChange(inner, actions.updateOpenPageInner, pageEnv))
+        actions.recomputeOpenPage()
     }, [])
 
     if (!openPage) {
