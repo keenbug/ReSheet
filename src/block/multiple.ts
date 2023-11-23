@@ -96,6 +96,30 @@ export function getEntryEnvBefore<State>(
     return Object.assign({}, ...entriesBefore.map(entryToEnv))
 }
 
+export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
+    entries: Entry[],
+    update: block.BlockUpdater<Entry[]>,
+    env: Environment,
+    innerBlock: Block<State>,
+): Entry[] {
+    return block.mapWithEnv(
+        entries,
+        (entry, localEnv) => {
+            function localUpdate(localAction: (state: State) => State) {
+                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
+            }
+
+            const state = innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
+            const result = innerBlock.getResult(state, localEnv)
+            return {
+                out: { ...entry, state, result },
+                env: { [entryName(entry)]: result },
+            }
+        },
+        env,
+    )
+}
+
 
 export function updateEntryState<State, Entry extends BlockEntry<State>>(
     entries: Entry[],

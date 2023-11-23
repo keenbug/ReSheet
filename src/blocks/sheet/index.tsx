@@ -14,6 +14,9 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
         view({ state, update, env }, ref) {
             return <UI.Sheet ref={ref} state={state} update={update} innerBlock={innerBlock} env={env} />
         },
+        onEnvironmentChange(state, update, env) {
+            return Model.onEnvironmentChange(state, update, env, innerBlock)
+        },
         getResult(state, env) {
             return Model.getResult(state)
         },

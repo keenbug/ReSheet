@@ -70,6 +70,19 @@ export function insertLineAfter<Inner>(
     }
 }
 
+export function onEnvironmentChange<State>(state: SheetBlockState<State>, update: block.BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
+    function updateLines(action: (lines: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
+        update(state => ({
+            ...state,
+            lines: action(state.lines),
+        }))
+    }
+    return {
+        ...state,
+        lines: Multiple.onEnvironmentChange(state.lines, updateLines, env, innerBlock)
+    }
+}
+
 export function getResult<State>(state: SheetBlockState<State>) {
     return Multiple.getLastResult(state.lines)
 }
@@ -91,13 +104,15 @@ export function updateLineBlock<State>(
     }
     return {
         ...state,
-        lines: Multiple.updateEntryState(
-            state.lines,
-            id,
-            action,
-            env,
-            innerBlock,
-            updateLines,
+        lines: (
+            Multiple.updateEntryState(
+                state.lines,
+                id,
+                action,
+                env,
+                innerBlock,
+                updateLines,
+            )
         ),
     }
 }
@@ -105,13 +120,16 @@ export function updateLineBlock<State>(
 
 export function fromJSON<State>(json: any[], innerBlock: Block<State>, env: block.Environment) {
     return {
-        lines: Multiple.fromJSON(
-            json,
-            innerBlock,
-            env,
-            (entry, { isCollapsed = false }) => ({
-                ...entry,
-                isCollapsed
-            }))
+        lines: (
+            Multiple.fromJSON(
+                json,
+                innerBlock,
+                env,
+                (entry, { isCollapsed = false }) => ({
+                    ...entry,
+                    isCollapsed
+                }),
+            )
+        ),
     }
 }

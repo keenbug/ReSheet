@@ -16,6 +16,7 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
     view: block.view,
     fromJSON: block.fromJSON,
     toJSON: block.toJSON,
+    onEnvironmentChange: block.onEnvironmentChange,
     getResult(state, env) {
         return {
             block,
@@ -36,6 +37,9 @@ export const Input = Block.create<string>({
         return <input type="text" value={state} onChange={onChange} />
     },
     getResult(state) {
+        return state
+    },
+    onEnvironmentChange(state, update, env) {
         return state
     },
     fromJSON(json) {
@@ -72,6 +76,9 @@ export const LoadFile = Block.create<any>({
                 Load File
             </LoadFileButtonStyled>
         )
+    },
+    onEnvironmentChange(state, update, env) {
+        return state
     },
     getResult(state, env) {
         return state
