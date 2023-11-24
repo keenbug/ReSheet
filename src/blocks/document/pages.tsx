@@ -115,7 +115,6 @@ export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State
         id: page.id,
         name: page.name,
         state: innerBlock.toJSON(page.state),
-        result: page.result,
         isCollapsed: page.isCollapsed,
         children: toJSON(page.children, innerBlock),
     }))
