@@ -36,9 +36,7 @@ export function lineVisibilityEq(lv1: LineVisibility, lv2: LineVisibility) {
 }
 
 export function nextLineVisibility(visibility: LineVisibility) {
-    const lv = nextElem(visibility, VISIBILITY_STATES, lineVisibilityEq)
-    console.log('switch', visibility, lv)
-    return lv
+    return nextElem(visibility, VISIBILITY_STATES, lineVisibilityEq)
 }
 
 
