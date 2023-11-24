@@ -85,7 +85,11 @@ export const library = {
         block,
         multiple,
         blockComponent,
-        ui,
+        ui: {
+            utils: ui,
+            value,
+            codeEditor,
+        },
         blocks: {
             blockSelector,
             compute,
@@ -97,8 +101,6 @@ export const library = {
             block,
             compute,
         },
-        codeEditor,
-        value,
         utils,
     }
 }
