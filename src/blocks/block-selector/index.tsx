@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import * as block from '../../block'
-import { Block, Environment } from '../../block'
+import { Block, BlockUpdater, Environment } from '../../block'
 
 import { BlockSelectorState } from './model'
 import * as Model from './model'
@@ -39,8 +39,8 @@ export function BlockSelector(
             return state.innerBlock?.getResult(state.innerBlockState, env)
         },
 
-        fromJSON(json: any, env) {
-            return Model.fromJSON(json, env, blockLibrary)
+        fromJSON(json: any, update: BlockUpdater<BlockSelectorState>, env: Environment) {
+            return Model.fromJSON(json, update, env, blockLibrary)
         },
 
         toJSON(state: BlockSelectorState) {

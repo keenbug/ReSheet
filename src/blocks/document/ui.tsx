@@ -30,46 +30,22 @@ function ACTIONS<State extends unknown>(
 ) {
     function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
         update(state =>
-            // If we don't ignore updates during viewing history, one can easily unintentionally exit history:
-            //   KeyDown C-Z -> automatic focus on new state -> KeyUp -> updateInner -> exit history
-            state.mode.type === 'history' ?
-                state
-            :
-                History.updateHistoryInner(
-                    state,
-                    action,
-                    env,
-                    json => Model.innerFromJSON(json, env, innerBlock),
+            History.updateHistoryCurrent(
+                state,
+                action,
             )
         )
     }
 
-    function recomputeOpenPage() {
-        update(state => {
-            const pageEnv = Model.getOpenPageEnv(state.inner, env)
-            return {
-                ...state,
-                inner: (
-                    Model.updateOpenPage(
-                        state.inner,
-                        inner => innerBlock.onEnvironmentChange(inner, updateOpenPageInner, pageEnv),
-                        innerBlock,
-                        env,
-                    )
-                ),
-            }
-        })
-    }
-
-    function updateOpenPageInner(action: (state: State) => State) {
-        updateInner(inner =>
-            Model.updateOpenPage(inner, action, innerBlock, env)
-        )
-    }
-
     return {
-        updateOpenPageInner,
-        recomputeOpenPage,
+        updateInner,
+
+        updateOpenPageInner(action: (state: State) => State) {
+            updateInner(inner =>
+                Model.updateOpenPage(inner, action, innerBlock, env)
+            )
+        },
+
 
         reset() {
             update(() => Model.init)
@@ -90,7 +66,7 @@ function ACTIONS<State extends unknown>(
         async loadLocalFile(file: File) {
             const content = JSON.parse(await file.text())
             try {
-                const newState = Model.fromJSON(content, env, innerBlock)
+                const newState = Model.fromJSON(content, update, env, innerBlock)
                 update(() => newState)
             }
             catch (e) {
@@ -105,7 +81,7 @@ function ACTIONS<State extends unknown>(
             try {
                 const response = await fetch(url)
                 const content = await response.json()
-                const newState = Model.fromJSON(content, env, innerBlock)
+                const newState = Model.fromJSON(content, update, env, innerBlock)
                 update(() => newState)
             }
             catch (e) {
@@ -225,8 +201,7 @@ function ACTIONS<State extends unknown>(
         },
         
         restoreStateFromHistory() {
-            update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, env, innerBlock)))
-            recomputeOpenPage()
+            update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, updateInner, env, innerBlock)))
         },
         
         toggleSidebar() {
@@ -397,7 +372,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     return (
         <>
             <HistoryModePanel state={state} actions={actions} />
-            <HistoryView state={state} update={update} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, env, innerBlock)}>
+            <HistoryView state={state} update={update} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, actions.updateInner, env, innerBlock)}>
                 {innerState => (
                     <div
                         ref={containerRef}
@@ -450,12 +425,6 @@ function MainView<State>({
     env,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(innerState)
-    React.useEffect(() => {
-        if (!openPage) { return }
-
-        // We don't know if the environment changed, so we just assume it did
-        actions.recomputeOpenPage()
-    }, [])
 
     if (!openPage) {
         function Link({ onClick, children }) {

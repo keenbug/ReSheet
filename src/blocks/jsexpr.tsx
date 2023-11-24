@@ -21,11 +21,14 @@ export type Result =
     | { type: 'promise', cancel(): void } & PromiseResult
 
 
+const init: JSExprModel = {
+    code: '',
+    result: { type: 'immediate', value: undefined },
+}
+
+
 export const JSExpr = block.create<JSExprModel>({
-    init: {
-        code: '',
-        result: { type: 'immediate', value: undefined },
-    },
+    init,
     view({ env, state, update }, ref) {
         return <JSExprUi ref={ref} state={state} update={update} env={env} />
     },
@@ -50,25 +53,25 @@ export const JSExpr = block.create<JSExprModel>({
                 }
         }
     },
-    fromJSON(json, env) {
+    fromJSON(json, update, env) {
         if (typeof json === 'string') {
-            return {
-                code: json,
-                result: { type: 'immediate', value: undefined },
-            }
+            return updateResult(
+                {
+                    code: json,
+                    result: { type: 'immediate', value: undefined },
+                },
+                update,
+                env,
+            )
         }
         else {
-            return {
-                code: '',
-                result: { type: 'immediate', value: undefined },
-            }
+            return init
         }
     },
     toJSON(state) {
         return state.code
     }
 })
-
 
 interface JSExprUiProps {
     state: JSExprModel

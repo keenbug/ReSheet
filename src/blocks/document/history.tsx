@@ -50,33 +50,17 @@ export function initHistory<State>(initState: State): HistoryWrapper<State> {
     }
 }
 
-export function updateHistoryInner<State>(
+export function updateHistoryCurrent<State>(
     state: HistoryWrapper<State>,
     update: (state: State) => State,
-    env: Environment,
-    fromJSON: (json: any) => State,
 ): HistoryWrapper<State> {
-    switch (state.mode.type) {
-        case 'current': {
-            const newInner = update(state.inner)
-            return {
-                ...state,
-                history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner }]),
-                inner: newInner,
-            }
-        }
+    if (state.mode.type !== 'current') { return state }
 
-        case 'history': {
-            const historicState = state.history[state.mode.position]
-            const oldInner = getHistoryState(historicState, env, fromJSON)
-            const newInner = update(oldInner)
-            return {
-                ...state,
-                mode: { type: 'current' },
-                history: [ ...state.history, { type: 'state', time: new Date(), state: newInner } ],
-                inner: newInner,
-            }
-        }
+    const newInner = update(state.inner)
+    return {
+        ...state,
+        history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner }]),
+        inner: newInner,
     }
 }
 
@@ -245,7 +229,7 @@ export interface HistoryViewProps<Inner> {
 }
 
 export function HistoryView<Inner>({ state, update, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
-    // capture undo/redo, so no other component starts it's own undo/redo logic
+    // capture undo/redo, so no other component starts its own undo/redo logic
     function onKeyDownHistory(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             case "C-Z":

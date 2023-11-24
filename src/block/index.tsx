@@ -28,20 +28,36 @@ export interface BlockDesc<State> {
     view: BlockViewerDesc<State>
     onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State, env: Environment): any
-    fromJSON(json: any, env: Environment): State
+    fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}
 }
 
 export type BlockViewer<State> =
     (props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) => JSX.Element
 
+
+// Why does fromJSON need update()?
+//
+// During loading a file, its content needs to be computed. JSExpr Blocks'
+// values can change over time without user interaction, when their code is
+// async (using Promises). Therefore they need an update procedure, for
+// computation result updates, which they compute during `fromJSON`.
+//
+// Why can't the content be computed after loading the file?
+//
+// A user can code a Block and then use it. The used Block's state will of
+// course also be saved. But to load it, its definition needs to be computed.
+// Then the `fromJSON` function can be retrieved and used to load its state from
+// the file.
+//
+// (That's incidentally the reason why `fromJSON` also needs the Environment.)
 export interface Block<State> {
     [BlockTag]: typeof BlockTag
     init: State
     view: BlockViewer<State>
     onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State, env: Environment): any
-    fromJSON(json: any, env: Environment): State
+    fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}
 }
 
@@ -57,8 +73,8 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
                 </ErrorBoundary>
             )
         },
-        fromJSON(json: any, env: Environment) {
-            try { return description.fromJSON(json, env) }
+        fromJSON(json: any, update: BlockUpdater<State>, env: Environment) {
+            try { return description.fromJSON(json, update, env) }
             catch (e) {
                 console.warn("Could not load JSON:", e, e.stack, '\nJSON:', json)
                 return description.init

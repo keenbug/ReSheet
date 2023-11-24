@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import * as block from '../../block'
-import { Block, Environment, BlockViewerProps } from '../../block'
+import { Block, Environment, BlockViewerProps, BlockUpdater } from '../../block'
 import { DocumentState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
@@ -30,8 +30,8 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
         getResult(state: DocumentState<State>, env: Environment) {
             return Model.getResult(state, env)
         },
-        fromJSON(json: any, env: Environment): DocumentState<State> {
-            return Model.fromJSON(json, env, innerBlock)
+        fromJSON(json: any, update: BlockUpdater<DocumentState<State>>, env: Environment): DocumentState<State> {
+            return Model.fromJSON(json, update, env, innerBlock)
         },
         toJSON(state: DocumentState<State>): {} {
             return Model.toJSON(state, innerBlock)

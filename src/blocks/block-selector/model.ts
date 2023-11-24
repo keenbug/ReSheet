@@ -1,5 +1,5 @@
 import * as block from '../../block'
-import { Block, Environment } from '../../block'
+import { Block, BlockUpdater, Environment } from '../../block'
 import { computeExpr } from '../../logic/compute'
 
 
@@ -88,7 +88,7 @@ export function onEnvironmentChange(
             mode: state.modeAfter,
             expr: state.expr,
             innerBlock,
-            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, env),
+            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, updateInner, env),
         }
     }
         
@@ -99,13 +99,17 @@ export function onEnvironmentChange(
     }
 }
 
-export function fromJSON({ mode, inner, expr }, env: Environment, blockLibrary: Environment): BlockSelectorState {
+export function fromJSON({ mode, inner, expr }, update: BlockUpdater<BlockSelectorState>, env: Environment, blockLibrary: Environment): BlockSelectorState {
+    function updateInner(action: (inner: unknown) => unknown) {
+        update(state => updateBlock(state, action))
+    }
+
     const innerBlock = computeExpr(expr, { ...blockLibrary, ...env })
 
     if (!block.isBlock(innerBlock)) {
         return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
     }
 
-    const innerBlockState = innerBlock.fromJSON(inner, env)
+    const innerBlockState = innerBlock.fromJSON(inner, updateInner, env)
     return { mode, expr, innerBlock, innerBlockState }
 }

@@ -1,6 +1,5 @@
 import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
 import * as Multiple from '../../block/multiple'
-import { arrayEquals } from '../../utils'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 import { PageId, PageState } from './pages'
 import * as Pages from './pages'
@@ -41,7 +40,7 @@ export function onEnvironmentChange<State>(state: DocumentState<State>, update: 
             ...state,
             inner: {
                 ...state.inner,
-                pages: updatePageAt(
+                pages: Pages.updatePageAt(
                     path,
                     state.inner.pages,
                     page => ({ ...page, state: action(page.state) }),
@@ -75,7 +74,7 @@ export function onEnvironmentChange<State>(state: DocumentState<State>, update: 
 }
 
 
-export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Block<State>) {
+export function innerFromJSON<State>(json: any, update: BlockUpdater<DocumentInner<State>>, env: Environment, innerBlock: Block<State>) {
     const {
         pages = [],
         viewState = {},
@@ -85,7 +84,14 @@ export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Bl
         openPage = [],
     } = viewState
 
-    const loadedPages = Pages.fromJSON(pages, env, innerBlock)
+    function updatePages(action: (state: PageState<State>[]) => PageState<State>[]) {
+        update(state => ({
+            ...state,
+            pages: action(state.pages)
+        }))
+    }
+
+    const loadedPages = Pages.fromJSON(pages, updatePages, env, innerBlock, [])
     return {
         pages: loadedPages,
         viewState: {
@@ -95,58 +101,17 @@ export function innerFromJSON<State>(json: any, env: Environment, innerBlock: Bl
     }
 }
 
-export function fromJSON<State>(json: any, env: Environment, innerBlock: Block<State>): DocumentState<State> {
-    try {
-        return historyFromJSON(json, env, (stateJSON, env) => {
-            return innerFromJSON(stateJSON, env, innerBlock)
-        })
-    }
-    catch (e) {
-        return legacyFromJSON(json, env, innerBlock)
-    }
-}
-
-function legacyFromJSON<State>(json: any, env: Environment, innerBlock: Block<State>): DocumentState<State> {
-    const {
-        block,
-        pages = [],
-        viewState = {},
-    } = json
-    const {
-        sidebarOpen = false,
-    } = viewState
-    let {
-        openPage = [],
-    } = viewState
-    const legacyBlockPage: PageState<State>[] = []
-    if (block !== undefined) {
-        const blockState = innerBlock.fromJSON(block, env)
-        legacyBlockPage.push({
-            id: -1, // hacky
-            name: "Home",
-            state: blockState,
-            result: innerBlock.getResult(blockState, env),
-
-            isCollapsed: true,
-            children: [],
-        })
-        if (openPage.length === 0) {
-            openPage = [-1]
-        }
-    }
-    const loadedPages = Pages.fromJSON(pages, env, innerBlock)
-    return {
-        mode: { type: 'current' },
-        history: [],
-        inner: {
-            pages: [ ...legacyBlockPage, ...loadedPages],
-            viewState: {
-                sidebarOpen,
-                openPage,
-            },
-        }
+export function fromJSON<State>(json: any, update: BlockUpdater<DocumentState<State>>, env: Environment, innerBlock: Block<State>): DocumentState<State> {
+    function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
+        update(state => ({
+            ...state,
+            inner: action(state.inner),
+        }))
     }
 
+    return historyFromJSON(json, env, (stateJSON, env) => {
+        return innerFromJSON(stateJSON, updateInner, env, innerBlock)
+    })
 }
 
 export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<State>) {
@@ -208,7 +173,7 @@ export function deletePageAt<State>(
     return {
         ...state,
         pages: (
-            updatePageAt(
+            Pages.updatePageAt(
                 parentPath,
                 state.pages,
                 page => ({
@@ -261,7 +226,7 @@ export function addPageAt<State>(
     let newId = null
 
     const newPages = (
-        updatePageAt(
+        Pages.updatePageAt(
             path,
             state.pages,
             page => {
@@ -286,31 +251,6 @@ export function addPageAt<State>(
     }
 }
 
-export function updatePageAt<State>(
-    path: PageId[],
-    pages: PageState<State>[],
-    action: (state: PageState<State>) => PageState<State>,
-    env: Environment,
-    innerBlock: Block<State>,
-) {
-    if (path.length === 0) { return pages }
-
-    return (
-        Pages.updatePages(
-            [],
-            pages,
-            (currentPath, page) => {
-                if (arrayEquals(currentPath, path)) {
-                    return action(page)
-                }
-                return page
-            },
-            innerBlock,
-            env,
-        )
-    )
-}
-
 export function updateOpenPage<State>(
     state: DocumentInner<State>,
     action: (state: State) => State,
@@ -320,7 +260,7 @@ export function updateOpenPage<State>(
     return {
         ...state,
         pages: (
-            updatePageAt(
+            Pages.updatePageAt(
                 state.viewState.openPage,
                 state.pages,
                 page => ({ ...page, state: action(page.state) }),

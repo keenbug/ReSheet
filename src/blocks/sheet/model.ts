@@ -1,5 +1,5 @@
 import * as block from '../../block'
-import { Block } from '../../block'
+import { Block, BlockUpdater } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 import { nextElem } from '../../utils'
@@ -141,13 +141,20 @@ export function updateLineBlock<State>(
 }
 
 
-export function fromJSON<State>(json: any[], innerBlock: Block<State>, env: block.Environment): SheetBlockState<State> {
+export function fromJSON<State>(json: any[], update: BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>): SheetBlockState<State> {
+    function updateLines(action: (state: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
+        update(state => ({
+            lines: action(state.lines)
+        }))
+    }
+
     return {
         lines: (
             Multiple.fromJSON(
                 json,
-                innerBlock,
+                updateLines,
                 env,
+                innerBlock,
                 (entry, { visibility = VISIBILITY_STATES[0] }) => ({
                     ...entry,
                     visibility

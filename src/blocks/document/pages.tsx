@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, Environment, mapWithEnv } from '../../block'
+import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 
@@ -110,6 +110,32 @@ export function updatePages<State>(
     )
 }
 
+export function updatePageAt<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    action: (state: PageState<State>) => PageState<State>,
+    env: Environment,
+    innerBlock: Block<State>,
+) {
+    if (path.length === 0) { return pages }
+
+    return (
+        updatePages(
+            [],
+            pages,
+            (currentPath, page) => {
+                if (arrayEquals(currentPath, path)) {
+                    return action(page)
+                }
+                return page
+            },
+            innerBlock,
+            env,
+        )
+    )
+}
+
+
 export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State>) {
     return pages.map(page => ({
         id: page.id,
@@ -120,14 +146,32 @@ export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State
     }))
 }
 
-export function fromJSON<State>(json: any[], env: Environment, innerBlock: Block<State>): Array<PageState<State>> {
+export function fromJSON<State>(
+    json: any[],
+    update: BlockUpdater<PageState<State>[]>,
+    env: Environment,
+    innerBlock: Block<State>,
+    path: PageId[]
+): PageState<State>[] {
     return mapWithEnv(
         json,
         (jsonEntry, localEnv) => {
             const { id, name, state, children, isCollapsed = true } = jsonEntry
-            const loadedChildren = fromJSON(children, localEnv, innerBlock)
+
+            const pathHere = [...path, id]
+            function localUpdate(action: (state: State) => State) {
+                update(pages => updatePageAt(
+                    pathHere,
+                    pages,
+                    (page) => ({ ...page, state: action(page.state) }),
+                    localEnv,
+                    innerBlock,
+                ))
+            }
+
+            const loadedChildren = fromJSON(children, update, localEnv, innerBlock, pathHere)
             const pageEnv = { ...localEnv, ...Multiple.getResultEnv(children) }
-            const loadedState = innerBlock.fromJSON(state, pageEnv)
+            const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
             const result = innerBlock.getResult(loadedState, pageEnv)
             const page: PageState<State> = {
                 id,
