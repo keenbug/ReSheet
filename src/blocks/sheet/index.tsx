@@ -25,11 +25,11 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
         },
         toJSON(state) {
             return state.lines.map(
-                ({ id, name, isCollapsed, state }) => (
+                ({ id, name, visibility, state }) => (
                     {
                         id,
                         name,
-                        isCollapsed,
+                        visibility,
                         state: innerBlock.toJSON(state),
                     }
                 )

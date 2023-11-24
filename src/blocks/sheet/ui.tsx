@@ -140,10 +140,10 @@ function ACTIONS<Inner extends unknown>(
             ])
         },
 
-        toggleCollapse(id: number) {
+        switchCollapse(id: number) {
             update(state => [
                 Model.updateLineWithId(state, id, line => {
-                    return { ...line, isCollapsed: !line.isCollapsed }
+                    return { ...line, visibility: Model.nextLineVisibility(line.visibility) }
                 })
             ])
         },
@@ -166,7 +166,7 @@ function ACTIONS<Inner extends unknown>(
                     Model.insertLineBefore(state, id, {
                         id: newId,
                         name: '',
-                        isCollapsed: false,
+                        visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
                         result: null,
                     }),
@@ -182,7 +182,7 @@ function ACTIONS<Inner extends unknown>(
                     Model.insertLineAfter(state, id, {
                         id: newId,
                         name: '',
-                        isCollapsed: false,
+                        visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
                         result: null,
                     }),
@@ -442,7 +442,7 @@ export const SheetLine = React.forwardRef(
 
                 case "C-M":
                     if (event.currentTarget === event.target) {
-                        actions.toggleCollapse(line.id)
+                        actions.switchCollapse(line.id)
                         event.stopPropagation()
                         event.preventDefault()
                     }
@@ -454,11 +454,10 @@ export const SheetLine = React.forwardRef(
             switch (getFullKey(event)) {
                 case "ArrowDown":
                 case "Enter":
-                    if (line.isCollapsed) {
-                        actions.toggleCollapse(line.id)
-                    }
-                    else {
+                    if (line.visibility.block) {
                         innerBlockRef.current?.focus()
+                    } else if (line.visibility.name) {
+                        varInputRef.current?.focus()
                     }
                     event.stopPropagation()
                     event.preventDefault()
@@ -480,19 +479,21 @@ export const SheetLine = React.forwardRef(
                 >
                 <MenuPopover line={line} actions={actions} block={block} />
                 <div className="flex flex-col space-y-1 flex-1">
-                    <AssignmentLine
-                        ref={varInputRef}
-                        line={line}
-                        actions={actions}
-                        onKeyDown={onInputKeyDown}
-                        isCollapsed={line.isCollapsed}
-                        />
-                    {line.isCollapsed ?
-                        <ValueInspector value={line.result} expandLevel={0} />
-                    :
+                    {line.visibility.name &&
+                        <AssignmentLine
+                            ref={varInputRef}
+                            line={line}
+                            actions={actions}
+                            onKeyDown={onInputKeyDown}
+                            />
+                    }
+                    {line.visibility.block &&
                         <ErrorBoundary title="There was an error in the subblock">
                             {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
                         </ErrorBoundary>
+                    }
+                    {line.visibility.result &&
+                        <ValueInspector value={line.result} expandLevel={0} />
                     }
                 </div>
             </div>
@@ -505,12 +506,11 @@ interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
     line: SheetBlockLine<State>
     children?: any
     actions: Actions<State>
-    isCollapsed: boolean
 }
 
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
-        const { line, children = null, actions, isCollapsed, ...inputProps } = props
+        const { line, children = null, actions, ...inputProps } = props
         const onUpdateName = name => actions.setName(line.id, name)
         return (
             <div
@@ -519,7 +519,6 @@ export const AssignmentLine = React.forwardRef(
                     pr-2 -mb-1 mt-1
                     text-slate-500 font-light text-xs
                     truncate
-                    ${isCollapsed && 'h-0 group-focus-within:h-fit'}
                 `}
                 >
                 <TextInput
@@ -536,7 +535,6 @@ export const AssignmentLine = React.forwardRef(
                     placeholder={Model.lineDefaultName(line)}
                     {...inputProps}
                 />
-                &nbsp;=
                 {children}
             </div>
         )
@@ -549,7 +547,7 @@ export const AssignmentLine = React.forwardRef(
 /****************** Menu Popover ******************/
 
 function MenuPopover({ line, actions, block }) {
-    const onToggleCollapse = () => actions.toggleCollapse(line.id)
+    const onSwitchCollapse = () => actions.switchCollapse(line.id)
     const onInsertBefore   = () => actions.insertBeforeCode(line.id, block)
     const onInsertAfter    = () => actions.insertAfterCode(line.id, block)
     const onDelete         = () => actions.deleteCode(line.id)
@@ -590,14 +588,10 @@ function MenuPopover({ line, actions, block }) {
                         absolute top-0 -right-1 translate-x-full z-10
                     `}
                     >
-                    <Button
-                        onClick={onToggleCollapse}
-                        icon={line.isCollapsed ? solidIcons.faSquarePlus : solidIcons.faSquareMinus}
-                        label={line.isCollapsed ? "Expand" : "Collapse"}
-                        />
-                    <Button onClick={onInsertBefore} icon={solidIcons.faChevronUp}   label="Insert before" />
-                    <Button onClick={onInsertAfter}  icon={solidIcons.faChevronDown} label="Insert after"  />
-                    <Button onClick={onDelete}       icon={solidIcons.faTrash}       label="Delete"        />
+                    <Button onClick={onSwitchCollapse} icon={solidIcons.faEye}         label="Change visibility" />
+                    <Button onClick={onInsertBefore}   icon={solidIcons.faChevronUp}   label="Insert before" />
+                    <Button onClick={onInsertAfter}    icon={solidIcons.faChevronDown} label="Insert after"  />
+                    <Button onClick={onDelete}         icon={solidIcons.faTrash}       label="Delete"        />
                 </Menu.Items>
             </Menu>
         </div>

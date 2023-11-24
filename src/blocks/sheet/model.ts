@@ -2,6 +2,7 @@ import * as block from '../../block'
 import { Block } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
+import { nextElem } from '../../utils'
 
 export interface SheetBlockState<InnerBlockState> {
     readonly lines: SheetBlockLine<InnerBlockState>[]
@@ -13,7 +14,31 @@ export interface SheetBlockLine<InnerBlockState> extends BlockEntry<InnerBlockSt
     readonly state: InnerBlockState
     readonly result: unknown
 
-    readonly isCollapsed: boolean
+    readonly visibility: LineVisibility
+}
+
+export interface LineVisibility {
+    name: boolean
+    block: boolean
+    result: boolean
+}
+
+export const VISIBILITY_STATES: LineVisibility[] = [
+    { name: true, block: true, result: false },
+    { name: false, block: true, result: false },
+    { name: true, block: false, result: true },
+    { name: false, block: false, result: true },
+    { name: true, block: false, result: false },
+]
+
+export function lineVisibilityEq(lv1: LineVisibility, lv2: LineVisibility) {
+    return lv1.name === lv2.name && lv1.block === lv2.block && lv1.result === lv2.result
+}
+
+export function nextLineVisibility(visibility: LineVisibility) {
+    const lv = nextElem(visibility, VISIBILITY_STATES, lineVisibilityEq)
+    console.log('switch', visibility, lv)
+    return lv
 }
 
 
@@ -22,9 +47,9 @@ export function init<InnerBlockState>(innerBlockInit: InnerBlockState): SheetBlo
         lines: [{
             id: 0,
             name: '',
-            isCollapsed: false,
+            visibility: VISIBILITY_STATES[0],
             state: innerBlockInit, 
-            result: null
+            result: undefined,
         }]
     }
 }
@@ -118,16 +143,16 @@ export function updateLineBlock<State>(
 }
 
 
-export function fromJSON<State>(json: any[], innerBlock: Block<State>, env: block.Environment) {
+export function fromJSON<State>(json: any[], innerBlock: Block<State>, env: block.Environment): SheetBlockState<State> {
     return {
         lines: (
             Multiple.fromJSON(
                 json,
                 innerBlock,
                 env,
-                (entry, { isCollapsed = false }) => ({
+                (entry, { visibility = VISIBILITY_STATES[0] }) => ({
                     ...entry,
-                    isCollapsed
+                    visibility
                 }),
             )
         ),
