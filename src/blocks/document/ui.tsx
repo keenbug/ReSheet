@@ -256,6 +256,7 @@ function DocumentKeyHandler<State>(
         switch (getFullKey(event)) {
             // not sure about capturing this...
             case "C-N":
+                if (event.ctrlKey && isTargetAnInput) { return }
                 actions.addPage(state.inner.viewState.openPage.slice(0, -1))
                 setIsNameEditing(true)
                 event.stopPropagation()
