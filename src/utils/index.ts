@@ -4,15 +4,6 @@ export function clampTo(minimumInclusive: number, maximumExclusive: number, valu
     return value
 }
 
-export function catchAll<Result>(fn: () => Result, onError: ((error: any) => Result) = e => e) {
-    try {
-        return fn()
-    }
-    catch (e) {
-        return onError(e)
-    }
-}
-
 export function nextElem(elem: string, allElems: Array<string>) {
     const elemIdx = allElems.findIndex(e => e === elem)
     const nextElemIdx = (elemIdx + 1) % allElems.length

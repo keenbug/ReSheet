@@ -1,6 +1,6 @@
 import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
 import * as Multiple from '../../block/multiple'
-import { arrayEquals, catchAll } from '../../utils'
+import { arrayEquals } from '../../utils'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 import { PageId, PageState } from './pages'
 import * as Pages from './pages'
@@ -120,10 +120,7 @@ function legacyFromJSON<State>(json: any, env: Environment, innerBlock: Block<St
     } = viewState
     const legacyBlockPage: PageState<State>[] = []
     if (block !== undefined) {
-        const blockState = catchAll(
-            () => innerBlock.fromJSON(block, env),
-            (e) => innerBlock.init,
-        )
+        const blockState = innerBlock.fromJSON(block, env)
         legacyBlockPage.push({
             id: -1, // hacky
             name: "Home",

@@ -60,16 +60,14 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
         fromJSON(json: any, env: Environment) {
             try { return description.fromJSON(json, env) }
             catch (e) {
-                console.warn("Could not load JSON:", e)
-                console.log(e.stack)
+                console.warn("Could not load JSON:", e, e.stack, '\nJSON:', json)
                 return description.init
             }
         },
         toJSON(state: State) {
             try { return description.toJSON(state) }
             catch (e) {
-                console.warn("Could not convert to JSON:", e)
-                console.log(e.stack)
+                console.warn("Could not convert to JSON:", e, e.stack, '\nState:', state)
                 return null
             }
         }

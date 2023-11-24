@@ -1,9 +1,12 @@
 import * as React from 'react'
 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+
 import * as block from '../../block'
 import { Block, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { CodeEditor, EditableCode } from '../../ui/code-editor'
+import { CodeView, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'
 import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
 import { getFullKey } from '../../ui/utils'
@@ -21,14 +24,21 @@ function ACTIONS(
     return {
         updateExpr(expr: string) {
             update(state => {
-                return [Model.setExpr(state, expr)]
+                return [{ ...state, expr }]
             })
         },
 
         setChooseMode() {
             update(state => {
+                if (state.mode === 'loading') { return [state] }
+
                 return [
-                    Model.updateMode(state, 'choose'),
+                    {
+                        mode: 'choose',
+                        expr: state.expr,
+                        innerBlock: state.innerBlock,
+                        innerBlockState: state.innerBlockState,
+                    },
                     () => inputRef.current?.focus()
                 ]
             })
@@ -36,14 +46,29 @@ function ACTIONS(
 
         cancelChoose() {
             update(state => {
+                if (state.mode === 'loading') {
+                    return [state]
+                }
                 if (!block.isBlock(state.innerBlock)) {
                     return [state]
                 }
                 return [
-                    Model.updateMode(state, 'run'),
+                    {
+                        mode: 'run',
+                        expr: state.expr,
+                        innerBlock: state.innerBlock,
+                        innerBlockState: state.innerBlockState,
+                    },
                     () => innerBlockRef.current?.focus(),
                 ]
             })
+        },
+
+        cancelLoading() {
+            update(state => [
+                Model.init(state.expr),
+                () => inputRef.current?. focus(),
+            ])
         },
 
         chooseBlock(expr: string, env: Environment) {
@@ -134,9 +159,29 @@ export const BlockSelectorUI = React.forwardRef(
                     }
                     return
             }
-        }     
+        }
+
+        function onKeyDownLoading(event: React.KeyboardEvent) {
+            switch (getFullKey(event)) {
+                case "Escape":
+                    actions.cancelLoading()
+                    event.stopPropagation()
+                    event.preventDefault()
+                    return
+            }
+        }
 
         switch (state.mode) {
+            case 'loading':
+                return (
+                    <div onKeyDown={onKeyDownLoading}>
+                        <FontAwesomeIcon icon={solidIcons.faSpinner} spinPulse />{' '}
+                        Waiting for <CodeView className="inline-block bg-gray-100 rounded" container="span" code={state.expr} />{' '}
+                        to turn into a Block.{' '}
+                        <button className="text-blue-500" onClick={actions.cancelLoading}>Cancel</button>
+                    </div>
+                )
+
             case 'run':
                 return (
                     <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>
@@ -159,7 +204,6 @@ export const BlockSelectorUI = React.forwardRef(
                 )
 
             case 'choose':
-            default:
                 const blockCmdResult = computeExpr(blockExpr, { ...blockLibrary, ...env })
                 return (
                     <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>

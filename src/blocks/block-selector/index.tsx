@@ -2,7 +2,6 @@ import * as React from 'react'
 
 import * as block from '../../block'
 import { Block, Environment } from '../../block'
-import { catchAll } from '../../utils'
 
 import { BlockSelectorState } from './model'
 import * as Model from './model'
@@ -12,7 +11,7 @@ export type { BlockSelectorState }
 
 export function BlockSelector(
     expr: string = '',
-    innerBlockInit: Block<unknown> = null,
+    innerBlockInit: Block<unknown> = undefined,
     blockLibrary: Environment,
 ) {
     return block.create<BlockSelectorState>({
@@ -31,51 +30,32 @@ export function BlockSelector(
         },
 
         onEnvironmentChange(state, update, env) {
-            if (state.mode === 'choose') { return state }
-
-            function updateInner(action: (state: unknown) => unknown) {
-                update(state => ({
-                    ...state,
-                    innerBlockState: action(state.innerBlockState),
-                }))
-            }
-
-            return {
-                ...state,
-                innerBlockState: state.innerBlock.onEnvironmentChange(state.innerBlockState, updateInner, env)
-            }
+            return Model.onEnvironmentChange(state, update, env, blockLibrary)
         },
 
         getResult(state, env) {
-            if (state.mode === 'choose') { return null }
+            if (state.mode === 'loading') { return undefined }
         
             return state.innerBlock?.getResult(state.innerBlockState, env)
         },
 
-        fromJSON(json: any, library) {
-            const { mode = 'choose', inner = null, expr = "" } = json
-            return {
-                mode,
-                expr,
-                ...Model.loadBlock(json, library, blockLibrary),
-            }
+        fromJSON(json: any, env) {
+            return Model.fromJSON(json, env, blockLibrary)
         },
 
-        toJSON({ mode, expr, innerBlock, innerBlockState }) {
+        toJSON(state: BlockSelectorState) {
+            if (state.mode === 'loading') {
+                return {
+                    mode: state.modeAfter,
+                    expr: state.expr,
+                    inner: state.jsonToLoad,
+                }
+            }
+
             return {
-                mode,
-                expr,
-                inner:
-                    mode === 'choose' ?
-                        catchAll(
-                            () => innerBlock.toJSON(innerBlockState),
-                            () => null,
-                        )
-                    : mode === 'run' && innerBlock !== null && innerBlockState !== null ?
-                        innerBlock.toJSON(innerBlockState)
-                    :
-                        innerBlock.init
-                ,
+                mode: state.mode,
+                expr: state.expr,
+                inner: state.innerBlock?.toJSON(state.innerBlockState),
             }
         },
     })

@@ -1,45 +1,44 @@
 import * as block from '../../block'
 import { Block, Environment } from '../../block'
 import { computeExpr } from '../../logic/compute'
-import { catchAll } from '../../utils'
 
 
-export interface BlockSelectorState {
-    expr: string
-    mode: Mode
-    innerBlockState: null | unknown
-    innerBlock: null | Block<unknown>
-}
+export type BlockSelectorState =
+    | {
+        mode: 'run'
+        expr: string
+        innerBlock: Block<unknown>
+        innerBlockState: unknown
+    }
+    | {
+        mode: 'choose'
+        expr: string
+        innerBlock?: Block<unknown>
+        innerBlockState?: unknown
+    }
+    | {
+        mode: 'loading'
+        expr: string
+        modeAfter: LoadedMode
+        jsonToLoad: any
+    }
 
-export type Mode = 'run' | 'choose'
+export type Mode = BlockSelectorState['mode']
+export type LoadedMode = Exclude<Mode, 'loading'>
+
 
 export function init(
     expr: string = '',
-    innerBlockInit: Block<unknown> = null
+    innerBlock?: Block<unknown>
 ): BlockSelectorState {
     return {
         expr,
-        mode: expr ? 'run' : 'choose',
-        innerBlockState: innerBlockInit?.init,
-        innerBlock: innerBlockInit,
+        mode: innerBlock ? 'run' : 'choose',
+        innerBlock: innerBlock,
+        innerBlockState: innerBlock?.init,
     }
 }
 
-
-/**************** Command Actions **************/
-
-
-export function setExpr(state: BlockSelectorState, expr: string): BlockSelectorState {
-    return { ...state, expr }
-}
-
-export function updateMode(state: BlockSelectorState, mode: Mode): BlockSelectorState {
-    return { ...state, mode }
-}
-
-export function setInnerBlockState(state: BlockSelectorState, innerBlockState: unknown): BlockSelectorState {
-    return { ...state, innerBlockState }
-}
 
 export function chooseBlock(
     expr: string,
@@ -61,26 +60,52 @@ export function chooseBlock(
 }
 
 export function updateBlock(state: BlockSelectorState, action: (state: unknown) => unknown): BlockSelectorState {
+    if (state.mode === 'loading') { return state }
     return {
         ...state,
         innerBlockState: action(state.innerBlockState),
     }
 }
 
-export function loadBlock({ mode, inner, expr }, library, blockLibrary) {
-    try {
-        const innerBlock = computeExpr(expr, { ...blockLibrary, ...library })
-        const innerBlockState = catchAll(
-            () => innerBlock.fromJSON(inner, library),
-            () => innerBlock.init,
-        )
-        return { mode, innerBlock, innerBlockState }
+export function onEnvironmentChange(
+    state: BlockSelectorState,
+    update: block.BlockUpdater<BlockSelectorState>,
+    env: Environment,
+    blockLibrary: Environment,
+): BlockSelectorState {
+    function updateInner(action: (inner: unknown) => unknown) {
+        update(state => updateBlock(state, action))
     }
-    catch (e) {
+
+    const innerBlock = computeExpr(state.expr, { ...blockLibrary, ...env })
+
+    if (!block.isBlock(innerBlock)) {
+        return state
+    }
+
+    if (state.mode === 'loading') {
         return {
-            mode: 'choose',
-            innerBlock: null,
-            innerBlockState: null,
-         }
+            mode: state.modeAfter,
+            expr: state.expr,
+            innerBlock,
+            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, env),
+        }
     }
+        
+    return {
+        ...state,
+        innerBlock,
+        innerBlockState: innerBlock.onEnvironmentChange(state.innerBlockState, updateInner, env)
+    }
+}
+
+export function fromJSON({ mode, inner, expr }, env: Environment, blockLibrary: Environment): BlockSelectorState {
+    const innerBlock = computeExpr(expr, { ...blockLibrary, ...env })
+
+    if (!block.isBlock(innerBlock)) {
+        return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
+    }
+
+    const innerBlockState = innerBlock.fromJSON(inner, env)
+    return { mode, expr, innerBlock, innerBlockState }
 }
