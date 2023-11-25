@@ -142,7 +142,7 @@ export const BlockSelectorUI = React.forwardRef(
                     }
                     return
 
-                case "Shift-Escape":
+                case "C-/":
                     if (state.mode === 'run') {
                         setBlockExpr(state.expr)
                         actions.setChooseMode()
