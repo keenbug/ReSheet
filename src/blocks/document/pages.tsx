@@ -24,6 +24,17 @@ export interface PageState<State> extends BlockEntry<State> {
     children: Array<PageState<State>>
 }
 
+export function init<State>(id: PageId, initState: State): PageState<State> {
+    return {
+        id,
+        name: '',
+        state: initState,
+        result: undefined,
+        isCollapsed: true,
+        children: [],
+    }
+}
+
 export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>) {
     if (path.length === 0) { return null }
 
@@ -136,15 +147,56 @@ export function updatePageAt<State>(
 }
 
 
-export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State>) {
-    return pages.map(page => ({
+export function pageToJSON<State>(page: PageState<State>, innerBlock: Block<State>) {
+    return {
         id: page.id,
         name: page.name,
         state: innerBlock.toJSON(page.state),
         isCollapsed: page.isCollapsed,
         children: toJSON(page.children, innerBlock),
-    }))
+    }
 }
+
+export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State>) {
+    return pages.map(page => pageToJSON(page, innerBlock))
+}
+
+
+export function pageFromJSON<State>(
+    json: any,
+    update: BlockUpdater<PageState<State>[]>,
+    env: Environment,
+    innerBlock: Block<State>,
+    path: PageId[]
+): PageState<State> {
+    const { id, name, state, children, isCollapsed = true } = json
+
+    const pathHere = [...path, id]
+    function localUpdate(action: (state: State) => State) {
+        update(pages => updatePageAt(
+            pathHere,
+            pages,
+            (page) => ({ ...page, state: action(page.state) }),
+            env,
+            innerBlock,
+        ))
+    }
+
+    const loadedChildren = fromJSON(children, update, env, innerBlock, pathHere)
+    const pageEnv = { ...env, ...Multiple.getResultEnv(children) }
+    const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
+    const result = innerBlock.getResult(loadedState, pageEnv)
+    const page: PageState<State> = {
+        id,
+        name,
+        state: loadedState,
+        result,
+        isCollapsed,
+        children: loadedChildren,
+    }
+    return page
+}
+
 
 export function fromJSON<State>(
     json: any[],
@@ -156,31 +208,7 @@ export function fromJSON<State>(
     return mapWithEnv(
         json,
         (jsonEntry, localEnv) => {
-            const { id, name, state, children, isCollapsed = true } = jsonEntry
-
-            const pathHere = [...path, id]
-            function localUpdate(action: (state: State) => State) {
-                update(pages => updatePageAt(
-                    pathHere,
-                    pages,
-                    (page) => ({ ...page, state: action(page.state) }),
-                    localEnv,
-                    innerBlock,
-                ))
-            }
-
-            const loadedChildren = fromJSON(children, update, localEnv, innerBlock, pathHere)
-            const pageEnv = { ...localEnv, ...Multiple.getResultEnv(children) }
-            const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
-            const result = innerBlock.getResult(loadedState, pageEnv)
-            const page: PageState<State> = {
-                id,
-                name,
-                state: loadedState,
-                result,
-                isCollapsed,
-                children: loadedChildren,
-            }
+            const page = pageFromJSON(jsonEntry, update, localEnv, innerBlock, path)
             return {
                 out: page,
                 env: Multiple.entryToEnv(page)

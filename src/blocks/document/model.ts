@@ -16,18 +16,22 @@ export type DocumentState<State> = HistoryWrapper<DocumentInner<State>>
 
 export interface DocumentInner<State> {
     readonly viewState: ViewState
+    readonly template: PageState<State>
     readonly pages: Array<PageState<State>>
 }
 
-export const init: DocumentState<any> = (
-    initHistory({
-        viewState: {
-            sidebarOpen: true,
-            openPage: [],
-        },
-        pages: [],
-    })
-)
+export function init<State>(initState: State): DocumentState<State> {
+    return (
+        initHistory({
+            viewState: {
+                sidebarOpen: true,
+                openPage: [],
+            },
+            template: Pages.init(-1, initState),
+            pages: [],
+        })
+    )
+}
 
 
 export function getResult<State>(state: DocumentState<State>, env: Environment) {
@@ -74,13 +78,19 @@ export function onEnvironmentChange<State>(state: DocumentState<State>, update: 
 }
 
 
-export function innerFromJSON<State>(json: any, update: BlockUpdater<DocumentInner<State>>, env: Environment, innerBlock: Block<State>) {
+export function innerFromJSON<State>(
+    json: any,
+    update: BlockUpdater<DocumentInner<State>>,
+    env: Environment,
+    innerBlock: Block<State>,
+): DocumentInner<State> {
     const {
         pages = [],
+        template,
         viewState = {},
     } = json
     const {
-        sidebarOpen = false,
+        sidebarOpen = true,
         openPage = [],
     } = viewState
 
@@ -91,9 +101,16 @@ export function innerFromJSON<State>(json: any, update: BlockUpdater<DocumentInn
         }))
     }
 
+    const loadedTemplate = (
+        template ?
+            Pages.pageFromJSON(template, () => {}, env, innerBlock, [])
+        :
+            Pages.init(-1, innerBlock.init)
+    )
     const loadedPages = Pages.fromJSON(pages, updatePages, env, innerBlock, [])
     return {
         pages: loadedPages,
+        template: loadedTemplate,
         viewState: {
             sidebarOpen,
             openPage,
@@ -101,7 +118,12 @@ export function innerFromJSON<State>(json: any, update: BlockUpdater<DocumentInn
     }
 }
 
-export function fromJSON<State>(json: any, update: BlockUpdater<DocumentState<State>>, env: Environment, innerBlock: Block<State>): DocumentState<State> {
+export function fromJSON<State>(
+    json: any,
+    update: BlockUpdater<DocumentState<State>>,
+    env: Environment,
+    innerBlock: Block<State>
+): DocumentState<State> {
     function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
         update(state => ({
             ...state,
@@ -117,8 +139,9 @@ export function fromJSON<State>(json: any, update: BlockUpdater<DocumentState<St
 export function toJSON<State>(state: DocumentState<State>, innerBlock: Block<State>) {
     return historyToJSON(state, innerState => {
         const { viewState } = innerState
+        const template = Pages.pageToJSON(innerState.template, innerBlock)
         const pages = Pages.toJSON(innerState.pages, innerBlock)
-        return { pages, viewState }
+        return { pages, viewState, template }
     })
 }
 
@@ -197,13 +220,9 @@ export function addPageAt<State>(
     function addSibling(siblings: PageState<State>[]): [ PageId, PageState<State>[] ] {
         const newId = Multiple.nextFreeId(siblings)
         const newPage = {
+            ...state.template,
             id: newId,
             name: "Untitled_" + newId,
-            state: innerBlock.init,
-            result: null,
-
-            isCollapsed: true,
-            children: [],
         }
         return [
             newId,

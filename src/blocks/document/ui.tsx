@@ -48,7 +48,7 @@ function ACTIONS<State extends unknown>(
 
 
         reset() {
-            update(() => Model.init)
+            update(() => Model.init(innerBlock.init))
         },
 
         save() {
@@ -87,6 +87,13 @@ function ACTIONS<State extends unknown>(
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
             }
+        },
+
+        useAsTempate(path: PageId[]) {
+            updateInner(inner => ({
+                ...inner,
+                template: Pages.getPageAt(path, inner.pages) ?? inner.template,
+            }))
         },
 
         addPage(path: PageId[]) {
@@ -241,6 +248,12 @@ function DocumentKeyHandler<State>(
             case "C-Shift-N":
                 actions.addPage(state.inner.viewState.openPage)
                 setIsNameEditing(true)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-D":
+                actions.useAsTempate(state.inner.viewState.openPage)
                 event.stopPropagation()
                 event.preventDefault()
                 return
