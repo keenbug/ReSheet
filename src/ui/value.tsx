@@ -53,7 +53,7 @@ export const ValueInspector = React.forwardRef(
                     title="There was an error in your React element"
                     viewError={error => <ErrorInspector error={error} />}
                 >
-                    {React.createElement(() => value, { ref })}
+                    {React.createElement(() => value)}
                 </ErrorBoundary>
             )
         }
