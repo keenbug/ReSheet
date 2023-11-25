@@ -128,6 +128,15 @@ function ACTIONS<State extends unknown>(
             })
         },
 
+        movePage(delta: number, path: PageId[]) {
+            updateInner(innerState => {
+                return {
+                    ...innerState,
+                    pages: Pages.movePage(delta, path, innerState.pages, innerBlock, env),
+                }
+            })
+        },
+
         openPage(path: PageId[]) {
             updateInner(inner =>
                 $update(() => path, inner,'viewState','openPage')
@@ -261,6 +270,20 @@ function DocumentKeyHandler<State>(
             case "C-Backspace":
                 if (isTargetAnInput) { return }
                 actions.deletePage(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-J":
+            case "C-Shift-ArrowDown":
+                actions.movePage(1, state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-K":
+            case "C-Shift-ArrowUp":
+                actions.movePage(-1, state.inner.viewState.openPage)
                 event.stopPropagation()
                 event.preventDefault()
                 return

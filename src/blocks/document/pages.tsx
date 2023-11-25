@@ -95,6 +95,58 @@ export function getPageEnv<State>(
 }
 
 
+export function movePage<State>(
+    delta: number,
+    path: PageId[],
+    pages: PageState<State>[],
+    innerBlock: Block<State>,
+    env: Environment,
+) {
+    function moveSibling(id: PageId, siblings: PageState<State>[]) {
+        const index = siblings.findIndex(page => page.id === id)
+        if (index < 0) { return siblings }
+        const pageToMove = siblings[index]
+
+        const newIndex = index + delta
+        if (newIndex < 0 || newIndex >= siblings.length) { return siblings }
+
+        const siblingsWithout = siblings.filter(page => page.id !== pageToMove.id)
+
+        const newSiblings = [
+            ...siblingsWithout.slice(0, newIndex),
+            pageToMove,
+            ...siblingsWithout.slice(newIndex),
+        ]
+        return newSiblings
+    }
+
+    if (path.length === 0) { return pages }
+
+    if (path.length === 1) {
+        return updatePages(
+            [],
+            moveSibling(path[0], pages),
+            (_path, page, _env) => page,
+            innerBlock,
+            env,
+        )
+    }
+
+    const parentPath = path.slice(0, -1)
+    const childId = path.slice(-1)[0]
+
+    return updatePageAt(
+        parentPath,
+        pages,
+        page => ({
+            ...page,
+            children: moveSibling(childId, page.children),
+        }),
+        env,
+        innerBlock,
+    )
+}
+
 export function updatePages<State>(
     currentPath: PageId[],
     pages: Array<PageState<State>>,
