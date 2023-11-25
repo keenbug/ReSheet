@@ -293,6 +293,7 @@ export const SheetLine = React.forwardRef(
         const containerRef = React.useRef<HTMLDivElement>()
         const varInputRef = React.useRef<HTMLElement>()
         const innerBlockRef = React.useRef<BlockRef>()
+        const resultRef = React.useRef<HTMLElement>()
 
         React.useImperativeHandle(
             ref,
@@ -378,7 +379,15 @@ export const SheetLine = React.forwardRef(
 
                 case "Enter":
                     if (event.currentTarget === event.target) {
-                        varInputRef.current?.focus()
+                        if (line.visibility.name) {
+                            varInputRef.current?.focus()
+                        }
+                        else if (line.visibility.block) {
+                            innerBlockRef.current?.focus()
+                        }
+                        else if (line.visibility.result) {
+                            resultRef.current?.focus()
+                        }
                         event.stopPropagation()
                         event.preventDefault()
                     }
@@ -386,7 +395,7 @@ export const SheetLine = React.forwardRef(
 
                 case "Escape":
                     if (event.currentTarget !== event.target && document.activeElement !== containerRef.current) {
-                        (event.target as any).blur?.()
+                        if (event.target instanceof HTMLElement) { event.target.blur() }
                         containerRef.current?.focus()
                         event.stopPropagation()
                         event.preventDefault()
@@ -441,11 +450,9 @@ export const SheetLine = React.forwardRef(
                     return
 
                 case "C-M":
-                    if (event.currentTarget === event.target) {
-                        actions.switchCollapse(line.id)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
+                    actions.switchCollapse(line.id)
+                    event.stopPropagation()
+                    event.preventDefault()
                     return
             }
         }
@@ -493,7 +500,7 @@ export const SheetLine = React.forwardRef(
                         </ErrorBoundary>
                     }
                     {line.visibility.result &&
-                        <ValueInspector value={line.result} expandLevel={0} />
+                        <ValueInspector ref={resultRef} value={line.result} expandLevel={0} />
                     }
                 </div>
             </div>
