@@ -8,7 +8,7 @@ import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 
-import { arrayEquals, arrayStartsWith } from '../../utils'
+import { arrayEquals, arrayStartsWith, clampTo } from '../../utils'
 import { getFullKey } from '../../ui/utils'
 
 
@@ -35,6 +35,21 @@ export function init<State>(id: PageId, initState: State): PageState<State> {
     }
 }
 
+export function getDefaultName(page: PageState<any>) {
+    return 'Untitled_' + page.id
+}
+
+export function getName(page: PageState<any>) {
+    if (page.name.length === 0) {
+        return getDefaultName(page)
+    }
+    return page.name
+}
+
+export function toEnv(page: PageState<any>) {
+    return { [getName(page)]: page.result }
+}
+
 export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>) {
     if (path.length === 0) { return null }
 
@@ -43,6 +58,13 @@ export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>)
     if (path.length === 1) { return page }
 
     return getPageAt(path.slice(1), page.children)
+}
+
+export function getAllPaths(pages: PageState<unknown>[]): Array<PageId[]> {
+    return pages.flatMap(page => [
+        [page.id],
+        ...getAllPaths(page.children).map(path => [page.id, ...path]),
+    ])
 }
 
 export function getExpandedPaths(pages: PageState<unknown>[], currentPath: PageId[] = []): Array<PageId[]> {
@@ -83,17 +105,154 @@ export function getSiblingsOf<State>(
     return [siblingsBefore, siblingsAfter]
 }
 
-export function getPageEnv<State>(
-    page: PageState<State>,
-    siblings: PageState<State>[],
+export function getNextDependentPath<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+) {
+    const parentPath = path.slice(-1)
+    const [_siblingsBefore, siblingsAfter] = getSiblingsOf(path, pages)
+    if (siblingsAfter.length === 0) {
+        return parentPath
+    }
+    return [ ...parentPath, siblingsAfter[0].id ]
+}
+
+export function getSiblingsEnv<State>(siblings: PageState<State>[]) {
+    return Object.fromEntries(
+        siblings.map(sibling => [getName(sibling), sibling.result])
+    )
+}
+
+export function getPageEnvAt<State>(
+    path: PageId[],
+    pages: PageState<State>[],
     env: Environment,
 ) {
-    const siblingsEnv = Multiple.getEntryEnvBefore(siblings, page.id)
-    const childrenEnv = Multiple.getResultEnv(page.children)
+    const [siblingsBefore, _siblingsAfter] = getSiblingsOf(path, pages)
+    const page = getPageAt(path, pages)
+    const siblingsEnv = getSiblingsEnv(siblingsBefore)
+    const childrenEnv = getSiblingsEnv(page.children)
     
     return { ...env, ...siblingsEnv, ...childrenEnv }
 }
 
+
+export function unnestPage<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    env: Environment,
+    innerBlock: Block<State>,
+    updatePagesState: BlockUpdater<PageState<State>[]>,
+): [PageId[], PageState<State>[]] {
+    if (path.length <= 1) { return [path, pages] }
+
+    const pageToMove = getPageAt(path, pages)
+    if (pageToMove === null) { return [path, pages] }
+
+    const newParentPath = path.slice(0, -2)
+    const currentParentPath = path.slice(0, -1)
+    const currentParentId = currentParentPath.slice(-1)[0]
+    const pageToMoveId = path.slice(-1)[0]
+
+    let newPath = path
+    let recomputePath = path
+    const newPages = updatePageSiblings(
+        pages,
+        (path, siblings) => {
+            if (arrayEquals(path, currentParentPath)) {
+                const pageToMoveIndex = siblings.findIndex(sibling => sibling.id === pageToMoveId)
+                if (pageToMoveIndex >= siblings.length - 1) {
+                    // if we're the last sibling, start recomputing the parent
+                    recomputePath = path.slice(0, -1)
+                }
+                else {
+                    const siblingAfter = siblings[pageToMoveIndex + 1]
+                    recomputePath = [ ...currentParentPath, siblingAfter.id ]
+                }
+                return [
+                    ...siblings.slice(0, pageToMoveIndex),
+                    ...siblings.slice(pageToMoveIndex + 1),
+                ]
+            }
+            if (arrayEquals(path, newParentPath)) {
+                const index = siblings.findIndex(page => page.id === currentParentId)
+                const newId = Multiple.nextFreeId(siblings)
+                const newPageToMove = { ...pageToMove, id: newId }
+                newPath = [...newParentPath, newId]
+                return [
+                    ...siblings.slice(0, index + 1),
+                    newPageToMove,
+                    ...siblings.slice(index + 1),
+                ]
+            }
+            return siblings
+        },
+    )
+
+    return [
+        newPath,
+        recomputePagesFrom(
+            recomputePath,
+            newPages,
+            env,
+            innerBlock,
+            updatePagesState,
+        ),
+    ]
+}
+
+export function nestPage<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    env: Environment,
+    innerBlock: Block<State>,
+    updatePagesState: BlockUpdater<PageState<State>[]>,
+): [PageId[], PageState<State>[]] {
+    if (path.length === 0) { return [path, pages] }
+
+    const pageToMove = getPageAt(path, pages)
+    if (pageToMove === null) { return [path, pages] }
+
+    const parentPath = path.slice(0, -1)
+    const childId = path.slice(-1)[0]
+
+    let newPath = path
+    const newPages = updatePageSiblingsAt(
+        parentPath,
+        pages,
+        siblings => {
+            const childIndex = siblings.findIndex(page => page.id === childId)
+            if (childIndex === 0) { return siblings }
+            
+            const child = siblings[childIndex]
+            const newParent = siblings[childIndex - 1]
+
+            const newChild = { ...child, id: Multiple.nextFreeId(newParent.children) }
+
+            newPath = [...parentPath, newParent.id, newChild.id ]
+            
+            return [
+                ...siblings.slice(0, childIndex - 1),
+                {
+                    ...newParent,
+                    children: [ ...newParent.children, newChild ],
+                },
+                ...siblings.slice(childIndex + 1),
+            ]
+        },
+    )
+
+    return [
+        newPath,
+        recomputePagesFrom(
+            newPath,
+            newPages,
+            env,
+            innerBlock,
+            updatePagesState,
+        ),
+    ]
+}
 
 export function movePage<State>(
     delta: number,
@@ -101,16 +260,26 @@ export function movePage<State>(
     pages: PageState<State>[],
     innerBlock: Block<State>,
     env: Environment,
+    updatePagesState: BlockUpdater<PageState<State>[]>,
 ) {
+    if (path.length === 0) { return pages }
+
+    const parentPath = path.slice(0, -1)
+    const childId = path.slice(-1)[0]
+    let recomputePath = path
+
     function moveSibling(id: PageId, siblings: PageState<State>[]) {
         const index = siblings.findIndex(page => page.id === id)
         if (index < 0) { return siblings }
         const pageToMove = siblings[index]
 
-        const newIndex = index + delta
-        if (newIndex < 0 || newIndex >= siblings.length) { return siblings }
-
+        const newIndex = clampTo(0, siblings.length, index + delta)
         const siblingsWithout = siblings.filter(page => page.id !== pageToMove.id)
+
+        if (delta < 0) {
+            const siblingAfterPageToMove = siblings[index + 1]
+            recomputePath = [ ...parentPath, siblingAfterPageToMove.id ]
+        }
 
         const newSiblings = [
             ...siblingsWithout.slice(0, newIndex),
@@ -120,71 +289,156 @@ export function movePage<State>(
         return newSiblings
     }
 
-    if (path.length === 0) { return pages }
-
-    if (path.length === 1) {
-        return updatePages(
-            [],
-            moveSibling(path[0], pages),
-            (_path, page, _env) => page,
-            innerBlock,
-            env,
-        )
-    }
-
-    const parentPath = path.slice(0, -1)
-    const childId = path.slice(-1)[0]
-
-    return updatePageAt(
-        parentPath,
-        pages,
-        page => ({
-            ...page,
-            children: moveSibling(childId, page.children),
-        }),
+    return recomputePagesFrom(
+        recomputePath,
+        updatePageSiblingsAt(
+            parentPath,
+            pages,
+            siblings => moveSibling(childId, siblings),
+        ),
         env,
         innerBlock,
+        updatePagesState,
+    )
+}
+
+export function updatePageSiblings<State>(
+    siblings: PageState<State>[],
+    update: (parentPath: PageId[], siblings: PageState<State>[]) => PageState<State>[],
+    currentPath: PageId[] = [],
+) {
+    const newSiblings = update(currentPath, siblings)
+    return newSiblings.map(page => {
+        const pathHere = [...currentPath, page.id]
+        const children = updatePageSiblings(page.children, update, pathHere)
+        return { ...page, children }
+    })
+}
+
+export function updatePageSiblingsAt<State>(
+    parentPath: PageId[],
+    siblings: PageState<State>[],
+    update: (siblings: PageState<State>[]) => PageState<State>[],
+) {
+    return updatePageSiblings(
+        siblings,
+        (path, siblings) => {
+            if (!arrayEquals(path, parentPath)) {
+                return siblings
+            }
+            return update(siblings)
+        },
     )
 }
 
 export function updatePages<State>(
-    currentPath: PageId[],
     pages: Array<PageState<State>>,
-    update: (path: PageId[], page: PageState<State>, localEnv: Environment) => PageState<State>,
-    innerBlock: Block<State>,
-    env: Environment,
+    update: (path: PageId[], page: PageState<State>) => PageState<State>,
+    currentPath: PageId[] = [],
 ) {
-    return mapWithEnv(
-        pages,
-        (page, localEnv) => {
+    return pages.map(
+        page => {
             const pathHere = [...currentPath, page.id]
+            const children = updatePages(page.children, update, pathHere)
+            return update(pathHere, { ...page, children })
+        }
+    )
+}
 
-            const children = updatePages(pathHere, page.children, update, innerBlock, localEnv)
-            const localEnvWithChildren = { ...localEnv, ...Multiple.getResultEnv(children) }
+export function updatePageStateAt<State>(
+    path: PageId[],
+    updatePagesState: BlockUpdater<PageState<State>[]>,
+    action: (state: State) => State,
+    env: Environment,
+    innerBlock: Block<State>,
+) {
+    updatePagesState(pages =>
+        recomputePagesFrom(
+            path,
+            updatePageAt(path, pages, page => ({ ...page, state: action(page.state) })),
+            env,
+            innerBlock,
+            updatePagesState,
+        )
+    )
+}
 
-            const newPage = update(pathHere, { ...page, children }, localEnvWithChildren)
-            const result = innerBlock.getResult(newPage.state, localEnvWithChildren)
+export function recomputePagesFrom<State>(
+    pathWithChanges: null | PageId[],
+    pages: PageState<State>[],
+    env: Environment,
+    innerBlock: Block<State>,
+    updatePagesState: BlockUpdater<PageState<State>[]>,
+    currentPath: PageId[] = [],
+) {
+    const recomputeStartIndex = (
+        pathWithChanges === null ?
+            0
+        : pathWithChanges.length === 0 ?
+            // pages are the children of the changed page -- they don't need to be recalculated
+            pages.length
+        : pathWithChanges.length === 1 ?
+            // don't recalculate the page that changed
+            1 + pages.findIndex(page => page.id === pathWithChanges[0])
+        :
+            pages.findIndex(page => page.id === pathWithChanges[0])
+    )
+
+    const unaffectedPages = pages.slice(0, recomputeStartIndex)
+    const affectedPages = pages.slice(recomputeStartIndex)
+
+    const affectedPagesEnv = { ...env, ...getSiblingsEnv(unaffectedPages) }
+
+    const updatedPages = mapWithEnv(
+        affectedPages,
+        (page, localEnv) => {
+            function localUpdate(action: (state: State) => State) {
+                updatePageStateAt(pathHere, updatePagesState, action, env, innerBlock)
+            }
+
+            const pathHere = [...currentPath, page.id]
+            const children = recomputePagesFrom(
+                pathWithChanges?.slice(1),
+                page.children,
+                localEnv,
+                innerBlock,
+                updatePagesState,
+                pathHere,
+            )
+            const localEnvWithChildren = {
+                ...localEnv,
+                ...getSiblingsEnv(children),
+            }
+            const state = innerBlock.onEnvironmentChange(page.state, localUpdate, localEnv)
+            const result = innerBlock.getResult(state, localEnvWithChildren)
+
+            const newPage = {
+                ...page,
+                children,
+                state,
+                result,
+            }
+
             return {
-                out: { ...newPage, result },
-                env: { [Multiple.entryName(newPage)]: result },
+                out: newPage,
+                env: toEnv(newPage),
             }
         },
-        env,
+        affectedPagesEnv,
     )
+
+    return [...unaffectedPages, ...updatedPages]
 }
 
 export function updatePageAt<State>(
     path: PageId[],
     pages: PageState<State>[],
     action: (state: PageState<State>) => PageState<State>,
-    env: Environment,
-    innerBlock: Block<State>,
 ) {
     if (path.length === 0) { return pages }
 
     return (
         updatePages(
-            [],
             pages,
             (currentPath, page) => {
                 if (arrayEquals(currentPath, path)) {
@@ -192,8 +446,6 @@ export function updatePageAt<State>(
                 }
                 return page
             },
-            innerBlock,
-            env,
         )
     )
 }
@@ -225,17 +477,11 @@ export function pageFromJSON<State>(
 
     const pathHere = [...path, id]
     function localUpdate(action: (state: State) => State) {
-        update(pages => updatePageAt(
-            pathHere,
-            pages,
-            (page) => ({ ...page, state: action(page.state) }),
-            env,
-            innerBlock,
-        ))
+        updatePageStateAt(pathHere, update, action, env, innerBlock)
     }
 
     const loadedChildren = fromJSON(children, update, env, innerBlock, pathHere)
-    const pageEnv = { ...env, ...Multiple.getResultEnv(children) }
+    const pageEnv = { ...env, ...getSiblingsEnv(children) }
     const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
     const result = innerBlock.getResult(loadedState, pageEnv)
     const page: PageState<State> = {
@@ -263,7 +509,7 @@ export function fromJSON<State>(
             const page = pageFromJSON(jsonEntry, update, localEnv, innerBlock, path)
             return {
                 out: page,
-                env: Multiple.entryToEnv(page)
+                env: toEnv(page)
             }
         },
         env,
@@ -316,8 +562,6 @@ export function PageEntry<State>({
     const pageInOpenPath = arrayStartsWith(pathHere, openPage.slice(0, -1))
     const pageCollapsed = page.isCollapsed && !pageInOpenPath
 
-    const untitledName = 'Untitled_' + page.id
-
     function onChangeName(event: React.ChangeEvent<HTMLInputElement>) {
         actions.setPageName(pathHere, event.target.value)
     }
@@ -332,10 +576,7 @@ export function PageEntry<State>({
         }
     }
     function onCommitName() {
-        if (page.name.trim() === '') {
-            actions.setPageName(pathHere, untitledName)
-        }
-        else if (page.name !== page.name.trim()) {
+        if (page.name !== page.name.trim()) {
             actions.setPageName(pathHere, page.name.trim())
         }
         setIsNameEditing(false)
@@ -372,14 +613,14 @@ export function PageEntry<State>({
                         type="text"
                         autoFocus
                         value={page.name}
-                        placeholder={untitledName}
+                        placeholder={getDefaultName(page)}
                         onChange={onChangeName}
                         onBlur={onCommitName}
                         onKeyDown={onInputKeyDown}
                         />
                 ) : (
                     <>
-                        <span onDoubleClick={() => setIsNameEditing(true)}>{page.name}</span>
+                        <span onDoubleClick={() => setIsNameEditing(true)}>{getName(page)}</span>
                         <div className="flex-1" />
                         <button
                             className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"

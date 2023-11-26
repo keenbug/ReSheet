@@ -37,6 +37,16 @@ function ACTIONS<State extends unknown>(
         )
     }
 
+    function updatePages(action: (pages: Pages.PageState<State>[]) => Pages.PageState<State>[]) {
+        update(state => ({
+            ...state,
+            inner: {
+                ...state.inner,
+                pages: action(state.inner.pages),
+            },
+        }))
+    }
+
     return {
         updateInner,
 
@@ -98,13 +108,13 @@ function ACTIONS<State extends unknown>(
 
         addPage(path: PageId[]) {
             updateInner(inner =>
-                Model.addPageAt(path, inner, innerBlock, env)
+                Model.addPageAt(path, inner)
             )
         },
 
         deletePage(path: PageId[]) {
             updateInner(inner =>
-                Model.deletePageAt(path, inner, innerBlock, env)
+                Model.deletePageAt(path, inner, innerBlock, env, updateInner)
             )
         },
 
@@ -112,18 +122,39 @@ function ACTIONS<State extends unknown>(
             updateInner(innerState => {
                 return {
                     ...innerState,
-                    pages: Pages.updatePages(
-                        [],
+                    pages: Pages.updatePageAt(
+                        path,
                         innerState.pages,
-                        (currentPath, page) => (
-                            arrayEquals(path, currentPath) ?
-                                { ...page, name }
-                            :
-                                page
-                        ),
-                        innerBlock,
-                        env,
+                        page => ({ ...page, name }),
                     ),
+                }
+            })
+        },
+
+        nestPage(path: PageId[]) {
+            updateInner(innerState => {
+                const [newPath, pages] = Pages.nestPage(path, innerState.pages, env, innerBlock, updatePages)
+                return {
+                    ...innerState,
+                    pages,
+                    viewState: {
+                        ...innerState.viewState,
+                        openPage: newPath,
+                    }
+                }
+            })
+        },
+
+        unnestPage(path: PageId[]) {
+            updateInner(innerState => {
+                const [newPath, pages] = Pages.unnestPage(path, innerState.pages, env, innerBlock, updatePages)
+                return {
+                    ...innerState,
+                    pages,
+                    viewState: {
+                        ...innerState.viewState,
+                        openPage: newPath,
+                    }
                 }
             })
         },
@@ -132,14 +163,14 @@ function ACTIONS<State extends unknown>(
             updateInner(innerState => {
                 return {
                     ...innerState,
-                    pages: Pages.movePage(delta, path, innerState.pages, innerBlock, env),
+                    pages: Pages.movePage(delta, path, innerState.pages, innerBlock, env, updatePages),
                 }
             })
         },
 
         openPage(path: PageId[]) {
             updateInner(inner =>
-                $update(() => path, inner,'viewState','openPage')
+                Model.changeOpenPage(path, inner, env, innerBlock, updateInner)
             )
         },
 
@@ -148,13 +179,14 @@ function ACTIONS<State extends unknown>(
                 const parent = Pages.getPageAt(currentPath, inner.pages)
                 if (parent === null || parent.children.length === 0) { return inner }
 
-                return $update(() => [...currentPath, parent.children[0].id], inner,'viewState','openPage')
+                const path = [...currentPath, parent.children[0].id]
+                return Model.changeOpenPage(path, inner, env, innerBlock, updateInner)
             })
         },
 
         openParent(currentPath: PageId[]) {
             updateInner(inner =>
-                $update(() => currentPath.slice(0, -1), inner,'viewState','openPage')
+                Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, updateInner)
             )
         },
 
@@ -165,7 +197,7 @@ function ACTIONS<State extends unknown>(
                 const nextPageIndex = clampTo(0, allPaths.length, openPageIndex + 1)
 
                 const newPath = allPaths[nextPageIndex]
-                return $update(() => newPath, inner,'viewState','openPage')
+                return Model.changeOpenPage(newPath, inner, env, innerBlock, updateInner)
             })
         },
 
@@ -176,7 +208,7 @@ function ACTIONS<State extends unknown>(
                 const prevPageIndex = clampTo(0, allPaths.length, openPageIndex - 1)
 
                 const newPath = allPaths[prevPageIndex]
-                return $update(() => newPath, inner,'viewState','openPage')
+                return Model.changeOpenPage(newPath, inner, env, innerBlock, updateInner)
             })
         },
 
@@ -184,17 +216,10 @@ function ACTIONS<State extends unknown>(
             updateInner(innerState => {
                 return {
                     ...innerState,
-                    pages: Pages.updatePages(
-                        [], 
+                    pages: Pages.updatePageAt(
+                        path,
                         innerState.pages,
-                        (currentPath, page) => (
-                            arrayEquals(path, currentPath) ?
-                                { ...page, isCollapsed: !page.isCollapsed }
-                            :
-                                page
-                        ),
-                        innerBlock,
-                        env,
+                        page => ({ ...page, isCollapsed: !page.isCollapsed }),
                     ),
                 }
             })
@@ -284,6 +309,20 @@ function DocumentKeyHandler<State>(
             case "C-Shift-K":
             case "C-Shift-ArrowUp":
                 actions.movePage(-1, state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-H":
+            case "C-Shift-ArrowLeft":
+                actions.unnestPage(state.inner.viewState.openPage)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Shift-L":
+            case "C-Shift-ArrowRight":
+                actions.nestPage(state.inner.viewState.openPage)
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -490,7 +529,7 @@ function MainView<State>({
         ref: innerRef,
         state: openPage.state,
         update: actions.updateOpenPageInner,
-        env: { ...env, ...pageEnv },
+        env: pageEnv,
     })
 }
 
