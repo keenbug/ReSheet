@@ -57,97 +57,102 @@ function ACTIONS<Inner extends unknown>(
     update: EffectfulUpdater<SheetBlockState<Inner>>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
-    innerBlock: Block<Inner>
+    innerBlock: Block<Inner>,
 ) {
     function effectlessUpdate(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
-        update(state => [action(state)])
+        update(state => ({ state: action(state) }))
     }
 
     return {
         scrollUp(fraction: number) {
-            update(state => [
-                state,
-                () => {
-                    const scrollableContainer = findScrollableAncestor(container.current)
-                    if (scrollableContainer) {
-                        scrollableContainer.scrollBy({
-                            top: -fraction * scrollableContainer.clientHeight,
-                            behavior: 'smooth',
-                        })
-                    }
-                },
-            ])
+            update(() => ({
+                effects: [
+                    () => {
+                        const scrollableContainer = findScrollableAncestor(container.current)
+                        if (scrollableContainer) {
+                            scrollableContainer.scrollBy({
+                                top: -fraction * scrollableContainer.clientHeight,
+                                behavior: 'smooth',
+                            });
+                        }
+                    },
+                ],
+            }));
         },
-
+    
         scrollDown(fraction: number) {
-            update(state => [
-                state,
-                () => {
-                    const scrollableContainer = findScrollableAncestor(container.current)
-                    if (scrollableContainer) {
-                        scrollableContainer.scrollBy({
-                            top: fraction * scrollableContainer.clientHeight,
-                            behavior: 'smooth',
-                        })
-                    }
-                },
-            ])
+            update(() => ({
+                effects: [
+                    () => {
+                        const scrollableContainer = findScrollableAncestor(container.current)
+                        if (scrollableContainer) {
+                            scrollableContainer.scrollBy({
+                                top: fraction * scrollableContainer.clientHeight,
+                                behavior: 'smooth',
+                            });
+                        }
+                    },
+                ],
+            }));
         },
-
+    
         focusUp() {
-            update(state => [
-                state,
-                () => {
-                    const focused = findFocused(refMap)
-                    if (focused === undefined) {
-                        refMap
-                            .get(state.lines[0].id)
-                            ?.focus()
-                    }
-                    else {
-                        const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
-                        refMap
-                            .get(prevId)
-                            ?.focus()
-                    }
-                }
-            ])
+            update(state => ({
+                effects: [
+                    () => {
+                        const focused = findFocused(refMap);
+                        if (focused === undefined) {
+                            refMap.get(state.lines[0].id)?.focus()
+                        }
+                        else {
+                            const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
+                            refMap.get(prevId)?.focus()
+                        }
+                    },
+                ],
+            }));
         },
-
+    
         focusDown() {
-            update(state => [
-                state,
-                () => {
-                    const focused = findFocused(refMap)
-                    if (focused === undefined) {
-                        refMap
-                            .get(state.lines[state.lines.length - 1].id)
-                            ?.focus()
-                    }
-                    else {
-                        const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
-                        refMap
-                            .get(nextId)
-                            ?.focus()
-                    }
-                }
-            ])
+            update(state => ({
+                effects: [
+                    () => {
+                        const focused = findFocused(refMap)
+                        if (focused === undefined) {
+                            refMap.get(state.lines[state.lines.length - 1].id)?.focus()
+                        }
+                        else {
+                            const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
+                            refMap.get(nextId)?.focus()
+                        }
+                    },
+                ],
+            }))
         },
-
+    
         setName(id: number, name: string) {
-            update(state => [
-                Model.updateLineWithId(state, id, line => ({ ...line, name }))
-            ])
+            update(state => ({
+                state: Model.updateLineWithId(state, id, line => ({ ...line, name })),
+            }));
         },
-
+    
         switchCollapse(id: number) {
-            update(state => [
-                Model.updateLineWithId(state, id, line => {
-                    return { ...line, visibility: Model.nextLineVisibility(line.visibility) }
-                })
-            ])
+            update(state => ({
+                state: Model.updateLineWithId(state, id, line => ({
+                    ...line,
+                    visibility: Model.nextLineVisibility(line.visibility),
+                })),
+                effects: [
+                    () => {
+                        const line = refMap.get(id)
+                        if (line && !line.containsFocus()) {
+                            line.focus();
+                        }
+                    },
+                ],
+            }))
         },
-
+    
         updateInner(
             id: number,
             action: (state: Inner) => Inner,
@@ -158,57 +163,60 @@ function ACTIONS<Inner extends unknown>(
                 Model.updateLineBlock(state, id, action, innerBlock, env, effectlessUpdate)
             )
         },
-
+    
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             update(state => {
-                const newId = Model.nextFreeId(state)
-                return [
-                    Model.insertLineBefore(state, id, {
+                const newId = Model.nextFreeId(state);
+                return {
+                    state: Model.insertLineBefore(state, id, {
                         id: newId,
                         name: '',
                         visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
                         result: null,
                     }),
-                    () => focusLineRef(refMap.get(newId), focusTarget)
-                ]
+                    effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
+                }
             })
         },
-
+    
         insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             update(state => {
                 const newId = Model.nextFreeId(state)
-                return [
-                    Model.insertLineAfter(state, id, {
+                return {
+                    state: Model.insertLineAfter(state, id, {
                         id: newId,
                         name: '',
                         visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
                         result: null,
                     }),
-                    () => focusLineRef(refMap.get(newId), focusTarget)
-                ]
+                    effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
+                }
             })
         },
-
+    
         deleteCode(id: number) {
             update(state => {
                 if (state.lines.length <= 1) {
-                    return [Model.init(innerBlock.init)]
+                    return {
+                        state: Model.init(innerBlock.init),
+                    }
                 }
-
-                const idIndex = state.lines.findIndex(line => line.id === id)
-                const linesWithoutId = state.lines.filter(line => line.id !== id)
-                const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1))
-                const nextFocusId = linesWithoutId[nextFocusIndex].id
-
-                return [
-                    { ...state, lines: linesWithoutId },
-                    () => refMap.get(nextFocusId)?.focus()
-                ]
+    
+                const idIndex = state.lines.findIndex(line => line.id === id);
+                const linesWithoutId = state.lines.filter(line => line.id !== id);
+                const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1));
+                const nextFocusId = linesWithoutId[nextFocusIndex].id;
+    
+                return {
+                    state: { ...state, lines: linesWithoutId },
+                    effects: [() => refMap.get(nextFocusId)?.focus()],
+                }
             })
         },
     }
+    
 }
 
 
@@ -226,7 +234,7 @@ export interface SheetProps<InnerState> {
 export const Sheet = React.forwardRef(
     function Sheet<InnerState>(
         { state, update, innerBlock, env }: SheetProps<InnerState>,
-        ref
+        ref: React.Ref<BlockRef>
     ) {
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const containerRef = React.useRef<HTMLDivElement>()
@@ -280,6 +288,7 @@ export interface SheetLineProps<InnerState> {
 
 export interface SheetLineRef {
     isFocused(): boolean
+    containsFocus(): boolean
     focus(): void
     focusVar(): void
     focusInner(): void
@@ -300,6 +309,9 @@ export const SheetLine = React.forwardRef(
             () => ({
                 isFocused() {
                     return !!containerRef.current && document.activeElement === containerRef.current
+                },
+                containsFocus() {
+                    return !!containerRef.current && containerRef.current.contains(document.activeElement)
                 },
                 focus() {
                     containerRef.current?.scrollIntoView({

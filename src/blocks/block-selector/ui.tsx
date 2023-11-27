@@ -23,67 +23,63 @@ function ACTIONS(
 ) {
     return {
         updateExpr(expr: string) {
-            update(state => {
-                return [{ ...state, expr }]
-            })
+            update(state => ({
+                state: { ...state, expr },
+            }))
         },
-
+    
         setChooseMode() {
             update(state => {
-                if (state.mode === 'loading') { return [state] }
-
-                return [
-                    {
+                if (state.mode === 'loading') { return {} }
+    
+                return {
+                    state: {
                         mode: 'choose',
                         expr: state.expr,
                         innerBlock: state.innerBlock,
                         innerBlockState: state.innerBlockState,
                     },
-                    () => inputRef.current?.focus()
-                ]
+                    effects: [() => inputRef.current?.focus()],
+                }
             })
         },
-
+    
         cancelChoose() {
             update(state => {
-                if (state.mode === 'loading') {
-                    return [state]
+                if (state.mode === 'loading' || !block.isBlock(state.innerBlock)) {
+                    return { state }
                 }
-                if (!block.isBlock(state.innerBlock)) {
-                    return [state]
-                }
-                return [
-                    {
+    
+                return {
+                    state: {
                         mode: 'run',
                         expr: state.expr,
                         innerBlock: state.innerBlock,
                         innerBlockState: state.innerBlockState,
                     },
-                    () => innerBlockRef.current?.focus(),
-                ]
+                    effects: [() => innerBlockRef.current?.focus()],
+                }
             })
         },
-
+    
         cancelLoading() {
-            update(state => [
-                Model.init(state.expr),
-                () => inputRef.current?. focus(),
-            ])
+            update(state => ({
+                state: Model.init(state.expr),
+                effects: [() => inputRef.current?.focus()],
+            }))
         },
-
+    
         chooseBlock(expr: string, env: Environment) {
-            update((state: BlockSelectorState) => {
-                return [
-                    Model.chooseBlock(expr, state, env, blockLibrary),
-                    () => innerBlockRef.current?.focus()
-                ]
-            })
+            update((state: BlockSelectorState) => ({
+                state: Model.chooseBlock(expr, state, env, blockLibrary),
+                effects: [() => innerBlockRef.current?.focus()],
+            }))
         },
-
+    
         subupdate(action: (state: unknown) => unknown) {
-            update((state: BlockSelectorState) => {
-                return [Model.updateBlock(state, action)]
-            })
+            update((state: BlockSelectorState) => ({
+                state: Model.updateBlock(state, action),
+            }))
         },
     }
 }

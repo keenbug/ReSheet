@@ -65,7 +65,11 @@ export function useEffectQueue() {
     return queue
 }
 
-export type EffectfulAction<State> = (state: State) => [State, ...Array<() => void>]
+export interface Effects<State> {
+    state?: State
+    effects?: Array<() => void>
+}
+export type EffectfulAction<State> = (state: State) => Effects<State>
 export type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
 
 export function useEffectfulUpdate<State>(
@@ -75,7 +79,10 @@ export function useEffectfulUpdate<State>(
 
     return (effectfulAction: EffectfulAction<State>) => {
         update(state => {
-            const [newState, ...effects] = effectfulAction(state)
+            const {
+                state: newState = state,
+                effects = [],
+            } = effectfulAction(state)
             queueEffects(...effects)
             return newState
         })
