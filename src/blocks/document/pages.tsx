@@ -409,7 +409,7 @@ export function recomputePagesFrom<State>(
                 pathHere,
             )
             const localEnvWithChildren = getSiblingsEnv(children, localEnv, innerBlock)
-            const state = innerBlock.onEnvironmentChange(page.state, localUpdate, localEnvWithChildren)
+            const state = innerBlock.recompute(page.state, localUpdate, localEnvWithChildren)
 
             const newPage = {
                 ...page,

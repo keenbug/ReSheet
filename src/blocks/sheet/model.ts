@@ -91,7 +91,7 @@ export function insertLineAfter<Inner>(
     }
 }
 
-export function onEnvironmentChange<State>(state: SheetBlockState<State>, update: block.BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
+export function recompute<State>(state: SheetBlockState<State>, update: block.BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
     function updateLines(action: (lines: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
         update(state => ({
             ...state,
@@ -100,7 +100,7 @@ export function onEnvironmentChange<State>(state: SheetBlockState<State>, update
     }
     return {
         ...state,
-        lines: Multiple.onEnvironmentChange(state.lines, updateLines, env, innerBlock)
+        lines: Multiple.recompute(state.lines, updateLines, env, innerBlock)
     }
 }
 

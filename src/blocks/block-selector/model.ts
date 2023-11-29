@@ -67,7 +67,7 @@ export function updateBlock(state: BlockSelectorState, action: (state: unknown) 
     }
 }
 
-export function onEnvironmentChange(
+export function recompute(
     state: BlockSelectorState,
     update: block.BlockUpdater<BlockSelectorState>,
     env: Environment,
@@ -95,7 +95,7 @@ export function onEnvironmentChange(
     return {
         ...state,
         innerBlock,
-        innerBlockState: innerBlock.onEnvironmentChange(state.innerBlockState, updateInner, env)
+        innerBlockState: innerBlock.recompute(state.innerBlockState, updateInner, env)
     }
 }
 

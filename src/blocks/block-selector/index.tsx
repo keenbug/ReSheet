@@ -29,8 +29,8 @@ export function BlockSelector(
             )
         },
 
-        onEnvironmentChange(state, update, env) {
-            return Model.onEnvironmentChange(state, update, env, blockLibrary)
+        recompute(state, update, env) {
+            return Model.recompute(state, update, env, blockLibrary)
         },
 
         getResult(state) {

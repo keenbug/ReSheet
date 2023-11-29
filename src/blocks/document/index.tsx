@@ -24,8 +24,8 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
                     />
             )
         },
-        onEnvironmentChange(state, update, env) {
-            return Model.onEnvironmentChange(state, update, env, innerBlock)
+        recompute(state, update, env) {
+            return Model.recompute(state, update, env, innerBlock)
         },
         getResult(state: DocumentState<State>) {
             return Model.getResult(state, innerBlock)

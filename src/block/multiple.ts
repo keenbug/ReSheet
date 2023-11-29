@@ -101,7 +101,7 @@ export function insertEntryAfter<Inner, Entry extends BlockEntry<Inner>>(
     )
 }
 
-export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
+export function recompute<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     update: block.BlockUpdater<Entry[]>,
     env: Environment,
@@ -114,7 +114,7 @@ export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
                 update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
             }
 
-            const state = innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
+            const state = innerBlock.recompute(entry.state, localUpdate, localEnv)
             const newEntry = { ...entry, state }
             return {
                 out: newEntry,
@@ -154,7 +154,7 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
                 entry.id === id ?
                     action(entry.state)
                 :
-                    innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
+                    innerBlock.recompute(entry.state, localUpdate, localEnv)
             )
             const newEntry = { ...entry, state }
 

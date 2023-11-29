@@ -26,7 +26,7 @@ export type BlockViewerDesc<State> =
 export interface BlockDesc<State> {
     init: State
     view: BlockViewerDesc<State>
-    onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
+    recompute(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}
@@ -55,7 +55,7 @@ export interface Block<State> {
     [BlockTag]: typeof BlockTag
     init: State
     view: BlockViewer<State>
-    onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
+    recompute(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}

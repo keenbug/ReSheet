@@ -16,13 +16,12 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
     view: block.view,
     fromJSON: block.fromJSON,
     toJSON: block.toJSON,
-    onEnvironmentChange: block.onEnvironmentChange,
-    getResult(state, env) {
+    recompute: block.recompute,
+    getResult(state) {
         return {
             block,
             state,
-            env,
-            result: block.getResult(state, env),
+            result: block.getResult(state),
             derivedBlock: { ...block, init: state }
         }
     },
@@ -39,7 +38,7 @@ export const Input = Block.create<string>({
     getResult(state) {
         return state
     },
-    onEnvironmentChange(state, update, env) {
+    recompute(state, update, env) {
         return state
     },
     fromJSON(json) {
@@ -77,10 +76,10 @@ export const LoadFile = Block.create<any>({
             </LoadFileButtonStyled>
         )
     },
-    onEnvironmentChange(state, update, env) {
+    recompute(state, update, env) {
         return state
     },
-    getResult(state, env) {
+    getResult(state) {
         return state
     },
     fromJSON(json, env) {

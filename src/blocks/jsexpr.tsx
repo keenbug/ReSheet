@@ -32,10 +32,10 @@ export const JSExpr = block.create<JSExprModel>({
     view({ env, state, update }, ref) {
         return <JSExprUi ref={ref} state={state} update={update} env={env} />
     },
-    onEnvironmentChange(state, update, env) {
+    recompute(state, update, env) {
         return updateResult(state, update, env)
     },
-    getResult(state, env) {
+    getResult(state) {
         switch (state.result.type) {
             case 'immediate':
                 return state.result.value
