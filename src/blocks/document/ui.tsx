@@ -524,7 +524,7 @@ function MainView<State>({
         )
     }
 
-    const pageEnv = Model.getOpenPageEnv(innerState, env)
+    const pageEnv = Model.getOpenPageEnv(innerState, env, innerBlock)
     return innerBlock.view({
         ref: innerRef,
         state: openPage.state,

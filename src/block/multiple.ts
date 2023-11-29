@@ -5,7 +5,6 @@ export interface BlockEntry<InnerBlockState> {
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
-    readonly result: unknown
 }
 
 
@@ -21,21 +20,48 @@ export function entryName(entry: BlockEntry<unknown>) {
     return entry.name
 }
 
-export function getLastResult<State>(entries: BlockEntry<State>[]) {
-    return entries[entries.length - 1]?.result
+export function getLastResult<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
+    if (entries.length === 0) { return undefined }
+
+    const lastEntry = entries.slice(-1)[0]
+    const entriesBefore = entries.slice(0, -1)
+
+    const localEnv = getLocalEnv(entriesBefore, env, innerBlock)
+    return innerBlock.getResult(lastEntry.state, localEnv)
 }
 
-export function getResultEnv<State>(entries: BlockEntry<State>[]) {
+export function getResultEnv<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
     return Object.fromEntries(
-        entries.map(entry => [entry.name, entry.result])
+        block.mapWithEnv(
+            entries,
+            (entry, localEnv) => {
+                const result = innerBlock.getResult(entry.state, localEnv)
+                return {
+                    out: [entryName(entry), result],
+                    env: { [entryName(entry)]: result },
+                }
+            },
+            env,
+        )
     )
 }
 
-
-export function entryToEnv<State>(line: BlockEntry<State>) {
+export function entryToEnv<State>(entry: BlockEntry<State>, localEnv: Environment, innerBlock: Block<State>) {
     return {
-        [entryName(line)]: line.result
+        [entryName(entry)]: innerBlock.getResult(entry.state, localEnv)
     }
+}
+
+export function getLocalEnv<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
+    return entries.reduce(
+        (localEnv, entry) => {
+            return {
+                ...env,
+                ...entryToEnv(entry, localEnv, innerBlock),
+            }
+        },
+        env,
+    )
 }
 
 
@@ -87,15 +113,6 @@ export function insertEntryAfter<Inner, Entry extends BlockEntry<Inner>>(
     )
 }
 
-export function getEntryEnvBefore<State>(
-    entries: BlockEntry<State>[],
-    beforeId: number
-) {
-    const entryIndex = entries.findIndex(entry => entry.id === beforeId) ?? 0
-    const entriesBefore = entries.slice(0, entryIndex)
-    return Object.assign({}, ...entriesBefore.map(entryToEnv))
-}
-
 export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     update: block.BlockUpdater<Entry[]>,
@@ -110,10 +127,10 @@ export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
             }
 
             const state = innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
-            const result = innerBlock.getResult(state, localEnv)
+            const newEntry = { ...entry, state }
             return {
-                out: { ...entry, state, result },
-                env: { [entryName(entry)]: result },
+                out: newEntry,
+                env: entryToEnv(newEntry, localEnv, innerBlock),
             }
         },
         env,
@@ -135,7 +152,7 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
     const entriesBefore = entries.slice(0, index)
     const entriesFromId = entries.slice(index)
 
-    const envBefore = Object.assign({}, env, ...entriesBefore.map(entryToEnv))
+    const envBefore = getLocalEnv(entriesBefore, env, innerBlock)
 
 
     const recomputedEntries = block.mapWithEnv(
@@ -151,11 +168,11 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
                 :
                     innerBlock.onEnvironmentChange(entry.state, localUpdate, localEnv)
             )
-            const result = innerBlock.getResult(state, localEnv)
+            const newEntry = { ...entry, state }
 
             return {
-                out: { ...entry, state, result },
-                env: { [entryName(entry)]: result },
+                out: newEntry,
+                env: entryToEnv(newEntry, localEnv, innerBlock),
             }
         },
         envBefore,
@@ -181,17 +198,15 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
 
             const { id, name, state, ...jsonRest } = jsonEntry
             const loadedState = innerBlock.fromJSON(state, localUpdate, localEnv)
-            const result = innerBlock.getResult(loadedState, localEnv)
             const entry: BlockEntry<State> = {
                 id,
                 name,
                 state: loadedState,
-                result
             }
             const fullEntry = parseEntryRest(entry, jsonRest, localEnv)
             return {
                 out: fullEntry,
-                env: entryToEnv(fullEntry)
+                env: entryToEnv(fullEntry, localEnv, innerBlock),
             }
         },
         env,

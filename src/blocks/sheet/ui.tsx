@@ -173,7 +173,6 @@ function ACTIONS<Inner extends unknown>(
                         name: '',
                         visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
-                        result: null,
                     }),
                     effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
                 }
@@ -189,7 +188,6 @@ function ACTIONS<Inner extends unknown>(
                         name: '',
                         visibility: Model.VISIBILITY_STATES[0],
                         state: innerBlock.init,
-                        result: null,
                     }),
                     effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
                 }
@@ -269,7 +267,7 @@ export const Sheet = React.forwardRef(
                                     env={localEnv}
                                     />
                             ),
-                            env: Model.lineToEnv(line),
+                            env: Model.lineToEnv(line, localEnv, innerBlock),
                         }
                     },
                     env
@@ -328,7 +326,7 @@ export const SheetLine = React.forwardRef(
                 focusInner() {
                     innerBlockRef.current?.focus()
                 }
-            })
+            }),
         )
 
         const subupdate = action => actions.updateInner(line.id, action, block, env)
@@ -512,7 +510,7 @@ export const SheetLine = React.forwardRef(
                         </ErrorBoundary>
                     }
                     {line.visibility.result &&
-                        <ValueInspector ref={resultRef} value={line.result} expandLevel={0} />
+                        <ValueInspector ref={resultRef} value={Model.getLineResult(line, env, block)} expandLevel={0} />
                     }
                 </div>
             </div>

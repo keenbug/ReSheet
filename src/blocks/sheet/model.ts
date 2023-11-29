@@ -12,7 +12,6 @@ export interface SheetBlockLine<InnerBlockState> extends BlockEntry<InnerBlockSt
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
-    readonly result: unknown
 
     readonly visibility: LineVisibility
 }
@@ -47,7 +46,6 @@ export function init<InnerBlockState>(innerBlockInit: InnerBlockState): SheetBlo
             name: '',
             visibility: VISIBILITY_STATES[0],
             state: innerBlockInit, 
-            result: undefined,
         }]
     }
 }
@@ -106,8 +104,12 @@ export function onEnvironmentChange<State>(state: SheetBlockState<State>, update
     }
 }
 
-export function getResult<State>(state: SheetBlockState<State>) {
-    return Multiple.getLastResult(state.lines)
+export function getResult<State>(state: SheetBlockState<State>, env: block.Environment, innerBlock: Block<State>) {
+    return Multiple.getLastResult(state.lines, env, innerBlock)
+}
+
+export function getLineResult<State>(line: SheetBlockLine<State>, localEnv: block.Environment, innerBlock: Block<State>) {
+    return innerBlock.getResult(line.state, localEnv)
 }
 
 
