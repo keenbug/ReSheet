@@ -268,7 +268,7 @@ export function updateOpenPage<State>(
                     const result = innerBlock.getResult(state, openPageEnv)
                     return {
                         ...page,
-                        state: action(page.state),
+                        state,
                         result,
                     }
                 },
