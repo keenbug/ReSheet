@@ -34,8 +34,8 @@ export function init<State>(initState: State): DocumentState<State> {
 }
 
 
-export function getResult<State>(state: DocumentState<State>, env: Environment, innerBlock: Block<State>) {
-    return Multiple.getResultEnv(state.inner.pages, env, innerBlock)
+export function getResult<State>(state: DocumentState<State>, innerBlock: Block<State>) {
+    return Multiple.getResultEnv(state.inner.pages, innerBlock)
 }
 
 export function onEnvironmentChange<State>(state: DocumentState<State>, update: BlockUpdater<DocumentState<State>>, env: Environment, innerBlock: Block<State>) {
@@ -266,7 +266,7 @@ export function updateOpenPage<State>(
                 state.pages,
                 page => {
                     const state = action(page.state)
-                    const result = innerBlock.getResult(state, openPageEnv)
+                    const result = innerBlock.getResult(state)
                     return {
                         ...page,
                         state,

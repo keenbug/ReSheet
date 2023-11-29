@@ -17,8 +17,8 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
         onEnvironmentChange(state, update, env) {
             return Model.onEnvironmentChange(state, update, env, innerBlock)
         },
-        getResult(state, env) {
-            return Model.getResult(state, env, innerBlock)
+        getResult(state) {
+            return Model.getResult(state, innerBlock)
         },
         fromJSON(json: any[], update, env) {
             return Model.fromJSON(json, update, env, innerBlock)

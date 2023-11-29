@@ -267,7 +267,7 @@ export const Sheet = React.forwardRef(
                                     env={localEnv}
                                     />
                             ),
-                            env: Model.lineToEnv(line, localEnv, innerBlock),
+                            env: Model.lineToEnv(line, innerBlock),
                         }
                     },
                     env
@@ -510,7 +510,7 @@ export const SheetLine = React.forwardRef(
                         </ErrorBoundary>
                     }
                     {line.visibility.result &&
-                        <ValueInspector ref={resultRef} value={Model.getLineResult(line, env, block)} expandLevel={0} />
+                        <ValueInspector ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
                     }
                 </div>
             </div>

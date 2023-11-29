@@ -27,8 +27,8 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
         onEnvironmentChange(state, update, env) {
             return Model.onEnvironmentChange(state, update, env, innerBlock)
         },
-        getResult(state: DocumentState<State>, env: Environment) {
-            return Model.getResult(state, env, innerBlock)
+        getResult(state: DocumentState<State>) {
+            return Model.getResult(state, innerBlock)
         },
         fromJSON(json: any, update: BlockUpdater<DocumentState<State>>, env: Environment): DocumentState<State> {
             return Model.fromJSON(json, update, env, innerBlock)

@@ -44,8 +44,8 @@ export function getName(page: PageState<any>) {
     return page.name
 }
 
-export function toEnv<State>(page: PageState<State>, localEnv: Environment, innerBlock: Block<State>) {
-    return { [getName(page)]: innerBlock.getResult(page.state, localEnv) }
+export function toEnv<State>(page: PageState<State>, innerBlock: Block<State>) {
+    return { [getName(page)]: innerBlock.getResult(page.state) }
 }
 
 export function getPageAt<State>(path: PageId[], pages: Array<PageState<State>>) {
@@ -116,17 +116,12 @@ export function getNextDependentPath<State>(
 }
 
 export function getSiblingsEnv<State>(siblings: PageState<State>[], env: Environment, innerBlock: Block<State>) {
-    return siblings.reduce(
-        (localEnv, sibling) => {
-            const envWithChildren = getSiblingsEnv(sibling.children, localEnv, innerBlock)
-            const result = innerBlock.getResult(sibling.state, envWithChildren)
-
-            return {
-                ...localEnv,
-                [getName(sibling)]: result,
-            }
-        },
+    return Object.assign(
+        {},
         env,
+        ...siblings.map(sibling =>
+            toEnv(sibling, innerBlock)
+        )
     )
 }
 
@@ -424,7 +419,7 @@ export function recomputePagesFrom<State>(
 
             return {
                 out: newPage,
-                env: toEnv(newPage, localEnvWithChildren, innerBlock),
+                env: toEnv(newPage, innerBlock),
             }
         },
         affectedPagesEnv,
@@ -508,10 +503,9 @@ export function fromJSON<State>(
         json,
         (jsonEntry, localEnv) => {
             const page = pageFromJSON(jsonEntry, update, localEnv, innerBlock, path)
-            const localEnvWithChildren = getSiblingsEnv(page.children, localEnv, innerBlock)
             return {
                 out: page,
-                env: toEnv(page, localEnvWithChildren, innerBlock)
+                env: toEnv(page, innerBlock)
             }
         },
         env,

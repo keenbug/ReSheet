@@ -27,7 +27,7 @@ export interface BlockDesc<State> {
     init: State
     view: BlockViewerDesc<State>
     onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
-    getResult(state: State, env: Environment): any
+    getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}
 }
@@ -56,7 +56,7 @@ export interface Block<State> {
     init: State
     view: BlockViewer<State>
     onEnvironmentChange(state: State, update: BlockUpdater<State>, env: Environment): State
-    getResult(state: State, env: Environment): any
+    getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
     toJSON(state: State): {}
 }

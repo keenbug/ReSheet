@@ -104,12 +104,12 @@ export function onEnvironmentChange<State>(state: SheetBlockState<State>, update
     }
 }
 
-export function getResult<State>(state: SheetBlockState<State>, env: block.Environment, innerBlock: Block<State>) {
-    return Multiple.getLastResult(state.lines, env, innerBlock)
+export function getResult<State>(state: SheetBlockState<State>, innerBlock: Block<State>) {
+    return Multiple.getLastResult(state.lines, innerBlock)
 }
 
-export function getLineResult<State>(line: SheetBlockLine<State>, localEnv: block.Environment, innerBlock: Block<State>) {
-    return innerBlock.getResult(line.state, localEnv)
+export function getLineResult<State>(line: SheetBlockLine<State>, innerBlock: Block<State>) {
+    return innerBlock.getResult(line.state)
 }
 
 

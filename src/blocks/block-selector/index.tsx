@@ -33,10 +33,10 @@ export function BlockSelector(
             return Model.onEnvironmentChange(state, update, env, blockLibrary)
         },
 
-        getResult(state, env) {
+        getResult(state) {
             if (state.mode === 'loading') { return undefined }
         
-            return state.innerBlock?.getResult(state.innerBlockState, env)
+            return state.innerBlock?.getResult(state.innerBlockState)
         },
 
         fromJSON(json: any, update: BlockUpdater<BlockSelectorState>, env: Environment) {

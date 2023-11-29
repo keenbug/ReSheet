@@ -20,47 +20,35 @@ export function entryName(entry: BlockEntry<unknown>) {
     return entry.name
 }
 
-export function getLastResult<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
+export function getLastResult<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     if (entries.length === 0) { return undefined }
 
     const lastEntry = entries.slice(-1)[0]
-    const entriesBefore = entries.slice(0, -1)
-
-    const localEnv = getLocalEnv(entriesBefore, env, innerBlock)
-    return innerBlock.getResult(lastEntry.state, localEnv)
+    return innerBlock.getResult(lastEntry.state)
 }
 
-export function getResultEnv<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
+export function getResultEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     return Object.fromEntries(
-        block.mapWithEnv(
-            entries,
-            (entry, localEnv) => {
-                const result = innerBlock.getResult(entry.state, localEnv)
-                return {
-                    out: [entryName(entry), result],
-                    env: { [entryName(entry)]: result },
-                }
-            },
-            env,
+        entries.map(
+            entry => {
+                const result = innerBlock.getResult(entry.state)
+                return [entryName(entry), result]
+            }
         )
     )
 }
 
-export function entryToEnv<State>(entry: BlockEntry<State>, localEnv: Environment, innerBlock: Block<State>) {
+export function entryToEnv<State>(entry: BlockEntry<State>, innerBlock: Block<State>) {
     return {
-        [entryName(entry)]: innerBlock.getResult(entry.state, localEnv)
+        [entryName(entry)]: innerBlock.getResult(entry.state)
     }
 }
 
 export function getLocalEnv<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
-    return entries.reduce(
-        (localEnv, entry) => {
-            return {
-                ...env,
-                ...entryToEnv(entry, localEnv, innerBlock),
-            }
-        },
+    return Object.assign(
+        {},
         env,
+        ...entries.map(entry => entryToEnv(entry, innerBlock)),
     )
 }
 
@@ -130,7 +118,7 @@ export function onEnvironmentChange<State, Entry extends BlockEntry<State>>(
             const newEntry = { ...entry, state }
             return {
                 out: newEntry,
-                env: entryToEnv(newEntry, localEnv, innerBlock),
+                env: entryToEnv(newEntry, innerBlock),
             }
         },
         env,
@@ -172,7 +160,7 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
 
             return {
                 out: newEntry,
-                env: entryToEnv(newEntry, localEnv, innerBlock),
+                env: entryToEnv(newEntry, innerBlock),
             }
         },
         envBefore,
@@ -206,7 +194,7 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
             const fullEntry = parseEntryRest(entry, jsonRest, localEnv)
             return {
                 out: fullEntry,
-                env: entryToEnv(fullEntry, localEnv, innerBlock),
+                env: entryToEnv(fullEntry, innerBlock),
             }
         },
         env,
