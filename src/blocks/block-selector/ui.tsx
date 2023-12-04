@@ -39,7 +39,7 @@ function ACTIONS(
                         innerBlock: state.innerBlock,
                         innerBlockState: state.innerBlockState,
                     },
-                    effects: [() => inputRef.current?.focus()],
+                    effect() { inputRef.current?.focus() },
                 }
             })
         },
@@ -57,7 +57,7 @@ function ACTIONS(
                         innerBlock: state.innerBlock,
                         innerBlockState: state.innerBlockState,
                     },
-                    effects: [() => innerBlockRef.current?.focus()],
+                    effect() { innerBlockRef.current?.focus() },
                 }
             })
         },
@@ -65,14 +65,14 @@ function ACTIONS(
         cancelLoading() {
             update(state => ({
                 state: Model.init(state.expr),
-                effects: [() => inputRef.current?.focus()],
+                effect() { inputRef.current?.focus() },
             }))
         },
     
         chooseBlock(expr: string, env: Environment) {
             update((state: BlockSelectorState) => ({
                 state: Model.chooseBlock(expr, state, env, blockLibrary),
-                effects: [() => innerBlockRef.current?.focus()],
+                effect() { innerBlockRef.current?.focus() },
             }))
         },
     

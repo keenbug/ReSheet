@@ -63,96 +63,120 @@ function ACTIONS<Inner extends unknown>(
         update(state => ({ state: action(state) }))
     }
 
+    function insertBeforeCode(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+        const newId = Model.nextFreeId(state);
+        return {
+            state: Model.insertLineBefore(state, id, {
+                id: newId,
+                name: '',
+                visibility: Model.VISIBILITY_STATES[0],
+                state: innerBlock.init,
+            }),
+            effect() { focusLineRef(refMap.get(newId), focusTarget) },
+        }
+    }
+
+    function insertAfterCode(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+        const newId = Model.nextFreeId(state)
+        return {
+            state: Model.insertLineAfter(state, id, {
+                id: newId,
+                name: '',
+                visibility: Model.VISIBILITY_STATES[0],
+                state: innerBlock.init,
+            }),
+            effect() { focusLineRef(refMap.get(newId), focusTarget) },
+        }
+    }
+
+    function scroll(amount: number) {
+        return {
+            effect() {
+                const scrollableContainer = findScrollableAncestor(container.current)
+                if (scrollableContainer) {
+                    scrollableContainer.scrollBy({
+                        top: amount * scrollableContainer.clientHeight,
+                        behavior: 'smooth',
+                    })
+                }
+            },
+        }
+    }
+
+    function focusUp(state: SheetBlockState<Inner>) {
+        return {
+            effect() {
+                const focused = findFocused(refMap);
+                if (focused === undefined) {
+                    refMap.get(state.lines[0].id)?.focus()
+                }
+                else {
+                    const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
+                    refMap.get(prevId)?.focus()
+                }
+            },
+        }
+    }
+
+    function focusDown(state: SheetBlockState<Inner>) {
+        return {
+            effect() {
+                const focused = findFocused(refMap)
+                if (focused === undefined) {
+                    refMap.get(state.lines[state.lines.length - 1].id)?.focus()
+                }
+                else {
+                    const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
+                    refMap.get(nextId)?.focus()
+                }
+            },
+        }
+    }
+
+
     return {
-        scrollUp(fraction: number) {
-            update(() => ({
-                effects: [
-                    () => {
-                        const scrollableContainer = findScrollableAncestor(container.current)
-                        if (scrollableContainer) {
-                            scrollableContainer.scrollBy({
-                                top: -fraction * scrollableContainer.clientHeight,
-                                behavior: 'smooth',
-                            });
-                        }
-                    },
-                ],
-            }));
-        },
-    
-        scrollDown(fraction: number) {
-            update(() => ({
-                effects: [
-                    () => {
-                        const scrollableContainer = findScrollableAncestor(container.current)
-                        if (scrollableContainer) {
-                            scrollableContainer.scrollBy({
-                                top: fraction * scrollableContainer.clientHeight,
-                                behavior: 'smooth',
-                            });
-                        }
-                    },
-                ],
-            }));
-        },
-    
-        focusUp() {
+        scroll(amount: number) { update(() => scroll(amount)) },
+
+        focusUp() { update(focusUp) },
+
+        focusDown() { update(focusDown) },
+
+        rename(id: number) {
             update(state => ({
-                effects: [
-                    () => {
-                        const focused = findFocused(refMap);
-                        if (focused === undefined) {
-                            refMap.get(state.lines[0].id)?.focus()
-                        }
-                        else {
-                            const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
-                            refMap.get(prevId)?.focus()
-                        }
+                state: Model.updateLineWithId(state, id, line => ({
+                    ...line,
+                    visibility: {
+                        ...line.visibility,
+                        name: true,
                     },
-                ],
-            }));
-        },
-    
-        focusDown() {
-            update(state => ({
-                effects: [
-                    () => {
-                        const focused = findFocused(refMap)
-                        if (focused === undefined) {
-                            refMap.get(state.lines[state.lines.length - 1].id)?.focus()
-                        }
-                        else {
-                            const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
-                            refMap.get(nextId)?.focus()
-                        }
-                    },
-                ],
+                })),
+                effect() {
+                    refMap.get(id)?.focusVar()
+                },
             }))
         },
-    
+
         setName(id: number, name: string) {
             update(state => ({
                 state: Model.updateLineWithId(state, id, line => ({ ...line, name })),
             }));
         },
-    
+
         switchCollapse(id: number) {
             update(state => ({
                 state: Model.updateLineWithId(state, id, line => ({
                     ...line,
                     visibility: Model.nextLineVisibility(line.visibility),
                 })),
-                effects: [
-                    () => {
-                        const line = refMap.get(id)
-                        if (line && !line.containsFocus()) {
-                            line.focus();
-                        }
-                    },
-                ],
+                effect() {
+                    const line = refMap.get(id)
+                    if (line && !line.containsFocus()) {
+                        line.focus();
+                    }
+                },
             }))
         },
-    
+
         updateInner(
             id: number,
             action: (state: Inner) => Inner,
@@ -163,37 +187,49 @@ function ACTIONS<Inner extends unknown>(
                 Model.updateLineBlock(state, id, action, innerBlock, env, effectlessUpdate)
             )
         },
-    
+
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-            update(state => {
-                const newId = Model.nextFreeId(state);
-                return {
-                    state: Model.insertLineBefore(state, id, {
-                        id: newId,
-                        name: '',
-                        visibility: Model.VISIBILITY_STATES[0],
-                        state: innerBlock.init,
-                    }),
-                    effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
-                }
-            })
+            update(state => insertBeforeCode(state, id, innerBlock, focusTarget))
         },
-    
+
         insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+            update(state => insertAfterCode(state, id, innerBlock, focusTarget))
+        },
+
+        focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
             update(state => {
-                const newId = Model.nextFreeId(state)
+                const currentIndex = state.lines.findIndex(line => line.id === id)
+                if (currentIndex < 0) { return {} }
+                if (currentIndex === 0) {
+                    return insertBeforeCode(state, id, innerBlock, 'inner')
+                }
+
+                const prevLine = state.lines[currentIndex - 1]
                 return {
-                    state: Model.insertLineAfter(state, id, {
-                        id: newId,
-                        name: '',
-                        visibility: Model.VISIBILITY_STATES[0],
-                        state: innerBlock.init,
-                    }),
-                    effects: [() => focusLineRef(refMap.get(newId), focusTarget)],
+                    effect() {
+                        refMap.get(prevLine.id)?.focusInner()
+                    }
                 }
             })
         },
-    
+
+        focusOrCreateNext(id: number, innerBlock: Block<Inner>) {
+            update(state => {
+                const currentIndex = state.lines.findIndex(line => line.id === id)
+                if (currentIndex < 0) { return {} }
+                if (currentIndex === state.lines.length - 1) {
+                    return insertAfterCode(state, id, innerBlock, 'inner')
+                }
+
+                const nextLine = state.lines[currentIndex + 1]
+                return {
+                    effect() {
+                        refMap.get(nextLine.id)?.focusInner()
+                    }
+                }
+            })
+        },
+
         deleteCode(id: number) {
             update(state => {
                 if (state.lines.length <= 1) {
@@ -201,20 +237,20 @@ function ACTIONS<Inner extends unknown>(
                         state: Model.init(innerBlock.init),
                     }
                 }
-    
+
                 const idIndex = state.lines.findIndex(line => line.id === id);
                 const linesWithoutId = state.lines.filter(line => line.id !== id);
                 const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1));
                 const nextFocusId = linesWithoutId[nextFocusIndex].id;
-    
+
                 return {
                     state: { ...state, lines: linesWithoutId },
-                    effects: [() => refMap.get(nextFocusId)?.focus()],
+                    effect() { refMap.get(nextFocusId)?.focus() },
                 }
             })
         },
     }
-    
+
 }
 
 
@@ -259,7 +295,7 @@ export const Sheet = React.forwardRef(
                         return {
                             out: (
                                 <SheetLine
-                                    ref={setLineRef(line.id)}
+                                    lineRef={setLineRef(line.id)}
                                     key={line.id}
                                     line={line}
                                     actions={actions}
@@ -282,6 +318,7 @@ export interface SheetLineProps<InnerState> {
     actions: Actions<InnerState>
     block: Block<InnerState>
     env: Environment
+    lineRef: React.Ref<SheetLineRef>
 }
 
 export interface SheetLineRef {
@@ -292,231 +329,223 @@ export interface SheetLineRef {
     focusInner(): void
 }
 
-export const SheetLine = React.forwardRef(
-    function SheetLine(
-        { block, line, env, actions }: SheetLineProps<unknown>,
-        ref: React.Ref<SheetLineRef>
-    ) {
-        const containerRef = React.useRef<HTMLDivElement>()
-        const varInputRef = React.useRef<HTMLElement>()
-        const innerBlockRef = React.useRef<BlockRef>()
-        const resultRef = React.useRef<HTMLElement>()
+export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLineProps<Inner>) {
+    const containerRef = React.useRef<HTMLDivElement>()
+    const varInputRef = React.useRef<HTMLElement>()
+    const innerBlockRef = React.useRef<BlockRef>()
+    const resultRef = React.useRef<HTMLElement>()
 
-        React.useImperativeHandle(
-            ref,
-            () => ({
-                isFocused() {
-                    return !!containerRef.current && document.activeElement === containerRef.current
-                },
-                containsFocus() {
-                    return !!containerRef.current && containerRef.current.contains(document.activeElement)
-                },
-                focus() {
-                    containerRef.current?.scrollIntoView({
-                        block: 'nearest',
-                        behavior: 'smooth',
-                    })
-                    containerRef.current?.focus({
-                        preventScroll: true
-                    })
-                },
-                focusVar() {
-                    varInputRef.current?.focus()
-                },
-                focusInner() {
-                    innerBlockRef.current?.focus()
-                }
-            }),
-        )
+    React.useImperativeHandle(
+        lineRef,
+        () => ({
+            isFocused() {
+                return !!containerRef.current && document.activeElement === containerRef.current
+            },
+            containsFocus() {
+                return !!containerRef.current && containerRef.current.contains(document.activeElement)
+            },
+            focus() {
+                containerRef.current?.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth',
+                })
+                containerRef.current?.focus({ preventScroll: true })
+            },
+            focusVar() {
+                varInputRef.current?.focus()
+            },
+            focusInner() {
+                innerBlockRef.current?.focus()
+            }
+        }),
+    )
 
-        const subupdate = action => actions.updateInner(line.id, action, block, env)
+    function subupdate(action: (inner: Inner) => Inner) {
+        actions.updateInner(line.id, action, block, env)
+    }
 
-        function onContainerKeyDown(event: React.KeyboardEvent) {
-            switch (getFullKey(event)) {
-                case "C-ArrowUp":
-                case "C-K":
-                    if (event.currentTarget === event.target) {
-                        actions.scrollUp(0.25)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                   return
-
-                case "C-ArrowDown":
-                case "C-J":
-                    if (event.currentTarget === event.target) {
-                        actions.scrollDown(0.25)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-Shift-ArrowUp":
-                case "C-Shift-K":
-                    if (event.currentTarget === event.target) {
-                        actions.scrollUp(0.1)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                   return
-
-                case "C-Shift-ArrowDown":
-                case "C-Shift-J":
-                    if (event.currentTarget === event.target) {
-                        actions.scrollDown(0.1)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "ArrowUp":
-                case "K":
-                    if (event.currentTarget === event.target) {
-                        actions.focusUp()
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                   return
-
-                case "ArrowDown":
-                case "J":
-                    if (event.currentTarget === event.target) {
-                        actions.focusDown()
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "Enter":
-                    if (event.currentTarget === event.target) {
-                        if (line.visibility.name) {
-                            varInputRef.current?.focus()
-                        }
-                        else if (line.visibility.block) {
-                            innerBlockRef.current?.focus()
-                        }
-                        else if (line.visibility.result) {
-                            resultRef.current?.focus()
-                        }
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "Escape":
-                    if (event.currentTarget !== event.target && document.activeElement !== containerRef.current) {
-                        if (event.target instanceof HTMLElement) { event.target.blur() }
-                        containerRef.current?.focus()
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-Enter":
-                    if (event.currentTarget !== event.target) {
-                        actions.insertAfterCode(line.id, block, 'inner')
-                        event.stopPropagation()
-                        event.preventDefault()
-                        return
-                    }
-                    // fall-through
-                case "O":
-                    if (event.currentTarget === event.target) {
-                        actions.insertAfterCode(line.id, block)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-Shift-Enter":
-                    if (event.currentTarget !== event.target) {
-                        if (event.target === varInputRef.current) {
-                            actions.insertBeforeCode(line.id, block)
-                        }
-                        else {
-                            // The focus has to be in `innerBlock`
-                            varInputRef.current?.focus()
-                        }
-                        event.stopPropagation()
-                        event.preventDefault()
-                        return
-                    }
-                    // fall-through
-                case "Shift-O":
-                    if (event.currentTarget === event.target) {
-                        actions.insertBeforeCode(line.id, block)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-Backspace":
-                case "Backspace":
-                    if (event.currentTarget === event.target) {
-                        actions.deleteCode(line.id)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-M":
-                    actions.switchCollapse(line.id)
+    function onContainerKeyDown(event: React.KeyboardEvent) {
+        switch (getFullKey(event)) {
+            case "C-ArrowUp":
+            case "C-K":
+                if (event.currentTarget === event.target) {
+                    actions.scroll(-0.25)
                     event.stopPropagation()
                     event.preventDefault()
-                    return
-            }
-        }
+                }
+                return
 
-        function onInputKeyDown(event: React.KeyboardEvent) {
-            switch (getFullKey(event)) {
-                case "ArrowDown":
-                case "Enter":
+            case "C-ArrowDown":
+            case "C-J":
+                if (event.currentTarget === event.target) {
+                    actions.scroll(0.25)
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-Shift-ArrowUp":
+            case "C-Shift-K":
+                if (event.currentTarget === event.target) {
+                    actions.scroll(-0.1)
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-Shift-ArrowDown":
+            case "C-Shift-J":
+                if (event.currentTarget === event.target) {
+                    actions.scroll(0.1)
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "ArrowUp":
+            case "K":
+                if (event.currentTarget === event.target) {
+                    actions.focusUp()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "ArrowDown":
+            case "J":
+                if (event.currentTarget === event.target) {
+                    actions.focusDown()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "Enter":
+                if (event.currentTarget === event.target) {
                     if (line.visibility.block) {
                         innerBlockRef.current?.focus()
-                    } else if (line.visibility.name) {
-                        varInputRef.current?.focus()
+                    }
+                    else if (line.visibility.result) {
+                        resultRef.current?.focus()
                     }
                     event.stopPropagation()
                     event.preventDefault()
-                    return
-            }
-        }
+                }
+                return
 
-        return (
-            <div
-                ref={containerRef}
-                className={`
-                    flex flex-row space-x-2
-                    focus:ring-0
-                    focus:bg-gray-100
-                    group
-                `}
-                tabIndex={-1}
-                onKeyDown={onContainerKeyDown}
-                >
-                <MenuPopover line={line} actions={actions} block={block} />
-                <div className="flex flex-col space-y-1 flex-1">
-                    {line.visibility.name &&
-                        <AssignmentLine
-                            ref={varInputRef}
-                            line={line}
-                            actions={actions}
-                            onKeyDown={onInputKeyDown}
-                            />
-                    }
-                    {line.visibility.block &&
-                        <ErrorBoundary title="There was an error in the subblock">
-                            {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
-                        </ErrorBoundary>
-                    }
-                    {line.visibility.result &&
-                        <ValueInspector ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
-                    }
-                </div>
-            </div>
-        )
+            case "Escape":
+                if (event.currentTarget !== event.target && document.activeElement !== containerRef.current) {
+                    if (event.target instanceof HTMLElement) { event.target.blur() }
+                    containerRef.current?.focus()
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-Enter":
+                if (event.currentTarget !== event.target) {
+                    actions.focusOrCreateNext(line.id, block)
+                    event.stopPropagation()
+                    event.preventDefault()
+                    return
+                }
+                // fall-through
+            case "O":
+                if (event.currentTarget === event.target) {
+                    actions.insertAfterCode(line.id, block, 'inner')
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-Shift-Enter":
+                if (event.currentTarget !== event.target) {
+                    actions.focusOrCreatePrev(line.id, block)
+                    event.stopPropagation()
+                    event.preventDefault()
+                    return
+                }
+                // fall-through
+            case "Shift-O":
+                if (event.currentTarget === event.target) {
+                    actions.insertBeforeCode(line.id, block, 'inner')
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-Shift-R":
+                actions.rename(line.id)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+
+            case "C-Backspace":
+            case "Backspace":
+                if (event.currentTarget === event.target) {
+                    actions.deleteCode(line.id)
+                    event.stopPropagation()
+                    event.preventDefault()
+                }
+                return
+
+            case "C-M":
+                actions.switchCollapse(line.id)
+                event.stopPropagation()
+                event.preventDefault()
+                return
+        }
     }
-)
+
+    function onInputKeyDown(event: React.KeyboardEvent) {
+        switch (getFullKey(event)) {
+            case "ArrowDown":
+            case "Enter":
+                if (line.visibility.block) {
+                    innerBlockRef.current?.focus()
+                } else if (line.visibility.name) {
+                    varInputRef.current?.focus()
+                }
+                event.stopPropagation()
+                event.preventDefault()
+                return
+        }
+    }
+
+    return (
+        <div
+            ref={containerRef}
+            className={`
+                flex flex-row space-x-2
+                focus:ring-0
+                focus:bg-gray-100
+                group
+            `}
+            tabIndex={-1}
+            onKeyDown={onContainerKeyDown}
+            >
+            <MenuPopover line={line} actions={actions} block={block} />
+            <div className="flex flex-col space-y-1 flex-1">
+                {line.visibility.name &&
+                    <AssignmentLine
+                        ref={varInputRef}
+                        line={line}
+                        actions={actions}
+                        onKeyDown={onInputKeyDown}
+                        />
+                }
+                {line.visibility.block &&
+                    <ErrorBoundary title="There was an error in the subblock">
+                        {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
+                    </ErrorBoundary>
+                }
+                {line.visibility.result &&
+                    <ValueInspector ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
+                }
+            </div>
+        </div>
+    )
+}
 
 
 interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
@@ -528,7 +557,11 @@ interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
         const { line, children = null, actions, ...inputProps } = props
-        const onUpdateName = name => actions.setName(line.id, name)
+
+        function onUpdateName(name: string) {
+            actions.setName(line.id, name)
+        }
+
         return (
             <div
                 className={`

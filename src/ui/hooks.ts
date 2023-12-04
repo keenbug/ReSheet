@@ -47,43 +47,62 @@ export function useAutoretrigger<Args extends Array<any> = []>(
 
 
 export function useEffectQueue() {
-    const effectQueue = React.useRef([])
+    const effect = React.useRef<() => void>()
 
     React.useEffect(() => {
-        if (effectQueue.current.length > 0) {
-            effectQueue.current.forEach(effect => {
-                effect()
-            })
-            effectQueue.current.splice(0, effectQueue.current.length)
+        if (typeof effect.current === 'function') {
+            effect.current()
+            effect.current = undefined
         }
     })
 
-    function queue(...effects) {
-        effectQueue.current.push(...effects)
+    function queueEffect(newEffect: () => void) {
+        if (typeof effect.current !== 'function') {
+            effect.current = newEffect
+        }
+        else {
+            const previousEffect = effect.current
+            effect.current = () => {
+                previousEffect()
+                newEffect()
+            }
+        }
     }
 
-    return queue
+    return queueEffect
 }
 
-export interface Effects<State> {
-    state?: State
-    effects?: Array<() => void>
+export function manyEffects(...effects: Array<() => void>): () => void {
+    return () => {
+        effects.forEach(effect => {
+            effect()
+        })
+    }
 }
-export type EffectfulAction<State> = (state: State) => Effects<State>
+
+export interface Effectful<State> {
+    state?: State
+    effect?: () => void
+}
+export type EffectfulAction<State> = (state: State) => Effectful<State>
 export type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
 
 export function useEffectfulUpdate<State>(
     update: (action: (state: State) => State) => void
 ): EffectfulUpdater<State> {
-    const queueEffects = useEffectQueue()
+    const queueEffect = useEffectQueue()
 
     return (effectfulAction: EffectfulAction<State>) => {
         update(state => {
             const {
                 state: newState = state,
-                effects = [],
+                effect,
             } = effectfulAction(state)
-            queueEffects(...effects)
+
+            if (effect !== undefined) {
+                queueEffect(effect)
+            }
+
             return newState
         })
     }
