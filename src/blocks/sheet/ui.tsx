@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -12,6 +11,7 @@ import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
 import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
 import { clampTo } from '../../utils'
+import { GatherShortcuts, Keybinding, Shortcuts, ViewShortcuts } from '../../ui/shortcuts'
 
 
 /**************** Code Actions **************/
@@ -288,27 +288,34 @@ export const Sheet = React.forwardRef(
         const actions = ACTIONS(updateWithEffect, containerRef, refMap, innerBlock)
 
         return (
-            <div ref={containerRef} className="pb-[80vh]">
-                {block.mapWithEnv(
-                    state.lines,
-                    (line, localEnv) => {
-                        return {
-                            out: (
-                                <SheetLine
-                                    lineRef={setLineRef(line.id)}
-                                    key={line.id}
-                                    line={line}
-                                    actions={actions}
-                                    block={innerBlock}
-                                    env={localEnv}
-                                    />
-                            ),
-                            env: Model.lineToEnv(line, innerBlock),
-                        }
-                    },
-                    env
+            <GatherShortcuts>
+                {bindings => (
+                    <>
+                        <div ref={containerRef} className="pb-[80vh]">
+                            {block.mapWithEnv(
+                                state.lines,
+                                (line, localEnv) => {
+                                    return {
+                                        out: (
+                                            <SheetLine
+                                                lineRef={setLineRef(line.id)}
+                                                key={line.id}
+                                                line={line}
+                                                actions={actions}
+                                                block={innerBlock}
+                                                env={localEnv}
+                                                />
+                                        ),
+                                        env: Model.lineToEnv(line, innerBlock),
+                                    }
+                                },
+                                env
+                            )}
+                        </div>
+                        <ViewShortcuts className="sticky bottom-0 py-1 bg-white overflow-x-scroll" bindings={bindings} />
+                    </>
                 )}
-            </div>
+            </GatherShortcuts>
         )
     }
 )
@@ -364,212 +371,114 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
         actions.updateInner(line.id, action, block, env)
     }
 
-    function onContainerKeyDown(event: React.KeyboardEvent) {
-        switch (getFullKey(event)) {
-            case "C-ArrowUp":
-            case "C-K":
-                if (event.currentTarget === event.target) {
-                    actions.scroll(-0.25)
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
+    const bindings: Keybinding[] = ([
+        [["C-ArrowUp", "C-K"],               "none",         "scroll UP",        () => actions.scroll(-0.25)],
+        [["C-ArrowDown", "C-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.25)],
+        [["C-Shift-ArrowUp", "C-Shift-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
+        [["C-Shift-ArrowDown", "C-Shift-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
+        [["ArrowUp", "K"],                   "selfFocused",  "move up",          () => actions.focusUp()],
+        [["ArrowDown", "J"],                 "selfFocused",  "move down",        () => actions.focusDown()],
+        [["C-Enter"],                        "!selfFocused", "jump next",        () => actions.focusOrCreateNext(line.id, block)],
+        [["C-Shift-Enter"],                  "!selfFocused", "jump prev",        () => actions.focusOrCreatePrev(line.id, block)],
+        [["C-Enter", "O"],                   "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
+        [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
+        [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
+        [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
+        [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
+        [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus()],
 
-            case "C-ArrowDown":
-            case "C-J":
-                if (event.currentTarget === event.target) {
-                    actions.scroll(0.25)
-                    event.stopPropagation()
-                    event.preventDefault()
+        [
+            ["Enter"],
+            "selfFocused",
+            "focus inner",
+            () => {
+                if (line.visibility.block) {
+                    innerBlockRef.current?.focus()
+                } else if (line.visibility.result) {
+                    resultRef.current?.focus()
+                } else if (line.visibility.name) {
+                    varInputRef.current?.focus()
                 }
-                return
+            },
+        ],
+    ])
 
-            case "C-Shift-ArrowUp":
-            case "C-Shift-K":
-                if (event.currentTarget === event.target) {
-                    actions.scroll(-0.1)
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-Shift-ArrowDown":
-            case "C-Shift-J":
-                if (event.currentTarget === event.target) {
-                    actions.scroll(0.1)
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "ArrowUp":
-            case "K":
-                if (event.currentTarget === event.target) {
-                    actions.focusUp()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "ArrowDown":
-            case "J":
-                if (event.currentTarget === event.target) {
-                    actions.focusDown()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "Enter":
-                if (event.currentTarget === event.target) {
-                    if (line.visibility.block) {
-                        innerBlockRef.current?.focus()
-                    }
-                    else if (line.visibility.result) {
-                        resultRef.current?.focus()
-                    }
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "Escape":
-                if (event.currentTarget !== event.target && document.activeElement !== containerRef.current) {
-                    if (event.target instanceof HTMLElement) { event.target.blur() }
-                    containerRef.current?.focus()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-Enter":
-                if (event.currentTarget !== event.target) {
-                    actions.focusOrCreateNext(line.id, block)
-                    event.stopPropagation()
-                    event.preventDefault()
-                    return
-                }
-                // fall-through
-            case "O":
-                if (event.currentTarget === event.target) {
-                    actions.insertAfterCode(line.id, block, 'inner')
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-Shift-Enter":
-                if (event.currentTarget !== event.target) {
-                    actions.focusOrCreatePrev(line.id, block)
-                    event.stopPropagation()
-                    event.preventDefault()
-                    return
-                }
-                // fall-through
-            case "Shift-O":
-                if (event.currentTarget === event.target) {
-                    actions.insertBeforeCode(line.id, block, 'inner')
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-Shift-R":
-                actions.rename(line.id)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Backspace":
-            case "Backspace":
-                if (event.currentTarget === event.target) {
-                    actions.deleteCode(line.id)
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-M":
-                actions.switchCollapse(line.id)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-        }
-    }
-
-    function onInputKeyDown(event: React.KeyboardEvent) {
-        switch (getFullKey(event)) {
-            case "ArrowDown":
-            case "Enter":
+    const assignmentLineBindings: Keybinding[] = [
+        [
+            ["ArrowDown", "Enter"],
+            "none",
+            "jump next",
+            () => {
                 if (line.visibility.block) {
                     innerBlockRef.current?.focus()
                 } else if (line.visibility.name) {
                     varInputRef.current?.focus()
                 }
-                event.stopPropagation()
-                event.preventDefault()
-                return
-        }
-    }
+            },
+        ],
+    ]
 
     return (
-        <div
+        <Shortcuts
             ref={containerRef}
+            name={`line${line.id}`}
             className={`
                 flex flex-row space-x-2
                 focus:ring-0
                 focus:bg-gray-100
                 group
             `}
-            tabIndex={-1}
-            onKeyDown={onContainerKeyDown}
+            bindings={bindings}
             >
             <MenuPopover line={line} actions={actions} block={block} />
             <div className="flex flex-col space-y-1 flex-1">
                 {line.visibility.name &&
                     <AssignmentLine
+                        key="name"
                         ref={varInputRef}
                         line={line}
                         actions={actions}
-                        onKeyDown={onInputKeyDown}
+                        bindings={assignmentLineBindings}
                         />
                 }
                 {line.visibility.block &&
-                    <ErrorBoundary title="There was an error in the subblock">
+                    <ErrorBoundary key="block" title="There was an error in the subblock">
                         {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
                     </ErrorBoundary>
                 }
                 {line.visibility.result &&
-                    <ValueInspector ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
+                    <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
                 }
             </div>
-        </div>
+        </Shortcuts>
     )
 }
 
 
 interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
     line: SheetBlockLine<State>
-    children?: any
     actions: Actions<State>
+    bindings: Keybinding[]
 }
 
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
-        const { line, children = null, actions, ...inputProps } = props
+        const { line, actions, bindings, ...inputProps } = props
 
         function onUpdateName(name: string) {
             actions.setName(line.id, name)
         }
 
         return (
-            <div
+            <Shortcuts
+                name={`name${line.id}`}
                 className={`
                     self-stretch
                     pr-2 -mb-1 mt-1
                     text-slate-500 font-light text-xs
                     truncate
                 `}
+                bindings={bindings}
                 >
                 <TextInput
                     ref={ref}
@@ -585,8 +494,7 @@ export const AssignmentLine = React.forwardRef(
                     placeholder={Model.lineDefaultName(line)}
                     {...inputProps}
                 />
-                {children}
-            </div>
+            </Shortcuts>
         )
     }
 )

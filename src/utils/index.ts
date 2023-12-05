@@ -27,6 +27,10 @@ export function interpolate(strings: TemplateStringsArray, interpolations: Array
     )
 }
 
+export function intersperse<E>(elem: E, array: E[]): E[] {
+    return array.flatMap(item => [elem, item]).slice(1)
+}
+
 export function arrayEquals<E>(
     arr1: E[],
     arr2: E[],

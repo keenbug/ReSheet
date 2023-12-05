@@ -34,6 +34,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.2.0",
     "@fortawesome/react-fontawesome": "^0.2.0",
     "@headlessui/react": "^1.7.17",
+    "immutable": "^5.0.0-beta.4",
     "prismjs": "^1.26.0",
     "react": "18",
     "react-dom": "18",
