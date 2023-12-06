@@ -11,7 +11,7 @@ import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
 import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
 import { clampTo } from '../../utils'
-import { GatherShortcuts, Keybinding, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
+import { Keybinding, Keybindings, useShortcuts } from '../../ui/shortcuts'
 
 
 /**************** Code Actions **************/
@@ -288,30 +288,27 @@ export const Sheet = React.forwardRef(
         const actions = ACTIONS(updateWithEffect, containerRef, refMap, innerBlock)
 
         return (
-            <GatherShortcuts>
-                <div key="main" ref={containerRef} className="pb-[80vh]">
-                    {block.mapWithEnv(
-                        state.lines,
-                        (line, localEnv) => {
-                            return {
-                                out: (
-                                    <SheetLine
-                                        lineRef={setLineRef(line.id)}
-                                        key={line.id}
-                                        line={line}
-                                        actions={actions}
-                                        block={innerBlock}
-                                        env={localEnv}
-                                        />
-                                ),
-                                env: Model.lineToEnv(line, innerBlock),
-                            }
-                        },
-                        env
-                    )}
-                </div>
-                <ShortcutSuggestions key="shortcuts" className="sticky bottom-0 py-1 bg-white overflow-x-scroll" />
-            </GatherShortcuts>
+            <div ref={containerRef} className="pb-[80vh]">
+                {block.mapWithEnv(
+                    state.lines,
+                    (line, localEnv) => {
+                        return {
+                            out: (
+                                <SheetLine
+                                    lineRef={setLineRef(line.id)}
+                                    key={line.id}
+                                    line={line}
+                                    actions={actions}
+                                    block={innerBlock}
+                                    env={localEnv}
+                                    />
+                            ),
+                            env: Model.lineToEnv(line, innerBlock),
+                        }
+                    },
+                    env
+                )}
+            </div>
         )
     }
 )
@@ -417,7 +414,7 @@ function sheetLineBindings<Inner>(
     innerBlockRef: React.MutableRefObject<block.BlockRef>,
     resultRef: React.MutableRefObject<HTMLElement>,
     varInputRef: React.MutableRefObject<HTMLElement>,
-): Keybinding[] {
+): Keybindings {
     return [
         [["C-ArrowUp", "C-K"],               "none",         "scroll UP",        () => actions.scroll(-0.25)],
         [["C-ArrowDown", "C-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.25)],
@@ -476,7 +473,7 @@ function assignmentLineBindings<Inner>(
 interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
     line: SheetBlockLine<State>
     actions: Actions<State>
-    bindings: Keybinding[]
+    bindings: Keybindings
 }
 
 export const AssignmentLine = React.forwardRef(

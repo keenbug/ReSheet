@@ -7,13 +7,16 @@ import { intersperse } from '../utils'
 
 
 export type Keybinding = [keys: string[], condition: Condition, description: string, action: () => void]
+export type KeybindingGroup = { description?: string, bindings: Keybinding[] }
+export type Keybindings = Array<Keybinding | KeybindingGroup>
 
 export type Condition =
     | "none"
     | "selfFocused"
     | "!selfFocused"
+    | "!inputFocused"
 
-export function checkCondition(condition: Condition, isSelfFocused: boolean) {
+export function checkCondition(condition: Condition, isSelfFocused: boolean, isInputFocused: boolean) {
     switch (condition) {
         case "none":
             return true
@@ -23,9 +26,19 @@ export function checkCondition(condition: Condition, isSelfFocused: boolean) {
 
         case "!selfFocused":
             return !isSelfFocused
+
+        case "!inputFocused":
+            return !isInputFocused
     }
 }
 
+function isAnInput(value: any) {
+    return (
+        value instanceof HTMLTextAreaElement
+        || value instanceof HTMLInputElement
+        || (value instanceof HTMLElement && value.isContentEditable)
+    )
+}
 
 export function onFullKey(
     event: React.KeyboardEvent,
@@ -35,7 +48,7 @@ export function onFullKey(
 ) {
     if (event.isPropagationStopped()) { return }
     if (!keys.includes(getFullKey(event))) { return }
-    if (!checkCondition(condition, event.currentTarget === event.target)) { return }
+    if (!checkCondition(condition, event.currentTarget === event.target, isAnInput(event.target))) { return }
 
     event.stopPropagation()
     event.preventDefault()
@@ -44,17 +57,41 @@ export function onFullKey(
 
 
 export function keybindingsHandler(
-    bindings: Keybinding[]
+    bindings: Keybindings
 ): (event: React.KeyboardEvent) => void {
     return function onKeyDown(event: React.KeyboardEvent) {
-        bindings.forEach(([keys, condition, _description, action]) => {
-            onFullKey(event, keys, condition, action)
+        bindings.forEach(binding => {
+            if (Array.isArray(binding)) {
+                const [keys, condition, _description, action] = binding
+                onFullKey(event, keys, condition, action)
+            }
+            else {
+                binding.bindings.forEach(([keys, condition, _description, action]) => {
+                    onFullKey(event, keys, condition, action)
+                })
+            }
         })
     }
 }
 
-export function filterBindings(bindings: Keybinding[], isSelfFocused: boolean) {
-    return bindings.filter(([_keys, condition, _description, _action]) => checkCondition(condition, isSelfFocused))
+export function filterBindings(bindings: Keybindings, isSelfFocused: boolean, isInputFocused: boolean) {
+    return bindings
+        .filter(binding => {
+            if (!Array.isArray(binding)) {
+                return true
+            }
+            const [_keys, condition, _description, _action] = binding
+            return checkCondition(condition, isSelfFocused, isInputFocused)
+        })
+        .map(binding => {
+            if (Array.isArray(binding)) {
+                return binding
+            }
+            return {
+                ...binding,
+                bindings: filterBindings(binding.bindings, isSelfFocused, isInputFocused),
+            }
+        })
 }
 
 
@@ -63,7 +100,7 @@ export function filterBindings(bindings: Keybinding[], isSelfFocused: boolean) {
 export type ReporterId = string
 
 export type ShortcutsReporter = {
-    reportBindings(id: ReporterId, bindings: Keybinding[]): void
+    reportBindings(id: ReporterId, bindings: Keybindings): void
     removeBindings(id: ReporterId): void
 }
 
@@ -73,7 +110,7 @@ const dummyShortcutsReporter: ShortcutsReporter = {
 }
 
 const GatherShortcutsContext = React.createContext<ShortcutsReporter>(dummyShortcutsReporter)
-const ShortcutsContext = React.createContext<Keybinding[]>([])
+const ShortcutsContext = React.createContext<Keybindings>([])
 
 export function useActiveBindings() {
     return React.useContext(ShortcutsContext)
@@ -85,10 +122,10 @@ export interface GatherShortcutsProps {
 }
 
 export function GatherShortcuts({ children }: GatherShortcutsProps) {
-    const [activeBindings, setActiveBindings] = React.useState<OrderedMap<ReporterId, Keybinding[]>>(OrderedMap())
+    const [activeBindings, setActiveBindings] = React.useState<OrderedMap<ReporterId, Keybindings>>(OrderedMap())
 
     const reporters = React.useMemo(() => ({
-        reportBindings(id: ReporterId, bindings: Keybinding[]) {
+        reportBindings(id: ReporterId, bindings: Keybindings) {
             setActiveBindings(activeBindings => activeBindings.set(id, bindings))
         },
 
@@ -109,7 +146,7 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 }
 
 
-export function useShortcuts(bindings: Keybinding[]) {
+export function useShortcuts(bindings: Keybindings) {
     const id = React.useId()
     const { reportBindings, removeBindings } = React.useContext(GatherShortcutsContext)
     const onKeyDown = React.useMemo(() => keybindingsHandler(bindings), [bindings])
@@ -130,7 +167,7 @@ export function useShortcuts(bindings: Keybinding[]) {
         const alreadyContainedFocus = event.currentTarget.contains(event.relatedTarget) // contains the element losing focus
         if (!lostOrGainedFocus && alreadyContainedFocus) { return }
 
-        const newActiveBindings = filterBindings(bindings, isSelfFocused)
+        const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInput(event.target))
         reportBindings(id, newActiveBindings)
     }, [])
 
@@ -153,29 +190,85 @@ export function useShortcuts(bindings: Keybinding[]) {
 
 
 
+function flattenBindings(bindings: Keybindings): Keybinding[] {
+    return bindings.flatMap(binding => {
+        if (Array.isArray(binding)) {
+            return [binding]
+        }
+        return binding.bindings
+    })
+}
 
-export function ShortcutSuggestions({ className = "" }: { className: string }) {
-    const bindings = useActiveBindings()
+export function ShortcutSuggestions({ flat, className = "", allbindings }: { flat: boolean, className: string, allbindings?: Keybindings }) {
+    const activeBindings = useActiveBindings()
+    const bindings = allbindings ?? activeBindings
+
     if (bindings.length === 0) { return null }
 
-    return (
-        <div className={`flex flex-row justify-between px-0.5 space-x-4 ${className}`}>
-            {bindings.map(([keys, _condition, description, action]) => (
-                <div
-                    className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition"
-                    onPointerDown={(event: React.PointerEvent) => {
-                        event.stopPropagation()
-                        event.preventDefault()
-                        action()
-                    }}
-                >
+    const flattenedBindings = flat ? flattenBindings(bindings) : bindings
+
+    function Binding({ binding }: { binding: Keybinding }) {
+        const [keys, _condition, description, action] = binding
+        return (
+            <div
+                className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition"
+                onPointerDown={(event: React.PointerEvent) => {
+                    event.stopPropagation()
+                    event.preventDefault()
+                    action()
+                }}
+            >
+                {intersperse<React.ReactNode>(
+                    <div className="text-xs">/</div>,
+                    keys.map(k => <KeyComposition shortcut={k} />)
+                )}
+                <div className="ml-2 text-xs text-gray-700 whitespace-nowrap">{description}</div>
+            </div>
+        )
+    }
+
+    function BindingInGroup({ binding }: { binding: Keybinding }) {
+        const [keys, _condition, description, action] = binding
+        return (
+            <tr
+                className="py-0.5 cursor-pointer hover:-translate-y-0.5 transition"
+                onPointerDown={(event: React.PointerEvent) => {
+                    event.stopPropagation()
+                    event.preventDefault()
+                    action()
+                }}
+            >
+                <td className="flex flex-row space-x-1">
                     {intersperse<React.ReactNode>(
                         <div className="text-xs">/</div>,
                         keys.map(k => <KeyComposition shortcut={k} />)
                     )}
-                    <div className="ml-2 text-xs text-gray-700 whitespace-nowrap">{description}</div>
-                </div>
-            ))}
+                </td>
+                <td className="pl-2 text-xs text-gray-700 whitespace-nowrap">{description}</td>
+            </tr>
+        )
+    }
+
+    return (
+        <div className={`flex flex-row justify-between space-x-4 ${className}`}>
+            {flattenedBindings.map(binding => {
+                if (Array.isArray(binding)) {
+                    return <Binding binding={binding} />
+                }
+
+                return (
+                    <div className="flex flex-col space-y-2">
+                        {binding.description && <div className="text-xs font-medium">{binding.description}</div>}
+                        <div>
+                            <table>
+                                <tbody>
+                                    {binding.bindings.map(binding => <BindingInGroup binding={binding} />)}{/* Bindingception */}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )
+            })}
         </div>
     )
 }
@@ -241,6 +334,9 @@ export function KeyButton({ keyName }) {
 
         case "Escape":
             return Container("text-xs text-gray-900", "esc")
+
+        case " ":
+            return Container("text-xs text-gray-900", "space")
 
         default:
             return Container("text-xs text-gray-900", keyName)

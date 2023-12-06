@@ -5,6 +5,7 @@ import { Block, Environment, BlockViewerProps, BlockUpdater } from '../../block'
 import { DocumentState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
+import { GatherShortcuts } from '../../ui/shortcuts'
 
 export { Model, UI }
 
@@ -15,13 +16,15 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
         init: Model.init(innerBlock.init),
         view({ state, update, env }: BlockViewerProps<DocumentState<State>>, ref) {
             return (
-                <UI.DocumentUi
-                    state={state}
-                    update={update}
-                    env={env}
-                    innerBlock={innerBlock}
-                    blockRef={ref}
-                    />
+                <GatherShortcuts>
+                    <UI.DocumentUi
+                        state={state}
+                        update={update}
+                        env={env}
+                        innerBlock={innerBlock}
+                        blockRef={ref}
+                        />
+                </GatherShortcuts>
             )
         },
         recompute(state, update, env) {

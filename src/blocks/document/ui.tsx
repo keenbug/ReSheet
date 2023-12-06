@@ -5,8 +5,9 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
-import { LoadFileButton, getFullKey, saveFile, selectFile } from '../../ui/utils'
+import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, clampTo } from '../../utils'
+import { Keybindings, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -255,161 +256,166 @@ function ACTIONS<State extends unknown>(
 }
 
 
-function DocumentKeyHandler<State>(
+function DocumentKeyBindings<State>(
     state: DocumentState<State>,
     actions: Actions<State>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerRef: React.MutableRefObject<BlockRef>,
     setIsNameEditing: (editing: boolean) => void,
-) {
-    return function onKeyDown(event: React.KeyboardEvent) {
-        const isTargetAnInput = (
-            event.target instanceof HTMLTextAreaElement
-            || event.target instanceof HTMLInputElement
-            || (event.target instanceof HTMLElement && event.target.isContentEditable)
-        )
-
-        switch (getFullKey(event)) {
-            // not sure about capturing this...
-            case "C-N":
-                if (event.ctrlKey && isTargetAnInput) { return }
-                actions.addPage(state.inner.viewState.openPage.slice(0, -1))
-                setIsNameEditing(true)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-N":
-                actions.addPage(state.inner.viewState.openPage)
-                setIsNameEditing(true)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-D":
-                actions.useAsTempate(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Backspace":
-                if (isTargetAnInput) { return }
-                actions.deletePage(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-J":
-            case "C-Shift-ArrowDown":
-                actions.movePage(1, state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-K":
-            case "C-Shift-ArrowUp":
-                actions.movePage(-1, state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-H":
-            case "C-Shift-ArrowLeft":
-                actions.unnestPage(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-L":
-            case "C-Shift-ArrowRight":
-                actions.nestPage(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "J":
-            case "ArrowDown":
-                if (isTargetAnInput) { return }
-                actions.openNextPage(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "K":
-            case "ArrowUp":
-                if (isTargetAnInput) { return }
-                actions.openPrevPage(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "L":
-            case "ArrowRight":
-                if (isTargetAnInput) { return }
-                actions.openFirstChild(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "H":
-            case "ArrowLeft":
-                if (isTargetAnInput) { return }
-                actions.openParent(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case " ":
-                if (isTargetAnInput) { return }
-                actions.toggleCollapsed(state.inner.viewState.openPage)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-O":
-                selectFile().then(file => {
-                    actions.loadLocalFile(file)
-                })
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-S":
-                actions.save()
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-B":
-                actions.toggleSidebar()
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "Escape":
-                if (document.activeElement !== containerRef.current) {
-                    containerRef.current?.focus()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
-
-            case "C-Enter":
-                setIsNameEditing(true)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "Enter":
-                if (isTargetAnInput) { return }
-                if (containerRef.current === document.activeElement) {
-                    innerRef.current?.focus()
-                    event.stopPropagation()
-                    event.preventDefault()
-                }
-                return
+): Keybindings {
+    return [
+        {
+            description: "create / delete pages",
+            bindings: [
+                [
+                    // not sure about capturing this...
+                    ["C-N"],
+                    "!inputFocused",
+                    "new page",
+                    () => {
+                        actions.addPage(state.inner.viewState.openPage.slice(0, -1))
+                        setIsNameEditing(true)
+                    },
+                ],
+                [
+                    ["C-Shift-N"],
+                    "none",
+                    "new child page",
+                    () => {
+                        actions.addPage(state.inner.viewState.openPage)
+                        setIsNameEditing(true)
+                    },
+                ],
+                [
+                    ["C-Backspace"],
+                    "!inputFocused",
+                    "delete page",
+                    () => { actions.deletePage(state.inner.viewState.openPage) },
+                ],
+            ]
+        },
+        [
+            ["C-Shift-D"],
+            "none",
+            "safe as default template",
+            () => { actions.useAsTempate(state.inner.viewState.openPage) },
+        ],
+        {
+            description: "move pages",
+            bindings: [
+                [
+                    ["C-Shift-K", "C-Shift-ArrowUp"],
+                    "none",
+                    "move page up",
+                    () => { actions.movePage(-1, state.inner.viewState.openPage) },
+                ],
+                [
+                    ["C-Shift-J", "C-Shift-ArrowDown"],
+                    "none",
+                    "move page down",
+                    () => { actions.movePage(1, state.inner.viewState.openPage) },
+                ],
+                [
+                    ["C-Shift-H", "C-Shift-ArrowLeft"],
+                    "none",
+                    "move page one level up",
+                    () => { actions.unnestPage(state.inner.viewState.openPage) },
+                ],
+                [
+                    ["C-Shift-L", "C-Shift-ArrowRight"],
+                    "none",
+                    "move page one level down",
+                    () => { actions.nestPage(state.inner.viewState.openPage) },
+                ],
+            ]
+        },
+        {
+            description: "move between pages",
+            bindings: [
+                [
+                    ["K", "ArrowUp"],
+                    "!inputFocused",
+                    "open prev page",
+                    () => { actions.openPrevPage(state.inner.viewState.openPage) },
+                ],
+                [
+                    ["J", "ArrowDown"],
+                    "!inputFocused",
+                    "open next page",
+                    () => { actions.openNextPage(state.inner.viewState.openPage) },
+                ],
+                [
+                    ["L", "ArrowRight"],
+                    "!inputFocused",
+                    "open first child page",
+                    () => { actions.openFirstChild(state.inner.viewState.openPage) },
+                ],
+                [
+                    ["H", "ArrowLeft"],
+                    "!inputFocused",
+                    "open parent page",
+                    () => { actions.openParent(state.inner.viewState.openPage) },
+                ],
+            ]
+        },
+        {
+            description: "change page",
+            bindings: [
+                [
+                    [" "],
+                    "!inputFocused",
+                    "toggle page collapsed",
+                    () => { actions.toggleCollapsed(state.inner.viewState.openPage) },
+                ],
+                [
+                    ["C-Enter"],
+                    "none",
+                    "edit page name",
+                    () => { setIsNameEditing(true) },
+                ],
+            ]
+        },
+        {
+            description: "files",
+            bindings: [
+                [
+                    ["C-O"],
+                    "none",
+                    "open local file",
+                    async () => { actions.loadLocalFile(await selectFile()) },
+                ],
+                [
+                    ["C-S"],
+                    "none",
+                    "save file",
+                    () => { actions.save() },
+                ],
+            ]
+        },
+        {
+            description: "view",
+            bindings: [
+                [
+                    ["C-B"],
+                    "none",
+                    "toggle sidebar",
+                    () => { actions.toggleSidebar() },
+                ],
+                [
+                    ["Escape"],
+                    "!selfFocused",
+                    "focus out",
+                    () => { containerRef.current?.focus() },
+                ],
+                [
+                    ["Enter"],
+                    "selfFocused",
+                    "focus block",
+                    () => { innerRef.current?.focus() },
+                ],
+            ]
         }
-    }
+    ]
 }
 
 
@@ -442,7 +448,8 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     }
 
     const actions = ACTIONS(update, innerBlock, env)
-    const onKeyDown = DocumentKeyHandler(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar)
+    const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar)
+    const bindingProps = useShortcuts(bindings)
 
     return (
         <>
@@ -452,7 +459,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     <div
                         ref={containerRef}
                         tabIndex={-1}
-                        onKeyDown={onKeyDown}
+                        {...bindingProps}
                         className="h-full relative flex"
                         >
                         <Sidebar
@@ -464,7 +471,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             />
                         <SidebarButton state={innerState} actions={actions} />
 
-                        <div className={`h-full overflow-y-scroll flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                        <div className={`h-full overflow-y-scroll relative flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
                             <MainView
                                 key={innerState.viewState.openPage.join('.')}
                                 innerRef={innerRef}
@@ -474,6 +481,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                 innerBlock={innerBlock}
                                 env={env}
                                 />
+                            <ShortcutSuggestions flat={false} className="absolute bottom-0 inset-x-0 p-1 bg-white overflow-x-scroll" />
                         </div>
                     </div>
                 )}
