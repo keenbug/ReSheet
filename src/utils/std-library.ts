@@ -8,6 +8,8 @@ import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 import * as reactInspector from 'react-inspector'
 
+import * as immutable from 'immutable'
+
 import * as babelCore from '@babel/core'
 import babelReact from '@babel/preset-react'
 import * as babelParser from '@babel/parser'
@@ -18,16 +20,21 @@ import * as babelTypes from '@babel/types'
 import * as block from '../block'
 import * as multiple from '../block/multiple'
 import * as blockComponent from '../block/component'
+
 import * as blocks from '../blocks'
-import * as codeEditor from '../ui/code-editor'
 import * as blockSelector from '../blocks/block-selector'
-import * as compute from '../logic/compute'
 import * as jsexpr from '../blocks/jsexpr'
 import * as sheet from '../blocks/sheet'
 import * as document from '../blocks/document'
+
+import * as compute from '../logic/compute'
+
 import * as ui from '../ui/utils'
-import * as utils from '.'
+import * as codeEditor from '../ui/code-editor'
 import * as value from '../ui/value'
+import * as shortcuts from '../ui/shortcuts'
+
+import * as utils from '.'
 
 export const LIBRARY_MAPPINGS = {
     "react":                                React,
@@ -70,6 +77,8 @@ export const library = {
     styled,
     headlessui,
 
+    immutable,
+
     babel: {
         core: babelCore,
         react: babelReact,
@@ -89,6 +98,7 @@ export const library = {
             utils: ui,
             value,
             codeEditor,
+            shortcuts,
         },
         blocks: {
             blockSelector,

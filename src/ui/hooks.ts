@@ -56,7 +56,7 @@ export function useEffectQueue() {
         }
     })
 
-    function queueEffect(newEffect: () => void) {
+    const queueEffect = React.useCallback(function queueEffect(newEffect: () => void) {
         if (typeof effect.current !== 'function') {
             effect.current = newEffect
         }
@@ -67,7 +67,7 @@ export function useEffectQueue() {
                 newEffect()
             }
         }
-    }
+    }, [effect])
 
     return queueEffect
 }
@@ -92,7 +92,7 @@ export function useEffectfulUpdate<State>(
 ): EffectfulUpdater<State> {
     const queueEffect = useEffectQueue()
 
-    return (effectfulAction: EffectfulAction<State>) => {
+    return React.useCallback((effectfulAction: EffectfulAction<State>) => {
         update(state => {
             const {
                 state: newState = state,
@@ -105,7 +105,7 @@ export function useEffectfulUpdate<State>(
 
             return newState
         })
-    }
+    }, [update, queueEffect])
 }
 
 export function useRefMap<Key, Ref>(
