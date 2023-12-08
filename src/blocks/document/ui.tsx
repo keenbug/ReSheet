@@ -746,10 +746,10 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: Collecto
 
     const noshiftCount = keyMap.valueSeq().map(({ noshift }) => noshift).filter(noshift => noshift).count()
     const shiftCount = keyMap.valueSeq().map(({ shift }) => shift).filter(shift => shift).count()
-    const matches = keyMap.count() >= 40 && shiftCount === noshiftCount
 
     const noshiftMissing = keyMap.valueSeq().filter(({ noshift }) => !noshift).map(({ shift }) => shift).sort().toArray()
     const shiftMissing = keyMap.valueSeq().filter(({ shift }) => !shift).map(({ noshift }) => noshift).sort().toArray()
+    const matches = keyMap.count() >= 40 && noshiftMissing.length === 0 && shiftMissing.length === 0
 
     return (
         <div
@@ -775,22 +775,24 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: Collecto
                     Another time with only the Shift modifier pressed.
                 </p>
                 <p>
-                    Collected: {noshiftCount} without shift / {shiftCount} with shift{' '}
-                    {matches ?
-                        <FontAwesomeIcon className="text-green-500" icon={solidIcons.faCircleCheck} />
-                    :
-                        <FontAwesomeIcon className="text-red-500" icon={regularIcons.faCircleXmark} />
-                    }
+                    Collected: {noshiftCount} without shift / {shiftCount} with shift
                 </p>
                 {shiftMissing.length > 0 &&
-                <p>
-                    These keys need to be pressed with shift: {shiftMissing.map(key => <KeyButton keyName={key} />)}
-                </p>
+                    <p>
+                        <FontAwesomeIcon className="text-red-500" icon={regularIcons.faCircleXmark} />{' '}
+                        These keys need to be pressed with shift: {shiftMissing.map(key => <KeyButton keyName={key} />)}
+                    </p>
                 }
                 {noshiftMissing.length > 0 &&
-                <p>
-                    These keys need to be pressed without shift: {noshiftMissing.map(key => <KeyButton keyName={key} />)}
-                </p>
+                    <p>
+                        <FontAwesomeIcon className="text-red-500" icon={regularIcons.faCircleXmark} />{' '}
+                        These keys need to be pressed without shift: {noshiftMissing.map(key => <KeyButton keyName={key} />)}
+                    </p>
+                }
+                {matches &&
+                    <p>
+                        Looks good <FontAwesomeIcon className="text-green-500" icon={solidIcons.faCircleCheck} />
+                    </p>
                 }
                 <button
                     className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-gray-100 text-gray-400"}`}
