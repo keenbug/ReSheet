@@ -294,12 +294,6 @@ function DocumentKeyBindings<State>(
                 ],
             ]
         },
-        [
-            ["C-Shift-D"],
-            "none",
-            "safe as default template",
-            () => { actions.useAsTempate(state.inner.viewState.openPage) },
-        ],
         {
             description: "move pages",
             bindings: [
@@ -362,16 +356,22 @@ function DocumentKeyBindings<State>(
             description: "change page",
             bindings: [
                 [
+                    ["C-Enter"],
+                    "none",
+                    "edit page name",
+                    () => { setIsNameEditing(true) },
+                ],
+                [
                     [" "],
                     "!inputFocused",
                     "toggle page collapsed",
                     () => { actions.toggleCollapsed(state.inner.viewState.openPage) },
                 ],
                 [
-                    ["C-Enter"],
+                    ["C-Shift-D"],
                     "none",
-                    "edit page name",
-                    () => { setIsNameEditing(true) },
+                    "safe as default template",
+                    () => { actions.useAsTempate(state.inner.viewState.openPage) },
                 ],
             ]
         },
@@ -460,7 +460,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                         ref={containerRef}
                         tabIndex={-1}
                         {...bindingProps}
-                        className="h-full relative flex"
+                        className="h-full w-full flex overflow-hidden"
                         >
                         <Sidebar
                             state={innerState}
@@ -471,17 +471,19 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             />
                         <SidebarButton state={innerState} actions={actions} />
 
-                        <div className={`h-full overflow-y-scroll relative flex-1 ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
-                            <MainView
-                                key={innerState.viewState.openPage.join('.')}
-                                innerRef={innerRef}
-                                state={state}
-                                actions={actions}
-                                innerState={innerState}
-                                innerBlock={innerBlock}
-                                env={env}
-                                />
-                            <ShortcutSuggestions flat={false} className="absolute bottom-0 inset-x-0 p-1 bg-white overflow-x-scroll" />
+                        <div className="h-full flex-1 flex flex-col items-stretch overflow-hidden">
+                            <div className={`flex-1 overflow-scroll ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                                <MainView
+                                    key={innerState.viewState.openPage.join('.')}
+                                    innerRef={innerRef}
+                                    state={state}
+                                    actions={actions}
+                                    innerState={innerState}
+                                    innerBlock={innerBlock}
+                                    env={env}
+                                    />
+                            </div>
+                            <ShortcutSuggestions flat={false} className="flex-none p-1 overflow-x-scroll" />
                         </div>
                     </div>
                 )}

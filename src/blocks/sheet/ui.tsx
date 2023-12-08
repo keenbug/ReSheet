@@ -416,35 +416,54 @@ function sheetLineBindings<Inner>(
     varInputRef: React.MutableRefObject<HTMLElement>,
 ): Keybindings {
     return [
-        [["C-ArrowUp", "C-K"],               "none",         "scroll UP",        () => actions.scroll(-0.25)],
-        [["C-ArrowDown", "C-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.25)],
-        [["C-Shift-ArrowUp", "C-Shift-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
-        [["C-Shift-ArrowDown", "C-Shift-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
-        [["ArrowUp", "K"],                   "selfFocused",  "move up",          () => actions.focusUp()],
-        [["ArrowDown", "J"],                 "selfFocused",  "move down",        () => actions.focusDown()],
-        [["C-Enter"],                        "!selfFocused", "jump next",        () => actions.focusOrCreateNext(line.id, block)],
-        [["C-Shift-Enter"],                  "!selfFocused", "jump prev",        () => actions.focusOrCreatePrev(line.id, block)],
-        [["C-Enter", "O"],                   "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
-        [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
-        [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
-        [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
-        [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
-        [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus()],
-
-        [
-            ["Enter"],
-            "selfFocused",
-            "focus inner",
-            () => {
-                if (line.visibility.block) {
-                    innerBlockRef.current?.focus()
-                } else if (line.visibility.result) {
-                    resultRef.current?.focus()
-                } else if (line.visibility.name) {
-                    varInputRef.current?.focus()
-                }
-            },
-        ],
+        {
+            description: "change lines",
+            bindings: [
+                [["C-Enter", "O"],                   "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
+                [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
+                [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
+                [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
+            ]
+        },
+        {
+            description: "line view",
+            bindings: [
+                [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
+                [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus()],
+                [
+                    ["Enter"],
+                    "selfFocused",
+                    "focus inner",
+                    () => {
+                        if (line.visibility.block) {
+                            innerBlockRef.current?.focus()
+                        } else if (line.visibility.result) {
+                            resultRef.current?.focus()
+                        } else if (line.visibility.name) {
+                            varInputRef.current?.focus()
+                        }
+                    },
+                ],
+            ]
+        },
+        {
+            description: "move between lines",
+            bindings: [
+                [["ArrowUp", "K"],                   "selfFocused",  "move up",          () => actions.focusUp()],
+                [["ArrowDown", "J"],                 "selfFocused",  "move down",        () => actions.focusDown()],
+                [["C-Enter"],                        "!selfFocused", "jump next",        () => actions.focusOrCreateNext(line.id, block)],
+                [["C-Shift-Enter"],                  "!selfFocused", "jump prev",        () => actions.focusOrCreatePrev(line.id, block)],
+            ]
+        },
+        {
+            description: "scroll sheet",
+            bindings: [
+                [["C-ArrowUp", "C-K"],               "none",         "scroll UP",        () => actions.scroll(-0.25)],
+                [["C-ArrowDown", "C-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.25)],
+                [["C-Shift-ArrowUp", "C-Shift-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
+                [["C-Shift-ArrowDown", "C-Shift-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
+            ]
+        },
     ]
 }
 

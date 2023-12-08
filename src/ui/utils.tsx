@@ -16,12 +16,30 @@ interface KeyboardEvent {
     key: string
 }
 
+// Keys that don't change with shift on all keyboard layouts (except for maybe uppercase/lowercase)
+export const shiftStableKeys = [
+    "[A-Z]",
+    " ",
+    "Tab",
+    "Enter",
+    "Backspace",
+    "Delete",
+    "Escape",
+    "Arrow(Up|Down|Left|Right)",
+    "Home",
+    "End",
+    "Page(Up|Down)",
+]
+export const shiftStableKeysRegex = new RegExp("^(" + shiftStableKeys.join('|') + ")$")
+
 export function getFullKey(event: KeyboardEvent) {
+    const keyName = event.key.length > 1 ? event.key : event.key.toUpperCase()
+    const shiftStable = shiftStableKeysRegex.test(keyName)
     return [
         (event.ctrlKey || event.metaKey) ? "C-" : "",
-        event.shiftKey ? "Shift-" : "",
+        shiftStable && event.shiftKey ? "Shift-" : "",
         event.altKey ? "Alt-" : "",
-        event.key.length > 1 ? event.key : event.key.toUpperCase(),
+        keyName,
     ].join('')
 }
 

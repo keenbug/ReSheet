@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { OrderedMap } from 'immutable'
 
@@ -134,7 +136,7 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
         },
     }), [])
 
-    const allBindings = activeBindings.valueSeq().toArray().flat()
+    const allBindings = activeBindings.valueSeq().reverse().toArray().flat()
 
     return (
         <GatherShortcutsContext.Provider value={reporters}>
@@ -207,68 +209,70 @@ export function ShortcutSuggestions({ flat, className = "", allbindings }: { fla
 
     const flattenedBindings = flat ? flattenBindings(bindings) : bindings
 
-    function Binding({ binding }: { binding: Keybinding }) {
-        const [keys, _condition, description, action] = binding
-        return (
-            <div
-                className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition"
-                onPointerDown={(event: React.PointerEvent) => {
-                    event.stopPropagation()
-                    event.preventDefault()
-                    action()
-                }}
-            >
-                {intersperse<React.ReactNode>(
-                    <div className="text-xs">/</div>,
-                    keys.map(k => <KeyComposition shortcut={k} />)
-                )}
-                <div className="ml-2 text-xs text-gray-700 whitespace-nowrap">{description}</div>
-            </div>
-        )
-    }
+    return (
+        <div className={`flex flex-row justify-between space-x-20 ${className}`}>
+            {flattenedBindings.map(binding => {
+                if (Array.isArray(binding)) {
+                    return <BindingSuggestion key={binding[2]} binding={binding} />
+                }
+                else {
+                    return <GroupSuggestion key={binding.description} group={binding} />
+                }
+            })}
+        </div>
+    )
+}
 
-    function BindingInGroup({ binding }: { binding: Keybinding }) {
-        const [keys, _condition, description, action] = binding
-        return (
-            <tr
-                className="py-0.5 cursor-pointer hover:-translate-y-0.5 transition"
-                onPointerDown={(event: React.PointerEvent) => {
-                    event.stopPropagation()
-                    event.preventDefault()
-                    action()
-                }}
-            >
-                <td className="flex flex-row space-x-1">
-                    {intersperse<React.ReactNode>(
-                        <div className="text-xs">/</div>,
-                        keys.map(k => <KeyComposition shortcut={k} />)
-                    )}
-                </td>
-                <td className="pl-2 text-xs text-gray-700 whitespace-nowrap">{description}</td>
-            </tr>
-        )
+function BindingSuggestion({ binding }: { binding: Keybinding }) {
+    const [keys, _condition, description, action] = binding
+    return (
+        <div
+            className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition"
+            onPointerDown={(event: React.PointerEvent) => {
+                event.stopPropagation()
+                event.preventDefault()
+                action()
+            }}
+        >
+            {intersperse<React.ReactNode>(
+                <div className="text-xs">/</div>,
+                keys.map(k => <KeyComposition key={k} shortcut={k} />)
+            )}
+            <div className="ml-2 text-xs text-gray-700 whitespace-nowrap">{description}</div>
+        </div>
+    )
+}
+
+function GroupSuggestion({ group }: { group: KeybindingGroup }) {
+    if (group.bindings.length === 0) {
+        return null
     }
 
     return (
-        <div className={`flex flex-row justify-between space-x-4 ${className}`}>
-            {flattenedBindings.map(binding => {
-                if (Array.isArray(binding)) {
-                    return <Binding binding={binding} />
-                }
-
-                return (
-                    <div className="flex flex-col space-y-2">
-                        {binding.description && <div className="text-xs font-medium">{binding.description}</div>}
-                        <div>
-                            <table>
-                                <tbody>
-                                    {binding.bindings.map(binding => <BindingInGroup binding={binding} />)}{/* Bindingception */}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )
-            })}
+        <div className="flex flex-col space-y-2">
+            {group.description && <div className="text-xs font-medium">{group.description}</div>}
+            <table>
+                <tbody>
+                    {group.bindings.map(([keys, _condition, description, action]) => (
+                        <tr
+                            className="cursor-pointer hover:-translate-x-0.5 transition"
+                            onPointerDown={(event: React.PointerEvent) => {
+                                event.stopPropagation()
+                                event.preventDefault()
+                                action()
+                            }}
+                        >
+                            <td className="py-0.5 flex flex-row space-x-1">
+                                {intersperse(
+                                    <div className="text-xs">/</div>,
+                                    keys.map(k => <KeyComposition shortcut={k} />)
+                                )}
+                            </td>
+                            <td className="py-0.5 pl-2 text-xs text-gray-700 whitespace-nowrap">{description}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     )
 }
@@ -290,7 +294,7 @@ export function KeyComposition({ shortcut }: { shortcut: string }) {
 
 
 export function KeyButton({ keyName }) {
-    function Container(className: string, symbol: string) {
+    function Container(className: string, symbol: React.ReactNode) {
         return (
             <div
                 className={`
@@ -306,31 +310,31 @@ export function KeyButton({ keyName }) {
 
     switch (keyName) {
         case "Shift":
-            return Container("text-gray-900", "⇧")
+            return Container("text-lg text-gray-900", "⇧")
         
         case "Cmd":
-            return Container("text-sm text-gray-900", "⌘")
+            return Container("text-gray-900", "⌘")
 
         case "Alt":
             return Container("text-sm text-gray-900", "⌥")
 
         case "Backspace":
-            return Container("text-sm text-gray-900", "⌫")
+            return Container("text-gray-600", <FontAwesomeIcon size="2xs" icon={solidIcons.faDeleteLeft} />)
 
         case "Enter":
-            return Container("text-sm text-gray-900", "⏎")
+            return Container("text-gray-900", "⏎")
 
         case "ArrowUp":
-            return Container("text-xs text-gray-600", "⬆︎")
+            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretUp} />)
 
         case "ArrowDown":
-            return Container("text-xs text-gray-600", "⬇︎")
+            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretDown} />)
 
         case "ArrowLeft":
-            return Container("text-xs text-gray-600", "⬅︎")
+            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretLeft} />)
 
         case "ArrowRight":
-            return Container("text-xs text-gray-600", "➡︎")
+            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretRight} />)
 
         case "Escape":
             return Container("text-xs text-gray-900", "esc")
