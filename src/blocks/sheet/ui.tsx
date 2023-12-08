@@ -3,7 +3,7 @@ import { Menu } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { TextInput, findScrollableAncestor, getFullKey } from '../../ui/utils'
+import { TextInput, findScrollableAncestor } from '../../ui/utils'
 import * as block from '../../block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'

@@ -5,7 +5,7 @@ import { Block, Environment, BlockViewerProps, BlockUpdater } from '../../block'
 import { DocumentState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
-import { GatherShortcuts } from '../../ui/shortcuts'
+import { CollectKeymap, GatherShortcuts } from '../../ui/shortcuts'
 
 export { Model, UI }
 
@@ -17,13 +17,15 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
         view({ state, update, env }: BlockViewerProps<DocumentState<State>>, ref) {
             return (
                 <GatherShortcuts>
-                    <UI.DocumentUi
-                        state={state}
-                        update={update}
-                        env={env}
-                        innerBlock={innerBlock}
-                        blockRef={ref}
-                        />
+                    <CollectKeymap collectorDialog={UI.KeymapCollectorDialog}>
+                        <UI.DocumentUi
+                            state={state}
+                            update={update}
+                            env={env}
+                            innerBlock={innerBlock}
+                            blockRef={ref}
+                            />
+                    </CollectKeymap>
                 </GatherShortcuts>
             )
         },

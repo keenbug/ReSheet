@@ -2,12 +2,13 @@ import * as React from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, clampTo } from '../../utils'
-import { Keybindings, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
+import { CollectorDialogProps, KeyButton, Keybindings, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -262,6 +263,7 @@ function DocumentKeyBindings<State>(
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerRef: React.MutableRefObject<BlockRef>,
     setIsNameEditing: (editing: boolean) => void,
+    toggleShortcutSuggestions: () => void,
 ): Keybindings {
     return [
         {
@@ -414,6 +416,17 @@ function DocumentKeyBindings<State>(
                     () => { innerRef.current?.focus() },
                 ],
             ]
+        },
+        {
+            description: "help",
+            bindings: [
+                [
+                    ["C-?"],
+                    "none",
+                    "toggle shortcut suggestions",
+                    () => { toggleShortcutSuggestions() },
+                ]
+            ]
         }
     ]
 }
@@ -439,6 +452,11 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         })
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
+    const [shortcutsVisible, setShortcutsVisible] = React.useState(true)
+
+    function toggleShortcutsVisible() {
+        setShortcutsVisible(visible => !visible)
+    }
 
     function setIsNameEditingInVisibleSidebar(editing: boolean) {
         if (editing && !state.inner.viewState.sidebarOpen) {
@@ -448,7 +466,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     }
 
     const actions = ACTIONS(update, innerBlock, env)
-    const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar)
+    const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar, toggleShortcutsVisible)
     const bindingProps = useShortcuts(bindings)
 
     return (
@@ -483,7 +501,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     env={env}
                                     />
                             </div>
-                            <ShortcutSuggestions flat={false} className="flex-none p-1 overflow-x-scroll" />
+                            {shortcutsVisible && <ShortcutSuggestions flat={false} className="flex-none p-1 overflow-x-scroll" />}
                         </div>
                     </div>
                 )}
@@ -701,3 +719,70 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
     )
 }
 
+
+export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: CollectorDialogProps) {
+    const ref = React.useRef<HTMLInputElement>()
+
+    React.useEffect(() => {
+        ref.current?.focus()
+    })
+
+    const noshiftCount = keyMap.valueSeq().map(({ noshift }) => noshift).filter(noshift => noshift).count()
+    const shiftCount = keyMap.valueSeq().map(({ shift }) => shift).filter(shift => shift).count()
+    const matches = keyMap.count() >= 40 && shiftCount === noshiftCount
+
+    const noshiftMissing = keyMap.valueSeq().filter(({ noshift }) => !noshift).map(({ shift }) => shift).sort().toArray()
+    const shiftMissing = keyMap.valueSeq().filter(({ shift }) => !shift).map(({ noshift }) => noshift).sort().toArray()
+
+    return (
+        <div
+            className="w-full h-full flex justify-center items-center bg-gray-50"
+            ref={ref}
+            tabIndex={-1}
+            autoFocus
+            onKeyDown={onCollectKey}
+        >
+            <div className="rounded-xl border border-gray-200 px-10 py-8 max-w-screen-sm flex flex-col space-y-5 text-center bg-white">
+                <p>
+                    For shortcuts to work properly, we need to collect your{' '}
+                    keyboard layout's mapping from physical keys to their{' '}
+                    corresponding character.
+                </p>
+                <p>
+                    Please press all your keyboard keys one after another.
+                </p>
+                <p>
+                    Once without any modifier keys (Ctrl, Alt/Option, Meta/Cmd, Shift).
+                </p>
+                <p>
+                    Another time with only the Shift modifier pressed.
+                </p>
+                <p>
+                    Collected: {noshiftCount} without shift / {shiftCount} with shift{' '}
+                    {matches ?
+                        <FontAwesomeIcon className="text-green-500" icon={solidIcons.faCircleCheck} />
+                    :
+                        <FontAwesomeIcon className="text-red-500" icon={regularIcons.faCircleXmark} />
+                    }
+                </p>
+                {shiftMissing.length > 0 &&
+                <p>
+                    These keys need to be pressed with shift: {shiftMissing.map(key => <KeyButton keyName={key} />)}
+                </p>
+                }
+                {noshiftMissing.length > 0 &&
+                <p>
+                    These keys need to be pressed without shift: {noshiftMissing.map(key => <KeyButton keyName={key} />)}
+                </p>
+                }
+                <button
+                    className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-gray-100 text-gray-400"}`}
+                    disabled={!matches}
+                    onClick={onDone}
+                >
+                    I have pressed all keys
+                </button>
+            </div>
+        </div>
+    )
+}

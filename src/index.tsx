@@ -7,7 +7,7 @@ import { library } from './utils/std-library'
 import { DocumentOf, DocumentState } from './blocks/document'
 import { BlockSelector, BlockSelectorState } from './blocks/block-selector'
 import { Block } from './block/component'
-import { getFullKey } from './ui/utils'
+import { getFullKey } from './ui/shortcuts'
 import { BlockRef } from './block'
 
 
@@ -46,7 +46,7 @@ function App() {
     // keep the focus on the toplevel block, so its KeyEventHandlers keep working
     function onFocusout(event: FocusEvent) {
         // this could be problematic, but let's wait until problems arise
-        if (!(event.relatedTarget instanceof Element) || !rootElement.contains(event.relatedTarget)) {
+        if (event.relatedTarget === null || event.relatedTarget instanceof Element && !rootElement.contains(event.relatedTarget)) {
             toplevelBlockRef.current?.focus()
         }
     }

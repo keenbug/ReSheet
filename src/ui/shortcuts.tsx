@@ -2,10 +2,56 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { OrderedMap } from 'immutable'
+import { Map, OrderedMap } from 'immutable'
 
-import { getFullKey } from './utils'
 import { intersperse } from '../utils'
+
+// Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent
+interface KeyboardEvent {
+    ctrlKey: boolean
+    metaKey: boolean
+    shiftKey: boolean
+    altKey: boolean
+    key: string
+    code: string
+}
+
+// Keys that don't change with shift on all keyboard layouts
+export const shiftStableKeysWithoutAlpha = [
+    " ",
+    "Tab",
+    "Enter",
+    "Backspace",
+    "Delete",
+    "Escape",
+    "Arrow(Up|Down|Left|Right)",
+    "Home",
+    "End",
+    "Page(Up|Down)",
+]
+export const shiftStableKeysWithoutAlphaRegex = new RegExp("^(" + shiftStableKeysWithoutAlpha.join('|') + ")$")
+
+export const shiftStableKeys = [ "[A-Z]", ...shiftStableKeysWithoutAlpha ]
+export const shiftStableKeysRegex = new RegExp("^(" + shiftStableKeys.join('|') + ")$")
+
+export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
+    const keyRemapped = (
+        keymap === undefined ?
+            event.key
+        :
+            remapKey(keymap, event.code, event.shiftKey)
+    )
+
+    const keyName = keyRemapped.length > 1 ? keyRemapped : keyRemapped.toUpperCase()
+    const shiftStable = shiftStableKeysRegex.test(keyName)
+    return [
+        (event.ctrlKey || event.metaKey) ? "C-" : "",
+        shiftStable && event.shiftKey ? "Shift-" : "",
+        event.altKey ? "Alt-" : "",
+        keyName,
+    ].join('')
+}
+
 
 
 export type Keybinding = [keys: string[], condition: Condition, description: string, action: () => void]
@@ -47,9 +93,10 @@ export function onFullKey(
     keys: string[],
     condition: Condition,
     action: () => void,
+    keymap?: KeyMap,
 ) {
     if (event.isPropagationStopped()) { return }
-    if (!keys.includes(getFullKey(event))) { return }
+    if (!keys.includes(getFullKey(event, keymap))) { return }
     if (!checkCondition(condition, event.currentTarget === event.target, isAnInput(event.target))) { return }
 
     event.stopPropagation()
@@ -58,22 +105,23 @@ export function onFullKey(
 }
 
 
-export function keybindingsHandler(
+export function useKeybindingsHandler(
     bindings: Keybindings
 ): (event: React.KeyboardEvent) => void {
-    return function onKeyDown(event: React.KeyboardEvent) {
+    const keymap = useKeymap()
+    return React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
         bindings.forEach(binding => {
             if (Array.isArray(binding)) {
                 const [keys, condition, _description, action] = binding
-                onFullKey(event, keys, condition, action)
+                onFullKey(event, keys, condition, action, keymap)
             }
             else {
                 binding.bindings.forEach(([keys, condition, _description, action]) => {
-                    onFullKey(event, keys, condition, action)
+                    onFullKey(event, keys, condition, action, keymap)
                 })
             }
         })
-    }
+    }, [bindings])
 }
 
 export function filterBindings(bindings: Keybindings, isSelfFocused: boolean, isInputFocused: boolean) {
@@ -151,7 +199,7 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 export function useShortcuts(bindings: Keybindings) {
     const id = React.useId()
     const { reportBindings, removeBindings } = React.useContext(GatherShortcutsContext)
-    const onKeyDown = React.useMemo(() => keybindingsHandler(bindings), [bindings])
+    const onKeyDown = useKeybindingsHandler(bindings)
 
     React.useEffect(() => {
         return () => {
@@ -297,8 +345,11 @@ export function KeyButton({ keyName }) {
     function Container(className: string, symbol: React.ReactNode) {
         return (
             <div
+                style={{
+                    display: "inline flex"
+                }}
                 className={`
-                    inline-block flex justify-center items-center text-center
+                    justify-center items-center text-center
                     h-4 px-1 rounded shadow shadow-gray-400 
                     font-mono ${className}
                 `}
@@ -345,4 +396,103 @@ export function KeyButton({ keyName }) {
         default:
             return Container("text-xs text-gray-900", keyName)
     }
+}
+
+
+
+
+type KeyMap = Map<string, { shift: string, noshift: string }>
+
+export function remapKey(keymap: KeyMap, code: string, isShiftPressed: boolean) {
+    if (!keymap.has(code)) {
+        return code
+    }
+
+    if (isShiftPressed) {
+        return keymap.get(code).shift
+    }
+    else {
+        return keymap.get(code).noshift
+    }
+}
+
+function loadSavedKeymap(): [KeyMap, boolean] {
+    try {
+        const keyMapJson = localStorage.getItem("keyMap")
+        if (keyMapJson === null) {
+            return [Map(), false]
+        }
+        return [Map(JSON.parse(keyMapJson)) as KeyMap, true]
+    }
+    catch (e) {
+        return [Map(), false]
+    }
+}
+
+const KeymapContext = React.createContext<KeyMap>(Map())
+
+export function useKeymap() {
+    return React.useContext(KeymapContext)
+}
+
+export interface CollectorDialogProps {
+    keyMap: KeyMap
+    onCollectKey(event: React.KeyboardEvent): void
+    onDone(): void
+}
+
+export interface CollectKeymapProps {
+    children: React.ReactNode
+    collectorDialog: React.FC<CollectorDialogProps>
+}
+
+const IGNORE_KEYS_COLLECT = [
+    "Shift",
+    "Meta",
+    "Alt",
+    "Control",
+]
+
+export function CollectKeymap({ children, collectorDialog: CollectorDialog }: CollectKeymapProps) {
+    const [[keyMap, isComplete], setKeyMap] = React.useState<[KeyMap, boolean]>(loadSavedKeymap)
+
+    if (isComplete) {
+        return (
+            <KeymapContext.Provider value={keyMap}>
+                {children}
+            </KeymapContext.Provider>
+        )
+    }
+
+    function onCollectKey(event: React.KeyboardEvent) {
+        if (IGNORE_KEYS_COLLECT.includes(event.key) || shiftStableKeysWithoutAlphaRegex.test(event.key)) {
+            return
+        }
+        if (event.altKey || event.metaKey || event.ctrlKey) {
+            return
+        }
+
+        event.stopPropagation()
+        event.preventDefault()
+
+        setKeyMap(([keyMap]) => [
+            keyMap.update(
+                event.code,
+                ({ shift, noshift } = { shift: undefined, noshift: undefined }) => ({
+                    shift: event.shiftKey ? event.key : shift,
+                    noshift: event.shiftKey ? noshift : event.key,
+                }),
+            ),
+            false,
+        ])
+    }
+
+    function onDone() {
+        setKeyMap(([keyMap]) => {
+            localStorage.setItem('keyMap', JSON.stringify(keyMap.toObject()))
+            return [keyMap, true]
+        })
+    }
+
+    return <CollectorDialog keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} />
 }
