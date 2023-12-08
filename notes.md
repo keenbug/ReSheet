@@ -118,6 +118,9 @@ https://hackage.haskell.org/package/retrie
 
 # Maybe useful libs
 
+File System Access in Chrome
+https://developer.chrome.com/docs/capabilities/web-apis/file-system-access?hl=en
+
 Rich Text Editors
 https://github.com/brillout/awesome-react-components#rich-text-editor
 
