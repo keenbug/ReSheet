@@ -2,7 +2,7 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { Map, OrderedMap } from 'immutable'
+import { Map, OrderedMap, List, Set } from 'immutable'
 
 import { intersperse } from '../utils'
 
@@ -144,6 +144,45 @@ export function filterBindings(bindings: Keybindings, isSelfFocused: boolean, is
         })
 }
 
+export function filterShadowedBindings(bindings: Keybindings): Keybindings {
+    function filterBinding(binding: Keybinding, existingBindings: Set<string>): Keybinding[] {
+        const [keys, condition, description, action] = binding
+        const filteredKeys = keys.filter(key => !existingBindings.contains(key))
+        if (filteredKeys.length === 0) {
+            return []
+        }
+        return [
+            [filteredKeys, condition, description, action]
+        ]
+    }
+    function filterHelper(bindings: List<Keybinding | KeybindingGroup>, existingBindings: Set<string>): List<Keybinding | KeybindingGroup> {
+        if (bindings.isEmpty()) {
+            return List()
+        }
+
+        const current = bindings.get(0)
+        if (Array.isArray(current)) {
+            const [keys] = current
+            return (
+                filterHelper(bindings.shift(), existingBindings.union(keys))
+                    .unshift(...filterBinding(current, existingBindings))
+            )
+        }
+        else {
+            const filteredBindings = current.bindings.flatMap(binding =>
+                filterBinding(binding, existingBindings)
+            )
+            const bindingsKeys = current.bindings.flatMap(([keys]) => keys)
+            return (
+                filterHelper(bindings.shift(), existingBindings.union(bindingsKeys))
+                    .unshift({ ...current, bindings: filteredBindings })
+            )
+        }
+    }
+
+    return filterHelper(List(bindings), Set()).toArray()
+}
+
 
 
 
@@ -184,7 +223,10 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
         },
     }), [])
 
-    const allBindings = activeBindings.valueSeq().reverse().toArray().flat()
+    const allBindings = React.useMemo(
+        () => filterShadowedBindings(activeBindings.valueSeq().reverse().toArray().flat()),
+        [activeBindings]
+    )
 
     return (
         <GatherShortcutsContext.Provider value={reporters}>
@@ -256,9 +298,10 @@ export function ShortcutSuggestions({ flat, className = "", allbindings }: { fla
     if (bindings.length === 0) { return null }
 
     const flattenedBindings = flat ? flattenBindings(bindings) : bindings
+    const spaceX = flat ? "space-x-8" : "space-x-20"
 
     return (
-        <div className={`flex flex-row justify-between space-x-20 ${className}`}>
+        <div className={`flex flex-row justify-between ${spaceX} ${className}`}>
             {flattenedBindings.map(binding => {
                 if (Array.isArray(binding)) {
                     return <BindingSuggestion key={binding[2]} binding={binding} />

@@ -7,7 +7,7 @@ import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
-import { $update, arrayEquals, clampTo } from '../../utils'
+import { $update, arrayEquals, clampTo, nextElem } from '../../utils'
 import { CollectorDialogProps, KeyButton, Keybindings, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
@@ -440,6 +440,9 @@ export interface DocumentUiProps<State> {
     blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
 }
 
+type ShortcutsViewMode = 'hidden' | 'flat' | 'full'
+const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
+
 export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: DocumentUiProps<State>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const innerRef = React.useRef<BlockRef>()
@@ -452,10 +455,10 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         })
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
-    const [shortcutsVisible, setShortcutsVisible] = React.useState(true)
+    const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
 
     function toggleShortcutsVisible() {
-        setShortcutsVisible(visible => !visible)
+        setShortcutsViewMode(mode => nextElem(mode, SHORTCUTS_VIEW_MODES))
     }
 
     function setIsNameEditingInVisibleSidebar(editing: boolean) {
@@ -501,7 +504,21 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     env={env}
                                     />
                             </div>
-                            {shortcutsVisible && <ShortcutSuggestions flat={false} className="flex-none p-1 overflow-x-scroll" />}
+                            {shortcutsViewMode !== 'hidden' && <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} className="flex-none p-1 overflow-x-scroll" />}
+                            {shortcutsViewMode === 'hidden' &&
+                                <button
+                                    className={`
+                                        absolute bottom-6 right-6 w-8 h-8
+                                        rounded-full border border-gray-100 shadow
+                                        bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
+                                        flex justify-center items-center
+                                        text-sm
+                                    `}
+                                    onClick={toggleShortcutsVisible}
+                                >
+                                    ⌘
+                                </button>
+                            }
                         </div>
                     </div>
                 )}
