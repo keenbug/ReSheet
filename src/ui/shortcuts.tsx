@@ -238,16 +238,19 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 }
 
 
-export function useShortcuts(bindings: Keybindings) {
+export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     const id = React.useId()
     const { reportBindings, removeBindings } = React.useContext(GatherShortcutsContext)
     const onKeyDown = useKeybindingsHandler(bindings)
 
     React.useEffect(() => {
+        if (!active) {
+            removeBindings(id)
+        }
         return () => {
             removeBindings(id)
         }
-    }, [])
+    }, [active])
 
     const onFocus = React.useCallback(function onFocus(event: React.FocusEvent) {
         const wasSelfFocused = event.currentTarget === event.relatedTarget

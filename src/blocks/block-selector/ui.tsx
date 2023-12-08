@@ -9,10 +9,10 @@ import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { CodeView, EditableCode } from '../../ui/code-editor'
 import { computeExpr } from '../../logic/compute'
 import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
-import { getFullKey } from '../../ui/utils'
 
 import { BlockSelectorState } from './model'
 import * as Model from './model'
+import { useShortcuts } from '../../ui/shortcuts'
 
 
 function ACTIONS(
@@ -128,49 +128,45 @@ export const BlockSelectorUI = React.forwardRef(
             [state.mode]
         )
 
-        function onKeyDown(event: React.KeyboardEvent) {
-            switch (getFullKey(event)) {
-                case "C-Enter":
-                    if (state.mode === 'choose') {
-                        actions.chooseBlock(blockExpr, env)
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "C-/":
-                    if (state.mode === 'run') {
-                        setBlockExpr(state.expr)
-                        actions.setChooseMode()
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-
-                case "Escape":
-                    if (state.mode === 'choose') {
-                        actions.cancelChoose()
-                        event.stopPropagation()
-                        event.preventDefault()
-                    }
-                    return
-            }
-        }
-
-        function onKeyDownLoading(event: React.KeyboardEvent) {
-            switch (getFullKey(event)) {
-                case "Escape":
-                    actions.cancelLoading()
-                    event.stopPropagation()
-                    event.preventDefault()
-                    return
-            }
-        }
+        const chooseBindingProps = useShortcuts(
+            [
+                {
+                    description: "selector",
+                    bindings: [
+                        [["C-Enter"], 'none', 'select block', () => { actions.chooseBlock(blockExpr, env) }],
+                        [["Escape"], 'none', 'cancel', () => { actions.cancelChoose() }],
+                    ]
+                }
+            ],
+            state.mode === 'choose',
+        )
+        const runBindingProps = useShortcuts(
+            [
+                {
+                    description: "selector",
+                    bindings: [
+                        [["C-/"], 'none', 'switch block', () => { setBlockExpr(state.expr); actions.setChooseMode() }],
+                    ]
+                }
+            ],
+            state.mode === 'run',
+        )
+        const loadingBindingProps = useShortcuts(
+            [
+                {
+                    description: "selector",
+                    bindings: [
+                        [["Escape"], 'none', 'cancel loading', () => { actions.cancelLoading() }],
+                    ]
+                }
+            ],
+            state.mode === 'loading',
+        )
 
         switch (state.mode) {
             case 'loading':
                 return (
-                    <div onKeyDown={onKeyDownLoading}>
+                    <div {...loadingBindingProps}>
                         <FontAwesomeIcon icon={solidIcons.faSpinner} spinPulse />{' '}
                         Waiting for <CodeView className="inline-block bg-gray-100 rounded" container="span" code={state.expr} />{' '}
                         to turn into a Block.{' '}
@@ -180,7 +176,7 @@ export const BlockSelectorUI = React.forwardRef(
 
             case 'run':
                 return (
-                    <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>
+                    <div className="flex flex-col space-y-1 flex-1" {...runBindingProps}>
                         <div>
                             <button
                                 className={`
@@ -202,7 +198,7 @@ export const BlockSelectorUI = React.forwardRef(
             case 'choose':
                 const blockCmdResult = computeExpr(blockExpr, { ...blockLibrary, ...env })
                 return (
-                    <div className="flex flex-col space-y-1 flex-1" onKeyDown={onKeyDown}>
+                    <div className="flex flex-col space-y-1 flex-1" {...chooseBindingProps}>
                         <EditableCode ref={inputRef} code={blockExpr} onUpdate={setBlockExpr} />
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
