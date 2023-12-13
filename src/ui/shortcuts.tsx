@@ -318,7 +318,7 @@ function KeybindingSuggestion({ binding }: { binding: Keybinding }) {
     const [keys, _condition, description, action] = binding
     return (
         <div
-            className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition"
+            className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition text-xs"
             onPointerDown={(event: React.PointerEvent) => {
                 event.stopPropagation()
                 event.preventDefault()
@@ -326,10 +326,10 @@ function KeybindingSuggestion({ binding }: { binding: Keybinding }) {
             }}
         >
             {intersperse<React.ReactNode>(
-                <div className="text-xs">/</div>,
-                keys.map(k => <KeyComposition key={k} shortcut={k} />)
+                <span>/</span>,
+                keys.map(k => <KeyButtonContainer><KeyComposition key={k} shortcut={k} /></KeyButtonContainer>)
             )}
-            <div className="ml-2 text-xs text-gray-700 whitespace-nowrap">{description}</div>
+            <span className="ml-2 text-gray-700 whitespace-nowrap">{description}</span>
         </div>
     )
 }
@@ -353,10 +353,10 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
                                 action()
                             }}
                         >
-                            <td className="py-0.5 flex flex-row space-x-1">
+                            <td className="py-0.5 flex flex-row space-x-1 text-xs">
                                 {intersperse(
-                                    <div className="text-xs">/</div>,
-                                    keys.map(k => <KeyComposition shortcut={k} />)
+                                    <span>/</span>,
+                                    keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
                                 )}
                             </td>
                             <td className="py-0.5 pl-2 text-xs text-gray-700 whitespace-nowrap">{description}</td>
@@ -369,78 +369,87 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
 }
 
 
-export function KeyComposition({ shortcut }: { shortcut: string }) {
+export function KeyComposition({ shortcut, Key = KeySymbol }: { shortcut: string, Key?: React.FC<{ keyName: string }> }) {
     const parts = shortcut.split('-')
     const modifiers = parts.slice(0, -1)
     const char = parts.slice(-1)[0]
 
-
     return (
-        <div className="flex flex-row space-x-px">
-            {modifiers.map(k => <KeyButton key={k} keyName={k === "C" ? "Cmd" : k} />)}
-            <KeyButton keyName={char} />
+        <>
+            {modifiers.map(k => <span><Key key={k} keyName={k === "C" ? "Cmd" : k} /></span>)}
+            <span><Key keyName={char} /></span>
+        </>
+    )
+}
+
+
+export function KeyButton({ keyName, className }: { keyName: string, className?: string }) {
+    return (
+        <KeyButtonContainer className={className}>
+            <KeySymbol keyName={keyName} />
+        </KeyButtonContainer>
+    )
+}
+
+
+export function KeyButtonContainer({ children, className = "" }: { children: React.ReactNode, className?: string }) {
+    return (
+        <div
+            style={{
+                display: "inline flex"
+            }}
+            className={`
+                justify-center items-center text-center space-x-0.5
+                px-1 rounded shadow shadow-gray-400
+                font-mono
+                ${className}
+            `}
+        >
+            {children}
         </div>
     )
 }
 
 
-export function KeyButton({ keyName }) {
-    function Container(className: string, symbol: React.ReactNode) {
-        return (
-            <div
-                style={{
-                    display: "inline flex"
-                }}
-                className={`
-                    justify-center items-center text-center
-                    h-4 px-1 rounded shadow shadow-gray-400 
-                    font-mono ${className}
-                `}
-            >
-                {symbol}
-            </div>
-        )
-    }
-
+export function KeySymbol({ keyName }) {
     switch (keyName) {
         case "Shift":
-            return Container("text-lg text-gray-900", "⇧")
+            return "⇧"
         
         case "Cmd":
-            return Container("text-gray-900", "⌘")
+            return "⌘"
 
         case "Alt":
-            return Container("text-sm text-gray-900", "⌥")
+            return "⌥"
 
         case "Backspace":
-            return Container("text-gray-600", <FontAwesomeIcon size="2xs" icon={solidIcons.faDeleteLeft} />)
+            return <FontAwesomeIcon size="xs" className="text-gray-600" icon={solidIcons.faDeleteLeft} />
 
         case "Enter":
-            return Container("text-gray-900", "⏎")
+            return "⏎"
 
         case "ArrowUp":
-            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretUp} />)
+            return <FontAwesomeIcon className="text-gray-600" icon={solidIcons.faCaretUp} />
 
         case "ArrowDown":
-            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretDown} />)
+            return <FontAwesomeIcon className="text-gray-600" icon={solidIcons.faCaretDown} />
 
         case "ArrowLeft":
-            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretLeft} />)
+            return <FontAwesomeIcon className="text-gray-600" icon={solidIcons.faCaretLeft} />
 
         case "ArrowRight":
-            return Container("text-xs text-gray-600", <FontAwesomeIcon icon={solidIcons.faCaretRight} />)
+            return <FontAwesomeIcon className="text-gray-600" icon={solidIcons.faCaretRight} />
 
         case "Escape":
-            return Container("text-xs text-gray-900", "esc")
+            return "esc"
 
         case " ":
-            return Container("text-xs text-gray-900", "space")
+            return "space"
 
         default:
-            return Container("text-xs text-gray-900", keyName)
+            return keyName
     }
 }
-
 
 
 

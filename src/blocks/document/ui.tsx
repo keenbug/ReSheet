@@ -7,8 +7,8 @@ import { Menu } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
-import { $update, arrayEquals, clampTo, nextElem } from '../../utils'
-import { CollectorDialogProps, KeyButton, Keybindings, ShortcutSuggestions, useActiveBindings, useShortcuts } from '../../ui/shortcuts'
+import { $update, arrayEquals, clampTo, intersperse, nextElem } from '../../utils'
+import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useActiveBindings, useShortcuts, KeyButton } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -264,6 +264,13 @@ interface LocalActions {
     toggleSearch(): void
 }
 
+const commandSearchBinding = (localActions: LocalActions): Keybinding => [
+    ["C-K", "C-Shift-P"],
+    "none",
+    "search commands",
+    () => { localActions.toggleSearch() },
+]
+
 function DocumentKeyBindings<State>(
     state: DocumentState<State>,
     actions: Actions<State>,
@@ -403,12 +410,7 @@ function DocumentKeyBindings<State>(
         {
             description: "view",
             bindings: [
-                [
-                    ["C-K", "C-Shift-P"],
-                    "none",
-                    "commands",
-                    () => { localActions.toggleSearch() },
-                ],
+                commandSearchBinding(localActions),
                 [
                     ["C-B"],
                     "none",
@@ -517,6 +519,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             isHistoryOpen={state.mode.type === 'history'}
                             isNameEditing={isNameEditing}
                             setIsNameEditing={setIsNameEditingInVisibleSidebar}
+                            commandBinding={commandSearchBinding(localActions)}
                             />
                         <SidebarButton state={innerState} actions={actions} />
 
@@ -628,9 +631,10 @@ interface SidebarProps<State> extends ActionProps<State> {
     isHistoryOpen: boolean
     isNameEditing: boolean
     setIsNameEditing: (editing: boolean) => void
+    commandBinding: Keybinding
 }
 
-function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNameEditing }: SidebarProps<State>) {
+function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     function HistoryButton() {
         if (isHistoryOpen) {
             return (
@@ -641,7 +645,6 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                     `}
                     onClick={actions.closeHistory}
                     >
-                    <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
                     History
                 </button>
             )
@@ -655,7 +658,6 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                 `}
                 onClick={actions.openHistory}
                 >
-                <FontAwesomeIcon className="mr-1" size="xs" icon={solidIcons.faClockRotateLeft} />
                 History
             </button>
         )
@@ -678,6 +680,30 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                 >
                 <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
             </button>
+
+            <div
+                className={`
+                    rounded-full mx-2 px-3 py-0.5
+                    flex flex-row items-baseline space-x-2
+                    bg-gray-200 text-gray-600 border border-gray-300 
+                    text-sm cursor-pointer
+                    hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
+                    transition
+                    group
+                `}
+                onClick={commandBinding[3]}
+            >
+                <FontAwesomeIcon className="self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
+                <span>Commands</span>
+                <div className="flex-1 text-right text-gray-500 group-hover:text-gray-800">
+                    {intersperse<React.ReactNode>(
+                        "/",
+                        commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
+                    )}
+                </div>
+            </div>
+
+            <div className="h-3" />
 
             <HistoryButton />
 

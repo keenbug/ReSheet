@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import { intersperse } from '../../utils'
-import { KeyButton, KeyComposition, Keybindings, ShortcutSuggestions, useKeybindingsHandler } from '../../ui/shortcuts'
+import { KeyComposition, Keybindings, ShortcutSuggestions, useKeybindingsHandler, KeyButtonContainer, KeyButton } from '../../ui/shortcuts'
 
 import { useEffectQueue, useEffectfulUpdate, useRefMap } from '../../ui/hooks'
 
@@ -198,12 +198,12 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                             <span>
                                 {renderMatch(binding.description)}
                             </span>
-                            {index === activeBinding && <KeyButton keyName="Enter" />}
+                            {index === activeBinding && <KeyButton className="text-xs" keyName="Enter" />}
 
-                            <div className="flex-1 flex flex-row justify-end space-x-1">
+                            <div className="flex-1 flex flex-row justify-end space-x-1 text-xs">
                                 {intersperse(
-                                    <div className="text-xs">/</div>,
-                                    binding.keys.map(k => <KeyComposition shortcut={k} />)
+                                    <span>/</span>,
+                                    binding.keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
                                 )}
                             </div>
                         </div>
