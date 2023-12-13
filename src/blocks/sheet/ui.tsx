@@ -368,7 +368,7 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
         actions.updateInner(line.id, action, block, env)
     }
 
-    const varInputBindings: Keybinding[] = assignmentLineBindings<Inner>(line, innerBlockRef, varInputRef)
+    const varInputBindings: Keybindings = assignmentLineBindings<Inner>(line, innerBlockRef, varInputRef)
 
     return (
         <div
@@ -471,20 +471,25 @@ function assignmentLineBindings<Inner>(
     line: SheetBlockLine<Inner>,
     innerBlockRef: React.MutableRefObject<block.BlockRef>,
     varInputRef: React.MutableRefObject<HTMLElement>,
-): Keybinding[] {
+): Keybindings {
     return [
-        [
-            ["ArrowDown", "Enter"],
-            "none",
-            "jump next",
-            () => {
-                if (line.visibility.block) {
-                    innerBlockRef.current?.focus()
-                } else if (line.visibility.name) {
-                    varInputRef.current?.focus()
-                }
-            },
-        ],
+        {
+            description: "line name",
+            bindings: [
+                [
+                    ["ArrowDown", "Enter"],
+                    "none",
+                    "jump next",
+                    () => {
+                        if (line.visibility.block) {
+                            innerBlockRef.current?.focus()
+                        } else if (line.visibility.name) {
+                            varInputRef.current?.focus()
+                        }
+                    },
+                ],
+            ]
+        }
     ]
 }
 

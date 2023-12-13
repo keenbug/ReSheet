@@ -114,13 +114,13 @@ export function useRefMap<Key, Ref>(
     Map<Key, Ref>
 ] {
     const refMap = React.useRef(new Map<Key, Ref>())
-    const setRef = (key: Key) => (ref: Ref | null) => {
+    const setRef = React.useCallback((key: Key) => (ref: Ref | null) => {
         if (ref === null) {
             refMap.current.delete(key)
         }
         else {
             refMap.current.set(key, ref)
         }
-    }
+    }, [refMap])
     return [setRef, refMap.current]
 }

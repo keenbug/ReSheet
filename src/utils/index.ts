@@ -4,9 +4,9 @@ export function clampTo(minimumInclusive: number, maximumExclusive: number, valu
     return value
 }
 
-export function nextElem<E = string>(elem: E, allElems: Array<E>, eq?: (left: E, right: E) => boolean) {
+export function nextElem<E = string>(elem: E, allElems: Array<E>, eq?: (left: E, right: E) => boolean, delta: number = 1) {
     const elemIdx = eq ? allElems.findIndex(e => eq(e, elem)) : allElems.findIndex(e => e === elem)
-    const nextElemIdx = (elemIdx + 1) % allElems.length
+    const nextElemIdx = (elemIdx + delta + allElems.length) % allElems.length
     return allElems[nextElemIdx]
 }
 

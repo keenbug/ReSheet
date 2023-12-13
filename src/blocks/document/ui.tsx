@@ -8,7 +8,7 @@ import { Menu } from '@headlessui/react'
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, clampTo, nextElem } from '../../utils'
-import { CollectorDialogProps, KeyButton, Keybindings, ShortcutSuggestions, useShortcuts } from '../../ui/shortcuts'
+import { CollectorDialogProps, KeyButton, Keybindings, ShortcutSuggestions, useActiveBindings, useShortcuts } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -17,6 +17,7 @@ import * as Pages from './pages'
 import { HistoryView } from './history'
 import * as History from './history'
 import { HistoryModePanel } from './history'
+import { CommandSearch } from './commands'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -257,13 +258,18 @@ function ACTIONS<State extends unknown>(
 }
 
 
+interface LocalActions {
+    setIsNameEditing(editin: boolean): void
+    toggleShortcutsVisible(): void
+    toggleSearch(): void
+}
+
 function DocumentKeyBindings<State>(
     state: DocumentState<State>,
     actions: Actions<State>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerRef: React.MutableRefObject<BlockRef>,
-    setIsNameEditing: (editing: boolean) => void,
-    toggleShortcutSuggestions: () => void,
+    localActions: LocalActions,
 ): Keybindings {
     return [
         {
@@ -276,7 +282,7 @@ function DocumentKeyBindings<State>(
                     "new page",
                     () => {
                         actions.addPage(state.inner.viewState.openPage.slice(0, -1))
-                        setIsNameEditing(true)
+                        localActions.setIsNameEditing(true)
                     },
                 ],
                 [
@@ -285,7 +291,7 @@ function DocumentKeyBindings<State>(
                     "new child page",
                     () => {
                         actions.addPage(state.inner.viewState.openPage)
-                        setIsNameEditing(true)
+                        localActions.setIsNameEditing(true)
                     },
                 ],
                 [
@@ -361,7 +367,7 @@ function DocumentKeyBindings<State>(
                     ["C-Enter"],
                     "none",
                     "edit page name",
-                    () => { setIsNameEditing(true) },
+                    () => { localActions.setIsNameEditing(true) },
                 ],
                 [
                     [" "],
@@ -398,6 +404,12 @@ function DocumentKeyBindings<State>(
             description: "view",
             bindings: [
                 [
+                    ["C-K", "C-Shift-P"],
+                    "none",
+                    "commands",
+                    () => { localActions.toggleSearch() },
+                ],
+                [
                     ["C-B"],
                     "none",
                     "toggle sidebar",
@@ -424,7 +436,7 @@ function DocumentKeyBindings<State>(
                     ["C-?"],
                     "none",
                     "toggle shortcut suggestions",
-                    () => { toggleShortcutSuggestions() },
+                    () => { localActions.toggleShortcutsVisible() },
                 ]
             ]
         }
@@ -456,10 +468,9 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
     const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
+    const [search, setSearch] = React.useState<Keybindings>()
 
-    function toggleShortcutsVisible() {
-        setShortcutsViewMode(mode => nextElem(mode, SHORTCUTS_VIEW_MODES))
-    }
+    const activeBindings = useActiveBindings()
 
     function setIsNameEditingInVisibleSidebar(editing: boolean) {
         if (editing && !state.inner.viewState.sidebarOpen) {
@@ -468,8 +479,25 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         setIsNameEditing(editing)
     }
 
+    const localActions: LocalActions = {
+        setIsNameEditing,
+
+        toggleShortcutsVisible() {
+            setShortcutsViewMode(mode => nextElem(mode, SHORTCUTS_VIEW_MODES))
+        },
+
+        toggleSearch() {
+            setSearch(bindings => (
+                bindings === undefined ?
+                    activeBindings
+                :
+                    undefined
+            ))
+        },
+    }
+
     const actions = ACTIONS(update, innerBlock, env)
-    const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, setIsNameEditingInVisibleSidebar, toggleShortcutsVisible)
+    const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
 
     return (
@@ -504,6 +532,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     env={env}
                                     />
                             </div>
+                            {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
                             {shortcutsViewMode !== 'hidden' && <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} className="flex-none p-1 overflow-x-scroll" />}
                             {shortcutsViewMode === 'hidden' &&
                                 <button
@@ -514,7 +543,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                         flex justify-center items-center
                                         text-sm
                                     `}
-                                    onClick={toggleShortcutsVisible}
+                                    onClick={localActions.toggleShortcutsVisible}
                                 >
                                     ⌘
                                 </button>

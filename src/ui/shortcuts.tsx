@@ -56,7 +56,7 @@ export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
 
 export type Keybinding = [keys: string[], condition: Condition, description: string, action: () => void]
 export type KeybindingGroup = { description?: string, bindings: Keybinding[] }
-export type Keybindings = Array<Keybinding | KeybindingGroup>
+export type Keybindings = Array<KeybindingGroup>
 
 export type Condition =
     | "none"
@@ -105,43 +105,52 @@ export function onFullKey(
 }
 
 
+export function keybindingsHandler(
+    bindings: Keybindings,
+    keymap: KeyMap,
+): (event: React.KeyboardEvent) => void {
+    const bindingMap = bindings.reduceRight(
+        (map, group) => (
+            group.bindings.reduce(
+                (map, binding) => (
+                    binding[0].reduce(
+                        (map, key) => map.set(key, binding) ,
+                        map,
+                    )
+                ),
+                map,
+            )
+        ),
+        Map<string, Keybinding>(),
+    )
+    return function onKeyDown(event: React.KeyboardEvent) {
+        const binding = bindingMap.get(getFullKey(event, keymap))
+        if (binding !== undefined && checkCondition(binding[1], event.currentTarget === event.target, isAnInput(event.target))) {
+            event.stopPropagation()
+            event.preventDefault()
+            binding[3]()
+        }
+    }
+}
+
+
 export function useKeybindingsHandler(
     bindings: Keybindings
 ): (event: React.KeyboardEvent) => void {
     const keymap = useKeymap()
-    return React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
-        bindings.forEach(binding => {
-            if (Array.isArray(binding)) {
-                const [keys, condition, _description, action] = binding
-                onFullKey(event, keys, condition, action, keymap)
-            }
-            else {
-                binding.bindings.forEach(([keys, condition, _description, action]) => {
-                    onFullKey(event, keys, condition, action, keymap)
-                })
-            }
-        })
-    }, [bindings])
+    return React.useMemo(() => keybindingsHandler(bindings, keymap), [bindings])
 }
 
 export function filterBindings(bindings: Keybindings, isSelfFocused: boolean, isInputFocused: boolean) {
     return bindings
-        .filter(binding => {
-            if (!Array.isArray(binding)) {
-                return true
-            }
-            const [_keys, condition, _description, _action] = binding
+        .map(binding => ({
+            ...binding,
+            bindings: (
+                binding.bindings.filter(([_keys, condition, _description, _action]) => {
             return checkCondition(condition, isSelfFocused, isInputFocused)
         })
-        .map(binding => {
-            if (Array.isArray(binding)) {
-                return binding
-            }
-            return {
-                ...binding,
-                bindings: filterBindings(binding.bindings, isSelfFocused, isInputFocused),
-            }
-        })
+            ),
+        }))
 }
 
 export function filterShadowedBindings(bindings: Keybindings): Keybindings {
@@ -155,20 +164,12 @@ export function filterShadowedBindings(bindings: Keybindings): Keybindings {
             [filteredKeys, condition, description, action]
         ]
     }
-    function filterHelper(bindings: List<Keybinding | KeybindingGroup>, existingBindings: Set<string>): List<Keybinding | KeybindingGroup> {
+    function filterHelper(bindings: List<KeybindingGroup>, existingBindings: Set<string>): List<KeybindingGroup> {
         if (bindings.isEmpty()) {
             return List()
         }
 
         const current = bindings.get(0)
-        if (Array.isArray(current)) {
-            const [keys] = current
-            return (
-                filterHelper(bindings.shift(), existingBindings.union(keys))
-                    .unshift(...filterBinding(current, existingBindings))
-            )
-        }
-        else {
             const filteredBindings = current.bindings.flatMap(binding =>
                 filterBinding(binding, existingBindings)
             )
@@ -177,7 +178,6 @@ export function filterShadowedBindings(bindings: Keybindings): Keybindings {
                 filterHelper(bindings.shift(), existingBindings.union(bindingsKeys))
                     .unshift({ ...current, bindings: filteredBindings })
             )
-        }
     }
 
     return filterHelper(List(bindings), Set()).toArray()
@@ -286,38 +286,35 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
 
 
 function flattenBindings(bindings: Keybindings): Keybinding[] {
-    return bindings.flatMap(binding => {
-        if (Array.isArray(binding)) {
-            return [binding]
-        }
-        return binding.bindings
-    })
+    return bindings.flatMap(binding => binding.bindings)
 }
 
-export function ShortcutSuggestions({ flat, className = "", allbindings }: { flat: boolean, className: string, allbindings?: Keybindings }) {
+export function ShortcutSuggestions({ flat, className = "", allbindings }: { flat: boolean, className?: string, allbindings?: Keybindings }) {
     const activeBindings = useActiveBindings()
     const bindings = allbindings ?? activeBindings
 
     if (bindings.length === 0) { return null }
 
-    const flattenedBindings = flat ? flattenBindings(bindings) : bindings
-    const spaceX = flat ? "space-x-8" : "space-x-20"
+    if (flat) {
+        return (
+            <div className={`flex flex-row justify-between space-x-8 ${className}`}>
+                {flattenBindings(bindings).map(binding => (
+                    <KeybindingSuggestion key={JSON.stringify(binding[0])} binding={binding} />
+                ))}
+            </div>
+        )
+    }
 
     return (
-        <div className={`flex flex-row justify-between ${spaceX} ${className}`}>
-            {flattenedBindings.map(binding => {
-                if (Array.isArray(binding)) {
-                    return <BindingSuggestion key={binding[2]} binding={binding} />
-                }
-                else {
-                    return <GroupSuggestion key={binding.description} group={binding} />
-                }
-            })}
+        <div className={`flex flex-row justify-between space-x-20 ${className}`}>
+            {bindings.map(binding => (
+                <GroupSuggestion key={binding.description} group={binding} />
+            ))}
         </div>
     )
 }
 
-function BindingSuggestion({ binding }: { binding: Keybinding }) {
+function KeybindingSuggestion({ binding }: { binding: Keybinding }) {
     const [keys, _condition, description, action] = binding
     return (
         <div
