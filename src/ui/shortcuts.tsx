@@ -289,7 +289,7 @@ function flattenBindings(bindings: Keybindings): Keybinding[] {
     return bindings.flatMap(binding => binding.bindings)
 }
 
-export function ShortcutSuggestions({ flat, className = "", allbindings }: { flat: boolean, className?: string, allbindings?: Keybindings }) {
+export function ShortcutSuggestions({ flat, allbindings }: { flat: boolean, allbindings?: Keybindings }) {
     const activeBindings = useActiveBindings()
     const bindings = allbindings ?? activeBindings
 
@@ -297,20 +297,20 @@ export function ShortcutSuggestions({ flat, className = "", allbindings }: { fla
 
     if (flat) {
         return (
-            <div className={`flex flex-row justify-between space-x-8 ${className}`}>
+            <>
                 {flattenBindings(bindings).map(binding => (
                     <KeybindingSuggestion key={JSON.stringify(binding[0])} binding={binding} />
                 ))}
-            </div>
+            </>
         )
     }
 
     return (
-        <div className={`flex flex-row justify-between space-x-20 ${className}`}>
+        <>
             {bindings.map(binding => (
                 <GroupSuggestion key={binding.description} group={binding} />
             ))}
-        </div>
+        </>
     )
 }
 

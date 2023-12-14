@@ -535,8 +535,28 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     env={env}
                                     />
                             </div>
-                            {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
-                            {shortcutsViewMode !== 'hidden' && <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} className="flex-none p-1 overflow-x-scroll" />}
+                            {shortcutsViewMode !== 'hidden' &&
+                                <div className="flex flex-row w-full overflow-hidden items-end space-x-1">
+                                    <div
+                                        className={`
+                                            flex-1 flex flex-row justify-between
+                                            ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
+                                            p-1 overflow-x-scroll overflow-y-visible
+                                        `}
+                                    >
+                                        <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
+                                    </div>
+                                    <button
+                                        className={`
+                                            ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
+                                            px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
+                                        `}
+                                        onClick={localActions.toggleShortcutsVisible}
+                                    >
+                                        <FontAwesomeIcon icon={solidIcons.faCaretDown} />
+                                    </button>
+                                </div>
+                            }
                             {shortcutsViewMode === 'hidden' &&
                                 <button
                                     className={`
@@ -551,6 +571,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     ⌘
                                 </button>
                             }
+                            {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
                         </div>
                     </div>
                 )}

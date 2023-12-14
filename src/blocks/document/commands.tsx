@@ -209,7 +209,9 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                         </div>
                     ))}
                 </div>
-                <ShortcutSuggestions flat={true} allbindings={localBindings} className="px-5 py-1 border-t border-gray-200 bg-gray-100" />
+                <div className="flex flex-row justify-between space-x-8 px-5 py-1 border-t border-gray-200 bg-gray-100">
+                    <ShortcutSuggestions flat={true} allbindings={localBindings} />
+                </div>
             </div>
         </div>
     )
