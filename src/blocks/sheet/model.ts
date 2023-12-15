@@ -16,26 +16,17 @@ export interface SheetBlockLine<InnerBlockState> extends BlockEntry<InnerBlockSt
     readonly visibility: LineVisibility
 }
 
-export interface LineVisibility {
-    name: boolean
-    block: boolean
-    result: boolean
-}
+export type LineVisibility =
+    | "block"
+    | "result"
 
 export const VISIBILITY_STATES: LineVisibility[] = [
-    { name: true, block: true, result: false },
-    { name: false, block: true, result: false },
-    { name: true, block: false, result: true },
-    { name: false, block: false, result: true },
-    { name: true, block: false, result: false },
+    "block",
+    "result",
 ]
 
-export function lineVisibilityEq(lv1: LineVisibility, lv2: LineVisibility) {
-    return lv1.name === lv2.name && lv1.block === lv2.block && lv1.result === lv2.result
-}
-
 export function nextLineVisibility(visibility: LineVisibility) {
-    return nextElem(visibility, VISIBILITY_STATES, lineVisibilityEq)
+    return nextElem(visibility, VISIBILITY_STATES)
 }
 
 
@@ -157,9 +148,9 @@ export function fromJSON<State>(json: any[], update: BlockUpdater<SheetBlockStat
                 updateLines,
                 env,
                 innerBlock,
-                (entry, { visibility = VISIBILITY_STATES[0] }) => ({
+                (entry, { visibility }) => ({
                     ...entry,
-                    visibility
+                    visibility: VISIBILITY_STATES.includes(visibility) ? visibility : VISIBILITY_STATES[0],
                 }),
             )
         ),

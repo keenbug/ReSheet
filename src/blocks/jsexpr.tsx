@@ -2,7 +2,7 @@ import * as React from 'react'
 import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
 
-import { PromiseResult, PromiseView, ValueInspector } from '../ui/value'
+import { Pending, PromiseResult, PromiseView, ValueInspector } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
 import { computeExpr, computeScript, isPromise, parseJSExpr } from '../logic/compute'
 import { BlockRef } from '../block'
@@ -43,7 +43,7 @@ export const JSExpr = block.create<JSExprModel>({
             case 'promise':
                 switch (state.result.state) {
                     case 'pending':
-                        return undefined
+                        return Pending
                     
                     case 'failed':
                         return state.result.error
@@ -191,6 +191,7 @@ export interface PreviewValueProps {
 export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
     const code = state.code
     if (!isFocused) {
+        if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
         return <ViewValue result={state.result} />
     }
 

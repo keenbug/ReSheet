@@ -141,15 +141,26 @@ function ACTIONS<Inner extends unknown>(
 
         focusDown() { update(focusDown) },
 
-        rename(id: number) {
+        focusFirst() {
             update(state => ({
-                state: Model.updateLineWithId(state, id, line => ({
-                    ...line,
-                    visibility: {
-                        ...line.visibility,
-                        name: true,
-                    },
-                })),
+                effect() {
+                    const firstId = state.lines[0].id
+                    refMap.get(firstId)?.focus()
+                }
+            }))
+        },
+
+        focusLast() {
+            update(state => ({
+                effect() {
+                    const lastId = state.lines.slice(-1)[0].id
+                    refMap.get(lastId)?.focus()
+                }
+            }))
+        },
+
+        rename(id: number) {
+            update(() => ({
                 effect() {
                     refMap.get(id)?.focusVar()
                 },
@@ -368,37 +379,43 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
         actions.updateInner(line.id, action, block, env)
     }
 
-    const varInputBindings: Keybindings = assignmentLineBindings<Inner>(line, innerBlockRef, varInputRef)
+    const varInputBindings: Keybindings = assignmentLineBindings<Inner>(line, innerBlockRef, actions)
+
+    const shouldNameBeHidden = block.getResult(line.state) === undefined || React.isValidElement(block.getResult(line.state))
 
     return (
         <div
             ref={containerRef}
             className={`
-                flex flex-row space-x-2
-                focus:ring-0
-                focus:bg-gray-100
+                flex flex-row items-start space-x-2
+                focus-visible:outline-0
                 group
             `}
             tabIndex={-1}
             {...bindingsProps}
         >
-            <MenuPopover line={line} actions={actions} block={block} />
+            <div className="h-5 w-32 flex flex-row items-end justify-end">
+                <AssignmentLine
+                    key="name"
+                    ref={varInputRef}
+                    line={line}
+                    actions={actions}
+                    bindings={varInputBindings}
+                    style={{ display: undefined }}
+                    className={shouldNameBeHidden ? "hidden group-focus-within:inline-block group-hover:inline-block" : "inline-block"}
+                    />
+            </div>
+            
+            {/* Focus/Hover Indicator */}
+            <div className="border border-gray-300 self-stretch opacity-0 group-focus-within:border-blue-400 group-focus-within:opacity-100 group-hover:opacity-100" />
+
             <div className="flex flex-col space-y-1 flex-1">
-                {line.visibility.name &&
-                    <AssignmentLine
-                        key="name"
-                        ref={varInputRef}
-                        line={line}
-                        actions={actions}
-                        bindings={varInputBindings}
-                        />
-                }
-                {line.visibility.block &&
+                {line.visibility === 'block' &&
                     <ErrorBoundary key="block" title="There was an error in the subblock">
                         {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
                     </ErrorBoundary>
                 }
-                {line.visibility.result &&
+                {line.visibility === 'result' &&
                     <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
                 }
             </div>
@@ -435,12 +452,10 @@ function sheetLineBindings<Inner>(
                     "selfFocused",
                     "focus inner",
                     () => {
-                        if (line.visibility.block) {
+                        if (line.visibility === 'block') {
                             innerBlockRef.current?.focus()
-                        } else if (line.visibility.result) {
+                        } else if (line.visibility === 'result') {
                             resultRef.current?.focus()
-                        } else if (line.visibility.name) {
-                            varInputRef.current?.focus()
                         }
                     },
                 ],
@@ -449,10 +464,12 @@ function sheetLineBindings<Inner>(
         {
             description: "move between lines",
             bindings: [
-                [["ArrowUp", "K"],                   "selfFocused",  "move up",          () => actions.focusUp()],
-                [["ArrowDown", "J"],                 "selfFocused",  "move down",        () => actions.focusDown()],
-                [["C-Enter"],                        "!selfFocused", "jump next",        () => actions.focusOrCreateNext(line.id, block)],
-                [["C-Shift-Enter"],                  "!selfFocused", "jump prev",        () => actions.focusOrCreatePrev(line.id, block)],
+                [["ArrowUp", "K"],                   "selfFocused",   "move up",         () => actions.focusUp()],
+                [["ArrowDown", "J"],                 "selfFocused",   "move down",       () => actions.focusDown()],
+                [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.focusOrCreateNext(line.id, block)],
+                [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.focusOrCreatePrev(line.id, block)],
+                [["G"],                              "!inputFocused", "jump top",        () => actions.focusFirst()],
+                [["Shift-G"],                        "!inputFocused", "jump bottom",     () => actions.focusLast()],
             ]
         },
         {
@@ -470,7 +487,7 @@ function sheetLineBindings<Inner>(
 function assignmentLineBindings<Inner>(
     line: SheetBlockLine<Inner>,
     innerBlockRef: React.MutableRefObject<block.BlockRef>,
-    varInputRef: React.MutableRefObject<HTMLElement>,
+    actions: Actions<Inner>,
 ): Keybindings {
     return [
         {
@@ -481,10 +498,11 @@ function assignmentLineBindings<Inner>(
                     "none",
                     "jump next",
                     () => {
-                        if (line.visibility.block) {
+                        if (line.visibility === 'block') {
                             innerBlockRef.current?.focus()
-                        } else if (line.visibility.name) {
-                            varInputRef.current?.focus()
+                        }
+                        else {
+                            actions.focusDown()
                         }
                     },
                 ],
@@ -502,7 +520,7 @@ interface AssignmentLineProps<State> extends React.HTMLProps<HTMLElement> {
 
 export const AssignmentLine = React.forwardRef(
     function AssignmentLine<State>(props: AssignmentLineProps<State>, ref: React.Ref<HTMLElement>) {
-        const { line, actions, bindings, ...inputProps } = props
+        const { line, actions, bindings, className, ...inputProps } = props
         const bindingsProps = useShortcuts(bindings)
 
         function onUpdateName(name: string) {
@@ -510,88 +528,22 @@ export const AssignmentLine = React.forwardRef(
         }
 
         return (
-            <div
+            <TextInput
+                ref={ref}
                 className={`
-                    self-stretch
-                    pr-2 -mb-1 mt-1
-                    text-slate-500 font-light text-xs
-                    truncate
+                    text-slate-500 font-light text-xs truncate
+                    hover:bg-gray-200 hover:text-slate-700
+                    focus-within:bg-gray-200 focus-within:text-slate-700
+                    outline-none
+                    rounded
+                    ${className}
                 `}
-                tabIndex={-1}
+                value={line.name}
+                onUpdate={onUpdateName}
+                placeholder={Model.lineDefaultName(line)}
+                {...inputProps}
                 {...bindingsProps}
-            >
-                <TextInput
-                    ref={ref}
-                    className={`
-                        hover:bg-gray-200 hover:text-slate-700
-                        focus-within:bg-gray-200 focus-within:text-slate-700
-                        outline-none
-                        p-0.5 -ml-0.5
-                        rounded
-                    `}
-                    value={line.name}
-                    onUpdate={onUpdateName}
-                    placeholder={Model.lineDefaultName(line)}
-                    {...inputProps}
-                />
-            </div>
+            />
         )
     }
 )
-
-
-
-
-/****************** Menu Popover ******************/
-
-function MenuPopover({ line, actions, block }) {
-    const onSwitchCollapse = () => actions.switchCollapse(line.id)
-    const onInsertBefore   = () => actions.insertBeforeCode(line.id, block)
-    const onInsertAfter    = () => actions.insertAfterCode(line.id, block)
-    const onDelete         = () => actions.deleteCode(line.id)
-
-    function Button({ icon, label, ...props }) {
-        return (
-            <Menu.Item>
-                <button
-                    className={`
-                        text-left text-slate-800
-                        hover:bg-gray-200 focus:bg-gray-300
-                        transition-colors
-                        outline-none
-                        h-7 px-1 space-x-1 w-full
-                    `}
-                    {...props}
-                    >
-                    <FontAwesomeIcon icon={icon} />
-                    <span>{label}</span>
-                </button>
-            </Menu.Item>
-        )
-    }
-
-    return (
-        <div>
-            <Menu as="div" className="relative"> 
-                <Menu.Button className="px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
-                    <FontAwesomeIcon size="xs" icon={solidIcons.faGripVertical} />
-                </Menu.Button>
-                <Menu.Items
-                    className={`
-                        flex flex-col
-                        bg-gray-100 shadow-md
-                        rounded items-stretch
-                        w-max text-sm
-                        overflow-hidden outline-none
-                        absolute top-0 -right-1 translate-x-full z-10
-                    `}
-                    >
-                    <Button onClick={onSwitchCollapse} icon={solidIcons.faEye}         label="Change visibility" />
-                    <Button onClick={onInsertBefore}   icon={solidIcons.faChevronUp}   label="Insert before" />
-                    <Button onClick={onInsertAfter}    icon={solidIcons.faChevronDown} label="Insert after"  />
-                    <Button onClick={onDelete}         icon={solidIcons.faTrash}       label="Delete"        />
-                </Menu.Items>
-            </Menu>
-        </div>
-    )
-}

@@ -95,7 +95,7 @@ const textInputChildStyle: React.CSSProperties = {
   }
 
 export const TextInput: React.FC<any> = React.forwardRef(
-    function TextInput({ value, onUpdate, placeholder, ...props }, ref: React.Ref<HTMLInputElement>) {
+    function TextInput({ value, onUpdate, placeholder, style, ...props }, ref: React.Ref<HTMLInputElement>) {
         function onChange(event: React.ChangeEvent<HTMLInputElement>) {
             onUpdate(event.target.value)
         }
@@ -107,6 +107,7 @@ export const TextInput: React.FC<any> = React.forwardRef(
                     textAlign: "left",
                     boxSizing: "border-box",
                     padding: "0px",
+                    ...style,
                 }}
                 {...props}
                 >

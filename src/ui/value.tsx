@@ -47,6 +47,10 @@ export const ValueInspector = React.forwardRef(
             return <PromiseValueInspector ref={ref} {...props} />
         }
 
+        if (value === Pending) {
+            return <div><FontAwesomeIcon spinPulse icon={solidIcons.faSpinner} /></div>
+        }
+
         if (React.isValidElement(value)) {
             return (
                 <ErrorBoundary
@@ -133,6 +137,8 @@ export const FunctionInspector = React.forwardRef(
     }
 )
 
+
+export const Pending = Symbol('Pending')
 
 export type PromiseResult =
     | { state: 'pending' }

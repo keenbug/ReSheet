@@ -616,7 +616,7 @@ export function PageEntry<State>({
                         />
                 ) : (
                     <>
-                        <span onDoubleClick={() => setIsNameEditing(true)}>{getName(page)}</span>
+                        <span className="truncate" onDoubleClick={() => setIsNameEditing(true)}>{getName(page)}</span>
                         <div className="flex-1" />
                         <button
                             className="hidden group-hover:inline-block text-gray-500 hover:text-blue-500"

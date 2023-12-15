@@ -109,26 +109,30 @@ export function keybindingsHandler(
     bindings: Keybindings,
     keymap: KeyMap,
 ): (event: React.KeyboardEvent) => void {
-    const bindingMap = bindings.reduceRight(
-        (map, group) => (
-            group.bindings.reduce(
-                (map, binding) => (
-                    binding[0].reduce(
-                        (map, key) => map.set(key, binding) ,
-                        map,
-                    )
-                ),
-                map,
+    const flatBindings = (
+        bindings.flatMap(group =>
+            group.bindings.flatMap(binding =>
+                binding[0].map(key => [key, binding] as [string, Keybinding])
             )
+        )
+    )
+    const bindingMap = flatBindings.reduce(
+        (map, [key, binding]) => (
+            map.update(key, List(), l => l.push(binding))
         ),
-        Map<string, Keybinding>(),
+        Map<string, List<Keybinding>>(),
     )
     return function onKeyDown(event: React.KeyboardEvent) {
-        const binding = bindingMap.get(getFullKey(event, keymap))
-        if (binding !== undefined && checkCondition(binding[1], event.currentTarget === event.target, isAnInput(event.target))) {
-            event.stopPropagation()
-            event.preventDefault()
-            binding[3]()
+        const bindings = bindingMap.get(getFullKey(event, keymap))
+        if (bindings !== undefined) {
+            for (const binding of bindings) {
+                if (checkCondition(binding[1], event.currentTarget === event.target, isAnInput(event.target))) {
+                    event.stopPropagation()
+                    event.preventDefault()
+                    binding[3]()
+                    return
+                }
+            }
         }
     }
 }
@@ -138,7 +142,7 @@ export function useKeybindingsHandler(
     bindings: Keybindings
 ): (event: React.KeyboardEvent) => void {
     const keymap = useKeymap()
-    return React.useMemo(() => keybindingsHandler(bindings, keymap), [bindings])
+    return React.useMemo(() => keybindingsHandler(bindings, keymap), [bindings, keymap])
 }
 
 export function filterBindings(bindings: Keybindings, isSelfFocused: boolean, isInputFocused: boolean) {

@@ -66,6 +66,7 @@ function rankMatch(match: Match): number {
 
 export function CommandSearch({ bindings, close }: { bindings: Keybindings, close(): void }) {
     const inputRef = React.useRef<HTMLInputElement>()
+    const focusBefore = React.useMemo(() => document.activeElement, [])
     const [searchText, setSearchText] = React.useState('')
     const [activeBinding, setActiveBinding] = React.useState(0)
     const [setResultRef, refMap] = useRefMap<number, HTMLDivElement>()
@@ -122,6 +123,9 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
     function runBindingAndClose(filteredIndex: number) {
         if (filteredBindings[filteredIndex] !== undefined) {
             close()
+            if (focusBefore instanceof HTMLElement) {
+                focusBefore.focus()
+            }
             filteredBindings[filteredIndex].action()
         }
     }
@@ -136,6 +140,9 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
     function dismiss() {
         if (searchText === '') {
             close()
+            if (focusBefore instanceof HTMLElement) {
+                focusBefore.focus()
+            }
         }
         else {
             setSearchText('')
@@ -198,9 +205,9 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                             <span>
                                 {renderMatch(binding.description)}
                             </span>
-                            {index === activeBinding && <KeyButton className="text-xs" keyName="Enter" />}
+                            {index === activeBinding && <KeyButton className="text-sm" keyName="Enter" />}
 
-                            <div className="flex-1 flex flex-row justify-end space-x-1 text-xs">
+                            <div className="flex-1 flex flex-row justify-end space-x-1 text-sm">
                                 {intersperse(
                                     <span>/</span>,
                                     binding.keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)

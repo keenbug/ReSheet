@@ -3,7 +3,7 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
-import { Menu } from '@headlessui/react'
+import { Menu, Transition } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
@@ -511,7 +511,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                         ref={containerRef}
                         tabIndex={-1}
                         {...bindingProps}
-                        className="h-full w-full flex overflow-hidden"
+                        className="relative h-full w-full overflow-hidden"
                         >
                         <Sidebar
                             state={innerState}
@@ -523,8 +523,14 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             />
                         <SidebarButton state={innerState} actions={actions} />
 
-                        <div className="h-full flex-1 flex flex-col items-stretch overflow-hidden">
-                            <div className={`flex-1 overflow-scroll ${innerState.viewState.sidebarOpen ? 'px-1' : 'px-10'}`}>
+                        <div
+                            className={`
+                                h-full
+                                transition-all ${innerState.viewState.sidebarOpen || isNameEditing ? "ml-56" : ""}
+                                flex flex-col items-stretch overflow-hidden
+                            `}
+                        >
+                            <div className={`flex-1 overflow-scroll transition-all ${innerState.viewState.sidebarOpen || isNameEditing ? "px-1" : "px-10"}`}>
                                 <MainView
                                     key={innerState.viewState.openPage.join('.')}
                                     innerRef={innerRef}
@@ -541,7 +547,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                         className={`
                                             flex-1 flex flex-row justify-between
                                             ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                            p-1 overflow-x-scroll overflow-y-visible
+                                            p-1 overflow-x-scroll border-t-2 border-gray-100
                                         `}
                                     >
                                         <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
@@ -560,7 +566,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             {shortcutsViewMode === 'hidden' &&
                                 <button
                                     className={`
-                                        absolute bottom-6 right-6 w-8 h-8
+                                        absolute bottom-3 right-3 w-8 h-8
                                         rounded-full border border-gray-100 shadow
                                         bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
                                         flex justify-center items-center
@@ -684,34 +690,18 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
         )
     }
 
-    return (
-        <div
-            className={`
-                flex flex-col space-y-1 whitespace-nowrap overflow-scroll bg-gray-100 transition-all
-                sticky h-screen top-0
-                ${state.viewState.sidebarOpen ? 'min-w-min w-56' : 'w-0'}
-            `}
-            >
-            <button
-                className={`
-                    px-2 py-0.5 self-end text-gray-400
-                    hover:text-gray-800 hover:bg-gray-200
-                `}
-                onClick={actions.toggleSidebar}
-                >
-                <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
-            </button>
-
+    function CommandSearchButton() {
+        return (
             <div
                 className={`
-                    rounded-full mx-2 px-3 py-0.5
-                    flex flex-row items-baseline space-x-2
-                    bg-gray-200 text-gray-600 border border-gray-300 
-                    text-sm cursor-pointer
-                    hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
-                    transition
-                    group
-                `}
+                        rounded-full mx-2 px-3 py-0.5
+                        flex flex-row items-baseline space-x-2
+                        bg-gray-200 text-gray-600 border border-gray-300 
+                        text-sm cursor-pointer
+                        hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
+                        transition
+                        group
+                    `}
                 onClick={commandBinding[3]}
             >
                 <FontAwesomeIcon className="self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
@@ -723,6 +713,31 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                     )}
                 </div>
             </div>
+        )
+    }
+
+    return (
+        <Transition
+            show={state.viewState.sidebarOpen || isNameEditing}
+            className="absolute inset-y-0 h-full left-0 flex flex-col space-y-1 whitespace-nowrap overflow-scroll bg-gray-100 w-56"
+            enter="transition-transform"
+            enterFrom="-translate-x-full"
+            enterTo="translate-x-0"
+            leave="transition-transform"
+            leaveFrom="translate-x-0"
+            leaveTo="-translate-x-full"
+        >
+            <button
+                className={`
+                    px-2 py-0.5 self-end text-gray-400
+                    hover:text-gray-800 hover:bg-gray-200
+                `}
+                onClick={actions.toggleSidebar}
+                >
+                <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
+            </button>
+
+            <CommandSearchButton />
 
             <div className="h-3" />
 
@@ -749,7 +764,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                 <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
                 Add Page
             </button>
-        </div>
+        </Transition>
     )
 }
 
