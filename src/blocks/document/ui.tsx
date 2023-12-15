@@ -696,7 +696,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                 className={`
                         rounded-full mx-2 px-3 py-0.5
                         flex flex-row items-baseline space-x-2
-                        bg-gray-200 text-gray-600 border border-gray-300 
+                        bg-gray-200 text-gray-400 border border-gray-300 
                         text-sm cursor-pointer
                         hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
                         transition
@@ -704,9 +704,9 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                     `}
                 onClick={commandBinding[3]}
             >
-                <FontAwesomeIcon className="self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
+                <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
                 <span>Commands</span>
-                <div className="flex-1 text-right text-gray-500 group-hover:text-gray-800">
+                <div className="flex-1 text-right">
                     {intersperse<React.ReactNode>(
                         "/",
                         commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)

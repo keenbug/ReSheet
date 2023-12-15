@@ -118,6 +118,9 @@ https://hackage.haskell.org/package/retrie
 
 # Maybe useful libs
 
+Virtual List/Grid Component
+https://github.com/inokawa/virtua
+
 File System Access in Chrome
 https://developer.chrome.com/docs/capabilities/web-apis/file-system-access?hl=en
 

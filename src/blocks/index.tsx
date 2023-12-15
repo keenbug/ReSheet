@@ -27,32 +27,42 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
     },
 })
 
-export const Input = Block.create<string>({
-    init: "",
-    view({ state, update }) {
-        function onChange(ev) {
-            update(() => ev.target.value)
+export function Input(parser = str => str) {
+    return Block.create<string>({
+        init: "",
+        view({ state, update }, ref) {
+            const inputRef = React.useRef<HTMLInputElement>()
+            React.useImperativeHandle(
+                ref,
+                () => ({
+                    focus() { inputRef.current?.focus() }
+                }),
+                [inputRef],
+            )
+            function onChange(ev) {
+                update(() => ev.target.value)
+            }
+            return <input ref={inputRef} type="text" value={state} onChange={onChange} />
+        },
+        getResult(state) {
+            return parser(state)
+        },
+        recompute(state, update, env) {
+            return state
+        },
+        fromJSON(json) {
+            if (typeof json === 'string') {
+                return json
+            }
+            else {
+                return ""
+            }
+        },
+        toJSON(state) {
+            return state
         }
-        return <input type="text" value={state} onChange={onChange} />
-    },
-    getResult(state) {
-        return state
-    },
-    recompute(state, update, env) {
-        return state
-    },
-    fromJSON(json) {
-        if (typeof json === 'string') {
-            return json
-        }
-        else {
-            return ""
-        }
-    },
-    toJSON(state) {
-        return state
-    }
-})
+    })
+}
 
 export const LoadFileButtonStyled = classed<any>(LoadFileButton)`
     cursor-pointer

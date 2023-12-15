@@ -387,14 +387,14 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
         <div
             ref={containerRef}
             className={`
-                flex flex-row items-start space-x-2
+                flex flex-row items-baseline space-x-2
                 focus-visible:outline-0
                 group
             `}
             tabIndex={-1}
             {...bindingsProps}
         >
-            <div className="h-5 w-32 flex flex-row items-end justify-end">
+            <div className="w-32 flex flex-row justify-end">
                 <AssignmentLine
                     key="name"
                     ref={varInputRef}
