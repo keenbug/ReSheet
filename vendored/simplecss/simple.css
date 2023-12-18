@@ -64,7 +64,7 @@
 }
 
 /* Make the body a nice central block */
-.simplecss {
+.simplecss.central {
   color: var(--simple-text);
   background-color: var(--simple-bg);
   font-size: 1.15rem;
@@ -144,6 +144,45 @@
 .simplecss p {
   margin: 1.5rem 0;
 }
+
+
+.simplecss.inline h1 {
+  font-size: 3rem;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.simplecss.inline h2 {
+  font-size: 2.6rem;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.simplecss.inline h3 {
+  font-size: 2rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+}
+
+.simplecss.inline h4 {
+  font-size: 1.44rem;
+  margin-bottom: 1rem;
+}
+
+.simplecss.inline h5 {
+  font-size: 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.simplecss.inline h6 {
+  font-size: 0.96rem;
+  margin-bottom: 1rem;
+}
+
+.simplecss.inline p {
+  margin: 0 0;
+}
+
 
 /* Prevent long strings from overflowing container */
 .simplecss p, .simplecss h1, h2, .simplecss h3, .simplecss h4, .simplecss h5, .simplecss h6 {

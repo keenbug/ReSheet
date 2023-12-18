@@ -5,8 +5,9 @@ import { SheetOf } from './sheet'
 import { BlockSelector } from './block-selector'
 import { JSExpr } from './jsexpr'
 import { DocumentOf } from './document'
+import { Note } from './note'
 
-export { JSExpr, BlockSelector, SheetOf, DocumentOf }
+export { JSExpr, BlockSelector, SheetOf, DocumentOf, Note }
 
 export const Selector = blocks => BlockSelector('JSExpr', JSExpr, blocks)
 export const Sheet = blocks => SheetOf(Selector(blocks))

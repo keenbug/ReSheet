@@ -2,35 +2,40 @@ import * as React from 'react'
 import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
 
-import { Pending, PromiseResult, PromiseView, ValueInspector } from '../ui/value'
-import { EditableCode } from '../ui/code-editor'
-import { computeExpr, computeScript, isPromise, parseJSExpr } from '../logic/compute'
-import { BlockRef } from '../block'
-import * as block from '../block'
+import { Pending, PromiseResult, PromiseView, ValueInspector } from '../../ui/value'
+import { EditableCode } from '../../ui/code-editor'
+import { computeExpr, computeScript, isPromise, parseJSExpr } from '../../logic/compute'
+import { BlockRef } from '../../block'
+import * as block from '../../block'
 import { Inspector } from 'react-inspector'
-import { useShortcuts } from '../ui/shortcuts'
+import { useShortcuts } from '../../ui/shortcuts'
+import { useEffectQueue } from '../../ui/hooks'
 
 
-export interface JSExprModel {
-    code: string
+export interface NoteModel {
+    input: string
     result: Result
 }
+
+export type Input =
+    | { type: 'code', code: string }
+    | { type: 'text', tag: string, text: string }
 
 export type Result =
     | { type: 'immediate', value: any }
     | { type: 'promise', cancel(): void } & PromiseResult
 
 
-const init: JSExprModel = {
-    code: '',
-    result: { type: 'immediate', value: undefined },
+const init: NoteModel = {
+    input: '',
+    result: { type: 'immediate', value: <div className="simplecss inline"><p>&#8203;</p></div> },
 }
 
 
-export const JSExpr = block.create<JSExprModel>({
+export const Note = block.create<NoteModel>({
     init,
     view({ env, state, update }, ref) {
-        return <JSExprUi ref={ref} state={state} update={update} env={env} />
+        return <NoteUi ref={ref} state={state} update={update} env={env} />
     },
     recompute(state, update, env) {
         return updateResult(state, update, env)
@@ -57,7 +62,7 @@ export const JSExpr = block.create<JSExprModel>({
         if (typeof json === 'string') {
             return updateResult(
                 {
-                    code: json,
+                    input: json,
                     result: { type: 'immediate', value: undefined },
                 },
                 update,
@@ -69,33 +74,35 @@ export const JSExpr = block.create<JSExprModel>({
         }
     },
     toJSON(state) {
-        return state.code
+        return state.input
     }
 })
 
-interface JSExprUiProps {
-    state: JSExprModel
-    update: block.BlockUpdater<JSExprModel>
+interface NoteUiProps {
+    state: NoteModel
+    update: block.BlockUpdater<NoteModel>
     env: block.Environment
 }
 
-export const JSExprUi = React.forwardRef(
-    function JSExprUi(
-        { state, update, env }: JSExprUiProps,
+export const NoteUi = React.forwardRef(
+    function NoteUi(
+        { state, update, env }: NoteUiProps,
         ref: React.Ref<BlockRef>
     ) {
         const editorRef = React.useRef<HTMLTextAreaElement>()
+        const queueEffect = useEffectQueue()
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
-                    editorRef.current?.focus()
+                    setFocused(true)
+                    queueEffect(() => { editorRef.current?.focus() })
                 }
             })
         )
         const [isFocused, setFocused] = React.useState(false)
 
-        const onUpdateCode = (code: string) => update(state => updateResult({ ...state, code }, update, env))
+        const onUpdateCode = (code: string) => update(state => updateResult({ ...state, input: code }, update, env))
 
         const shortcutProps = useShortcuts([
             {
@@ -107,21 +114,29 @@ export const JSExprUi = React.forwardRef(
         ])
 
         return (
-            <div className="flex flex-col space-y-1 flex-1 my-2">
-                <EditableCode
-                    ref={editorRef}
-                    code={state.code}
-                    onUpdate={onUpdateCode}
-                    {...shortcutProps}
-                    onFocus={event => {
-                        setFocused(true)
-                        shortcutProps.onFocus(event)
-                    }}
-                    onBlur={event => {
+            <div
+                className="flex flex-col space-y-1 flex-1"
+                tabIndex={-1}
+                onClick={() => { setFocused(true) }}
+                onFocus={event => {
+                    setFocused(true)
+                    shortcutProps.onFocus(event)
+                }}
+                onBlur={event => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) {
                         setFocused(false)
-                        shortcutProps.onBlur(event)
-                    }}
-                    />
+                    }
+                    shortcutProps.onBlur(event)
+                }}
+                >
+                {isFocused && 
+                    <EditableCode
+                        ref={editorRef}
+                        code={state.input}
+                        onUpdate={onUpdateCode}
+                        {...shortcutProps}
+                        />
+                }
                 <PreviewValue
                     state={state}
                     env={env}
@@ -132,40 +147,82 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
-function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel>, env: block.Environment): JSExprModel {
-    function attachPromiseStateHandlers(promise: Promise<any>) {
-        let cancelled = false
+function attachPromiseStateHandlers(promise: Promise<any>, update: block.BlockUpdater<NoteModel>) {
+    let cancelled = false
 
-        function cancel() {
-            cancelled = true
-        }
-
-        promise.then(
-            (value: any) => {
-                if (cancelled) { return }
-                update(state => ({
-                    ...state,
-                    result: { type: 'promise', cancel, state: 'finished', value },
-                }))
-            },
-            (error: any) => {
-                if (cancelled) { return }
-                update(state => ({
-                    ...state,
-                    result: { type: 'promise', cancel, state: 'failed', error },
-                }))
-            }
-        )
-
-        return cancel
+    function cancel() {
+        cancelled = true
     }
 
+    promise.then(
+        (value: any) => {
+            if (cancelled) { return }
+            update(state => ({
+                ...state,
+                result: { type: 'promise', cancel, state: 'finished', value },
+            }))
+        },
+        (error: any) => {
+            if (cancelled) { return }
+            update(state => ({
+                ...state,
+                result: { type: 'promise', cancel, state: 'failed', error },
+            }))
+        }
+    )
+
+    return cancel
+}
+
+function parseInput(input: string): Input {
+    if (input.startsWith('= ')) {
+        return { type: 'code', code: input.slice(2) }
+    }
+
+    const header = input.match(/^#{1,6} /)
+    if (header) {
+        const level = header[0].length - 1
+        return { type: 'text', tag: `h${level}`, text: input.slice(header[0].length) }
+    }
+
+    const list = input.match(/^[-*] /)
+    if (list) {
+        return { type: 'text', tag: 'li', text: input.slice(list[0].length) }
+    }
+
+    return { type: 'text', tag: 'p', text: input }
+}
+
+function transformInput(input: Input): string {
+    switch (input.type) {
+        case 'code':
+            return input.code
+
+        case 'text':
+            return [
+                `<div className='simplecss inline'><${input.tag}>`,
+                (
+                    input.text.trim() === '' ?
+                        "&#8203;"
+                    :
+                        input.text
+                ),
+                `</${input.tag}></div>`,
+            ].join('\n')
+    }
+}
+
+function updateResult(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
     if (state.result.type === 'promise') {
         state.result.cancel()
     }
-    const result = computeScript(state.code, env)
+
+    const parsed = parseInput(state.input)
+    const script = transformInput(parsed)
+    const result = computeScript(script, env)
+
     if (isPromise(result)) {
-        const cancel = attachPromiseStateHandlers(result)
+        const cancel = attachPromiseStateHandlers(result, update)
         return {
             ...state,
             result: { type: 'promise', cancel, state: 'pending' },
@@ -183,13 +240,13 @@ function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel
 
 
 export interface PreviewValueProps {
-    state: JSExprModel
+    state: NoteModel
     env: block.Environment
     isFocused: boolean
 }
 
 export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
-    const code = state.code
+    const code = transformInput(parseInput(state.input))
     if (!isFocused) {
         if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
         return <ViewValue result={state.result} />

@@ -32,7 +32,7 @@ const CodeContent = classed<any>(CodeWithPlaceholder)`
 `
 
 
-export const CodeView: React.FC<any> = ({ code, container, highlight = highlightJS, ...props }) => {
+export const CodeView: React.FC<any> = ({ code, container, highlight = highlightJS, placeholder = '<code/>', ...props }) => {
     const ref = React.useRef(null)
 
     const Container = container ?? CodeContent
@@ -42,7 +42,7 @@ export const CodeView: React.FC<any> = ({ code, container, highlight = highlight
                 ref={ref}
                 style={{ minHeight: "1.5rem" }}
                 dangerouslySetInnerHTML={{ __html: highlight(code) }}
-                placeholder="<code/>"
+                placeholder={placeholder}
                 {...props}
             />
         </pre>
@@ -58,11 +58,16 @@ type CodeEditorProps = Omit<EditorProps, CodeEditorControlledProps | EditorDefau
     code: string
     onUpdate: (code: string) => void
     highlight?: (code: string) => string
+    placeholder?: string
 }
 
 export const CodeEditor = React.forwardRef(
     function CodeEditor(
-        { code, onUpdate, highlight = highlightJS, ...props }: CodeEditorProps,
+        {
+            code, onUpdate, highlight = highlightJS,
+            placeholder = '<code/>', className = '', preClassName = '',
+            ...props
+        }: CodeEditorProps,
         ref: React.Ref<HTMLTextAreaElement>
     ) {
         const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
@@ -74,12 +79,13 @@ export const CodeEditor = React.forwardRef(
                 onValueChange={onUpdate}
                 highlight={highlight}
                 autoFocus={false}
-                className="focus-within:bg-gray-100"
+                className={`focus-within:bg-gray-100 ${className}`}
                 textareaId={id}
                 textareaClassName="focus-visible:outline-none"
                 preClassName={`
-                    ${code.trim() === "" && "before:content-['<code/>']"}
+                    ${code.trim() === "" && `before:content-['${placeholder}']`}
                     before:text-gray-300 before:text-xs
+                    ${preClassName}
                 `}
                 style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
