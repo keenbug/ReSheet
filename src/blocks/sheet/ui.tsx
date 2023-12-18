@@ -407,7 +407,7 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
             </div>
             
             {/* Focus/Hover Indicator */}
-            <div className="border border-gray-300 self-stretch opacity-0 group-focus-within:border-blue-400 group-focus-within:opacity-100 group-hover:opacity-100" />
+            <div className="border border-gray-300 self-stretch opacity-0 group-focus:border-blue-500 group-focus-within:border-blue-300 group-focus-within:opacity-100 group-hover:opacity-100" />
 
             <div className="flex flex-col space-y-1 flex-1">
                 {line.visibility === 'block' &&
