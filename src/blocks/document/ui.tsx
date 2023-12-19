@@ -828,7 +828,7 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
 }
 
 
-export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: CollectorDialogProps) {
+export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onSkip }: CollectorDialogProps) {
     const ref = React.useRef<HTMLInputElement>()
 
     React.useEffect(() => {
@@ -854,7 +854,7 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: Collecto
                 <p>
                     For shortcuts to work properly, we need to collect your{' '}
                     keyboard layout's mapping from physical keys to their{' '}
-                    corresponding character.
+                    corresponding character once.
                 </p>
                 <p>
                     Please press all your keyboard keys one after another.
@@ -885,13 +885,23 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone }: Collecto
                         Looks good <FontAwesomeIcon className="text-green-500" icon={solidIcons.faCircleCheck} />
                     </p>
                 }
-                <button
-                    className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-gray-100 text-gray-400"}`}
-                    disabled={!matches}
-                    onClick={onDone}
-                >
-                    I have pressed all keys
-                </button>
+                <div className="flex flex-col space-y-2 items-stretch">
+                    <button
+                        className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        disabled={!matches}
+                        onClick={onDone}
+                    >
+                        I have pressed all keys
+                    </button>
+                    {!matches &&
+                        <button
+                            className="text-xs text-gray-500 hover:text-blue-500"
+                            onClick={onSkip}
+                        >
+                            I won't use shortcuts - skip setup
+                        </button>
+                    }
+                </div>
             </div>
         </div>
     )

@@ -39,7 +39,7 @@ export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
         keymap === undefined ?
             event.key
         :
-            remapKey(keymap, event.code, event.shiftKey)
+            remapKey(keymap, event.code, event.shiftKey, event.key)
     )
 
     const keyName = keyRemapped.length > 1 ? keyRemapped : keyRemapped.toUpperCase()
@@ -459,9 +459,9 @@ export function KeySymbol({ keyName }) {
 
 type KeyMap = Map<string, { shift: string, noshift: string }>
 
-export function remapKey(keymap: KeyMap, code: string, isShiftPressed: boolean) {
+export function remapKey(keymap: KeyMap, code: string, isShiftPressed: boolean, fallbackKey: string) {
     if (!keymap.has(code)) {
-        return code
+        return fallbackKey
     }
 
     if (isShiftPressed) {
@@ -495,6 +495,7 @@ export interface CollectorDialogProps {
     keyMap: KeyMap
     onCollectKey(event: React.KeyboardEvent): void
     onDone(): void
+    onSkip(): void
 }
 
 export interface CollectKeymapProps {
@@ -550,5 +551,9 @@ export function CollectKeymap({ children, collectorDialog: CollectorDialog }: Co
         })
     }
 
-    return <CollectorDialog keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} />
+    function onSkip() {
+        setKeyMap([Map(), true])
+    }
+
+    return <CollectorDialog keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} onSkip={onSkip} />
 }
