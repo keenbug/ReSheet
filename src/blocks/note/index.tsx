@@ -2,8 +2,10 @@ import * as React from 'react'
 import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
 
+import Editor from 'react-simple-code-editor'
+
 import { Pending, PromiseResult, PromiseView, ValueInspector } from '../../ui/value'
-import { EditableCode } from '../../ui/code-editor'
+import { highlightJS, highlightNothing } from '../../ui/code-editor'
 import { computeExpr, computeScript, isPromise, parseJSExpr } from '../../logic/compute'
 import { BlockRef } from '../../block'
 import * as block from '../../block'
@@ -24,6 +26,16 @@ export type Input =
 export type Result =
     | { type: 'immediate', value: any }
     | { type: 'promise', cancel(): void } & PromiseResult
+
+function isInputCode(input: Input) {
+    switch (input.type) {
+        case 'code':
+            return true
+
+        case 'text':
+            return /(^|[^\\])[{}<>]/.test(input.text)
+    }
+}
 
 
 const init: NoteModel = {
@@ -112,6 +124,8 @@ export const NoteUi = React.forwardRef(
                 ]
             }
         ])
+        
+        const parsed = parseInput(state.input)
 
         return (
             <div
@@ -129,8 +143,8 @@ export const NoteUi = React.forwardRef(
                     shortcutProps.onBlur(event)
                 }}
                 >
-                {isFocused && 
-                    <EditableCode
+                {(isFocused || parsed.type === 'code') && 
+                    <NoteEditor
                         ref={editorRef}
                         code={state.input}
                         onUpdate={onUpdateCode}
@@ -200,14 +214,14 @@ function transformInput(input: Input): string {
 
         case 'text':
             return [
-                `<div className='simplecss inline'><${input.tag}>`,
+                `<${input.tag} className=${JSON.stringify(styles[input.tag] ?? "")}>`,
                 (
                     input.text.trim() === '' ?
                         "&#8203;"
                     :
                         input.text
                 ),
-                `</${input.tag}></div>`,
+                `</${input.tag}>`,
             ].join('\n')
     }
 }
@@ -235,8 +249,66 @@ function updateResult(state: NoteModel, update: block.BlockUpdater<NoteModel>, e
     }
 }
 
+const styles = {
+    h1: "text-5xl mt-12 mb-6",
+    h2: "text-4xl mt-12 mb-6",
+    h3: "text-3xl mt-12 mb-4",
+    h4: "text-2xl mt-8 mb-4",
+    h5: "text-xl mt-8 mb-4",
+    h6: "text-lg mt-4 mb-2",
+}
 
 
+
+interface CodeEditorProps {
+    code: string
+    onUpdate: (code: string) => void
+}
+
+const codeStyle = {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+}
+
+function editorStyle(input: Input) {
+    const highlight = isInputCode(input) ? highlightJS : highlightNothing
+    switch (input.type) {
+        case 'code':
+            return [codeStyle, "", highlight]
+
+        case 'text':
+            return [{}, styles[input.tag] ?? "", highlight]
+    }
+}
+
+export const NoteEditor = React.forwardRef(
+    function NoteEditor(
+        {
+            code, onUpdate,
+            ...props
+        }: CodeEditorProps,
+        ref: React.Ref<HTMLTextAreaElement>
+    ) {
+        const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
+        React.useImperativeHandle(ref, () => document.getElementById(id) as HTMLTextAreaElement, [id])
+
+        const parsed = parseInput(code)
+        const [style, className, highlight] = editorStyle(parsed)
+
+        return (
+            <Editor
+                value={code}
+                onValueChange={onUpdate}
+                highlight={highlight}
+                autoFocus={false}
+                className={className}
+                textareaId={id}
+                textareaClassName="focus-visible:outline-none"
+                style={style}
+                {...props}
+                />
+        )
+    }
+)
 
 
 export interface PreviewValueProps {
@@ -246,7 +318,13 @@ export interface PreviewValueProps {
 }
 
 export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
-    const code = transformInput(parseInput(state.input))
+    const parsed = parseInput(state.input)
+
+    if (isFocused && !isInputCode(parsed)) {
+        return null
+    }
+
+    const code = transformInput(parsed)
     if (!isFocused) {
         if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
         return <ViewValue result={state.result} />
