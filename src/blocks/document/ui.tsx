@@ -7,7 +7,7 @@ import { Menu, Transition } from '@headlessui/react'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
-import { $update, arrayEquals, clampTo, intersperse, nextElem } from '../../utils'
+import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '../../utils'
 import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useActiveBindings, useShortcuts, KeyButton } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
@@ -371,7 +371,7 @@ function DocumentKeyBindings<State>(
             description: "change page",
             bindings: [
                 [
-                    ["C-Enter"],
+                    ["C-Shift-R"],
                     "none",
                     "edit page name",
                     () => { localActions.setIsNameEditing(true) },
@@ -629,12 +629,94 @@ function MainView<State>({
     }
 
     const pageEnv = Model.getOpenPageEnv(innerState, env, innerBlock)
-    return innerBlock.view({
-        ref: innerRef,
-        state: openPage.state,
-        update: actions.updateOpenPageInner,
-        env: pageEnv,
-    })
+    return (
+        <div>
+            <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />
+            {innerBlock.view({
+                ref: innerRef,
+                state: openPage.state,
+                update: actions.updateOpenPageInner,
+                env: pageEnv,
+            })}
+        </div>
+    )
+}
+
+interface BreadcrumbsProps {
+    openPage: PageId[]
+    pages: Pages.PageState<unknown>[]
+    onOpenPage(path: PageId[]): void
+}
+
+function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
+    function pathToPages(path: PageId[], pages: Pages.PageState<unknown>[], currentPath: PageId[] = []) {
+        if (path.length === 0) { return [] }
+
+        const page = pages.find(p => p.id === path[0])
+        if (!page) { return pathToPages(path.slice(1), pages) }
+
+        return [
+            [ currentPath, page, pages ],
+            ...pathToPages(path.slice(1), page.children, [ ...currentPath, page.id ])
+        ]
+    }
+
+    const pathPages = pathToPages(openPage, pages)
+
+    return (
+        <div className="flex flex-row py-2 -ml-1 text-gray-800 text-sm">
+            {pathPages.map(([path, page, siblings]) => (
+                <>
+                    <Menu as="div" className="relative">
+                        <Menu.Button className="rounded px-1.5 -mx-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200">
+                            <FontAwesomeIcon size="xs" icon={solidIcons.faAngleRight} />
+                        </Menu.Button>
+                        {siblingsMenuItems(siblings, path)}
+                    </Menu>
+                    <button
+                        className="rounded px-1.5 -mx-0.5 hover:bg-gray-200"
+                        onClick={() => { onOpenPage([ ...path, page.id ]) }}
+                    >
+                        {Pages.getName(page)}
+                    </button>
+                </>
+            ))}
+        </div>
+    )
+
+    function siblingsMenuItems(siblings: any, path: any) {
+        return (
+            <Menu.Items
+                className={`
+                    absolute -top-1 -right-1 translate-x-full z-10
+                    flex flex-col items-stretch whitespace-nowrap
+                    rounded bg-white shadow
+                    focus:outline-none overflow-hidden
+                `}
+            >
+                {siblings.map(page => (
+                    <Menu.Item>
+                        {({ active }) => {
+                            const pathHere = [...path, page.id]
+                            const isOpen = arrayStartsWith(pathHere, openPage)
+                            return (
+                                <button
+                                    className={`
+                                        px-2 py-1 hover:bg-gray-200
+                                        ${isOpen && "bg-gray-100"} ${active && "bg-gray-200"}
+                                        text-left
+                                    `}
+                                    onClick={() => { onOpenPage(pathHere) } }
+                                >
+                                    {Pages.getName(page)}
+                                </button>
+                            )
+                        }}
+                    </Menu.Item>
+                ))}
+            </Menu.Items>
+        )
+    }
 }
 
 
