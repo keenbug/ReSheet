@@ -45,7 +45,8 @@ export function cleanupEnv(env: Environment) {
             name.match(/^[a-zA-Z_$][\w\$]*$/)
         )
     )
-    return Object.fromEntries([["$VAR", env], ...cleanEntries])
+    function $([name]) { return env[name] }
+    return Object.fromEntries([["$", $], ...cleanEntries])
 }
 
 
