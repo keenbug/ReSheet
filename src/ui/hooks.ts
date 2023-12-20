@@ -108,6 +108,12 @@ export function useEffectfulUpdate<State>(
     }, [update, queueEffect])
 }
 
+export function useEffectfulState<State>(init?: State | (() => State)): [State, EffectfulUpdater<State>] {
+    const [state, setState] = React.useState(init)
+    const effectfulUpdate = useEffectfulUpdate(setState)
+    return [state, effectfulUpdate]
+}
+
 export function useRefMap<Key, Ref>(
 ): [
     (key: Key) => (ref: Ref) => void,

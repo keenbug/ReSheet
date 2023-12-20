@@ -1,6 +1,8 @@
 import * as React from 'react'
 import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
 import Editor from 'react-simple-code-editor'
 
@@ -10,53 +12,51 @@ import { computeExpr, computeScript, isPromise, parseJSExpr } from '../../logic/
 import { BlockRef } from '../../block'
 import * as block from '../../block'
 import { Inspector } from 'react-inspector'
-import { useShortcuts } from '../../ui/shortcuts'
-import { useEffectQueue } from '../../ui/hooks'
+import { Keybindings, useShortcuts } from '../../ui/shortcuts'
+import { useEffectfulState } from '../../ui/hooks'
+import { getFullKey } from '../../ui/utils'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
 export interface NoteModel {
+    level: number
     input: string
-    result: Result
+    interpreted: Interpreted
 }
 
-export type Input =
-    | { type: 'expr', expr: string }
+export type Interpreted =
+    | { type: 'expr', code: string, result: Result }
     | { type: 'text', tag: string, text: string }
+    | { type: 'checkbox', checked: boolean, text: string }
 
 export type Result =
     | { type: 'immediate', value: any }
     | { type: 'promise', cancel(): void } & PromiseResult
 
-const JS_LITERALS = [
-    "StringLiteral",
-    "NumericLiteral",
-    "BigIntLiteral",
-    "BooleanLiteral",
-    "NullLiteral",
-    "RegExpLiteral"
-]
+function getResultValue(result: Result) {
+    switch (result.type) {
+        case 'immediate':
+            return result.value
 
-function isInputLiteral(input: Input) {
-    switch (input.type) {
-        case 'expr':
-            try {
-                const type = parseJSExpr(input.expr).type
-                return JS_LITERALS.includes(type)
+        case 'promise':
+            switch (result.state) {
+                case 'pending':
+                    return Pending
+                
+                case 'failed':
+                    return result.error
+                
+                case 'finished':
+                    return result.value
             }
-            catch (e) {
-                // Catch syntax errors
-                return false
-            }
-
-        case 'text':
-            return true
     }
 }
 
 
 const init: NoteModel = {
+    level: 0,
     input: '',
-    result: { type: 'immediate', value: <div className="simplecss inline"><p>&#8203;</p></div> },
+    interpreted: { type: 'text', tag: 'p', text: '' },
 }
 
 
@@ -69,29 +69,32 @@ export const Note = block.create<NoteModel>({
         return updateResult(state, update, env)
     },
     getResult(state) {
-        switch (state.result.type) {
-            case 'immediate':
-                return state.result.value
+        switch (state.interpreted.type) {
+            case 'expr':
+                return getResultValue(state.interpreted.result)
 
-            case 'promise':
-                switch (state.result.state) {
-                    case 'pending':
-                        return Pending
-                    
-                    case 'failed':
-                        return state.result.error
-                    
-                    case 'finished':
-                        return state.result.value
-                }
+            default:
+                return undefined
         }
     },
     fromJSON(json, update, env) {
         if (typeof json === 'string') {
             return updateResult(
                 {
+                    level: 0,
                     input: json,
-                    result: { type: 'immediate', value: undefined },
+                    interpreted: interpretInput(json, env, update),
+                },
+                update,
+                env,
+            )
+        }
+        else if (typeof json === 'object' && typeof json.input === 'string' && typeof json.level === 'number') {
+            return updateResult(
+                {
+                    level: json.level,
+                    input: json.input,
+                    interpreted: interpretInput(json.input, env, update),
                 },
                 update,
                 env,
@@ -102,9 +105,11 @@ export const Note = block.create<NoteModel>({
         }
     },
     toJSON(state) {
-        return state.input
+        return { level: state.level, input: state.input }
     }
 })
+
+
 
 interface NoteUiProps {
     state: NoteModel
@@ -118,64 +123,142 @@ export const NoteUi = React.forwardRef(
         ref: React.Ref<BlockRef>
     ) {
         const editorRef = React.useRef<HTMLTextAreaElement>()
-        const queueEffect = useEffectQueue()
+        const [isFocused, setFocused] = useEffectfulState(false)
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
-                    setFocused(true)
-                    queueEffect(() => { editorRef.current?.focus() })
+                    setFocused(() => ({
+                        state: true,
+                        effect() { editorRef.current?.focus() }
+                    }))
                 }
             })
         )
-        const [isFocused, setFocused] = React.useState(false)
+
+        const actions = ACTIONS(update)
+        const shortcutProps = useShortcuts(keybindings(state, actions))
 
         const onUpdateCode = (code: string) => update(state => updateResult({ ...state, input: code }, update, env))
 
-        const shortcutProps = useShortcuts([
-            {
-                description: "jsexpr",
-                bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation', () => { update(state => updateResult(state, update, env)) }],
-                ]
+        function preventEnter(event: React.KeyboardEvent) {
+            if (getFullKey(event) === 'Enter') {
+                event.preventDefault()
             }
-        ])
+            shortcutProps.onKeyDown(event)
+        }
         
-        const parsed = parseInput(state.input)
-
         return (
             <div
                 className="flex flex-col space-y-1 flex-1"
+                style={{ paddingLeft: state.level + 'rem' }}
                 tabIndex={-1}
-                onClick={() => { setFocused(true) }}
+                onClick={() => {
+                    setFocused(() => ({
+                        state: true,
+                        effect() { editorRef.current?.focus() }
+                    }))
+                }}
                 onFocus={event => {
-                    setFocused(true)
+                    setFocused(() => ({ state: true }))
                     shortcutProps.onFocus(event)
                 }}
                 onBlur={event => {
                     if (!event.currentTarget.contains(event.relatedTarget)) {
-                        setFocused(false)
+                        setFocused(() => ({ state: false }))
                     }
                     shortcutProps.onBlur(event)
                 }}
                 >
-                {(isFocused || parsed.type === 'expr') && 
+                {(isFocused || state.interpreted.type === 'expr') && 
                     <NoteEditor
                         ref={editorRef}
+                        interpreted={state.interpreted}
                         code={state.input}
                         onUpdate={onUpdateCode}
                         {...shortcutProps}
+                        onKeyDown={preventEnter}
                         />
                 }
                 <PreviewValue
                     state={state}
                     env={env}
                     isFocused={isFocused}
+                    toggleCheckbox={actions.toggleCheckbox}
                     />
             </div>
         )
     }
 )
+
+
+
+function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Keybindings {
+    return [
+        {
+            description: "Note",
+            bindings: [
+                [
+                    state.interpreted.type === 'checkbox' ? ["C-Enter"] : [],
+                    "none",
+                    "toggle checkbox",
+                    actions.toggleCheckbox,
+                ],
+                [
+                    ["Tab"],
+                    "none",
+                    "indent",
+                    actions.indent,
+                ],
+                [
+                    ["Shift-Tab"],
+                    "none",
+                    "outdent",
+                    actions.outdent,
+                ]
+            ]
+        }
+    ]
+}
+
+function ACTIONS(update: block.BlockUpdater<NoteModel>) {
+    return {
+        toggleCheckbox() {
+            update(state => {
+                if (state.interpreted.type === 'checkbox') {
+                    return {
+                        ...state,
+                        input: state.input.replace(
+                            /^\[[ xX]?\] /,
+                            state.interpreted.checked ? "[ ] " : "[x] "
+                        ),
+                        interpreted: {
+                            ...state.interpreted,
+                            checked: !state.interpreted.checked,
+                        }
+                    }
+                }
+                return state
+            })
+        },
+
+        indent() {
+            update(state => ({
+                ...state,
+                level: state.level + 1,
+            }))
+        },
+
+        outdent() {
+            update(state => ({
+                ...state,
+                level: Math.max(0, state.level - 1),
+            }))
+        },
+    }
+}
+
+
 
 function attachPromiseStateHandlers(promise: Promise<any>, update: block.BlockUpdater<NoteModel>) {
     let cancelled = false
@@ -204,9 +287,15 @@ function attachPromiseStateHandlers(promise: Promise<any>, update: block.BlockUp
     return cancel
 }
 
-function parseInput(input: string): Input {
+function interpretInput(input: string, env: block.Environment, update: block.BlockUpdater<NoteModel>): Interpreted {
     if (input.startsWith('= ')) {
-        return { type: 'expr', expr: input.slice(2) }
+        const expr = input.slice(2)
+        const value = computeExpr(expr, env)
+        if (isPromise(value)) {
+            const cancel = attachPromiseStateHandlers(value, update)
+            return { type: 'expr', code: expr, result: { type: 'promise', cancel, state: 'pending' } }
+        }
+        return { type: 'expr', code: expr, result: { type: 'immediate', value } }
     }
 
     const header = input.match(/^#{1,6} /)
@@ -220,77 +309,74 @@ function parseInput(input: string): Input {
         return { type: 'text', tag: 'li', text: input.slice(list[0].length) }
     }
 
+    const checkbox = input.match(/^\[[ xX]?\] /)
+    if (checkbox) {
+        return { type: 'checkbox', checked: /^\[[xX]\] /.test(input), text: input.slice(checkbox[0].length) }
+    }
+
     return { type: 'text', tag: 'p', text: input }
 }
 
-function execInput(input: Input, env: block.Environment) {
-    switch (input.type) {
-        case 'expr':
-            return computeExpr(input.expr, env)
-
-        case 'text':
-            const content = input.text.trim() === '' ? '\u200B' : input.text
-            return React.createElement(input.tag, { className: styles[input.tag] }, content)
-    }
-}
-
 function updateResult(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
-    if (state.result.type === 'promise') {
-        state.result.cancel()
-    }
-
-    const parsed = parseInput(state.input)
-    const result = execInput(parsed, env)
-
-    if (isPromise(result)) {
-        const cancel = attachPromiseStateHandlers(result, update)
-        return {
-            ...state,
-            result: { type: 'promise', cancel, state: 'pending' },
-        }
+    if (state.interpreted.type === 'expr' && state.interpreted.result.type === 'promise') {
+        state.interpreted.result.cancel()
     }
 
     return {
         ...state,
-        result: { type: 'immediate', value: result },
+        interpreted: interpretInput(state.input, env, update),
     }
 }
 
-const styles = {
+
+
+
+
+const textStyles = {
     h1: "text-5xl mt-12 mb-6",
     h2: "text-4xl mt-12 mb-6",
     h3: "text-3xl mt-12 mb-4",
     h4: "text-2xl mt-8 mb-4",
     h5: "text-xl mt-8 mb-4",
     h6: "text-lg mt-4 mb-2",
-}
-
-
-
-interface CodeEditorProps {
-    code: string
-    onUpdate: (code: string) => void
+    p: "whitespace-pre-wrap"
 }
 
 const codeStyle = {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
 }
 
-function editorStyle(input: Input) {
-    switch (input.type) {
+function editorStyle(interpreted: Interpreted): [React.CSSProperties, string, (code: string) => string] {
+    switch (interpreted.type) {
         case 'expr':
             return [codeStyle, "", highlightJS]
 
         case 'text':
-            const highlight = isInputLiteral(input) ? highlightNothing : highlightJS
-            return [{}, styles[input.tag] ?? "", highlight]
+            return [{}, textStyles[interpreted.tag] ?? "", highlightNothing]
+
+        case 'checkbox':
+            return [{}, "", highlightNothing]
     }
+}
+
+
+
+
+
+type EditorProps = React.ComponentProps<typeof Editor>
+type EditorDefaultProps = keyof typeof Editor.defaultProps
+type CodeEditorControlledProps = 'value' | 'onValueChange' | 'highlight'
+
+type CodeEditorProps = Omit<EditorProps, CodeEditorControlledProps | EditorDefaultProps> & {
+    interpreted: Interpreted
+    code: string
+    onUpdate: (code: string) => void
 }
 
 export const NoteEditor = React.forwardRef(
     function NoteEditor(
         {
-            code, onUpdate,
+            interpreted, code, onUpdate,
             ...props
         }: CodeEditorProps,
         ref: React.Ref<HTMLTextAreaElement>
@@ -298,8 +384,7 @@ export const NoteEditor = React.forwardRef(
         const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
         React.useImperativeHandle(ref, () => document.getElementById(id) as HTMLTextAreaElement, [id])
 
-        const parsed = parseInput(code)
-        const [style, className, highlight] = editorStyle(parsed)
+        const [style, className, highlight] = editorStyle(interpreted)
 
         return (
             <Editor
@@ -318,84 +403,111 @@ export const NoteEditor = React.forwardRef(
 )
 
 
+
 export interface PreviewValueProps {
     state: NoteModel
     env: block.Environment
     isFocused: boolean
+    toggleCheckbox(): void
 }
 
-export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
-    const parsed = parseInput(state.input)
+export function PreviewValue({ state, env, isFocused, toggleCheckbox }: PreviewValueProps) {
+    const { interpreted } = state
+    switch (interpreted.type) {
+        case 'text':
+            if (isFocused) { return null }
+            const content = interpreted.text.trim() === '' ? '\u200B' : interpreted.text
+            return React.createElement(interpreted.tag, { className: textStyles[interpreted.tag] }, content)
 
-    if (parsed.type === 'expr' && isInputLiteral(parsed)) {
+        case 'checkbox':
+            if (isFocused) { return null }
+            function clickCheckbox(event: React.MouseEvent) {
+                event.stopPropagation()
+                event.preventDefault()
+                toggleCheckbox()
+            }
+            return (
+                <div className="cursor-pointer">
+                    <FontAwesomeIcon
+                        onPointerDown={clickCheckbox}
+                        className={`mr-2 ${interpreted.checked && "text-blue-500"}`}
+                        icon={interpreted.checked ? solidIcons.faSquareCheck : regularIcons.faSquare}
+                        />
+                    {interpreted.text}
+                </div>
+            )
+
+        case 'expr':
+            // fall through to rest of function
+    }
+
+    if (isLiteral(interpreted.code)) {
         return null
     }
 
     if (!isFocused) {
-        if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
-        return <ViewValue result={state.result} />
+        if (interpreted.result.type === 'immediate' && interpreted.result.value === undefined) { return null }
+        return <ViewValue result={interpreted.result} />
     }
 
-    if (parsed.type === 'expr') {
-        const code = parsed.expr
-        try {
-            let parsed: babel.Expression
+    const { code } = interpreted
+    try {
+        let parsed: babel.Expression
 
-            // looks like an incomplete member access?
-            if (code.slice(-1) === '.') {
-                parsed = babel.memberExpression(
-                    parseJSExpr(code.slice(0, -1)),
-                    babel.identifier(''),
-                )
-            }
-            else if (countParens(code, '(') > countParens(code, ')')) {
-                const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
-                const missingClosingParens = ")".repeat(missingClosingParensCount)
-                parsed = parseJSExpr(code + missingClosingParens)
-            }
-            else {
-                parsed = parseJSExpr(code)
-            }
-
-            if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
-                const obj = computeExpr(babelGenerator(parsed.object).code, env)
-                return (
-                    <>
-                        <ValueInspector value={obj[parsed.property.name]} />
-                        <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
-                    </>
-                )
-            }
-            // Top-level variable access?
-            if (parsed.type === 'Identifier') {
-                return (
-                    <>
-                        <ValueInspector value={computeExpr(parsed.name, env)} />
-                        <ValueInspector value={env} expandLevel={1} />
-                    </>
-                )
-            }
-            if (parsed.type === 'CallExpression') {
-                const func = computeExpr(babelGenerator(parsed.callee).code, env)
-                const args = parsed.arguments
-                const missingArgs = func.length - args.length
-                return (
-                    <>
-                        {missingArgs > 0 &&
-                            <div className="my-1 font-mono text-xs text-gray-700">
-                                {missingArgs} arguments missing
-                            </div>
-                        }
-                        <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
-                        <ValueInspector value={func} />
-                    </>
-                )
-            }
+        // looks like an incomplete member access?
+        if (code.slice(-1) === '.') {
+            parsed = babel.memberExpression(
+                parseJSExpr(code.slice(0, -1)),
+                babel.identifier(''),
+            )
         }
-        catch (e) { }
-    }
+        else if (countParens(code, '(') > countParens(code, ')')) {
+            const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
+            const missingClosingParens = ")".repeat(missingClosingParensCount)
+            parsed = parseJSExpr(code + missingClosingParens)
+        }
+        else {
+            parsed = parseJSExpr(code)
+        }
 
-    return <ViewValue result={state.result} />
+        if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
+            const obj = computeExpr(babelGenerator(parsed.object).code, env)
+            return (
+                <>
+                    <ValueInspector value={obj[parsed.property.name]} />
+                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
+                </>
+            )
+        }
+        // Top-level variable access?
+        if (parsed.type === 'Identifier') {
+            return (
+                <>
+                    <ValueInspector value={computeExpr(parsed.name, env)} />
+                    <ValueInspector value={env} expandLevel={1} />
+                </>
+            )
+        }
+        if (parsed.type === 'CallExpression') {
+            const func = computeExpr(babelGenerator(parsed.callee).code, env)
+            const args = parsed.arguments
+            const missingArgs = func.length - args.length
+            return (
+                <>
+                    {missingArgs > 0 &&
+                        <div className="my-1 font-mono text-xs text-gray-700">
+                            {missingArgs} arguments missing
+                        </div>
+                    }
+                    <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
+                    <ValueInspector value={func} />
+                </>
+            )
+        }
+    }
+    catch (e) { }
+
+    return <ViewValue result={interpreted.result} />
 }
 
 function ViewValue({ result }: { result: Result }) {
@@ -408,7 +520,29 @@ function ViewValue({ result }: { result: Result }) {
     }
 }
 
+
+
 export function countParens(str: string, paren: string) {
     const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
     return str.replace(findStringRegex, '').split('').filter(char => char === paren).length
+}
+
+const JS_LITERALS = [
+    "StringLiteral",
+    "NumericLiteral",
+    "BigIntLiteral",
+    "BooleanLiteral",
+    "NullLiteral",
+    "RegExpLiteral"
+]
+
+function isLiteral(expr: string) {
+    try {
+        const type = parseJSExpr(expr).type
+        return JS_LITERALS.includes(type)
+    }
+    catch (e) {
+        // Catch syntax errors
+        return false
+    }
 }

@@ -54,7 +54,7 @@ export function runExprAst(exprAst: babel.types.Expression, exprSource: string, 
     try {
         const cleanEnv = cleanupEnv(env)
         const programAst = programReturnExprAst(exprAst)
-        const isAsync = containsToplevelAsync(programAst)
+        const isAsync = containsToplevelAsync(babelAst.file(programAst))
         const FuncConstructor = isAsync ? AsyncFunction : Function
         const exprFunc = FuncConstructor(
             ...Object.keys(cleanEnv),
@@ -106,7 +106,7 @@ export function transformJSScript(sourcecode) {
 
     return {
         transformedCode: babel.transformFromAstSync(astWithReturn, sourcecode, transformReactOpts).code,
-        isAsync: containsToplevelAsync(ast.program),
+        isAsync: containsToplevelAsync(ast),
     }
 }
 
@@ -141,7 +141,7 @@ export function computeScript(code: string | null, env: Environment) {
 }
 
 
-export function containsToplevelAsync(ast: babel.types.Program) {
+export function containsToplevelAsync(ast: babel.types.File) {
     let hasToplevelAwait = false
     babelTraverse(ast, {
         AwaitExpression(path) {

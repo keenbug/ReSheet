@@ -784,7 +784,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
                         transition
                         group
                     `}
-                onClick={commandBinding[3]}
+                onClick={() => commandBinding[3]()}
             >
                 <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
                 <span>Commands</span>

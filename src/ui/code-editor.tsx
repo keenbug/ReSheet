@@ -96,9 +96,9 @@ export const CodeEditor = React.forwardRef(
     }
 )
 
-export const highlightNothing = code => new Option(code).innerHTML
+export const highlightNothing = (code: string) => new Option(code).innerHTML
 
-export const highlightJS = code => (
+export const highlightJS = (code: string): string => (
     Prism.highlight(
         code,
         Prism.languages.javascript,

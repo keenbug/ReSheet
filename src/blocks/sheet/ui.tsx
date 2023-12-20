@@ -432,6 +432,10 @@ function sheetLineBindings<Inner>(
     resultRef: React.MutableRefObject<HTMLElement>,
     varInputRef: React.MutableRefObject<HTMLElement>,
 ): Keybindings {
+    function insertBelowByEnter(event?: React.KeyboardEvent) {
+        if (event && !event.defaultPrevented) { return }
+        actions.insertAfterCode(line.id, block, 'inner')
+    }
     return [
         {
             description: "change lines",
@@ -440,6 +444,7 @@ function sheetLineBindings<Inner>(
                 [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
                 [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
                 [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
+                [["Enter"],                          "!selfFocused", "insert below",     insertBelowByEnter],
             ]
         },
         {
