@@ -17,11 +17,11 @@ export const parseJSExpr = (sourcecode: string) =>
     babelParser.parseExpression(sourcecode, parseReactOpts)
 
 
-export const transformJSAst = (programAst, code) =>
+export const transformJSAst = (programAst: babel.types.Program, code: string) =>
     babel.transformFromAstSync(programAst, code, transformReactOpts).code
 
 
-export function programReturnExprAst(exprAst) {
+export function programReturnExprAst(exprAst: babel.types.Expression) {
     return (
         babelAst.program(
             [ babelAst.returnStatement(exprAst) ],
@@ -30,7 +30,7 @@ export function programReturnExprAst(exprAst) {
 }
 
 
-export const transformJSExpr = sourcecode =>
+export const transformJSExpr = (sourcecode: string) =>
     transformJSAst(
         programReturnExprAst(
             parseJSExpr(sourcecode)
@@ -50,38 +50,37 @@ export function cleanupEnv(env: Environment) {
 }
 
 
-export const computeExpr = (code: string | null, env: Environment) => {
-    if (!code?.trim()) { return }
+export function runExprAst(exprAst: babel.types.Expression, exprSource: string, env: Environment) {
     try {
         const cleanEnv = cleanupEnv(env)
-        const exprFunc = new Function(
+        const programAst = programReturnExprAst(exprAst)
+        const isAsync = containsToplevelAsync(programAst)
+        const FuncConstructor = isAsync ? AsyncFunction : Function
+        const exprFunc = FuncConstructor(
             ...Object.keys(cleanEnv),
-            transformJSExpr(code),
+            transformJSAst(programAst, exprSource),
         )
         return exprFunc(...Object.values(cleanEnv))
     }
     catch (e) {
-        if (e instanceof SyntaxError && (e as any).loc !== undefined) {
-            (e as any).frame = codeFrameColumns(code, { start: (e as any).loc }, {})
-        }
         return e
     }
 }
 
 
-export function containsToplevelAsync(ast: babel.types.File) {
-    let hasToplevelAwait = false
-    babelTraverse(ast, {
-        AwaitExpression(path) {
-            const isInFunction = path.findParent(path => path.isFunction())
-            if (!isInFunction) {
-                hasToplevelAwait = true
-            }
-        },
-    })
 
-    return hasToplevelAwait
+export const computeExpr = (code: string | null, env: Environment) => {
+    if (!code?.trim()) { return }
+    try {
+        const ast = parseJSExpr(code)
+        return runExprAst(ast, code, env)
+    }
+    catch (e) {
+        annotateCodeFrame(e, code)
+        return e
+    }
 }
+
 
 
 export function transformJSScript(sourcecode) {
@@ -107,7 +106,7 @@ export function transformJSScript(sourcecode) {
 
     return {
         transformedCode: babel.transformFromAstSync(astWithReturn, sourcecode, transformReactOpts).code,
-        isAsync: containsToplevelAsync(ast),
+        isAsync: containsToplevelAsync(ast.program),
     }
 }
 
@@ -136,13 +135,31 @@ export function computeScript(code: string | null, env: Environment) {
         return exprFunc(...Object.values(cleanEnv))
     }
     catch (e) {
-        if (e instanceof SyntaxError && (e as any).loc !== undefined) {
-            (e as any).frame = codeFrameColumns(code, { start: (e as any).loc }, {})
-        }
+        annotateCodeFrame(e, code)
         return e
     }
 }
 
+
+export function containsToplevelAsync(ast: babel.types.Program) {
+    let hasToplevelAwait = false
+    babelTraverse(ast, {
+        AwaitExpression(path) {
+            const isInFunction = path.findParent(path => path.isFunction())
+            if (!isInFunction) {
+                hasToplevelAwait = true
+            }
+        },
+    })
+
+    return hasToplevelAwait
+}
+
+export function annotateCodeFrame(e: Error, source: string) {
+    if (e instanceof SyntaxError && (e as any).loc !== undefined) {
+        (e as any).frame = codeFrameColumns(source, { start: (e as any).loc }, {})
+    }
+}
 
 export function isPromise(value: any) {
     return typeof value?.then === 'function'

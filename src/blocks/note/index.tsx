@@ -20,20 +20,36 @@ export interface NoteModel {
 }
 
 export type Input =
-    | { type: 'code', code: string }
+    | { type: 'expr', expr: string }
     | { type: 'text', tag: string, text: string }
 
 export type Result =
     | { type: 'immediate', value: any }
     | { type: 'promise', cancel(): void } & PromiseResult
 
-function isInputCode(input: Input) {
+const JS_LITERALS = [
+    "StringLiteral",
+    "NumericLiteral",
+    "BigIntLiteral",
+    "BooleanLiteral",
+    "NullLiteral",
+    "RegExpLiteral"
+]
+
+function isInputLiteral(input: Input) {
     switch (input.type) {
-        case 'code':
-            return true
+        case 'expr':
+            try {
+                const type = parseJSExpr(input.expr).type
+                return JS_LITERALS.includes(type)
+            }
+            catch (e) {
+                // Catch syntax errors
+                return false
+            }
 
         case 'text':
-            return /(^|[^\\])[{}<>]/.test(input.text)
+            return true
     }
 }
 
@@ -143,7 +159,7 @@ export const NoteUi = React.forwardRef(
                     shortcutProps.onBlur(event)
                 }}
                 >
-                {(isFocused || parsed.type === 'code') && 
+                {(isFocused || parsed.type === 'expr') && 
                     <NoteEditor
                         ref={editorRef}
                         code={state.input}
@@ -190,7 +206,7 @@ function attachPromiseStateHandlers(promise: Promise<any>, update: block.BlockUp
 
 function parseInput(input: string): Input {
     if (input.startsWith('= ')) {
-        return { type: 'code', code: input.slice(2) }
+        return { type: 'expr', expr: input.slice(2) }
     }
 
     const header = input.match(/^#{1,6} /)
@@ -207,22 +223,14 @@ function parseInput(input: string): Input {
     return { type: 'text', tag: 'p', text: input }
 }
 
-function transformInput(input: Input): string {
+function execInput(input: Input, env: block.Environment) {
     switch (input.type) {
-        case 'code':
-            return input.code
+        case 'expr':
+            return computeExpr(input.expr, env)
 
         case 'text':
-            return [
-                `<${input.tag} className=${JSON.stringify(styles[input.tag] ?? "")}>`,
-                (
-                    input.text.trim() === '' ?
-                        "&#8203;"
-                    :
-                        input.text
-                ),
-                `</${input.tag}>`,
-            ].join('\n')
+            const content = input.text.trim() === '' ? '\u200B' : input.text
+            return React.createElement(input.tag, { className: styles[input.tag] }, content)
     }
 }
 
@@ -232,8 +240,7 @@ function updateResult(state: NoteModel, update: block.BlockUpdater<NoteModel>, e
     }
 
     const parsed = parseInput(state.input)
-    const script = transformInput(parsed)
-    const result = computeScript(script, env)
+    const result = execInput(parsed, env)
 
     if (isPromise(result)) {
         const cancel = attachPromiseStateHandlers(result, update)
@@ -270,12 +277,12 @@ const codeStyle = {
 }
 
 function editorStyle(input: Input) {
-    const highlight = isInputCode(input) ? highlightJS : highlightNothing
     switch (input.type) {
-        case 'code':
-            return [codeStyle, "", highlight]
+        case 'expr':
+            return [codeStyle, "", highlightJS]
 
         case 'text':
+            const highlight = isInputLiteral(input) ? highlightNothing : highlightJS
             return [{}, styles[input.tag] ?? "", highlight]
     }
 }
@@ -320,71 +327,73 @@ export interface PreviewValueProps {
 export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
     const parsed = parseInput(state.input)
 
-    if (isFocused && !isInputCode(parsed)) {
+    if (parsed.type === 'expr' && isInputLiteral(parsed)) {
         return null
     }
 
-    const code = transformInput(parsed)
     if (!isFocused) {
         if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
         return <ViewValue result={state.result} />
     }
 
-    try {
-        let parsed: babel.Expression
+    if (parsed.type === 'expr') {
+        const code = parsed.expr
+        try {
+            let parsed: babel.Expression
 
-        // looks like an incomplete member access?
-        if (code.slice(-1) === '.') {
-            parsed = babel.memberExpression(
-                parseJSExpr(code.slice(0, -1)),
-                babel.identifier(''),
-            )
-        }
-        else if (countParens(code, '(') > countParens(code, ')')) {
-            const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
-            const missingClosingParens = ")".repeat(missingClosingParensCount)
-            parsed = parseJSExpr(code + missingClosingParens)
-        }
-        else {
-            parsed = parseJSExpr(code)
-        }
+            // looks like an incomplete member access?
+            if (code.slice(-1) === '.') {
+                parsed = babel.memberExpression(
+                    parseJSExpr(code.slice(0, -1)),
+                    babel.identifier(''),
+                )
+            }
+            else if (countParens(code, '(') > countParens(code, ')')) {
+                const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
+                const missingClosingParens = ")".repeat(missingClosingParensCount)
+                parsed = parseJSExpr(code + missingClosingParens)
+            }
+            else {
+                parsed = parseJSExpr(code)
+            }
 
-        if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
-            const obj = computeExpr(babelGenerator(parsed.object).code, env)
-            return (
-                <>
-                    <ValueInspector value={obj[parsed.property.name]} />
-                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
-                </>
-            )
+            if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
+                const obj = computeExpr(babelGenerator(parsed.object).code, env)
+                return (
+                    <>
+                        <ValueInspector value={obj[parsed.property.name]} />
+                        <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
+                    </>
+                )
+            }
+            // Top-level variable access?
+            if (parsed.type === 'Identifier') {
+                return (
+                    <>
+                        <ValueInspector value={computeExpr(parsed.name, env)} />
+                        <ValueInspector value={env} expandLevel={1} />
+                    </>
+                )
+            }
+            if (parsed.type === 'CallExpression') {
+                const func = computeExpr(babelGenerator(parsed.callee).code, env)
+                const args = parsed.arguments
+                const missingArgs = func.length - args.length
+                return (
+                    <>
+                        {missingArgs > 0 &&
+                            <div className="my-1 font-mono text-xs text-gray-700">
+                                {missingArgs} arguments missing
+                            </div>
+                        }
+                        <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
+                        <ValueInspector value={func} />
+                    </>
+                )
+            }
         }
-        // Top-level variable access?
-        if (parsed.type === 'Identifier') {
-            return (
-                <>
-                    <ValueInspector value={computeExpr(parsed.name, env)} />
-                    <ValueInspector value={env} expandLevel={1} />
-                </>
-            )
-        }
-        if (parsed.type === 'CallExpression') {
-            const func = computeExpr(babelGenerator(parsed.callee).code, env)
-            const args = parsed.arguments
-            const missingArgs = func.length - args.length
-            return (
-                <>
-                    {missingArgs > 0 &&
-                        <div className="my-1 font-mono text-xs text-gray-700">
-                            {missingArgs} arguments missing
-                        </div>
-                    }
-                    <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
-                    <ValueInspector value={func} />
-                </>
-            )
-        }
+        catch (e) { }
     }
-    catch (e) { }
 
     return <ViewValue result={state.result} />
 }
