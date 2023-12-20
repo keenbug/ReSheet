@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 import * as reactInspector from 'react-inspector'
+import Prism from 'prismjs'
 
 import * as immutable from 'immutable'
 
@@ -24,6 +25,7 @@ import * as blockComponent from '../block/component'
 import * as blocks from '../blocks'
 import * as blockSelector from '../blocks/block-selector'
 import * as jsexpr from '../blocks/jsexpr'
+import * as note from '../blocks/note'
 import * as sheet from '../blocks/sheet'
 import * as document from '../blocks/document'
 
@@ -43,6 +45,7 @@ export const LIBRARY_MAPPINGS = {
     "@fortawesome/free-solid-svg-icons":    faSolid,
     "@fortawesome/free-regular-svg-icons":  faRegular,
     "react-inspector":                      reactInspector,
+    "prismjs":                              Prism,
     "@babel/core":                          babelCore,
     "@babel/preset-react":                  babelReact,
     "@babel/parser":                        babelParser,
@@ -106,6 +109,7 @@ export const library = {
             sheet,
             document,
             jsexpr,
+            note,
         },
         logic: {
             block,

@@ -380,8 +380,8 @@ export function KeyComposition({ shortcut, Key = KeySymbol }: { shortcut: string
 
     return (
         <>
-            {modifiers.map(k => <span><Key key={k} keyName={k === "C" ? "Cmd" : k} /></span>)}
-            <span><Key keyName={char} /></span>
+            {modifiers.map(k => <kbd className="font-sans"><Key key={k} keyName={k === "C" ? "Cmd" : k} /></kbd>)}
+            <kbd className="font-sans"><Key keyName={char} /></kbd>
         </>
     )
 }
@@ -398,7 +398,7 @@ export function KeyButton({ keyName, className }: { keyName: string, className?:
 
 export function KeyButtonContainer({ children, className = "" }: { children: React.ReactNode, className?: string }) {
     return (
-        <div
+        <kbd
             style={{
                 display: "inline flex"
             }}
@@ -410,7 +410,7 @@ export function KeyButtonContainer({ children, className = "" }: { children: Rea
             `}
         >
             {children}
-        </div>
+        </kbd>
     )
 }
 

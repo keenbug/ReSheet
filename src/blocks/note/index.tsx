@@ -3,11 +3,12 @@ import babelGenerator from '@babel/generator'
 import * as babel from '@babel/types'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
+import Markdown from 'markdown-to-jsx'
 
 import Editor from 'react-simple-code-editor'
 
 import { Pending, PromiseResult, PromiseView, ValueInspector } from '../../ui/value'
-import { highlightJS, highlightNothing } from '../../ui/code-editor'
+import { highlightJS, highlightMd } from '../../ui/code-editor'
 import { computeExpr, computeScript, isPromise, parseJSExpr } from '../../logic/compute'
 import { BlockRef } from '../../block'
 import * as block from '../../block'
@@ -151,7 +152,7 @@ export const NoteUi = React.forwardRef(
         return (
             <div
                 className="flex flex-col space-y-1 flex-1"
-                style={{ paddingLeft: state.level + 'rem' }}
+                style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 tabIndex={-1}
                 onClick={() => {
                     setFocused(() => ({
@@ -352,10 +353,10 @@ function editorStyle(interpreted: Interpreted): [React.CSSProperties, string, (c
             return [codeStyle, "", highlightJS]
 
         case 'text':
-            return [{}, textStyles[interpreted.tag] ?? "", highlightNothing]
+            return [{}, textStyles[interpreted.tag] ?? "", highlightMd]
 
         case 'checkbox':
-            return [{}, "", highlightNothing]
+            return [{}, "", highlightMd]
     }
 }
 
@@ -417,7 +418,13 @@ export function PreviewValue({ state, env, isFocused, toggleCheckbox }: PreviewV
         case 'text':
             if (isFocused) { return null }
             const content = interpreted.text.trim() === '' ? '\u200B' : interpreted.text
-            return React.createElement(interpreted.tag, { className: textStyles[interpreted.tag] }, content)
+            return (
+                React.createElement(
+                    interpreted.tag,
+                    { className: textStyles[interpreted.tag] },
+                    <Markdown>{content}</Markdown>,
+                )
+            )
 
         case 'checkbox':
             if (isFocused) { return null }
@@ -430,10 +437,15 @@ export function PreviewValue({ state, env, isFocused, toggleCheckbox }: PreviewV
                 <div className="cursor-pointer">
                     <FontAwesomeIcon
                         onPointerDown={clickCheckbox}
-                        className={`mr-2 ${interpreted.checked && "text-blue-500"}`}
+                        className={`mr-2 ${interpreted.checked && "text-blue-400"}`}
                         icon={interpreted.checked ? solidIcons.faSquareCheck : regularIcons.faSquare}
                         />
-                    {interpreted.text}
+                    <Markdown
+                        options={{ wrapper: 'span' }}
+                        className={interpreted.checked ? "text-gray-400 line-through" : ""}
+                    >
+                        {interpreted.text}
+                    </Markdown>
                 </div>
             )
 

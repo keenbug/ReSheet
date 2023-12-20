@@ -106,4 +106,12 @@ export const highlightJS = (code: string): string => (
     )
 )
 
+export function highlightMd(code: string): string {
+    return Prism.highlight(
+        code,
+        Prism.languages.markdown,
+        'markdown',
+    )
+}
+
 export const EditableCode = CodeEditor
