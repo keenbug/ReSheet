@@ -151,7 +151,7 @@ export const NoteUi = React.forwardRef(
         
         return (
             <div
-                className="flex flex-col space-y-1 flex-1"
+                className="flex flex-col py-0.5 space-y-1 flex-1"
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 onClick={() => {
                     setFocused(() => ({
