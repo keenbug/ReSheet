@@ -15,7 +15,7 @@ export interface BlockProps<State> {
 export function Block<State>({ state, update, block, env, blockRef }: BlockProps<State>) {
     const [updateError, setUpdateError] = React.useState<null | Error>(null)
 
-    const safeUpdate = action => {
+    const safeUpdate = React.useCallback(action => {
         update(state => {
             try {
                 return action(state)
@@ -25,7 +25,7 @@ export function Block<State>({ state, update, block, env, blockRef }: BlockProps
                 return state
             }
         })
-    }
+    }, [update, setUpdateError])
 
     return (
         <React.Fragment>

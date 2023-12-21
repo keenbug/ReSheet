@@ -105,7 +105,10 @@ export const BlockSelectorUI = React.forwardRef(
 
         const [blockExpr, setBlockExpr] = React.useState<string>(state.expr)
 
-        const actions = ACTIONS(updateWithEffect, inputRef, innerBlockRef, blockLibrary)
+        const actions = React.useMemo(
+            () => ACTIONS(updateWithEffect, inputRef, innerBlockRef, blockLibrary),
+            [updateWithEffect, inputRef, innerBlockRef, blockLibrary],
+        )
 
         React.useImperativeHandle(
             ref,

@@ -474,14 +474,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
 
     const activeBindings = useActiveBindings()
 
-    function setIsNameEditingInVisibleSidebar(editing: boolean) {
-        if (editing && !state.inner.viewState.sidebarOpen) {
-            actions.toggleSidebar()
-        }
-        setIsNameEditing(editing)
-    }
-
-    const localActions: LocalActions = {
+    const localActions: LocalActions = React.useMemo(() => ({
         setIsNameEditing,
 
         toggleShortcutsVisible() {
@@ -496,16 +489,21 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     undefined
             ))
         },
-    }
+    }), [setIsNameEditing, setShortcutsViewMode, setSearch])
 
-    const actions = ACTIONS(update, innerBlock, env)
+    const actions = React.useMemo(() => ACTIONS(update, innerBlock, env), [update, innerBlock, env])
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
+
+    const fromJSON = React.useCallback(
+        (json: any, env: Environment) => Model.innerFromJSON(json, actions.updateInner, env, innerBlock),
+        [actions, innerBlock],
+    )
 
     return (
         <>
             <HistoryModePanel state={state} actions={actions} />
-            <HistoryView state={state} update={update} env={env} fromJSON={(json, env) => Model.innerFromJSON(json, actions.updateInner, env, innerBlock)}>
+            <HistoryView state={state} update={update} env={env} fromJSON={fromJSON}>
                 {innerState => (
                     <div
                         ref={containerRef}
@@ -518,7 +516,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             actions={actions}
                             isHistoryOpen={state.mode.type === 'history'}
                             isNameEditing={isNameEditing}
-                            setIsNameEditing={setIsNameEditingInVisibleSidebar}
+                            setIsNameEditing={setIsNameEditing}
                             commandBinding={commandSearchBinding(localActions)}
                             />
                         <SidebarButton state={innerState} actions={actions} />
@@ -604,8 +602,23 @@ function MainView<State>({
     env,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(innerState)
+    const noOpenPage = openPage === null
+    // don't include `innerState` as dependency, because:
+    //   - `Model.getOpenPageEnv` only needs `innerState` for Pages before the current `openPage`
+    //   - only the current `openPage` can change (and following pages as they depend on it, but they are irrelevant for this case)
+    //   - so the real dependency, the Pages before `openPage`, can only change if one of them becomes the `openPage`
+    //   - so `innerState.viewState.openPage` suffices as dependency
+    //   - otherwise `pageEnv` would change every time something in `openPage` changes
+    //      => which leads to everything in `openPage` being reevaluated, even though just some subset could suffice
+    // This could be better solved, if I could break innerState up into the pages before and only feed them as argument and dependency.
+    // But currently it looks like this would harm seperation of concerns, as it seems that the inner workings of `Model.getOpenPageEnv`
+    // would have to spill into here.
+    const pageEnv = React.useMemo(
+        () => noOpenPage ? null : Model.getOpenPageEnv(innerState, env, innerBlock),
+        [innerState.viewState.openPage, noOpenPage, env, innerBlock],
+    )
 
-    if (!openPage) {
+    if (!pageEnv) {
         function Link({ onClick, children }) {
             return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
         }
@@ -628,7 +641,6 @@ function MainView<State>({
         )
     }
 
-    const pageEnv = Model.getOpenPageEnv(innerState, env, innerBlock)
     return (
         <div>
             <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />

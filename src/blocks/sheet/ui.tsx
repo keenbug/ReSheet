@@ -1,7 +1,4 @@
 import * as React from 'react'
-import { Menu } from '@headlessui/react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { TextInput, findScrollableAncestor } from '../../ui/utils'
 import * as block from '../../block'
@@ -11,7 +8,7 @@ import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
 import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
 import { clampTo } from '../../utils'
-import { Keybinding, Keybindings, useShortcuts } from '../../ui/shortcuts'
+import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 
 
 /**************** Code Actions **************/
@@ -296,40 +293,75 @@ export const Sheet = React.forwardRef(
             [state]
         )
 
-        const actions = ACTIONS(updateWithEffect, containerRef, refMap, innerBlock)
+        const actions = React.useMemo(
+            () => ACTIONS(updateWithEffect, containerRef, refMap, innerBlock),
+            [updateWithEffect, containerRef, refMap, innerBlock],
+        )
 
         return (
             <div ref={containerRef} className="pb-[80vh]">
-                {block.mapWithEnv(
-                    state.lines,
-                    (line, localEnv) => {
-                        return {
-                            out: (
-                                <SheetLine
-                                    lineRef={setLineRef(line.id)}
-                                    key={line.id}
-                                    line={line}
-                                    actions={actions}
-                                    block={innerBlock}
-                                    env={localEnv}
-                                    />
-                            ),
-                            env: Model.lineToEnv(line, innerBlock),
-                        }
-                    },
-                    env
-                )}
+                <SheetLinesEnv
+                    setLineRef={setLineRef}
+                    lines={state.lines}
+                    actions={actions}
+                    block={innerBlock}
+                    env={env}
+                    />
             </div>
         )
     }
 )
+
+export interface SheetLinesProps<InnerState> {
+    setLineRef: (id: number) => React.Ref<SheetLineRef>
+    lines: SheetBlockLine<InnerState>[]
+    actions: Actions<InnerState>
+    block: Block<InnerState>
+    env: Environment
+}
+
+export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
+    if (lines.length === 0) {
+        return null
+    }
+    return <SheetLinesEnvHelper {...props} index={0} lines={lines} />
+}
+
+interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
+    index: number
+}
+
+function SheetLinesEnvHelper<InnerState>({ setLineRef, index, lines, actions, block, env }: SheetLineHelperProps<InnerState>) {
+    const line = lines[index]
+    const next = index + 1
+    const localEnv = React.useMemo(
+        () => ({ ...env, ...Model.lineToEnv(line, block) }),
+        [env, line, block],
+    )
+    return (
+        <>
+            <SheetLine key={line.id} setLineRef={setLineRef} line={line} actions={actions} block={block} env={localEnv} />
+            {next < lines.length &&
+                <SheetLinesEnvHelper
+                    setLineRef={setLineRef}
+                    index={next}
+                    lines={lines}
+                    actions={actions}
+                    block={block}
+                    env={localEnv}
+                    />
+            }
+        </>
+    )
+}
+
 
 export interface SheetLineProps<InnerState> {
     line: SheetBlockLine<InnerState>
     actions: Actions<InnerState>
     block: Block<InnerState>
     env: Environment
-    lineRef: React.Ref<SheetLineRef>
+    setLineRef(id: number): React.Ref<SheetLineRef>
 }
 
 export interface SheetLineRef {
@@ -340,11 +372,12 @@ export interface SheetLineRef {
     focusInner(): void
 }
 
-export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLineProps<Inner>) {
+function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef }: SheetLineProps<Inner>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const varInputRef = React.useRef<HTMLElement>()
     const innerBlockRef = React.useRef<BlockRef>()
     const resultRef = React.useRef<HTMLElement>()
+    const lineRef = React.useMemo(() => setLineRef(line.id), [line.id])
 
     React.useImperativeHandle(
         lineRef,
@@ -422,6 +455,8 @@ export function SheetLine<Inner>({ block, line, env, actions, lineRef }: SheetLi
         </div>
     )
 }
+
+export const SheetLine = React.memo(SheetLineComponent) as typeof SheetLineComponent
 
 function sheetLineBindings<Inner>(
     actions: Actions<Inner>,
