@@ -137,23 +137,22 @@ export const NoteUi = React.forwardRef(
             })
         )
 
-        const actions = ACTIONS(update)
+        const actions = React.useMemo(() => ACTIONS(update), [update])
         const shortcutProps = useShortcuts(keybindings(state, actions))
 
         const onUpdateCode = (code: string) => update(state => updateResult({ ...state, input: code }, update, env))
 
-        function preventEnter(event: React.KeyboardEvent) {
+        const preventEnter = React.useCallback(function preventEnter(event: React.KeyboardEvent) {
             if (getFullKey(event) === 'Enter') {
                 event.preventDefault()
             }
             shortcutProps.onKeyDown(event)
-        }
+        }, [shortcutProps])
         
         return (
             <div
                 className="flex flex-col space-y-1 flex-1"
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
-                tabIndex={-1}
                 onClick={() => {
                     setFocused(() => ({
                         state: true,
@@ -181,7 +180,7 @@ export const NoteUi = React.forwardRef(
                         onKeyDown={preventEnter}
                         />
                 }
-                <PreviewValue
+                <ViewInterpeted
                     state={state}
                     env={env}
                     isFocused={isFocused}
@@ -366,9 +365,9 @@ function editorStyle(interpreted: Interpreted): [React.CSSProperties, string, (c
 
 type EditorProps = React.ComponentProps<typeof Editor>
 type EditorDefaultProps = keyof typeof Editor.defaultProps
-type CodeEditorControlledProps = 'value' | 'onValueChange' | 'highlight'
+type NoteEditorControlledProps = 'value' | 'onValueChange' | 'highlight'
 
-type CodeEditorProps = Omit<EditorProps, CodeEditorControlledProps | EditorDefaultProps> & {
+type NodeEditorProps = Omit<EditorProps, NoteEditorControlledProps | EditorDefaultProps> & {
     interpreted: Interpreted
     code: string
     onUpdate: (code: string) => void
@@ -379,10 +378,10 @@ export const NoteEditor = React.forwardRef(
         {
             interpreted, code, onUpdate,
             ...props
-        }: CodeEditorProps,
+        }: NodeEditorProps,
         ref: React.Ref<HTMLTextAreaElement>
     ) {
-        const id = React.useMemo(() => 'editor-' + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER), [])
+        const id = React.useId()
         React.useImperativeHandle(ref, () => document.getElementById(id) as HTMLTextAreaElement, [id])
 
         const [style, className, highlight] = editorStyle(interpreted)
@@ -405,122 +404,172 @@ export const NoteEditor = React.forwardRef(
 
 
 
-export interface PreviewValueProps {
+export interface ViewInterpretedProps {
     state: NoteModel
     env: block.Environment
     isFocused: boolean
     toggleCheckbox(): void
 }
 
-export function PreviewValue({ state, env, isFocused, toggleCheckbox }: PreviewValueProps) {
+export function ViewInterpeted({ state, env, isFocused, toggleCheckbox }: ViewInterpretedProps) {
     const { interpreted } = state
     switch (interpreted.type) {
         case 'text':
             if (isFocused) { return null }
-            const content = interpreted.text.trim() === '' ? '\u200B' : interpreted.text
-            return (
-                React.createElement(
-                    interpreted.tag,
-                    { className: textStyles[interpreted.tag] },
-                    <Markdown>{content}</Markdown>,
-                )
-            )
+            return <ViewText interpreted={interpreted} />
 
         case 'checkbox':
             if (isFocused) { return null }
-            function clickCheckbox(event: React.MouseEvent) {
-                event.stopPropagation()
-                event.preventDefault()
-                toggleCheckbox()
-            }
-            return (
-                <div className="cursor-pointer">
-                    <FontAwesomeIcon
-                        onPointerDown={clickCheckbox}
-                        className={`mr-2 ${interpreted.checked && "text-blue-400"}`}
-                        icon={interpreted.checked ? solidIcons.faSquareCheck : regularIcons.faSquare}
-                        />
-                    <Markdown
-                        options={{ wrapper: 'span' }}
-                        className={interpreted.checked ? "text-gray-400 line-through" : ""}
-                    >
-                        {interpreted.text}
-                    </Markdown>
-                </div>
-            )
+            return <ViewCheckbox toggleCheckbox={toggleCheckbox} interpreted={interpreted} />
 
         case 'expr':
-            // fall through to rest of function
+            return <ViewExprResult interpreted={interpreted} env={env} isFocused={isFocused} />
     }
-
-    if (isLiteral(interpreted.code)) {
-        return null
-    }
-
-    if (!isFocused) {
-        if (interpreted.result.type === 'immediate' && interpreted.result.value === undefined) { return null }
-        return <ViewValue result={interpreted.result} />
-    }
-
-    const { code } = interpreted
-    try {
-        let parsed: babel.Expression
-
-        // looks like an incomplete member access?
-        if (code.slice(-1) === '.') {
-            parsed = babel.memberExpression(
-                parseJSExpr(code.slice(0, -1)),
-                babel.identifier(''),
-            )
-        }
-        else if (countParens(code, '(') > countParens(code, ')')) {
-            const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
-            const missingClosingParens = ")".repeat(missingClosingParensCount)
-            parsed = parseJSExpr(code + missingClosingParens)
-        }
-        else {
-            parsed = parseJSExpr(code)
-        }
-
-        if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
-            const obj = computeExpr(babelGenerator(parsed.object).code, env)
-            return (
-                <>
-                    <ValueInspector value={obj[parsed.property.name]} />
-                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
-                </>
-            )
-        }
-        // Top-level variable access?
-        if (parsed.type === 'Identifier') {
-            return (
-                <>
-                    <ValueInspector value={computeExpr(parsed.name, env)} />
-                    <ValueInspector value={env} expandLevel={1} />
-                </>
-            )
-        }
-        if (parsed.type === 'CallExpression') {
-            const func = computeExpr(babelGenerator(parsed.callee).code, env)
-            const args = parsed.arguments
-            const missingArgs = func.length - args.length
-            return (
-                <>
-                    {missingArgs > 0 &&
-                        <div className="my-1 font-mono text-xs text-gray-700">
-                            {missingArgs} arguments missing
-                        </div>
-                    }
-                    <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
-                    <ValueInspector value={func} />
-                </>
-            )
-        }
-    }
-    catch (e) { }
-
-    return <ViewValue result={interpreted.result} />
 }
+
+
+interface ViewTextProps {
+    interpreted: Extract<Interpreted, { type: 'text' }>
+}
+
+const ViewText = React.memo(
+    function ViewText({ interpreted }: ViewTextProps) {
+        const content = interpreted.text.trim() === '' ? '\u200B' : interpreted.text
+        return (
+            React.createElement(
+                interpreted.tag,
+                { className: textStyles[interpreted.tag] },
+                <Markdown>{content}</Markdown>
+            )
+        )
+    },
+    (before, after) => (
+        before.interpreted.tag === after.interpreted.tag
+        && before.interpreted.text === after.interpreted.text
+    ),
+)
+
+
+interface ViewCheckboxProps {
+    interpreted: Extract<Interpreted, { type: 'checkbox' }>
+    toggleCheckbox(): void
+}
+
+const ViewCheckbox = React.memo(
+    function ViewCheckbox({ interpreted, toggleCheckbox }: ViewCheckboxProps) {
+        const clickCheckbox = React.useCallback(function clickCheckbox(event: React.MouseEvent) {
+            event.stopPropagation()
+            event.preventDefault()
+            toggleCheckbox()
+        }, [toggleCheckbox])
+
+        return (
+            <div>
+                <FontAwesomeIcon
+                    onClick={clickCheckbox}
+                    className={`mr-2 cursor-pointer ${interpreted.checked && "text-blue-400"}`}
+                    icon={interpreted.checked ? solidIcons.faSquareCheck : regularIcons.faSquare} />
+                <Markdown
+                    options={{ wrapper: 'span' }}
+                    className={interpreted.checked ? "text-gray-400 line-through" : ""}
+                >
+                    {interpreted.text}
+                </Markdown>
+            </div>
+        )
+    },
+    (before, after) => (
+        before.interpreted.checked === after.interpreted.checked
+        && before.interpreted.text === after.interpreted.text
+        && before.toggleCheckbox === after.toggleCheckbox
+    )
+)
+
+
+interface ViewExprResultProps {
+    interpreted: Extract<Interpreted, { type: 'expr' }>
+    env: block.Environment
+    isFocused: boolean
+}
+
+const ViewExprResult = React.memo(
+    function ViewExprResult({ interpreted, env, isFocused }: ViewExprResultProps) {
+        if (isLiteral(interpreted.code)) {
+            return null
+        }
+
+        if (!isFocused) {
+            if (interpreted.result.type === 'immediate' && interpreted.result.value === undefined) { return null }
+            return <ViewValue result={interpreted.result} />
+        }
+
+        const { code } = interpreted
+        try {
+            let parsed: babel.Expression
+
+            // looks like an incomplete member access?
+            if (code.slice(-1) === '.') {
+                parsed = babel.memberExpression(
+                    parseJSExpr(code.slice(0, -1)),
+                    babel.identifier(''),
+                )
+            }
+            else if (countParens(code, '(') > countParens(code, ')')) {
+                const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
+                const missingClosingParens = ")".repeat(missingClosingParensCount)
+                parsed = parseJSExpr(code + missingClosingParens)
+            }
+            else {
+                parsed = parseJSExpr(code)
+            }
+
+            if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
+                const obj = computeExpr(babelGenerator(parsed.object).code, env)
+                return (
+                    <>
+                        <ValueInspector value={obj[parsed.property.name]} />
+                        <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
+                    </>
+                )
+            }
+            // Top-level variable access?
+            if (parsed.type === 'Identifier') {
+                return (
+                    <>
+                        <ValueInspector value={computeExpr(parsed.name, env)} />
+                        <ValueInspector value={env} expandLevel={1} />
+                    </>
+                )
+            }
+            if (parsed.type === 'CallExpression') {
+                const func = computeExpr(babelGenerator(parsed.callee).code, env)
+                const args = parsed.arguments
+                const missingArgs = func.length - args.length
+                return (
+                    <>
+                        {missingArgs > 0 &&
+                            <div className="my-1 font-mono text-xs text-gray-700">
+                                {missingArgs} arguments missing
+                            </div>
+                        }
+                        <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
+                        <ValueInspector value={func} />
+                    </>
+                )
+            }
+        }
+        catch (e) { }
+
+        return <ViewValue result={interpreted.result} />
+    },
+    (before, after) => (
+        before.interpreted.code === after.interpreted.code
+        && before.env === after.env
+        && before.isFocused === after.isFocused
+    ),
+)
+
+
 
 function ViewValue({ result }: { result: Result }) {
     switch (result.type) {

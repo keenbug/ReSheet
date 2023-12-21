@@ -358,10 +358,10 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
                             }}
                         >
                             <td className="py-0.5 flex flex-row space-x-1 text-xs">
-                                {intersperse(
-                                    <span>/</span>,
-                                    keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
-                                )}
+                                {keys.flatMap((k, index) => [
+                                    <span key={index}>/</span>,
+                                    <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>,
+                                ]).slice(1)}
                             </td>
                             <td className="py-0.5 pl-2 text-xs text-gray-700 whitespace-nowrap">{description}</td>
                         </tr>
@@ -380,7 +380,7 @@ export function KeyComposition({ shortcut, Key = KeySymbol }: { shortcut: string
 
     return (
         <>
-            {modifiers.map(k => <kbd className="font-sans"><Key key={k} keyName={k === "C" ? "Cmd" : k} /></kbd>)}
+            {modifiers.map(k => <kbd key={k} className="font-sans"><Key keyName={k === "C" ? "Cmd" : k} /></kbd>)}
             <kbd className="font-sans"><Key keyName={char} /></kbd>
         </>
     )

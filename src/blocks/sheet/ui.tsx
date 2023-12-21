@@ -6,9 +6,10 @@ import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
-import { EffectfulUpdater, useRefMap, useEffectfulUpdate } from '../../ui/hooks'
+import { EffectfulUpdater, useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender } from '../../ui/hooks'
 import { clampTo } from '../../utils'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
+import { useInView } from 'react-intersection-observer'
 
 
 /**************** Code Actions **************/
@@ -324,23 +325,39 @@ export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<I
     if (lines.length === 0) {
         return null
     }
-    return <SheetLinesEnvHelper {...props} index={0} lines={lines} />
+    return <SheetLinesEnvHelper index={0} lines={lines} {...props} />
 }
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     index: number
 }
 
-function SheetLinesEnvHelper<InnerState>({ setLineRef, index, lines, actions, block, env }: SheetLineHelperProps<InnerState>) {
+function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, env }: SheetLineHelperProps<InnerState>) {
     const line = lines[index]
     const next = index + 1
     const localEnv = React.useMemo(
         () => ({ ...env, ...Model.lineToEnv(line, block) }),
         [env, line, block],
     )
+    const [inViewRef, isInView, viewEntry] = useInView({ initialInView: true })
+    const isSheetOutOfView = (
+        !isInView && viewEntry && viewEntry.rootBounds && viewEntry.boundingClientRect ?
+            viewEntry.rootBounds.bottom < viewEntry.boundingClientRect.bottom
+        :
+            false
+    )
     return (
         <>
-            <SheetLine key={line.id} setLineRef={setLineRef} line={line} actions={actions} block={block} env={localEnv} />
+            <SheetLine
+                key={line.id}
+                setLineRef={setLineRef}
+                inViewRef={inViewRef}
+                line={line}
+                actions={actions}
+                block={block}
+                env={localEnv}
+                skipRender={!isInView}
+                />
             {next < lines.length &&
                 <SheetLinesEnvHelper
                     setLineRef={setLineRef}
@@ -349,11 +366,14 @@ function SheetLinesEnvHelper<InnerState>({ setLineRef, index, lines, actions, bl
                     actions={actions}
                     block={block}
                     env={localEnv}
+                    skipRender={isSheetOutOfView}
                     />
             }
         </>
     )
 }
+
+const SheetLinesEnvHelper = renderConditionally(SheetLinesEnvHelperComponent, 'never') as WithSkipRender<typeof SheetLinesEnvHelperComponent>
 
 
 export interface SheetLineProps<InnerState> {
@@ -362,6 +382,7 @@ export interface SheetLineProps<InnerState> {
     block: Block<InnerState>
     env: Environment
     setLineRef(id: number): React.Ref<SheetLineRef>
+    inViewRef: React.Ref<HTMLElement>
 }
 
 export interface SheetLineRef {
@@ -372,12 +393,14 @@ export interface SheetLineRef {
     focusInner(): void
 }
 
-function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef }: SheetLineProps<Inner>) {
+function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inViewRef }: SheetLineProps<Inner>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const varInputRef = React.useRef<HTMLElement>()
     const innerBlockRef = React.useRef<BlockRef>()
     const resultRef = React.useRef<HTMLElement>()
-    const lineRef = React.useMemo(() => setLineRef(line.id), [line.id])
+    const lineRef = React.useMemo(() => setLineRef(line.id), [setLineRef, line.id])
+
+    React.useImperativeHandle(inViewRef, () => containerRef.current, [containerRef])
 
     React.useImperativeHandle(
         lineRef,
@@ -391,7 +414,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef }: Sh
             focus() {
                 containerRef.current?.scrollIntoView({
                     block: 'nearest',
-                    behavior: 'smooth',
+                    behavior: 'instant',
                 })
                 containerRef.current?.focus({ preventScroll: true })
             },
@@ -404,15 +427,21 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef }: Sh
         }),
     )
 
-    const bindingsProps = useShortcuts(
-        sheetLineBindings(actions, line, block, containerRef, innerBlockRef, resultRef, varInputRef)
+    const bindings = React.useMemo(
+        () => sheetLineBindings(actions, line, block, containerRef, innerBlockRef, resultRef, varInputRef),
+        [actions, line, block, containerRef, innerBlockRef, resultRef, varInputRef],
     )
 
-    function subupdate(action: (inner: Inner) => Inner) {
-        actions.updateInner(line.id, action, block, env)
-    }
+    const bindingsProps = useShortcuts(bindings)
 
-    const varInputBindings: Keybindings = assignmentLineBindings<Inner>(line, innerBlockRef, actions)
+    const subupdate = React.useCallback(function subupdate(action: (inner: Inner) => Inner) {
+        actions.updateInner(line.id, action, block, env)
+    }, [block, env])
+
+    const varInputBindings: Keybindings = React.useMemo(
+        () => assignmentLineBindings<Inner>(line, innerBlockRef, actions),
+        [line, innerBlockRef, actions],
+    )
 
     const shouldNameBeHidden = block.getResult(line.state) === undefined || React.isValidElement(block.getResult(line.state))
 
@@ -456,7 +485,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef }: Sh
     )
 }
 
-export const SheetLine = React.memo(SheetLineComponent) as typeof SheetLineComponent
+export const SheetLine = renderConditionally(SheetLineComponent) as WithSkipRender<typeof SheetLineComponent>
 
 function sheetLineBindings<Inner>(
     actions: Actions<Inner>,

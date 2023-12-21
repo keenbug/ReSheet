@@ -678,7 +678,7 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
     return (
         <div className="flex flex-row py-2 -ml-1 text-gray-800 text-sm">
             {pathPages.map(([path, page, siblings]) => (
-                <>
+                <React.Fragment key={path.join('.')}>
                     <Menu as="div" className="relative">
                         <Menu.Button className="rounded px-1.5 -mx-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200">
                             <FontAwesomeIcon size="xs" icon={solidIcons.faAngleRight} />
@@ -691,12 +691,12 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
                     >
                         {Pages.getName(page)}
                     </button>
-                </>
+                </React.Fragment>
             ))}
         </div>
     )
 
-    function siblingsMenuItems(siblings: any, path: any) {
+    function siblingsMenuItems(siblings: Pages.PageState<unknown>[], path: PageId[]) {
         return (
             <Menu.Items
                 className={`
@@ -707,7 +707,7 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
                 `}
             >
                 {siblings.map(page => (
-                    <Menu.Item>
+                    <Menu.Item key={page.id}>
                         {({ active }) => {
                             const pathHere = [...path, page.id]
                             const isOpen = arrayStartsWith(pathHere, openPage)

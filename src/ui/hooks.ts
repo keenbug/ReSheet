@@ -130,3 +130,38 @@ export function useRefMap<Key, Ref>(
     }, [refMap])
     return [setRef, refMap.current]
 }
+
+
+export type WithSkipRender<Component extends React.JSXElementConstructor<any>> =
+    React.FC<React.ComponentProps<Component> & { skipRender?: boolean }>
+
+export function renderConditionally<Props>(Component: React.FC<Props>, compareProps: 'never' | 'default' | ((propsBefore: Object, propsAfter: Object) => boolean) = 'default') {
+    let compare: (before: Props & { skipRender?: boolean }, after: Props & { skipRender?: boolean }) => boolean
+    switch (compareProps) {
+        case 'never':
+            compare = function neverCompare(_before: Props & { skipRender?: boolean }, after: Props & { skipRender?: boolean }): boolean {
+                if (after.skipRender) { return true }
+                return false
+            }
+            break
+
+        case 'default':
+            compare = function defaultCompare(before: Props & { skipRender?: boolean }, after: Props & { skipRender?: boolean }): boolean {
+                if (after.skipRender) { return true }
+                for (const prop in after) {
+                    if (prop !== 'skipRender' && !Object.is(before[prop], after[prop])) {
+                        return false
+                    }
+                }
+                return true
+            }
+            break
+
+        default:
+            compare = function customCompare(before: Props & { skipRender?: boolean }, after: Props & { skipRender?: boolean }): boolean {
+                if (after.skipRender) { return true }
+                return compareProps(before, after)
+            }
+    }
+    return React.memo(Component, compare)
+}
