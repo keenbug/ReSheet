@@ -414,7 +414,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             focus() {
                 containerRef.current?.scrollIntoView({
                     block: 'nearest',
-                    behavior: 'instant',
+                    behavior: 'auto',
                 })
                 containerRef.current?.focus({ preventScroll: true })
             },
