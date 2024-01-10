@@ -44,10 +44,9 @@ export function entryToEnv<State>(entry: BlockEntry<State>, innerBlock: Block<St
     }
 }
 
-export function getLocalEnv<State>(entries: BlockEntry<State>[], env: Environment, innerBlock: Block<State>) {
+export function getSiblingEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     return Object.assign(
         {},
-        env,
         ...entries.map(entry => entryToEnv(entry, innerBlock)),
     )
 }
@@ -101,27 +100,53 @@ export function insertEntryAfter<Inner, Entry extends BlockEntry<Inner>>(
     )
 }
 
+export function entryEnv(env: Environment) {
+    return (siblingsEnv: Environment) => ({
+        ...env,
+        ...siblingsEnv,
+        $before: siblingsEnv
+    })
+}
+
+export function updateEntries<State, Entry extends BlockEntry<State>>(
+    entries: Entry[],
+    updateEntry: (entry: Entry, localEnv: Environment, localUpdate: block.BlockUpdater<State>) => Entry,
+    update: block.BlockUpdater<Entry[]>,
+    innerBlock: Block<State>,
+    getLocalEnv: (siblingsEnv: Environment) => Environment,
+): Entry[] {
+    return block.mapWithEnv(
+        entries,
+        (entry, siblingEnv) => {
+            const localEnv = getLocalEnv(siblingEnv)
+            function localUpdate(localAction: (state: State) => State) {
+                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
+            }
+
+            const newEntry = updateEntry(entry, localEnv, localUpdate)
+            return {
+                out: newEntry,
+                env: entryToEnv(newEntry, innerBlock),
+            }
+        }
+    )
+}
+
 export function recompute<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     update: block.BlockUpdater<Entry[]>,
     env: Environment,
     innerBlock: Block<State>,
 ): Entry[] {
-    return block.mapWithEnv(
+    return updateEntries(
         entries,
-        (entry, localEnv) => {
-            function localUpdate(localAction: (state: State) => State) {
-                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
-            }
-
-            const state = innerBlock.recompute(entry.state, localUpdate, localEnv)
-            const newEntry = { ...entry, state }
-            return {
-                out: newEntry,
-                env: entryToEnv(newEntry, innerBlock),
-            }
-        },
-        env,
+        (entry, localEnv, localUpdate) => ({
+            ...entry,
+            state: innerBlock.recompute(entry.state, localUpdate, localEnv),
+        }),
+        update,
+        innerBlock,
+        entryEnv(env),
     )
 }
 
@@ -140,30 +165,27 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
     const entriesBefore = entries.slice(0, index)
     const entriesFromId = entries.slice(index)
 
-    const envBefore = getLocalEnv(entriesBefore, env, innerBlock)
+    const siblingsBeforeEnv = getSiblingEnv(entriesBefore, innerBlock)
 
-
-    const recomputedEntries = block.mapWithEnv(
+    const recomputedEntries = updateEntries(
         entriesFromId,
-        (entry, localEnv) => {
-            function localUpdate(localAction: (state: State) => State) {
-                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
-            }
-
-            const state = (
+        (entry, localEnv, localUpdate) => ({
+            ...entry,
+            state: (
                 entry.id === id ?
                     action(entry.state)
                 :
                     innerBlock.recompute(entry.state, localUpdate, localEnv)
-            )
-            const newEntry = { ...entry, state }
-
-            return {
-                out: newEntry,
-                env: entryToEnv(newEntry, innerBlock),
-            }
-        },
-        envBefore,
+            ),
+        }),
+        update,
+        innerBlock,
+        (siblingsEnv: Environment) => ({
+            ...env,
+            ...siblingsBeforeEnv,
+            ...siblingsEnv,
+            $before: { ...siblingsBeforeEnv, ...siblingsEnv },
+        })
     )
     return [ ...entriesBefore, ...recomputedEntries ]
 }
@@ -179,7 +201,9 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
 ) {
     return block.mapWithEnv(
         json,
-        (jsonEntry, localEnv) => {
+        (jsonEntry, siblingEnv) => {
+            const localEnv = { ...env, ...siblingEnv, $before: siblingEnv }
+
             function localUpdate(localAction: (state: State) => State) {
                 update(entries => updateEntryState(entries, entry.id, localAction, env, innerBlock, update))
             }
@@ -197,6 +221,5 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
                 env: entryToEnv(fullEntry, innerBlock),
             }
         },
-        env,
     )
 }

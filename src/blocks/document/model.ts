@@ -1,4 +1,4 @@
-import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
+import { Block, BlockUpdater, Environment } from '../../block'
 import * as Multiple from '../../block/multiple'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 import { PageId, PageState } from './pages'

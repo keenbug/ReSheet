@@ -325,19 +325,24 @@ export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<I
     if (lines.length === 0) {
         return null
     }
-    return <SheetLinesEnvHelper index={0} lines={lines} {...props} />
+    return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={{}} {...props} />
 }
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     index: number
+    siblingsEnv: Environment
 }
 
-function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, env }: SheetLineHelperProps<InnerState>) {
+function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, siblingsEnv, env }: SheetLineHelperProps<InnerState>) {
     const line = lines[index]
     const next = index + 1
+    const localSiblingsEnv = React.useMemo(
+        () => ({ ...siblingsEnv, ...Model.lineToEnv(line, block) }),
+        [siblingsEnv, line, block],
+    )
     const localEnv = React.useMemo(
-        () => ({ ...env, ...Model.lineToEnv(line, block) }),
-        [env, line, block],
+        () => ({ ...env, ...siblingsEnv, $before: siblingsEnv }),
+        [siblingsEnv, env],
     )
     const [inViewRef, isInView, viewEntry] = useInView({ initialInView: true })
     const isSheetOutOfView = (
@@ -365,7 +370,8 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
                     lines={lines}
                     actions={actions}
                     block={block}
-                    env={localEnv}
+                    siblingsEnv={localSiblingsEnv}
+                    env={env}
                     skipRender={isSheetOutOfView}
                     />
             }
@@ -443,7 +449,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
         [line, innerBlockRef, actions],
     )
 
-    const shouldNameBeHidden = block.getResult(line.state) === undefined || React.isValidElement(block.getResult(line.state))
+    const shouldNameBeHidden = line.name === ''
 
     return (
         <div

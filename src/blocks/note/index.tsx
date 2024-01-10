@@ -75,7 +75,7 @@ export const Note = block.create<NoteModel>({
                 return getResultValue(state.interpreted.result)
 
             default:
-                return undefined
+                return state.interpreted
         }
     },
     fromJSON(json, update, env) {
