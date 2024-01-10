@@ -54,7 +54,10 @@ export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
 
 
 
-export type Keybinding = [keys: string[], condition: Condition, description: string, action: (event?: React.KeyboardEvent) => void]
+export type Keybinding = [keys: string[], condition: Condition, description: string, action: (event?: React.KeyboardEvent) => void, options?: KeybindingOptions]
+export interface KeybindingOptions {
+    noAutoPrevent?: boolean
+}
 export type KeybindingGroup = { description?: string, bindings: Keybinding[] }
 export type Keybindings = Array<KeybindingGroup>
 
@@ -94,14 +97,17 @@ export function onFullKey(
     condition: Condition,
     action: (event: KeyboardEvent) => void,
     keymap?: KeyMap,
+    options: KeybindingOptions = {},
 ) {
     if (event.isPropagationStopped()) { return }
     if (!keys.includes(getFullKey(event, keymap))) { return }
     if (!checkCondition(condition, event.currentTarget === event.target, isAnInput(event.target))) { return }
 
     action(event)
-    event.stopPropagation()
-    event.preventDefault()
+    if (!options.noAutoPrevent) {
+        event.stopPropagation()
+        event.preventDefault()
+    }
 }
 
 
@@ -128,8 +134,10 @@ export function keybindingsHandler(
             for (const binding of bindings) {
                 if (checkCondition(binding[1], event.currentTarget === event.target, isAnInput(event.target))) {
                     binding[3](event)
-                    event.stopPropagation()
-                    event.preventDefault()
+                    if (!binding[4]?.noAutoPrevent) {
+                        event.stopPropagation()
+                        event.preventDefault()
+                    }
                     return
                 }
             }

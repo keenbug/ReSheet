@@ -505,6 +505,8 @@ function sheetLineBindings<Inner>(
     function insertBelowByEnter(event?: React.KeyboardEvent) {
         if (event && !event.defaultPrevented) { return }
         actions.insertAfterCode(line.id, block, 'inner')
+        event?.preventDefault()
+        event?.stopPropagation()
     }
     return [
         {
@@ -514,7 +516,7 @@ function sheetLineBindings<Inner>(
                 [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
                 [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
                 [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
-                [["Enter"],                          "!selfFocused", "insert below",     insertBelowByEnter],
+                [["Enter"],                          "!selfFocused", "insert below",     insertBelowByEnter, { noAutoPrevent: true }],
             ]
         },
         {
