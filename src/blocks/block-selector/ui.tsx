@@ -206,7 +206,7 @@ export const BlockSelectorUI = React.forwardRef(
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
                                 env={env}
-                                blockCmdResult={blockCmdResult}
+                                block={blockCmdResult}
                                 onChooseBlock={() => actions.chooseBlock(blockExpr, env)}
                                 />
                         :
@@ -218,17 +218,17 @@ export const BlockSelectorUI = React.forwardRef(
     }
 )
 
-interface BlockPreviewProps {
+export interface BlockPreviewProps {
     env: Environment
-    blockCmdResult: Block<unknown>
+    block: Block<unknown>
     onChooseBlock: () => void
 }
 
-function BlockPreview({ env, blockCmdResult, onChooseBlock }: BlockPreviewProps) {
+export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
     function BlockCmdResultView() {
-        return blockCmdResult.view({
-            state: blockCmdResult.init,
-            update: () => {},
+        return block.view({
+            state: block.init,
+            update() {},
             env,
         })
     }
@@ -244,10 +244,10 @@ function BlockPreview({ env, blockCmdResult, onChooseBlock }: BlockPreviewProps)
                 className="font-thin cursor-pointer"
                 onClick={onChooseBlock}
             >
-                Block
+                Preview
             </h1>
             <ErrorBoundary title="Could not show block">
-                <div className="saturate-50 cursor-default bg-gray-100 rounded">
+                <div className="saturate-50 cursor-default bg-gray-100 rounded pointer-events-none">
                     <BlockCmdResultView />
                 </div>
             </ErrorBoundary>

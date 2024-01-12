@@ -105,3 +105,33 @@ export function mapWithEnv<Item, Out>(
     })
     return result
 }
+
+
+export function fieldUpdater<State extends Object, Field extends keyof State>(
+    fieldName: Field,
+    updater: BlockUpdater<State>,
+): BlockUpdater<State[Field]> {
+    return function subUpdater(action: (fieldState: State[Field]) => State[Field]) {
+        updater(state => ({
+            ...state,
+            [fieldName]: action(state[fieldName]),
+        }))
+    }
+}
+
+export function subUpdater<State, Input>(
+    updateSub: (state: State, input: Input) => State,
+    updater: BlockUpdater<State>,
+): (input: Input) => void {
+    return function subUpdate(input: Input) {
+        updater(state => updateSub(state, input))
+    }
+}
+
+export function updaterToSetter<State>(
+    updater: BlockUpdater<State>,
+): (newState: State) => void {
+    return function setState(newState: State) {
+        updater(() => newState)
+    }
+}

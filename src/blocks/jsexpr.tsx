@@ -1,25 +1,19 @@
 import * as React from 'react'
-import babelGenerator from '@babel/generator'
-import * as babel from '@babel/types'
 
-import { Pending, PromiseResult, PromiseView, ValueInspector } from '../ui/value'
+import { ViewResult } from '../ui/value'
 import { EditableCode } from '../ui/code-editor'
-import { computeExpr, computeScript, isPromise, parseJSExpr } from '../logic/compute'
+import { computeScript } from '../logic/compute'
 import { BlockRef } from '../block'
 import * as block from '../block'
-import { Inspector } from 'react-inspector'
 import { useShortcuts } from '../ui/shortcuts'
+import { Pending, Result, resultFrom } from '../logic/result'
+import { ViewCompletions } from '../ui/completions'
 
 
 export interface JSExprModel {
     code: string
     result: Result
 }
-
-export type Result =
-    | { type: 'immediate', value: any }
-    | { type: 'promise', cancel(): void } & PromiseResult
-
 
 const init: JSExprModel = {
     code: '',
@@ -72,6 +66,8 @@ export const JSExpr = block.create<JSExprModel>({
         return state.code
     }
 })
+
+
 
 interface JSExprUiProps {
     state: JSExprModel
@@ -133,48 +129,17 @@ export const JSExprUi = React.forwardRef(
 )
 
 function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel>, env: block.Environment): JSExprModel {
-    function attachPromiseStateHandlers(promise: Promise<any>) {
-        let cancelled = false
-
-        function cancel() {
-            cancelled = true
-        }
-
-        promise.then(
-            (value: any) => {
-                if (cancelled) { return }
-                update(state => ({
-                    ...state,
-                    result: { type: 'promise', cancel, state: 'finished', value },
-                }))
-            },
-            (error: any) => {
-                if (cancelled) { return }
-                update(state => ({
-                    ...state,
-                    result: { type: 'promise', cancel, state: 'failed', error },
-                }))
-            }
-        )
-
-        return cancel
-    }
+    const setResult = block.updaterToSetter(block.fieldUpdater('result', update))
 
     if (state.result.type === 'promise') {
         state.result.cancel()
     }
-    const result = computeScript(state.code, env)
-    if (isPromise(result)) {
-        const cancel = attachPromiseStateHandlers(result)
-        return {
-            ...state,
-            result: { type: 'promise', cancel, state: 'pending' },
-        }
-    }
+    const value = computeScript(state.code, env)
+    const result = resultFrom(value, setResult)
 
     return {
         ...state,
-        result: { type: 'immediate', value: result },
+        result,
     }
 }
 
@@ -192,79 +157,8 @@ export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
     const code = state.code
     if (!isFocused) {
         if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
-        return <ViewValue result={state.result} />
+        return <ViewResult result={state.result} />
     }
 
-    try {
-        let parsed: babel.Expression
-
-        // looks like an incomplete member access?
-        if (code.slice(-1) === '.') {
-            parsed = babel.memberExpression(
-                parseJSExpr(code.slice(0, -1)),
-                babel.identifier(''),
-            )
-        }
-        else if (countParens(code, '(') > countParens(code, ')')) {
-            const missingClosingParensCount = countParens(code, '(') - countParens(code, ')')
-            const missingClosingParens = ")".repeat(missingClosingParensCount)
-            parsed = parseJSExpr(code + missingClosingParens)
-        }
-        else {
-            parsed = parseJSExpr(code)
-        }
-
-        if (parsed.type === 'MemberExpression' && parsed.property.type === 'Identifier') {
-            const obj = computeExpr(babelGenerator(parsed.object).code, env)
-            return (
-                <>
-                    <ValueInspector value={obj[parsed.property.name]} />
-                    <Inspector table={false} data={obj} expandLevel={1} showNonenumerable={true} />
-                </>
-            )
-        }
-        // Top-level variable access?
-        if (parsed.type === 'Identifier') {
-            return (
-                <>
-                    <ValueInspector value={computeExpr(parsed.name, env)} />
-                    <ValueInspector value={env} expandLevel={1} />
-                </>
-            )
-        }
-        if (parsed.type === 'CallExpression') {
-            const func = computeExpr(babelGenerator(parsed.callee).code, env)
-            const args = parsed.arguments
-            const missingArgs = func.length - args.length
-            return (
-                <>
-                    {missingArgs > 0 &&
-                        <div className="my-1 font-mono text-xs text-gray-700">
-                            {missingArgs} arguments missing
-                        </div>
-                    }
-                    <ValueInspector value={computeScript(babelGenerator(parsed).code, env)} />
-                    <ValueInspector value={func} />
-                </>
-            )
-        }
-    }
-    catch (e) { }
-
-    return <ViewValue result={state.result} />
-}
-
-function ViewValue({ result }: { result: Result }) {
-    switch (result.type) {
-        case 'immediate':
-            return <ValueInspector value={result.value} expandLevel={0} />
-
-        case 'promise':
-            return <PromiseView promiseResult={result} />
-    }
-}
-
-export function countParens(str: string, paren: string) {
-    const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
-    return str.replace(findStringRegex, '').split('').filter(char => char === paren).length
+    return <ViewCompletions code={code} env={env} default={<ViewResult result={state.result} />} />
 }

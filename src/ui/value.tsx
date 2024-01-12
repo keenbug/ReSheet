@@ -10,7 +10,18 @@ import * as babelAst from '@babel/types'
 
 import { CodeView } from './code-editor'
 import { ErrorView } from './utils'
+import { Pending, PromiseResult, Result } from '../logic/result'
 
+
+export function ViewResult({ result }: { result: Result }) {
+    switch (result.type) {
+        case 'immediate':
+            return <ValueInspector value={result.value} expandLevel={0} />
+
+        case 'promise':
+            return <PromiseView promiseResult={result} />
+    }
+}
 
 export const ErrorInspector: React.FC<{ error: any }> = ({ error }) => {
     const [showError, setShowError] = React.useState(false)
@@ -137,13 +148,6 @@ export const FunctionInspector = React.forwardRef(
     }
 )
 
-
-export const Pending = Symbol('Pending')
-
-export type PromiseResult =
-    | { state: 'pending' }
-    | { state: 'failed', error: any }
-    | { state: 'finished', value: any }
 
 export const PromiseValueInspector = React.forwardRef(
     function PromiseValueInspector(props: ValueInspectorProps, ref: React.ForwardedRef<HTMLElement>) {
