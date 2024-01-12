@@ -325,7 +325,7 @@ export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<I
     if (lines.length === 0) {
         return null
     }
-    return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={{}} {...props} />
+    return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={block.emptyEnv} {...props} />
 }
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
