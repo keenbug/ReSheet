@@ -342,13 +342,13 @@ const ViewExprResult = React.memo(
             return <ViewResult result={note.result} />
         }
 
-        const { code } = note
         return <ViewCompletions code={note.code} env={env} default={<ViewResult result={note.result} />} />
     },
     (before, after) => (
         before.note.code === after.note.code
         && before.env === after.env
         && before.isFocused === after.isFocused
+        && before.note.result === after.note.result
     ),
 )
 
