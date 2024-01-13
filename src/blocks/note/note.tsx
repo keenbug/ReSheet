@@ -236,7 +236,11 @@ interface ViewCheckboxProps {
 
 const ViewCheckbox = React.memo(
     function ViewCheckbox({ note, toggleCheckbox }: ViewCheckboxProps) {
-        const clickCheckbox = React.useCallback(function clickCheckbox(event: React.MouseEvent) {
+        const preventFocus = React.useCallback(function preventFocus(event: React.UIEvent) {
+            event.stopPropagation()
+            event.preventDefault()
+        }, [])
+        const clickCheckbox = React.useCallback(function clickCheckbox(event: React.UIEvent) {
             event.stopPropagation()
             event.preventDefault()
             toggleCheckbox()
@@ -245,9 +249,11 @@ const ViewCheckbox = React.memo(
         return (
             <div>
                 <FontAwesomeIcon
+                    onPointerDown={preventFocus}
                     onClick={clickCheckbox}
                     className={`mr-2 cursor-pointer ${note.checked && "text-blue-400"}`}
-                    icon={note.checked ? solidIcons.faSquareCheck : regularIcons.faSquare} />
+                    icon={note.checked ? solidIcons.faSquareCheck : regularIcons.faSquare}
+                    />
                 <Markdown
                     options={{ wrapper: 'span' }}
                     className={note.checked ? "text-gray-400 line-through" : ""}

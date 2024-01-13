@@ -160,7 +160,3 @@ export function annotateCodeFrame(e: Error, source: string) {
         (e as any).frame = codeFrameColumns(source, { start: (e as any).loc }, {})
     }
 }
-
-export function isPromise(value: any) {
-    return typeof value?.then === 'function'
-}
