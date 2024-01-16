@@ -26,6 +26,7 @@ import * as blocks from '../blocks'
 import * as blockSelector from '../blocks/block-selector'
 import * as jsexpr from '../blocks/jsexpr'
 import * as note from '../blocks/note'
+import * as notenote from '../blocks/note/note'
 import * as sheet from '../blocks/sheet'
 import * as document from '../blocks/document'
 
@@ -109,7 +110,10 @@ export const library = {
             sheet,
             document,
             jsexpr,
-            note,
+            note: {
+                index: note,
+                note: notenote,
+            },
         },
         logic: {
             block,

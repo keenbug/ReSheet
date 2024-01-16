@@ -12,12 +12,14 @@ import { any, assertValid, boolean, loosely, strict, string } from '../../utils/
 import { Result, resultFrom } from '../../logic/result'
 import { ViewCompletions } from '../../ui/completions'
 
+
 export type Note =
     | { type: 'expr', code: string, result: Result }
     | { type: 'block', isInstantiated: false, code: string, result: Result }
     | { type: 'block', isInstantiated: true, code: string, block: block.Block<unknown>, state: unknown }
     | { type: 'text', tag: string, text: string }
     | { type: 'checkbox', checked: boolean, text: string }
+
 
 export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<Note>): Note {
     const setResult = block.subUpdater(setNoteResult, updateNote)
@@ -69,6 +71,7 @@ export function setNoteResult(note: Note, newResult: Result) {
             return note
     }
 }
+
 
 export function noteBlockStateUpdater(updateNote: block.BlockUpdater<Note>) {
     return function updateNoteBlockState(action: (blockState: unknown) => unknown) {
@@ -135,6 +138,7 @@ export function noteFromJSON(json: any, updateNote: block.BlockUpdater<Note>, en
     }
 }
 
+
 export function noteToJSON(note: Note) {
     switch (note.type) {
         case 'expr':
@@ -142,7 +146,7 @@ export function noteToJSON(note: Note) {
 
         case 'block':
             if (note.isInstantiated === true) {
-                return { type: 'block', isInstatiated: true, state: note.block.toJSON(note.state) }
+                return { type: 'block', isInstantiated: true, code: note.code, state: note.block.toJSON(note.state) }
             }
             else {
                 return { type: 'block', isInstantiated: false, code: note.code }
@@ -152,6 +156,29 @@ export function noteToJSON(note: Note) {
         case 'checkbox':
             return note
     }
+}
+
+
+export function recomputeNote(input: string, note: Note, update: block.BlockUpdater<Note>, env: block.Environment): Note {
+    if (note.type === 'expr' && note.result.type === 'promise') {
+        note.result.cancel()
+    }
+    else if (note.type === 'block' && note.isInstantiated === false && note.result.type === 'promise') {
+        note.result.cancel()
+    }
+
+    if (note.type === 'block' && note.isInstantiated === true) {
+        return {
+            ...note,
+            state: note.block.recompute(
+                note.state,
+                noteBlockStateUpdater(update),
+                env,
+            ),
+        }
+    }
+
+    return evaluateNote(input, env, update)
 }
 
 

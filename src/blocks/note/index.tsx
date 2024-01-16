@@ -6,10 +6,10 @@ import { highlightJS, highlightMd } from '../../ui/code-editor'
 import { BlockRef } from '../../block'
 import * as block from '../../block'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
-import { useEffectfulState } from '../../ui/hooks'
+import { EffectfulUpdater, useEffectfulState, useEffectfulUpdate } from '../../ui/hooks'
 import { getFullKey } from '../../ui/utils'
 import { assertValid, defined, number, string, validate } from '../../utils/validate'
-import { Note, ViewNote, evaluateNote, noteFromJSON, noteToJSON, textClasses } from './note'
+import { Note, ViewNote, evaluateNote, noteBlockStateUpdater, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
 import { getResultValue } from '../../logic/result'
 
 
@@ -29,9 +29,6 @@ export { NoteBlock as Note }
 const NoteBlock = block.create<NoteModel>({
     init,
     view({ env, state, update }, ref) {
-        if (state.note.type === 'block' && state.note.isInstantiated) {
-            return <BlockUi ref={ref} state={state} update={update} env={env} />
-        }
         return <NoteUi ref={ref} state={state} update={update} env={env} />
     },
     recompute(state, update, env) {
@@ -108,20 +105,39 @@ export const NoteUi = React.forwardRef(
         ref: React.Ref<BlockRef>
     ) {
         const editorRef = React.useRef<HTMLTextAreaElement>()
+        const blockRef = React.useRef<BlockRef>()
+        const updateFX = useEffectfulUpdate(update)
         const [isFocused, setFocused] = useEffectfulState(false)
+
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
-                    setFocused(() => ({
-                        state: true,
-                        effect() { editorRef.current?.focus() }
-                    }))
+                    if (state.note.type === 'block' && state.note.isInstantiated === true) {
+                        blockRef.current?.focus()
+                    }
+                    else {
+                        setFocused(() => ({
+                            state: true,
+                            effect() { editorRef.current?.focus() }
+                        }))
+                    }
                 }
             })
         )
 
-        const actions = React.useMemo(() => ACTIONS(update), [update])
+        const updateBlock = React.useCallback(function updateBlock(action: (state: unknown) => unknown) {
+            update(state => {
+                if (state.note.type !== 'block') { return state }
+                if (!state.note.isInstantiated) { return state }
+                return {
+                    ...state,
+                    note: { ...state.note, state: action(state.note.state) },
+                }
+            })
+        }, [update])
+
+        const actions = React.useMemo(() => ACTIONS(update, updateFX, blockRef), [update, updateFX, blockRef])
         const shortcutProps = useShortcuts(keybindings(state, actions))
 
         const onUpdateCode = (code: string) => update(state => recompute({ ...state, input: code }, update, env))
@@ -137,6 +153,15 @@ export const NoteUi = React.forwardRef(
             state.note.type === 'expr'
             || (state.note.type === 'block' && !state.note.isInstantiated)
         )
+
+        if (state.note.type === 'block' && state.note.isInstantiated === true) {
+            return state.note.block.view({
+                state: state.note.state,
+                update: updateBlock,
+                env,
+                ref: blockRef,
+            })
+        }
         
         return (
             <div
@@ -184,34 +209,6 @@ export const NoteUi = React.forwardRef(
 )
 
 
-export const BlockUi = React.forwardRef(
-    function BlockUi(
-        { state, update, env}: NoteUiProps,
-        ref: React.Ref<BlockRef>,
-    ) {
-        const updateBlock = React.useCallback(function updateBlock(action: (state: unknown) => unknown) {
-            update(state => {
-                if (state.note.type !== 'block') { return state }
-                if (!state.note.isInstantiated) { return state }
-                return {
-                    ...state,
-                    note: { ...state.note, state: action(state.note.state) },
-                }
-            })
-        }, [update])
-        if (state.note.type !== 'block') { return null }
-        if (!state.note.isInstantiated) { return null }
-
-        return state.note.block.view({
-            state: state.note.state,
-            update: updateBlock,
-            env,
-            ref,
-        })
-    }
-)
-
-
 
 function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Keybindings {
     return [
@@ -247,7 +244,7 @@ function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Key
     ]
 }
 
-function ACTIONS(update: block.BlockUpdater<NoteModel>) {
+function ACTIONS(update: block.BlockUpdater<NoteModel>, updateFX: EffectfulUpdater<NoteModel>, blockRef: React.RefObject<BlockRef>) {
     return {
         toggleCheckbox() {
             update(state => {
@@ -269,20 +266,25 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>) {
         },
 
         instantiateBlock() {
-            update(state => {
-                if (state.note.type !== 'block') { return state }
-                if (state.note.isInstantiated === true) { return state }
-                if (state.note.result.type !== 'immediate') { return state }
-                if (!block.isBlock(state.note.result.value)) { return state }
+            updateFX(state => {
+                if (state.note.type !== 'block') { return {} }
+                if (state.note.isInstantiated === true) { return {} }
+                if (state.note.result.type !== 'immediate') { return {} }
+                if (!block.isBlock(state.note.result.value)) { return {} }
                 return {
-                    ...state,
-                    note: {
-                        type: 'block',
-                        isInstantiated: true,
-                        code: state.note.code,
-                        block: state.note.result.value,
-                        state: state.note.result.value.init,
-                    }
+                    state: {
+                        ...state,
+                        note: {
+                            type: 'block',
+                            isInstantiated: true,
+                            code: state.note.code,
+                            block: state.note.result.value,
+                            state: state.note.result.value.init,
+                        },
+                    },
+                    effect() {
+                        blockRef.current?.focus()
+                    },
                 }
             })
         },
@@ -306,16 +308,9 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>) {
 
 
 function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
-    if (state.note.type === 'expr' && state.note.result.type === 'promise') {
-        state.note.result.cancel()
-    }
-    else if (state.note.type === 'block' && state.note.isInstantiated === false && state.note.result.type === 'promise') {
-        state.note.result.cancel()
-    }
-
     return {
         ...state,
-        note: evaluateNote(state.input, env, block.fieldUpdater('note', update)),
+        note: recomputeNote(state.input, state.note, block.fieldUpdater('note', update), env),
     }
 }
 
