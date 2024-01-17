@@ -316,17 +316,17 @@ export const useEditable = (
 
     let hasPlaintextSupport = true;
     if (element.contentEditable === 'plaintext-only') {
-        hasPlaintextSupport = true;
+      hasPlaintextSupport = true;
     } else if (element.contentEditable === 'true') {
-        hasPlaintextSupport = false;
+      hasPlaintextSupport = false;
     } else {
-        try {
+      try {
         // Firefox and IE11 do not support plaintext-only mode
         element.contentEditable = 'plaintext-only';
-        } catch (_error) {
+      } catch (_error) {
         element.contentEditable = 'true';
         hasPlaintextSupport = false;
-        }
+      }
     }
 
     const indentPattern = `${' '.repeat(opts!.indentation || 0)}`;
@@ -475,9 +475,11 @@ export const useEditable = (
     const onKeyUp = (event: HTMLElementEventMap['keyup']) => {
       if (event.defaultPrevented || event.isComposing) return;
       if (!isUndoRedoKey(event)) trackState();
+      const hadFocus = document.activeElement === event.currentTarget
       flushChanges();
       // Chrome Quirk: The contenteditable may lose focus after the first edit or so
-      element.focus();
+      const hasFocusNow = document.activeElement === event.currentTarget
+      if (hadFocus && !hasFocusNow) { element.focus(); }
     };
 
     const onSelect = (event: Event) => {
