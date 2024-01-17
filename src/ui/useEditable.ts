@@ -1,7 +1,8 @@
 // MIT License
 
 // Copyright (c) 2020 Phil Plückthun,
-// Copyright (c) 2021 Formidable
+// Copyright (c) 2021 Formidable,
+// Copyright (c) 2024 Daniel Krüger
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -313,22 +314,19 @@ export const useEditable = (
       setCurrentRange(makeRange(element, position, position + extent));
     }
 
-    const prevWhiteSpace = element.style.whiteSpace;
-    const prevContentEditable = element.contentEditable;
     let hasPlaintextSupport = true;
-    try {
-      // Firefox and IE11 do not support plaintext-only mode
-      element.contentEditable = 'plaintext-only';
-    } catch (_error) {
-      element.contentEditable = 'true';
-      hasPlaintextSupport = false;
-    }
-
-    if (prevWhiteSpace !== 'pre') element.style.whiteSpace = 'pre-wrap';
-
-    if (opts!.indentation) {
-      element.style.tabSize = (element.style as any).MozTabSize =
-        '' + opts!.indentation;
+    if (element.contentEditable === 'plaintext-only') {
+        hasPlaintextSupport = true;
+    } else if (element.contentEditable === 'true') {
+        hasPlaintextSupport = false;
+    } else {
+        try {
+        // Firefox and IE11 do not support plaintext-only mode
+        element.contentEditable = 'plaintext-only';
+        } catch (_error) {
+        element.contentEditable = 'true';
+        hasPlaintextSupport = false;
+        }
     }
 
     const indentPattern = `${' '.repeat(opts!.indentation || 0)}`;
@@ -508,8 +506,6 @@ export const useEditable = (
       window.removeEventListener('keydown', onKeyDown);
       element.removeEventListener('paste', onPaste);
       element.removeEventListener('keyup', onKeyUp);
-      element.style.whiteSpace = prevWhiteSpace;
-      element.contentEditable = prevContentEditable;
     };
   }, [elementRef.current!, opts!.disabled, opts!.indentation]);
 
