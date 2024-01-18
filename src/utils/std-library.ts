@@ -8,6 +8,7 @@ import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 import * as reactInspector from 'react-inspector'
 import Prism from 'prismjs'
+import * as prismReactRenderer from 'prism-react-renderer'
 
 import * as immutable from 'immutable'
 
@@ -36,6 +37,7 @@ import * as ui from '../ui/utils'
 import * as codeEditor from '../ui/code-editor'
 import * as value from '../ui/value'
 import * as shortcuts from '../ui/shortcuts'
+import { useEditable } from '../ui/useEditable'
 
 import * as utils from '.'
 
@@ -80,6 +82,8 @@ export const library = {
     faRegular,
     styled,
     headlessui,
+    useEditable,
+    prismReactRenderer,
 
     immutable,
 
