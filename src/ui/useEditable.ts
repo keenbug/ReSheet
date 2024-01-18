@@ -288,7 +288,7 @@ export const useEditable = (
 
     state.disconnected = false;
     state.observer.observe(elementRef.current, observerSettings);
-    if (state.position) {
+    if (state.position && document.activeElement === elementRef.current) {
       const { position, extent } = state.position;
       setCurrentRange(
         makeRange(elementRef.current, position, position + extent)
@@ -308,8 +308,7 @@ export const useEditable = (
     }
 
     const element = elementRef.current!;
-    if (state.position) {
-      element.focus();
+    if (state.position && document.activeElement === element) {
       const { position, extent } = state.position;
       setCurrentRange(makeRange(element, position, position + extent));
     }
@@ -482,14 +481,6 @@ export const useEditable = (
       if (hadFocus && !hasFocusNow) { element.focus(); }
     };
 
-    const onSelect = (event: Event) => {
-      // Chrome Quirk: The contenteditable may lose its selection immediately on first focus
-      state.position =
-        window.getSelection()!.rangeCount && event.target === element
-          ? getPosition(element)
-          : null;
-    };
-
     const onPaste = (event: HTMLElementEventMap['paste']) => {
       event.preventDefault();
       trackState(true);
@@ -498,14 +489,12 @@ export const useEditable = (
       flushChanges();
     };
 
-    document.addEventListener('selectstart', onSelect);
-    window.addEventListener('keydown', onKeyDown);
+    element.addEventListener('keydown', onKeyDown);
     element.addEventListener('paste', onPaste);
     element.addEventListener('keyup', onKeyUp);
 
     return () => {
-      document.removeEventListener('selectstart', onSelect);
-      window.removeEventListener('keydown', onKeyDown);
+      element.removeEventListener('keydown', onKeyDown);
       element.removeEventListener('paste', onPaste);
       element.removeEventListener('keyup', onKeyUp);
     };
