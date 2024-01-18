@@ -8,6 +8,10 @@
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="../vendored/simplecss/simple.css">
 
+        <script>
+            // Don't show react's development error overlay
+            window.addEventListener('error', ev => { ev.stopImmediatePropagation() })
+        </script>
         <script type="module" src="index.tsx"></script>
     </head>
     <body>
