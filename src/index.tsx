@@ -42,7 +42,9 @@ function App({ backupId, initJson }: AppProps) {
 
     // Save backup of the current state
     React.useEffect(() => {
-        throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
+        if (toplevelState !== ToplevelBlock.init) {
+            throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
+        }
     }, [backupId, toplevelState])
 
 
