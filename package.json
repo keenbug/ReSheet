@@ -13,11 +13,9 @@
   "devDependencies": {
     "@types/babel__code-frame": "^7.0.3",
     "@types/babel__core": "^7.1.19",
-    "@types/prismjs": "^1.26.3",
     "@types/react": "^18.0.25",
     "@types/react-inspector": "^4.0.2",
     "assert": "^2.0.0",
-    "babel-plugin-prismjs": "^2.1.0",
     "buffer": "^6.0.3",
     "parcel": "^2.7.0",
     "path-browserify": "^1.0.1",
@@ -40,12 +38,10 @@
     "immutable": "^5.0.0-beta.4",
     "markdown-to-jsx": "^7.3.2",
     "prism-react-renderer": "^2.3.1",
-    "prismjs": "^1.26.0",
     "react": "18",
     "react-dom": "18",
     "react-inspector": "^6.0.2",
     "react-intersection-observer": "^9.5.3",
-    "react-simple-code-editor": "^0.13.1",
     "styled-components": "^6.1.1",
     "throttle-debounce": "^5.0.0"
   }

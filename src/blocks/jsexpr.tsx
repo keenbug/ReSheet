@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import { ViewResult } from '../ui/value'
-import { EditableCode } from '../ui/code-editor'
+import { EditableCode } from '../code-editor'
 import { computeScript } from '../logic/compute'
 import { BlockRef } from '../block'
 import * as block from '../block'
@@ -80,7 +80,7 @@ export const JSExprUi = React.forwardRef(
         { state, update, env }: JSExprUiProps,
         ref: React.Ref<BlockRef>
     ) {
-        const editorRef = React.useRef<HTMLTextAreaElement>()
+        const editorRef = React.useRef<HTMLElement>()
         React.useImperativeHandle(
             ref,
             () => ({

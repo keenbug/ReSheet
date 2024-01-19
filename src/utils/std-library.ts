@@ -7,7 +7,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 import * as reactInspector from 'react-inspector'
-import Prism from 'prismjs'
 import * as prismReactRenderer from 'prism-react-renderer'
 
 import * as immutable from 'immutable'
@@ -34,44 +33,14 @@ import * as document from '../blocks/document'
 import * as compute from '../logic/compute'
 
 import * as ui from '../ui/utils'
-import * as codeEditor from '../ui/code-editor'
+import * as codeEditor from '../code-editor'
 import * as value from '../ui/value'
 import * as shortcuts from '../ui/shortcuts'
-import { useEditable } from '../ui/useEditable'
+import { useEditable } from '../code-editor/useEditable'
 
 import * as utils from '.'
 
-export const LIBRARY_MAPPINGS = {
-    "react":                                React,
-    "@headlessui/react":                    headlessui,
-    "@fortawesome/react-fontawesome":       { FontAwesomeIcon },
-    "@fortawesome/free-solid-svg-icons":    faSolid,
-    "@fortawesome/free-regular-svg-icons":  faRegular,
-    "react-inspector":                      reactInspector,
-    "prismjs":                              Prism,
-    "@babel/core":                          babelCore,
-    "@babel/preset-react":                  babelReact,
-    "@babel/parser":                        babelParser,
-    "@babel/generator":                     babelGenerator,
-    "./blocks":                             blocks,
-    "./blocks/block-selector":              blockSelector,
-    "./blocks/sheet":                       sheet,
-    "./blocks/jsexpr":                      jsexpr,
-    "./logic/block":                        block,
-    "./logic/compute":                      compute,
-    "./ui/code-editor":                     codeEditor,
-    "./ui/utils":                           ui,
-    "./ui/value":                           value,
-    "./utils":                              utils,
-}
-
-
-export const $import = lib => LIBRARY_MAPPINGS[lib]
-
-
 export const library = {
-    $LIBRARY_MAPPINGS: LIBRARY_MAPPINGS,
-    $import,
     $library() { return library },
 
     React,
@@ -84,6 +53,7 @@ export const library = {
     headlessui,
     useEditable,
     prismReactRenderer,
+    reactInspector,
 
     immutable,
 
@@ -105,9 +75,9 @@ export const library = {
         ui: {
             utils: ui,
             value,
-            codeEditor,
             shortcuts,
         },
+        codeEditor,
         blocks: {
             blockSelector,
             compute,
@@ -126,5 +96,3 @@ export const library = {
         utils,
     }
 }
-
-export default { $stdLibrary: library, $import, React }

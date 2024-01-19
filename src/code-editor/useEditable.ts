@@ -71,7 +71,7 @@ function toString(element: HTMLElement): string {
     // end with at least one newline character
     if (content[content.length - 1] !== '\n') { content += '\n' }
 
-    return content
+    return content.slice(0, -1)
 }
 
 function getPosition(element: HTMLElement): Position {
@@ -261,7 +261,7 @@ export function useEditable(
         }
 
         function onKeyDown(event: KeyboardEvent) {
-            if (event.defaultPrevented) { return }
+            if (event.defaultPrevented || event.isComposing) { return }
             if (state.disconnected) {
                 // React Quirk: It's expected that we may lose events while disconnected, which is why
                 // we'd like to block some inputs if they're unusually fast. However, this always
@@ -276,12 +276,6 @@ export function useEditable(
                 fixNonPlaintextKeyDown(event, editable, element)
             }
 
-            // Flush changes as a key is held so the app can catch up
-            if (event.repeat) { flushChanges() }
-        }
-
-        function onKeyUp(event: KeyboardEvent) {
-            if (event.defaultPrevented || event.isComposing) { return }
             flushChanges()
         }
 
@@ -293,12 +287,10 @@ export function useEditable(
 
         element.addEventListener('keydown', onKeyDown)
         element.addEventListener('paste', onPaste)
-        element.addEventListener('keyup', onKeyUp)
 
         return () => {
             element.removeEventListener('keydown', onKeyDown)
             element.removeEventListener('paste', onPaste)
-            element.removeEventListener('keyup', onKeyUp)
         }
     }, [elementRef.current, onChange])
 

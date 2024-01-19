@@ -3,8 +3,6 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import 'prismjs/themes/prism.css'
-
 import { library } from './utils/std-library'
 import { DocumentOf, DocumentState } from './blocks/document'
 import { BlockSelector, BlockSelectorState } from './blocks/block-selector'

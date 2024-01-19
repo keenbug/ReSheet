@@ -8,7 +8,7 @@ import * as babelParser from '@babel/parser'
 import babelGenerator from '@babel/generator'
 import * as babelAst from '@babel/types'
 
-import { CodeView } from './code-editor'
+import { CodeView } from '../code-editor'
 import { ErrorView } from './utils'
 import { Pending, PromiseResult, Result } from '../logic/result'
 

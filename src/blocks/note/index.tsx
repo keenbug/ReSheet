@@ -1,15 +1,13 @@
 import * as React from 'react'
 
-import Editor from 'react-simple-code-editor'
-
-import { highlightJS, highlightMd } from '../../ui/code-editor'
+import { CodeEditor, CodeEditorProps } from '../../code-editor'
 import { BlockRef } from '../../block'
 import * as block from '../../block'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 import { EffectfulUpdater, useEffectfulState, useEffectfulUpdate } from '../../ui/hooks'
 import { getFullKey } from '../../ui/utils'
 import { assertValid, defined, number, string, validate } from '../../utils/validate'
-import { Note, ViewNote, evaluateNote, noteBlockStateUpdater, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
+import { Note, ViewNote, evaluateNote, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
 import { getResultValue } from '../../logic/result'
 
 
@@ -104,7 +102,7 @@ export const NoteUi = React.forwardRef(
         { state, update, env }: NoteUiProps,
         ref: React.Ref<BlockRef>
     ) {
-        const editorRef = React.useRef<HTMLTextAreaElement>()
+        const editorRef = React.useRef<HTMLDivElement>()
         const blockRef = React.useRef<BlockRef>()
         const updateFX = useEffectfulUpdate(update)
         const [isFocused, setFocused] = useEffectfulState(false)
@@ -316,13 +314,8 @@ function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env:
 
 
 
-type EditorProps = React.ComponentProps<typeof Editor>
-type EditorDefaultProps = keyof typeof Editor.defaultProps
-type NoteEditorControlledProps = 'value' | 'onValueChange' | 'highlight'
-
-type NodeEditorProps = Omit<EditorProps, NoteEditorControlledProps | EditorDefaultProps> & {
+type NodeEditorProps = Omit<CodeEditorProps, 'code' | 'language' | 'container' | 'className' | 'style'> & {
     note: Note
-    code: string
     onUpdate: (code: string) => void
 }
 
@@ -332,22 +325,17 @@ export const NoteEditor = React.forwardRef(
             note, code, onUpdate,
             ...props
         }: NodeEditorProps,
-        ref: React.Ref<HTMLTextAreaElement>
+        ref: React.Ref<HTMLDivElement>
     ) {
-        const id = React.useId()
-        React.useImperativeHandle(ref, () => document.getElementById(id) as HTMLTextAreaElement, [id])
-
-        const [style, className, highlight] = editorStyle(note)
+        const [style, className, language] = editorStyle(note)
 
         return (
-            <Editor
-                value={code}
-                onValueChange={onUpdate}
-                highlight={highlight}
-                autoFocus={false}
+            <CodeEditor
+                ref={ref}
+                code={code}
+                language={language}
+                container="div"
                 className={className}
-                textareaId={id}
-                textareaClassName="focus-visible:outline-none"
                 style={style}
                 {...props}
                 />
@@ -359,18 +347,18 @@ const codeStyle = {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
 }
 
-function editorStyle(note: Note): [React.CSSProperties, string, (code: string) => string] {
+function editorStyle(note: Note): [React.CSSProperties, string, string] {
     switch (note.type) {
         case 'expr':
-            return [codeStyle, "", highlightJS]
+            return [codeStyle, "", "jsx"]
 
         case 'block':
-            return [codeStyle, "", highlightJS]
+            return [codeStyle, "", "jsx"]
 
         case 'text':
-            return [{}, textClasses[note.tag] ?? "", highlightMd]
+            return [{}, textClasses[note.tag] ?? "", "markdown"]
 
         case 'checkbox':
-            return [{}, "", highlightMd]
+            return [{}, "", "markdown"]
     }
 }

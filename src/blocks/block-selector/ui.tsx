@@ -6,7 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as block from '../../block'
 import { Block, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { CodeView, EditableCode } from '../../ui/code-editor'
+import { CodeView, EditableCode } from '../../code-editor'
 import { computeExpr } from '../../logic/compute'
 import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
 
@@ -17,7 +17,7 @@ import { useShortcuts } from '../../ui/shortcuts'
 
 function ACTIONS(
     update: EffectfulUpdater<BlockSelectorState>,
-    inputRef: React.MutableRefObject<HTMLTextAreaElement>,
+    inputRef: React.MutableRefObject<HTMLElement>,
     innerBlockRef: React.MutableRefObject<BlockRef>,
     blockLibrary: Environment
 ) {
@@ -100,7 +100,7 @@ export const BlockSelectorUI = React.forwardRef(
         const { blockLibrary } = props
 
         const updateWithEffect = useEffectfulUpdate(update)
-        const inputRef = React.useRef<HTMLTextAreaElement>()
+        const inputRef = React.useRef<HTMLElement>()
         const innerBlockRef = React.useRef<BlockRef>()
 
         const [blockExpr, setBlockExpr] = React.useState<string>(state.expr)
