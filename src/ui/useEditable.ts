@@ -24,507 +24,414 @@
 
 // Extracted from: https://github.com/FormidableLabs/use-editable
 
-import { useState, useLayoutEffect, useMemo } from 'react'
+import { useState, useLayoutEffect, useMemo, useRef } from 'react'
 
 export interface Position {
-  position: number
-  extent: number
-  content: string
-  line: number
+    position: number
+    extent: number
+    content: string
+    line: number
 }
 
-type History = [Position, string]
-
 const observerSettings = {
-  characterData: true,
-  characterDataOldValue: true,
-  childList: true,
-  subtree: true,
+    characterData: true,
+    characterDataOldValue: true,
+    childList: true,
+    subtree: true,
 }
 
 function getCurrentRange() {
-  return window.getSelection()!.getRangeAt(0)!
+    return window.getSelection().getRangeAt(0)
 }
 
 function setCurrentRange(range: Range) {
-  const selection = window.getSelection()!
-  selection.empty()
-  selection.addRange(range)
-}
-
-function isUndoRedoKey(event: KeyboardEvent): boolean {
-  return (
-    (event.metaKey || event.ctrlKey)
-    && !event.altKey
-    && event.code === 'KeyZ'
-  )
+    const selection = window.getSelection()
+    selection.empty()
+    selection.addRange(range)
 }
 
 function toString(element: HTMLElement): string {
-  const queue: Node[] = [element.firstChild!]
+    const queue: Node[] = [element.firstChild!]
 
-  let content = ''
-  let node: Node
-  while ((node = queue.pop()!)) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      content += node.textContent
+    let content = ''
+    let node: Node
+    while ((node = queue.pop()!)) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            content += node.textContent
+        }
+        else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+            content += '\n'
+        }
+
+        if (node.nextSibling) { queue.push(node.nextSibling) }
+        if (node.firstChild) { queue.push(node.firstChild) }
     }
-    else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
-      content += '\n'    }
 
-    if (node.nextSibling) { queue.push(node.nextSibling) }
-    if (node.firstChild) { queue.push(node.firstChild) }
-  }
+    // contenteditable Quirk: Without plaintext-only a pre/pre-wrap element must always
+    // end with at least one newline character
+    if (content[content.length - 1] !== '\n') { content += '\n' }
 
-  // contenteditable Quirk: Without plaintext-only a pre/pre-wrap element must always
-  // end with at least one newline character
-  if (content[content.length - 1] !== '\n') { content += '\n' }
-
-  return content
-}
-
-function setStart(range: Range, node: Node, offset: number) {
-  if (offset < node.textContent!.length) {
-    range.setStart(node, offset)
-  }
-  else {
-    range.setStartAfter(node)
-  }
-}
-
-function setEnd(range: Range, node: Node, offset: number) {
-  if (offset < node.textContent!.length) {
-    range.setEnd(node, offset)
-  }
-  else {
-    range.setEndAfter(node)
-  }
+    return content
 }
 
 function getPosition(element: HTMLElement): Position {
-  // Firefox Quirk: Since plaintext-only is unsupported the position
-  // of the text here is retrieved via a range, rather than traversal
-  // as seen in makeRange()
-  const range = getCurrentRange()
-  const extent = !range.collapsed ? range.toString().length : 0
-  const untilRange = document.createRange()
-  untilRange.setStart(element, 0)
-  untilRange.setEnd(range.startContainer, range.startOffset)
-  let content = untilRange.toString()
-  const position = content.length
-  const lines = content.split('\n')
-  const line = lines.length - 1
-  content = lines[line]
-  return { position, extent, content, line }
+    // Firefox Quirk: Since plaintext-only is unsupported the position
+    // of the text here is retrieved via a range, rather than traversal
+    // as seen in makeRange()
+    const range = getCurrentRange()
+    const extent = !range.collapsed ? range.toString().length : 0
+
+    const untilRange = document.createRange()
+    untilRange.setStart(element, 0)
+    untilRange.setEnd(range.startContainer, range.startOffset)
+
+    const allContentUntil = untilRange.toString()
+    const position = allContentUntil.length
+    const lines = allContentUntil.split('\n')
+    const line = lines.length - 1
+    const content = lines[line]
+
+    return { position, extent, content, line }
 }
 
 function makeRange(
-  element: HTMLElement,
-  start: number,
-  end?: number
+    element: HTMLElement,
+    start: number,
+    end?: number,
 ): Range {
-  if (start <= 0) { start = 0 }
-  if (!end || end < 0) { end = start }
+    if (start <= 0) { start = 0 }
 
-  const range = document.createRange()
-  const queue: Node[] = [element.firstChild!]
-  let current = 0
+    const range = document.createRange()
 
-  let node: Node
-  let position = start
-  while ((node = queue[queue.length - 1])) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const length = node.textContent!.length
-      if (current + length >= position) {
-        const offset = position - current
-        if (position === start) {
-          setStart(range, node, offset)
-          if (end !== start) {
-            position = end
-            continue
-          }
-          else {
-            break
-          }
-        }
-        else {
-          setEnd(range, node, offset)
-          break
-        }
-      }
+    const startResult = findPositionInNodes(start, element)
+    if (startResult === null) { return range }
 
-      current += node.textContent!.length
-    }
-    else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
-      if (current + 1 >= position) {
-        if (position === start) {
-          setStart(range, node, 0)
-          if (end !== start) {
-            position = end
-            continue
-          }
-          else {
-            break
-          }
-        }
-        else {
-          setEnd(range, node, 0)
-          break
-        }
-      }
+    const [startNode, startNodeOffset] = startResult
+    range.setStart(startNode, startNodeOffset)
 
-      current++
-    }
+    if (!end || end <= start) { return range }
+    const endResult = findPositionInNodes(end, element)
+    if (endResult === null) { return range }
 
-    queue.pop()
-    if (node.nextSibling) { queue.push(node.nextSibling) }
-    if (node.firstChild) { queue.push(node.firstChild) }
-  }
-
-  return range
+    const [endNode, endNodeOffset] = endResult
+    range.setEnd(endNode, endNodeOffset)
+    return range
 }
+
+
+function findPositionInNodes(
+    position: number,
+    container: Node,
+): null | [Node, number] {
+    const queue: Node[] = [container.firstChild]
+
+    let node: Node
+    let currentPosition = 0
+    while ((node = queue.pop())) {
+        let nodeTextLength = 0
+        if (node.nodeType === Node.TEXT_NODE) {
+            nodeTextLength = node.textContent!.length
+        }
+        else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'BR') {
+            nodeTextLength = 1
+        }
+
+        if (nodeTextLength > 0) {
+            const offset = position - currentPosition
+            // searched position inside this node?
+            if (offset < nodeTextLength) {
+                return [node, offset]
+            }
+
+            currentPosition += nodeTextLength
+        }
+
+        if (node.nextSibling) { queue.push(node.nextSibling) }
+        if (node.firstChild) { queue.push(node.firstChild) }
+    }
+
+    return null
+}
+
 
 interface State {
-  observer: MutationObserver
-  disconnected: boolean
-  onChange(text: string, position: Position): void
-  queue: MutationRecord[]
-  history: History[]
-  historyAt: number
-  position: Position | null
+    observer: MutationObserver
+    disconnected: boolean
+    mutations: MutationRecord[]
+    position: Position | null
 }
 
-export interface Options {
-  disabled?: boolean
-  indentation?: number
-}
+export interface Editable {
+    /** Replaces the entire content of the editable while adjusting the caret position. */
+    update(content: string): void
 
-export interface Edit {
-  /** Replaces the entire content of the editable while adjusting the caret position. */
-  update(content: string): void
-  /** Inserts new text at the caret position while deleting text in range of the offset (which accepts negative offsets). */
-  insert(append: string, offset?: number): void
-  /** Positions the caret where specified */
-  move(pos: number | { row: number, column: number }): void
-  /** Returns the current editor state, as usually received in onChange */
-  getState(): { text: string, position: Position }
+    /** Inserts new text at the caret position while deleting text in range of the offset (which accepts negative offsets). */
+    edit(append: string, offset?: number): void
+
+    /** Positions the caret where specified */
+    move(pos: number | { row: number, column: number }): void
+
+    /** Returns the current editor state, as usually received in onChange */
+    getState(): { text: string, position: Position }
 }
 
 export function useEditable(
-  elementRef: { current: HTMLElement | undefined | null },
-  onChange: (text: string, position: Position) => void,
-  opts: Options = {}
-): Edit {
-  const [, unblock] = useState([])
-  const [state,] = useState<State>(() => {
-    const state: State = {
-      observer: null as any,
-      disconnected: false,
-      onChange,
-      queue: [],
-      history: [],
-      historyAt: -1,
-      position: null,
-    }
+    elementRef: { current: HTMLElement | undefined | null },
+    onChange: (text: string, position: Position) => void,
+): Editable {
+    const [, rerender] = useState([])
+    const { current: state } = useRef<State>({
+        observer: null as any,
+        disconnected: false,
+        mutations: [],
+        position: null,
+    })
+    const editable = useMemo<Editable>(
+        () => editableActions(elementRef, state, onChange),
+        [elementRef, state, onChange],
+    )
 
-    if (typeof MutationObserver !== 'undefined') {
-      state.observer = new MutationObserver(batch => {
-        state.queue.push(...batch)
-      })
-    }
+    // Only for SSR / server-side logic
+    if (typeof navigator !== 'object') { return editable }
 
-    return state
-  })
-
-  const edit = useMemo<Edit>(
-    () => ({
-      update(content: string) {
-        const { current: element } = elementRef
-        if (element) {
-          const position = getPosition(element)
-          const prevContent = toString(element)
-          position.position += content.length - prevContent.length
-          state.position = position
-          state.onChange(content, position)
+    useLayoutEffect(() => {
+        if (typeof MutationObserver !== 'undefined') {
+            state.observer = new MutationObserver(batch => {
+                state.mutations.push(...batch)
+            })
         }
-      },
-      insert(append: string, deleteOffset?: number) {
-        const { current: element } = elementRef
-        if (element) {
-          let range = getCurrentRange()
-          range.deleteContents()
-          range.collapse()
-          const position = getPosition(element)
-          const offset = deleteOffset || 0
-          const start = position.position + (offset < 0 ? offset : 0)
-          const end = position.position + (offset > 0 ? offset : 0)
-          range = makeRange(element, start, end)
-          range.deleteContents()
-          if (append) range.insertNode(document.createTextNode(append))
-          setCurrentRange(makeRange(element, start + append.length))
+
+        return () => {
+            state.disconnected = true
+            state.observer.disconnect()
         }
-      },
-      move(pos: number | { row: number, column: number }) {
-        const { current: element } = elementRef
-        if (element) {
-          element.focus()
-          let position = 0
-          if (typeof pos === 'number') {
-            position = pos
-          }
-          else {
-            const lines = toString(element).split('\n').slice(0, pos.row)
-            if (pos.row) { position += lines.join('\n').length + 1 }
-            position += pos.column
-          }
+    }, [])
 
-          setCurrentRange(makeRange(element, position))
+    useLayoutEffect(() => {
+        if (!elementRef.current) { return }
+
+        state.disconnected = false
+        state.observer.observe(elementRef.current, observerSettings)
+        if (state.position && document.activeElement === elementRef.current) {
+            const { position, extent } = state.position
+            setCurrentRange(
+                makeRange(elementRef.current, position, position + extent)
+            )
         }
-      },
-      getState() {
-        const { current: element } = elementRef
-        const text = toString(element!)
-        const position = getPosition(element!)
-        return { text, position }
-      },
-    }),
-    []
-  )
 
-  // Only for SSR / server-side logic
-  if (typeof navigator !== 'object') { return edit }
+        return () => {
+            state.observer.disconnect()
+        }
+    })
 
-  useLayoutEffect(() => {
-    state.onChange = onChange
+    useLayoutEffect(() => {
+        if (!elementRef.current) { return }
+        const element = elementRef.current
 
-    if (!elementRef.current || opts.disabled) { return }
+        if (state.position && document.activeElement === element) {
+            const { position, extent } = state.position
+            setCurrentRange(makeRange(element, position, position + extent))
+        }
 
-    state.disconnected = false
-    state.observer.observe(elementRef.current, observerSettings)
-    if (state.position && document.activeElement === elementRef.current) {
-      const { position, extent } = state.position
-      setCurrentRange(
-        makeRange(elementRef.current, position, position + extent)
-      )
+        if (element.contentEditable !== 'plaintext-only' && element.contentEditable !== 'true') {
+            try {
+                // Firefox and IE11 do not support plaintext-only mode
+                element.contentEditable = 'plaintext-only'
+            }
+            catch (_error) {
+                element.contentEditable = 'true'
+            }
+        }
+
+        function flushChanges() {
+            state.mutations.push(...state.observer.takeRecords())
+            const position = getPosition(element)
+            if (state.mutations.length > 0) {
+                state.observer.disconnect()
+                state.disconnected = true
+
+                const content = toString(element)
+                state.position = position
+
+                rewindMutations(state.mutations)
+                state.mutations.splice(0)
+
+                onChange(content, position)
+            }
+        }
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.defaultPrevented) { return }
+            if (state.disconnected) {
+                // React Quirk: It's expected that we may lose events while disconnected, which is why
+                // we'd like to block some inputs if they're unusually fast. However, this always
+                // coincides with React not executing the update immediately and then getting stuck,
+                // which can be prevented by issuing a dummy state change.
+                event.preventDefault()
+                rerender([])
+                return
+            }
+
+            if (element.contentEditable !== 'plaintext-only') {
+                fixNonPlaintextKeyDown(event, editable, element)
+            }
+
+            // Flush changes as a key is held so the app can catch up
+            if (event.repeat) { flushChanges() }
+        }
+
+        function onKeyUp(event: KeyboardEvent) {
+            if (event.defaultPrevented || event.isComposing) { return }
+            flushChanges()
+        }
+
+        function onPaste(event: ClipboardEvent) {
+            event.preventDefault()
+            editable.edit(event.clipboardData.getData('text/plain'))
+            flushChanges()
+        }
+
+        element.addEventListener('keydown', onKeyDown)
+        element.addEventListener('paste', onPaste)
+        element.addEventListener('keyup', onKeyUp)
+
+        return () => {
+            element.removeEventListener('keydown', onKeyDown)
+            element.removeEventListener('paste', onPaste)
+            element.removeEventListener('keyup', onKeyUp)
+        }
+    }, [elementRef.current, onChange])
+
+    return editable
+}
+
+function fixNonPlaintextKeyDown(event: KeyboardEvent, editable: Editable, element: HTMLElement) {
+    // Fix backspace not working
+    if (event.key === 'Backspace') {
+        event.preventDefault()
+        defaultBackspaceBehavior(editable, element, event)
     }
+}
 
-    return () => {
-      state.observer.disconnect()
-    }
-  })
-
-  useLayoutEffect(() => {
-    if (!elementRef.current || opts.disabled) {
-      state.history.length = 0
-      state.historyAt = -1
-      return
-    }
-
-    const element = elementRef.current!
-    if (state.position && document.activeElement === element) {
-      const { position, extent } = state.position
-      setCurrentRange(makeRange(element, position, position + extent))
-    }
-
-    let hasPlaintextSupport = true
-    if (element.contentEditable === 'plaintext-only') {
-      hasPlaintextSupport = true
-    }
-    else if (element.contentEditable === 'true') {
-      hasPlaintextSupport = false
+function defaultBackspaceBehavior(editable: Editable, element: HTMLElement, modifiers: { altKey: boolean, metaKey: boolean }) {
+    const range = getCurrentRange()
+    if (!range.collapsed) {
+        editable.edit('', 0)
     }
     else {
-      try {
-        // Firefox and IE11 do not support plaintext-only mode
-        element.contentEditable = 'plaintext-only'
-      }
-      catch (_error) {
-        element.contentEditable = 'true'
-        hasPlaintextSupport = false
-      }
-    }
+        const position = getPosition(element)
 
-    const indentPattern = ' '.repeat(opts.indentation ?? 0)
-    const indentRe = new RegExp(`^(?:${indentPattern})`)
-    const blanklineRe = new RegExp(`^(?:${indentPattern})*(${indentPattern})$`)
+        // default: delete one character
+        let deleteCount = 1
 
-    let _trackStateTimestamp: number
-    function trackState(ignoreTimestamp?: boolean) {
-      if (!elementRef.current || !state.position) { return }
-
-      const content = toString(element)
-      const position = getPosition(element)
-      const timestamp = new Date().valueOf()
-
-      // Prevent recording new state in list if last one has been new enough
-      const lastEntry = state.history[state.historyAt]
-      if (
-        (!ignoreTimestamp && timestamp - _trackStateTimestamp < 500) ||
-        (lastEntry && lastEntry[1] === content)
-      ) {
-        _trackStateTimestamp = timestamp
-        return
-      }
-
-      const at = ++state.historyAt
-      state.history[at] = [position, content]
-      state.history.splice(at + 1)
-      if (at > 500) {
-        state.historyAt--
-        state.history.shift()
-      }
-    }
-
-    function disconnect() {
-      state.observer.disconnect()
-      state.disconnected = true
-    }
-
-    function flushChanges() {
-      state.queue.push(...state.observer.takeRecords())
-      const position = getPosition(element)
-      if (state.queue.length) {
-        disconnect()
-        const content = toString(element)
-        state.position = position
-        let mutation: MutationRecord | void
-        let i = 0
-        while ((mutation = state.queue.pop())) {
-          if (mutation.oldValue !== null) {
-            mutation.target.textContent = mutation.oldValue
-          }
-          for (i = mutation.removedNodes.length - 1; i >= 0; i--) {
-            mutation.target.insertBefore(
-              mutation.removedNodes[i],
-              mutation.nextSibling
-            )
-          }
-          for (i = mutation.addedNodes.length - 1; i >= 0; i--) {
-            if (mutation.addedNodes[i].parentNode) {
-              mutation.target.removeChild(mutation.addedNodes[i])
+        // delete word
+        if (modifiers.altKey) {
+            const matchPreviousWord = /\S+\s*$/.exec(position.content)
+            if (matchPreviousWord) {
+                deleteCount = matchPreviousWord[0].length
             }
-          }
+            else {
+                deleteCount = position.content.length + 1
+            }
         }
 
-        state.onChange(content, position)
-      }
+        // delete line
+        else if (modifiers.metaKey) {
+            deleteCount = position.content.length || 1
+        }
+
+        editable.edit('', -deleteCount)
     }
+}
 
-    function onKeyDown(event: HTMLElementEventMap['keydown']) {
-      if (event.defaultPrevented || event.target !== element) {
-        return
-      }
-      else if (state.disconnected) {
-        // React Quirk: It's expected that we may lose events while disconnected, which is why
-        // we'd like to block some inputs if they're unusually fast. However, this always
-        // coincides with React not executing the update immediately and then getting stuck,
-        // which can be prevented by issuing a dummy state change.
-        event.preventDefault()
-        return unblock([])
-      }
+function editableActions(
+    elementRef: { current: HTMLElement | undefined | null },
+    state: State,
+    onChange: (text: string, position: Position) => void,
+): Editable {
+    return {
+        update(content: string) {
+            const { current: element } = elementRef
+            if (!element) { return }
 
-      if (isUndoRedoKey(event)) {
-        event.preventDefault()
+            const position = getPosition(element)
+            const prevContent = toString(element)
+            position.position += content.length - prevContent.length
+            state.position = position
+            onChange(content, position)
+        },
 
-        let history: History
-        if (!event.shiftKey) {
-          const at = --state.historyAt
-          history = state.history[at]
-          if (!history) state.historyAt = 0
-        }
-        else {
-          const at = ++state.historyAt
-          history = state.history[at]
-          if (!history) { state.historyAt = state.history.length - 1 }
-        }
+        edit(append: string, deleteOffset: number = 0) {
+            const { current: element } = elementRef
+            if (!element) { return }
 
-        if (history) {
-          disconnect()
-          state.position = history[0]
-          state.onChange(history[1], history[0])
-        }
-        return
-      }
-      else {
-        trackState()
-      }
+            // delete selection
+            let range = getCurrentRange()
+            range.deleteContents()
+            range.collapse()
 
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        // Firefox Quirk: Since plaintext-only is unsupported we must
-        // ensure that only newline characters are inserted
-        const position = getPosition(element)
-        // We also get the current line and preserve indentation for the next
-        // line that's created
-        const match = /\S/g.exec(position.content)
-        const index = match ? match.index : position.content.length
-        const text = '\n' + position.content.slice(0, index)
-        edit.insert(text)
-      }
-      else if (
-        (!hasPlaintextSupport || opts.indentation) &&
-        event.key === 'Backspace'
-      ) {
-        // Firefox Quirk: Since plaintext-only is unsupported we must
-        // ensure that only a single character is deleted
-        event.preventDefault()
-        const range = getCurrentRange()
-        if (!range.collapsed) {
-          edit.insert('', 0)
-        }
-        else {
-          const position = getPosition(element)
-          const match = blanklineRe.exec(position.content)
-          edit.insert('', match ? -match[1].length : -1)
-        }
-      }
-      else if (opts.indentation && event.key === 'Tab') {
-        event.preventDefault()
-        const position = getPosition(element)
-        const start = position.position - position.content.length
-        const content = toString(element)
-        const newContent = event.shiftKey
-          ? content.slice(0, start) +
-            position.content.replace(indentRe, '') +
-            content.slice(start + position.content.length)
-          : content.slice(0, start) +
-            (opts.indentation ? ' '.repeat(opts.indentation) : '\t') +
-            content.slice(start)
-        edit.update(newContent)
-      }
+            // additionally delete `deleteOffset` chars around position
+            const position = getPosition(element)
+            const start = position.position + (deleteOffset < 0 ? deleteOffset : 0)
+            const end = position.position + (deleteOffset > 0 ? deleteOffset : 0)
+            range = makeRange(element, start, end)
+            range.deleteContents()
 
-      // Flush changes as a key is held so the app can catch up
-      if (event.repeat) { flushChanges() }
+            if (append) { range.insertNode(document.createTextNode(append))} 
+            setCurrentRange(makeRange(element, start + append.length))
+        },
+
+        move(pos: number | { row: number; column: number} ) {
+            const { current: element } = elementRef
+            if (!element) { return }
+
+            element.focus()
+            let position = 0
+            if (typeof pos === 'number') {
+                position = pos
+            }
+            else {
+                if (pos.row > 0) {
+                    const lines = toString(element).split('\n').slice(0, pos.row)
+                    position += lines.join('\n').length + 1
+                }
+                position += pos.column
+            }
+
+            setCurrentRange(makeRange(element, position))
+        },
+
+        getState() {
+            const { current: element } = elementRef
+            if (!element) {
+                return {
+                    text: '',
+                    position: { position: 0, extent: 0, line: 0, content: '' },
+                }
+            }
+
+            const text = toString(element)
+            const position = getPosition(element)
+            return { text, position }
+        },
     }
+}
 
-    function onKeyUp(event: HTMLElementEventMap['keyup']) {
-      if (event.defaultPrevented || event.isComposing) { return }
-      if (!isUndoRedoKey(event)) { trackState() }
-      const hadFocus = document.activeElement === event.currentTarget
-      flushChanges()
-      // Chrome Quirk: The contenteditable may lose focus after the first edit or so
-      const hasFocusNow = document.activeElement === event.currentTarget
-      if (hadFocus && !hasFocusNow) { element.focus() }
+function rewindMutations(mutations: MutationRecord[]) {
+    for (const mutation of [...mutations].reverse()) {
+        if (mutation.oldValue !== null) {
+            mutation.target.textContent = mutation.oldValue
+        }
+        for (let i = mutation.removedNodes.length - 1; i >= 0; i--) {
+            mutation.target.insertBefore(
+                mutation.removedNodes[i],
+                mutation.nextSibling,
+            )
+        }
+        for (let i = mutation.addedNodes.length - 1; i >= 0; i--) {
+            if (mutation.addedNodes[i].parentNode) {
+                mutation.target.removeChild(mutation.addedNodes[i])
+            }
+        }
     }
-
-    function onPaste(event: HTMLElementEventMap['paste']) {
-      event.preventDefault()
-      trackState(true)
-      edit.insert(event.clipboardData!.getData('text/plain'))
-      trackState(true)
-      flushChanges()
-    }
-
-    element.addEventListener('keydown', onKeyDown)
-    element.addEventListener('paste', onPaste)
-    element.addEventListener('keyup', onKeyUp)
-
-    return () => {
-      element.removeEventListener('keydown', onKeyDown)
-      element.removeEventListener('paste', onPaste)
-      element.removeEventListener('keyup', onKeyUp)
-    }
-  }, [elementRef.current!, opts.disabled, opts.indentation])
-
-  return edit
 }
