@@ -30,7 +30,7 @@ function App({ backupId, initJson }: AppProps) {
     const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
-    const [backupPendingState, throttledBackup] = useThrottlePending(5000, storeBackup)
+    const [backupPendingState, throttledBackup] = useThrottlePending(3000, storeBackup)
     
     // Load initial state
     React.useEffect(() => {
@@ -129,9 +129,34 @@ function BackupIndicator({ pendingState, className }: { pendingState: PendingSta
             {pendingState.state === 'pending' ?
                 <FontAwesomeIcon className="text-black/25 group-hover:text-gray-500" fade icon={solidIcons.faEllipsis} />
             : pendingState.state === 'finished' ?
-                <FontAwesomeIcon className="text-lime-500" icon={solidIcons.faCheck} />
+                <FontAwesomeIcon
+                    className="text-lime-500"
+                    bounce
+                    style={{
+                        '--fa-animation-duration': '0.3s',
+                        '--fa-animation-iteration-count': 1,
+                        '--fa-bounce-start-scale-x': 1,
+                        '--fa-bounce-start-scale-y': 1,
+                        '--fa-bounce-jump-scale-x': 1,
+                        '--fa-bounce-jump-scale-y': 1,
+                        '--fa-bounce-land-scale-x': 1,
+                        '--fa-bounce-land-scale-y': 1,
+                        '--fa-bounce-rebound': 0,
+                        '--fa-bounce-height': '-0.1rem',
+                        '--fa-animation-timing': 'ease-out, ease-in',
+                    }}
+                    icon={solidIcons.faCheck}
+                    />
             :
-                <FontAwesomeIcon className="text-red-500" icon={solidIcons.faTriangleExclamation} />
+                <FontAwesomeIcon
+                    className="text-red-500"
+                    shake
+                    style={{
+                        '--fa-animation-dealy': '0.5s',
+                        '--fa-animation-iteration-count': 1,
+                    }}
+                    icon={solidIcons.faTriangleExclamation}
+                    />
             }
             <span className="text-gray-700 hidden group-hover:inline">
                 {pendingState.state === 'pending' ?
