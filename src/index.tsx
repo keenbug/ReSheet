@@ -1,5 +1,7 @@
 import * as React from 'react'
 import ReactDOM from 'react-dom/client'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 import 'prismjs/themes/prism.css'
 
@@ -9,6 +11,8 @@ import { BlockSelector, BlockSelectorState } from './blocks/block-selector'
 import { Block } from './block/component'
 import { getFullKey } from './ui/shortcuts'
 import { BlockRef } from './block'
+import { storeBackup, db, removeOldBackups } from './backup'
+import { PendingState, useThrottlePending } from './ui/hooks'
 
 
 const blocks = library.blocks
@@ -17,18 +21,38 @@ type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks))
 
 
+interface AppProps {
+    backupId: string
+    initJson: any | undefined
+}
 
-function App() {
+function App({ backupId, initJson }: AppProps) {
     const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
+    const [backupPendingState, throttledBackup] = useThrottlePending(5000, storeBackup)
+    
+    // Load initial state
     React.useEffect(() => {
-        loadInitJson().then(json => {
-            if (json !== undefined) {
-                setToplevelState(ToplevelBlock.fromJSON(json, setToplevelState, library))
-            }
-        })
-    }, [])
+        if (initJson !== undefined) {
+            setToplevelState(ToplevelBlock.fromJSON(initJson, setToplevelState, library))
+        }
+    }, [initJson])
+
+
+    // Save backup of the current state
+    React.useEffect(() => {
+        throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
+    }, [backupId, toplevelState])
+
+
+    // Change window.location, so the backup will be automatically loaded on a refresh
+    React.useEffect(() => {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('backup', backupId);
+        window.history.replaceState({}, document.title, currentUrl.toString());
+    }, [backupId])
+
 
     // Handlers to keep focus on the app
     React.useEffect(() => {
@@ -76,28 +100,81 @@ function App() {
         }
     }, [])
 
+
     return (
-        <Block
-            state={toplevelState}
-            update={setToplevelState}
-            block={ToplevelBlock}
-            env={library}
-            blockRef={toplevelBlockRef}
-            />
+        <>
+            <Block
+                state={toplevelState}
+                update={setToplevelState}
+                block={ToplevelBlock}
+                env={library}
+                blockRef={toplevelBlockRef}
+                />
+            <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />
+        </>
     )
 }
 
 
-async function loadInitJson() {
-    const loadParam = new URLSearchParams(document.location.search).get('load')
-    if (loadParam === null) {
+function BackupIndicator({ pendingState, className }: { pendingState: PendingState, className: string }) {
+    return (
+        <div
+            className={`
+                group border-2 border-transparent rounded-full
+                pl-2 pr-3 py-0.5 space-x-2 text-sm
+                hover:bg-white hover:border-gray-200
+                ${className}
+            `}
+        >
+            {pendingState.state === 'pending' ?
+                <FontAwesomeIcon className="text-black/25 group-hover:text-gray-500" fade icon={solidIcons.faEllipsis} />
+            : pendingState.state === 'finished' ?
+                <FontAwesomeIcon className="text-lime-500" icon={solidIcons.faCheck} />
+            :
+                <FontAwesomeIcon className="text-red-500" icon={solidIcons.faTriangleExclamation} />
+            }
+            <span className="text-gray-700 hidden group-hover:inline">
+                {pendingState.state === 'pending' ?
+                    "Storing backup in IndexedDB"
+                : pendingState.state === 'finished' ?
+                    "Backup stored in IndexedDB"
+                :
+                    `Failed storing backup in IndexedDB: ${pendingState.error}`
+                }
+            </span>
+        </div>
+    )
+}
+
+
+function LoadingScreen() {
+    return (
+        <div className="w-screen h-screen flex flex-col justify-center items-center space-y-2">
+            <FontAwesomeIcon icon={solidIcons.faSpinner} spinPulse size="2xl" />
+            <div>Tables is loading...</div>
+        </div>
+    )
+}
+
+
+async function loadBackup(id: string) {
+    try {
+        const backup = await db.backups
+            .where('id').equals(id)
+            .first()
+        return backup.json
+    }
+    catch (e) {
+        window.alert(`Could not load backup ${id}: ${e}`)
         return undefined
     }
+}
 
+async function loadRemoteFile(url: string) {
     try {
-        const response = await fetch(loadParam)
-        const content = await response.json()
-        return content
+        const response = await fetch(url)
+        const json = await response.json()
+        return json
     }
     catch (e) {
         window.alert(`Could not load file from URL: ${e}`)
@@ -105,7 +182,35 @@ async function loadInitJson() {
     }
 }
 
+async function loadInit() {
+    const params = new URLSearchParams(document.location.search)
+    const loadParam = params.get('load')
+    const backupParam = params.get('backup')
+
+    if (backupParam !== null) {
+        return [backupParam, await loadBackup(backupParam)]
+    }
+
+    if (loadParam !== null) {
+        return [crypto.randomUUID(), await loadRemoteFile(loadParam)]
+    }
+
+    return [crypto.randomUUID(), undefined]
+}
+
 
 const rootElement = document.getElementById('app')
 const root = ReactDOM.createRoot(rootElement)
-root.render(<App />)
+
+async function startApp() {
+    removeOldBackups()
+    const loadingScreenTimeout = setTimeout(() => {
+        root.render(<LoadingScreen />)
+    }, 100)
+
+    const [backupId, initJson] = await loadInit()
+    clearTimeout(loadingScreenTimeout)
+    root.render(<App backupId={backupId} initJson={initJson} />)
+}
+
+startApp()

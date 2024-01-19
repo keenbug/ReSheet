@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { throttle } from 'throttle-debounce'
+import { isPromise } from '../logic/result';
 
 export interface ThrottleOptions {
     noTrailing?: boolean;
@@ -14,6 +15,46 @@ export function useThrottle<Callback extends (...args: unknown[]) => unknown>(
 ): throttle<Callback> {
     const [throttledFunc] = React.useState(() => throttle(delay, callback, options))
     return throttledFunc
+}
+
+export type PendingState = 
+    | { state: 'finished' }
+    | { state: 'pending' }
+    | { state: 'failed', error: any }
+
+export function useThrottlePending<Args extends unknown[], Callback extends (...args: Args) => any>(
+    delay: number,
+    callback: Callback,
+    options?: ThrottleOptions,
+): [PendingState, throttle<Callback>] {
+    const [pendingState, setPendingState] = React.useState<PendingState>({ state: 'finished' })
+
+    const callbackAndUpdate = React.useCallback((...args: Args) => {
+        try {
+            const result = callback(...args)
+            if (isPromise(result)) {
+                result.then(
+                    () => { setPendingState({ state: 'finished' }) },
+                    error => { setPendingState({ state: 'failed', error }) },
+                )
+            }
+            else {
+                setPendingState({ state: 'finished' })
+            }
+        }
+        catch (error) {
+            setPendingState({ state: 'failed', error })
+        }
+    }, [callback])
+
+    const throttledCallback = useThrottle(delay, callbackAndUpdate, options)
+
+    const callbackWithPending = React.useCallback((...args: Args) => {
+        setPendingState({ state: 'pending' })
+        return throttledCallback(...args)
+    }, [throttledCallback])
+
+    return [pendingState, callbackWithPending]
 }
 
 export function useAutoretrigger<Args extends Array<any> = []>(

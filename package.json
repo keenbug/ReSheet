@@ -36,6 +36,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.2.0",
     "@fortawesome/react-fontawesome": "^0.2.0",
     "@headlessui/react": "^1.7.17",
+    "dexie": "^3.2.4",
     "immutable": "^5.0.0-beta.4",
     "markdown-to-jsx": "^7.3.2",
     "prism-react-renderer": "^2.3.1",
