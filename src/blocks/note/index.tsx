@@ -314,17 +314,14 @@ function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env:
 
 
 
-type NodeEditorProps = Omit<CodeEditorProps, 'code' | 'language' | 'container' | 'className' | 'style'> & {
+type NodeEditorProps = Omit<CodeEditorProps, 'language' | 'container' | 'className' | 'style'> & {
     note: Note
     onUpdate: (code: string) => void
 }
 
 export const NoteEditor = React.forwardRef(
     function NoteEditor(
-        {
-            note, code, onUpdate,
-            ...props
-        }: NodeEditorProps,
+        { note, ...props }: NodeEditorProps,
         ref: React.Ref<HTMLDivElement>
     ) {
         const [style, className, language] = editorStyle(note)
@@ -332,7 +329,6 @@ export const NoteEditor = React.forwardRef(
         return (
             <CodeEditor
                 ref={ref}
-                code={code}
                 language={language}
                 container="div"
                 className={className}

@@ -235,28 +235,6 @@ export function useEditable(
         }
     }, [])
 
-    // Restore editing state for user (observe edits and position)
-    useLayoutEffect(() => {
-        if (!elementRef.current) { return }
-
-        state.observerDisconnected = false
-        state.observer.observe(elementRef.current, observerSettings)
-
-        if (state.positionToUpdateTo) {
-            const { position, extent } = state.positionToUpdateTo
-            elementRef.current.focus()
-            setCurrentRange(
-                makeRange(elementRef.current, position, position + extent)
-            )
-            state.positionToUpdateTo = null
-        }
-
-        return () => {
-            // don't observe changes made by react
-            state.observer.disconnect()
-        }
-    })
-
     // Setup MutationObserver once
     useLayoutEffect(() => {
         if (typeof MutationObserver !== 'undefined') {
@@ -332,6 +310,28 @@ export function useEditable(
             element.removeEventListener('compositionend', onCompositionEnd)
         }
     }, [elementRef.current])
+
+    // Restore editing state for user (observe edits and position)
+    useLayoutEffect(() => {
+        if (!elementRef.current) { return }
+
+        state.observerDisconnected = false
+        state.observer.observe(elementRef.current, observerSettings)
+
+        if (state.positionToUpdateTo) {
+            const { position, extent } = state.positionToUpdateTo
+            elementRef.current.focus()
+            setCurrentRange(
+                makeRange(elementRef.current, position, position + extent)
+            )
+            state.positionToUpdateTo = null
+        }
+
+        return () => {
+            // don't observe changes made by react
+            state.observer.disconnect()
+        }
+    })
 
     return editable
 }
