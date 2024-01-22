@@ -24,7 +24,8 @@
 
 // Extracted from: https://github.com/FormidableLabs/use-editable
 
-import { useState, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
+import { useSyncRef } from '../ui/hooks'
 
 export interface Position {
     position: number
@@ -71,7 +72,7 @@ function toString(element: HTMLElement): string {
     // end with at least one newline character
     if (content[content.length - 1] !== '\n') { content += '\n' }
 
-    return content.slice(0, -1)
+    return content
 }
 
 function getPosition(element: HTMLElement): Position {
@@ -104,17 +105,34 @@ function makeRange(
     const range = document.createRange()
 
     const startResult = findPositionInNodes(start, element)
-    if (startResult === null) { return range }
-
-    const [startNode, startNodeOffset] = startResult
-    range.setStart(startNode, startNodeOffset)
+    if (startResult === null) {
+        if (element.lastChild) {
+            range.setStartAfter(element.lastChild)
+        }
+        else {
+            range.setStart(element, 0)
+        }
+    }
+    else {
+        const [startNode, startNodeOffset] = startResult
+        range.setStart(startNode, startNodeOffset)
+    }
 
     if (!end || end <= start) { return range }
     const endResult = findPositionInNodes(end, element)
-    if (endResult === null) { return range }
+    if (endResult === null) {
+        if (element.lastChild) {
+            range.setEndAfter(element.lastChild)
+        }
+        else {
+            range.setEnd(element, 0)
+        }
+    }
+    else {
+        const [endNode, endNodeOffset] = endResult
+        range.setEnd(endNode, endNodeOffset)
+    }
 
-    const [endNode, endNodeOffset] = endResult
-    range.setEnd(endNode, endNodeOffset)
     return range
 }
 
@@ -156,9 +174,10 @@ function findPositionInNodes(
 
 interface State {
     observer: MutationObserver
-    disconnected: boolean
+    observerDisconnected: boolean
     mutations: MutationRecord[]
-    position: Position | null
+    positionToUpdateTo: Position | null
+    dontUpdate: boolean
 }
 
 export interface Editable {
@@ -181,10 +200,11 @@ export function useEditable(
 ): Editable {
     const [, rerender] = useState([])
     const { current: state } = useRef<State>({
-        observer: null as any,
-        disconnected: false,
+        observer: null,
+        observerDisconnected: false,
         mutations: [],
-        position: null,
+        positionToUpdateTo: null,
+        dontUpdate: false,
     })
     const editable = useMemo<Editable>(
         () => editableActions(elementRef, state, onChange),
@@ -194,44 +214,68 @@ export function useEditable(
     // Only for SSR / server-side logic
     if (typeof navigator !== 'object') { return editable }
 
-    useLayoutEffect(() => {
-        if (typeof MutationObserver !== 'undefined') {
-            state.observer = new MutationObserver(batch => {
-                state.mutations.push(...batch)
-            })
-        }
+    const onChangeRef = useSyncRef(onChange)
+    const flushChanges = useCallback(function flushChanges() {
+        if (!elementRef.current) { return }
+        if (state.dontUpdate) { return }
 
-        return () => {
-            state.disconnected = true
+        state.mutations.push(...state.observer.takeRecords())
+        const position = getPosition(elementRef.current)
+        if (state.mutations.length > 0) {
             state.observer.disconnect()
+            state.observerDisconnected = true
+
+            const content = toString(elementRef.current)
+            state.positionToUpdateTo = position
+
+            rewindMutations(state.mutations)
+            state.mutations.splice(0)
+
+            onChangeRef.current(content, position)
         }
     }, [])
 
+    // Restore editing state for user (observe edits and position)
     useLayoutEffect(() => {
         if (!elementRef.current) { return }
 
-        state.disconnected = false
+        state.observerDisconnected = false
         state.observer.observe(elementRef.current, observerSettings)
-        if (state.position && document.activeElement === elementRef.current) {
-            const { position, extent } = state.position
+
+        if (state.positionToUpdateTo) {
+            const { position, extent } = state.positionToUpdateTo
+            elementRef.current.focus()
             setCurrentRange(
                 makeRange(elementRef.current, position, position + extent)
             )
+            state.positionToUpdateTo = null
         }
 
         return () => {
+            // don't observe changes made by react
             state.observer.disconnect()
         }
     })
 
+    // Setup MutationObserver once
+    useLayoutEffect(() => {
+        if (typeof MutationObserver !== 'undefined') {
+            state.observer = new MutationObserver(batch => {
+                state.mutations.push(...batch)
+                flushChanges()
+            })
+        }
+
+        return () => {
+            state.observerDisconnected = true
+            state.observer.disconnect()
+        }
+    }, [])
+
+    // Setup element and its EventListeners
     useLayoutEffect(() => {
         if (!elementRef.current) { return }
         const element = elementRef.current
-
-        if (state.position && document.activeElement === element) {
-            const { position, extent } = state.position
-            setCurrentRange(makeRange(element, position, position + extent))
-        }
 
         if (element.contentEditable !== 'plaintext-only' && element.contentEditable !== 'true') {
             try {
@@ -243,26 +287,9 @@ export function useEditable(
             }
         }
 
-        function flushChanges() {
-            state.mutations.push(...state.observer.takeRecords())
-            const position = getPosition(element)
-            if (state.mutations.length > 0) {
-                state.observer.disconnect()
-                state.disconnected = true
-
-                const content = toString(element)
-                state.position = position
-
-                rewindMutations(state.mutations)
-                state.mutations.splice(0)
-
-                onChange(content, position)
-            }
-        }
-
         function onKeyDown(event: KeyboardEvent) {
             if (event.defaultPrevented || event.isComposing) { return }
-            if (state.disconnected) {
+            if (state.observerDisconnected) {
                 // React Quirk: It's expected that we may lose events while disconnected, which is why
                 // we'd like to block some inputs if they're unusually fast. However, this always
                 // coincides with React not executing the update immediately and then getting stuck,
@@ -275,8 +302,6 @@ export function useEditable(
             if (element.contentEditable !== 'plaintext-only') {
                 fixNonPlaintextKeyDown(event, editable, element)
             }
-
-            flushChanges()
         }
 
         function onPaste(event: ClipboardEvent) {
@@ -285,14 +310,28 @@ export function useEditable(
             flushChanges()
         }
 
+        function onCompositionStart() {
+            // don't update during composition, otherwise composition breaks
+            state.dontUpdate = true
+        }
+
+        function onCompositionEnd() {
+            state.dontUpdate = false
+            flushChanges()
+        }
+
         element.addEventListener('keydown', onKeyDown)
         element.addEventListener('paste', onPaste)
+        element.addEventListener('compositionstart', onCompositionStart)
+        element.addEventListener('compositionend', onCompositionEnd)
 
         return () => {
             element.removeEventListener('keydown', onKeyDown)
             element.removeEventListener('paste', onPaste)
+            element.removeEventListener('compositionstart', onCompositionStart)
+            element.removeEventListener('compositionend', onCompositionEnd)
         }
-    }, [elementRef.current, onChange])
+    }, [elementRef.current])
 
     return editable
 }
@@ -349,7 +388,7 @@ function editableActions(
             const position = getPosition(element)
             const prevContent = toString(element)
             position.position += content.length - prevContent.length
-            state.position = position
+            state.positionToUpdateTo = position
             onChange(content, position)
         },
 

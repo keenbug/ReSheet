@@ -173,6 +173,15 @@ export function useRefMap<Key, Ref>(
 }
 
 
+export function useSyncRef<T>(value: T) {
+    const ref = React.useRef(value)
+    React.useEffect(() => {
+        ref.current = value
+    }, [value])
+    return ref
+}
+
+
 export type WithSkipRender<Component extends React.JSXElementConstructor<any>> =
     React.FC<React.ComponentProps<Component> & { skipRender?: boolean }>
 

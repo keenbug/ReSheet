@@ -104,7 +104,12 @@ export const CodeEditor = React.forwardRef(
         ref: React.Ref<HTMLElement>
     ) {
         const codeViewRef = React.useRef<HTMLElement>()
-        const editable = useEditable(codeViewRef, onUpdate)
+        const onChange = React.useCallback((code: string) =>
+            // Contenteditable needs an extra newline at the end to work
+            // CodeView inserts a newline at the end, but it's not part of the state (code), so remove it
+            onUpdate(code.slice(0, -1))
+        , [onUpdate])
+        const editable = useEditable(codeViewRef, onChange)
         React.useImperativeHandle(ref, () => codeViewRef.current, [codeViewRef.current])
 
         return (
