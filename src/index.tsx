@@ -40,6 +40,7 @@ function App({ backupId, initJson }: AppProps) {
 
     // Save backup of the current state
     React.useEffect(() => {
+        // On first render: don't overwrite a backup before it was loaded
         if (toplevelState !== ToplevelBlock.init) {
             throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
         }
