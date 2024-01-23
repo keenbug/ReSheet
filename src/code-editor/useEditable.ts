@@ -545,7 +545,20 @@ export function changeLinesContainingSelection(
     const positionRowCol = selRangeToRowCol(text, position)
 
     const selectionContainingLines = (splitText.lineBefore + splitText.selection + splitText.lineAfter).split('\n')
-    const changed = changeLines(selectionContainingLines, positionRowCol.start.col, positionRowCol.end.col)
+    const changed = (
+        splitText.selection.length > 0 && positionRowCol.end.col !== 0 ?
+            changeLines(selectionContainingLines, positionRowCol.start.col, positionRowCol.end.col)
+        :
+            // ignore last line that's only part of the selection because the line before was selected fully
+            [
+                ...changeLines(
+                    selectionContainingLines.slice(0, -1),
+                    positionRowCol.start.col,
+                    selectionContainingLines.slice(-2)[0].length,
+                ),
+                selectionContainingLines.slice(-1)[0],
+            ]
+    )
 
     const startDiff = changed[0].length - selectionContainingLines[0].length
     const endRowDiff = changed.length - selectionContainingLines.length
