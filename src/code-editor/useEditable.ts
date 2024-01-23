@@ -26,12 +26,44 @@
 
 import { useState, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
 import { useSyncRef } from '../ui/hooks'
+import { clampTo } from '../utils'
 
-export interface Position {
-    position: number
-    extent: number
-    content: string
-    line: number
+export interface SelRange<Pos> {
+    start: Pos
+    end: Pos
+}
+
+export function posToRowCol(text: string, position: number): { row: number, col: number } {
+    const linesBefore = text.slice(0, position).split('\n')
+    const row = linesBefore.length - 1
+    const col = linesBefore.slice(-1)[0]?.length ?? 0
+    return { row, col }
+}
+
+export function rowColToPos(text: string, rowCol: { row: number, col: number }): number {
+    const row = Math.max(0, rowCol.row)
+
+    const lines = text.split('\n')
+    const linesBefore = lines.slice(0, row)
+    const line = lines[row]
+
+    const rowOffset = linesBefore.join('\n').length
+    const rowNewline = linesBefore.length > 0 ? 1 : 0
+    const colOffset = clampTo(0, line.length + 1, rowCol.col)
+
+    return rowOffset + rowNewline + colOffset
+}
+
+export function selRangeToRowCol(text: string, range: SelRange<number>): SelRange<{ row: number, col: number }> {
+    const start = posToRowCol(text, range.start)
+    const end = posToRowCol(text, range.end)
+    return { start, end }
+}
+
+export function selRangeToPos(text: string, range: SelRange<{ row: number, col: number }>): SelRange<number> {
+    const start = rowColToPos(text, range.start)
+    const end = rowColToPos(text, range.end)
+    return { start, end }
 }
 
 const observerSettings = {
@@ -75,24 +107,46 @@ function toString(element: HTMLElement): string {
     return content
 }
 
-function getPosition(element: HTMLElement): Position {
+export function splitByPosition(text: string, position: SelRange<number>) {
+    const allBefore = text.slice(0, position.start)
+    const selection = text.slice(position.start, position.end)
+    const allAfter = text.slice(position.end)
+
+    const allLinesBefore = allBefore.split('\n')
+    const allLinesAfter = allAfter.split('\n')
+
+    const linesBefore = allLinesBefore.slice(0, -1)
+    const lineBefore = allLinesBefore.slice(-1)[0] || ""
+    const lineAfter = allLinesAfter[0] || ""
+    const linesAfter = allLinesAfter.slice(1)
+
+    return {
+        linesBefore,
+        lineBefore,
+        selection,
+        lineAfter,
+        linesAfter,
+    }
+}
+
+function getPosition(element: HTMLElement): SelRange<number> {
     // Firefox Quirk: Since plaintext-only is unsupported the position
     // of the text here is retrieved via a range, rather than traversal
     // as seen in makeRange()
     const range = getCurrentRange()
     const extent = !range.collapsed ? range.toString().length : 0
 
-    const untilRange = document.createRange()
-    untilRange.setStart(element, 0)
-    untilRange.setEnd(range.startContainer, range.startOffset)
+    const untilStart = document.createRange()
+    untilStart.setStart(element, 0)
+    untilStart.setEnd(range.startContainer, range.startOffset)
+    const start = untilStart.toString().length
 
-    const allContentUntil = untilRange.toString()
-    const position = allContentUntil.length
-    const lines = allContentUntil.split('\n')
-    const line = lines.length - 1
-    const content = lines[line]
+    const untilEnd = document.createRange()
+    untilEnd.setStart(element, 0)
+    untilEnd.setEnd(range.endContainer, range.endOffset)
+    const end = untilEnd.toString().length
 
-    return { position, extent, content, line }
+    return { start, end }
 }
 
 function makeRange(
@@ -176,27 +230,27 @@ interface State {
     observer: MutationObserver
     observerDisconnected: boolean
     mutations: MutationRecord[]
-    positionToUpdateTo: Position | null
+    positionToUpdateTo: SelRange<number> | null
     dontUpdate: boolean
 }
 
 export interface Editable {
     /** Replaces the entire content of the editable while adjusting the caret position. */
-    update(content: string): void
+    update(content: string, position?: SelRange<number>): void
 
     /** Inserts new text at the caret position while deleting text in range of the offset (which accepts negative offsets). */
-    edit(append: string, offset?: number): void
+    edit(append: string, deleteOffset?: number, editOffset?: number): void
 
     /** Positions the caret where specified */
-    move(pos: number | { row: number, column: number }): void
+    move(pos: number | { row: number, column: number }, extent?: number): void
 
     /** Returns the current editor state, as usually received in onChange */
-    getState(): { text: string, position: Position }
+    getState(): { text: string, position: SelRange<number> }
 }
 
 export function useEditable(
     elementRef: { current: HTMLElement | undefined | null },
-    onChange: (text: string, position: Position) => void,
+    onChange: (text: string, position: SelRange<number>) => void,
 ): Editable {
     const [, rerender] = useState([])
     const { current: state } = useRef<State>({
@@ -319,10 +373,10 @@ export function useEditable(
         state.observer.observe(elementRef.current, observerSettings)
 
         if (state.positionToUpdateTo) {
-            const { position, extent } = state.positionToUpdateTo
+            const { start, end } = state.positionToUpdateTo
             elementRef.current.focus()
             setCurrentRange(
-                makeRange(elementRef.current, position, position + extent)
+                makeRange(elementRef.current, start, end)
             )
             state.positionToUpdateTo = null
         }
@@ -357,18 +411,22 @@ function defaultBackspaceBehavior(editable: Editable, element: HTMLElement, modi
 
         // delete word
         if (modifiers.altKey) {
-            const matchPreviousWord = /\S+\s*$/.exec(position.content)
+            const text = toString(element)
+            const { lineBefore } = splitByPosition(text, position)
+            const matchPreviousWord = /\S+\s*$/.exec(lineBefore)
             if (matchPreviousWord) {
                 deleteCount = matchPreviousWord[0].length
             }
             else {
-                deleteCount = position.content.length + 1
+                deleteCount = lineBefore.length + 1
             }
         }
 
         // delete line
         else if (modifiers.metaKey) {
-            deleteCount = position.content.length || 1
+            const text = toString(element)
+            const { lineBefore } = splitByPosition(text, position)
+            deleteCount = lineBefore.length || 1
         }
 
         editable.edit('', -deleteCount)
@@ -378,21 +436,27 @@ function defaultBackspaceBehavior(editable: Editable, element: HTMLElement, modi
 function editableActions(
     elementRef: { current: HTMLElement | undefined | null },
     state: State,
-    onChange: (text: string, position: Position) => void,
+    onChange: (text: string, position: SelRange<number>) => void,
 ): Editable {
     return {
-        update(content: string) {
+        update(content: string, position?: SelRange<number>) {
             const { current: element } = elementRef
             if (!element) { return }
 
-            const position = getPosition(element)
             const prevContent = toString(element)
-            position.position += content.length - prevContent.length
+
+            if (!position) {
+                position = getPosition(element)
+                const charDiffCount = content.length - prevContent.length
+                position.start += charDiffCount
+                position.end += charDiffCount
+            }
+
             state.positionToUpdateTo = position
             onChange(content, position)
         },
 
-        edit(append: string, deleteOffset: number = 0) {
+        edit(append: string, deleteOffset: number = 0, editOffset: number = 0) {
             const { current: element } = elementRef
             if (!element) { return }
 
@@ -403,16 +467,17 @@ function editableActions(
 
             // additionally delete `deleteOffset` chars around position
             const position = getPosition(element)
-            const start = position.position + (deleteOffset < 0 ? deleteOffset : 0)
-            const end = position.position + (deleteOffset > 0 ? deleteOffset : 0)
+            const start = position.start + editOffset + (deleteOffset < 0 ? deleteOffset : 0)
+            const end = position.start + editOffset + (deleteOffset > 0 ? deleteOffset : 0)
             range = makeRange(element, start, end)
             range.deleteContents()
 
             if (append) { range.insertNode(document.createTextNode(append))} 
-            setCurrentRange(makeRange(element, start + append.length))
+            const caret = position.start + (deleteOffset < 0 ? deleteOffset : 0) + append.length
+            setCurrentRange(makeRange(element, caret))
         },
 
-        move(pos: number | { row: number; column: number} ) {
+        move(pos: number | { row: number; column: number}, extent: number = 0) {
             const { current: element } = elementRef
             if (!element) { return }
 
@@ -429,7 +494,7 @@ function editableActions(
                 position += pos.column
             }
 
-            setCurrentRange(makeRange(element, position))
+            setCurrentRange(makeRange(element, position, position + extent))
         },
 
         getState() {
@@ -437,7 +502,10 @@ function editableActions(
             if (!element) {
                 return {
                     text: '',
-                    position: { position: 0, extent: 0, line: 0, content: '' },
+                    position: {
+                        start: 0,
+                        end: 0,
+                    },
                 }
             }
 
@@ -465,4 +533,34 @@ function rewindMutations(mutations: MutationRecord[]) {
             }
         }
     }
+}
+
+
+export function changeLinesContainingSelection(
+    editable: Editable,
+    changeLines: (lines: string[], startOffset: number, endOffset: number) => string[],
+) {
+    const { text, position } = editable.getState()
+    const splitText = splitByPosition(text, position)
+    const positionRowCol = selRangeToRowCol(text, position)
+
+    const selectionContainingLines = (splitText.lineBefore + splitText.selection + splitText.lineAfter).split('\n')
+    const changed = changeLines(selectionContainingLines, positionRowCol.start.col, positionRowCol.end.col)
+
+    const startDiff = changed[0].length - selectionContainingLines[0].length
+    const endRowDiff = changed.length - selectionContainingLines.length
+    const endColDiff = changed.slice(-1)[0].length - selectionContainingLines.slice(-1)[0].length
+
+    const outdentedText = [
+        ...splitText.linesBefore,
+        ...changed,
+        ...splitText.linesAfter,
+    ].join('\n')
+
+    positionRowCol.start.col += startDiff
+    positionRowCol.end.row += endRowDiff
+    positionRowCol.end.col += endColDiff
+    const outdentedPosition = selRangeToPos(outdentedText, positionRowCol)
+
+    editable.update(outdentedText, outdentedPosition)
 }

@@ -1,10 +1,10 @@
 import * as React from 'react'
 import styled, { css } from 'styled-components'
 
-import { classed } from '../ui/utils'
+import { classed, getFullKey } from '../ui/utils'
 import { Highlight } from 'prism-react-renderer'
 import theme from './theme'
-import { useEditable } from './useEditable'
+import { Editable, changeLinesContainingSelection, splitByPosition, useEditable } from './useEditable'
 
 
 /**************** Code Editor *****************/
@@ -112,6 +112,13 @@ export const CodeEditor = React.forwardRef(
         const editable = useEditable(codeViewRef, onChange)
         React.useImperativeHandle(ref, () => codeViewRef.current, [codeViewRef.current])
 
+        const onKeyDown = React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
+            props.onKeyDown?.(event)
+            if (event.isDefaultPrevented() || event.isPropagationStopped()) { return }
+
+            indentationHandlers(event, editable)
+        }, [editable, props.onKeyDown])
+
         return (
             <CodeView
                 ref={codeViewRef}
@@ -120,9 +127,49 @@ export const CodeEditor = React.forwardRef(
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                 }}
                 {...props}
+                onKeyDown={onKeyDown}
                 />
         )
     }
 )
 
 export const EditableCode = CodeEditor
+
+const INDENT = '  '
+
+function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Editable) {
+    switch (getFullKey(event)) {
+        case 'Enter': {
+            event.preventDefault()
+            event.stopPropagation()
+            const { position, text } = editable.getState()
+            const { lineBefore } = splitByPosition(text, position)
+            const indentationMatch = /^\s*/.exec(lineBefore)
+            editable.edit('\n' + indentationMatch[0])
+            return
+        }
+
+        case 'Tab': {
+            event.preventDefault()
+            event.stopPropagation()
+            changeLinesContainingSelection(
+                editable,
+                lines => lines.map(line => INDENT + line
+                )
+            )
+            return
+        }
+
+        case 'Shift-Tab': {
+            event.preventDefault()
+            event.stopPropagation()
+            const indentRegex = new RegExp('^' + INDENT)
+            changeLinesContainingSelection(
+                editable,
+                lines => lines.map(line => line.replace(indentRegex, '')
+                )
+            )
+            return
+        }
+    }
+}
