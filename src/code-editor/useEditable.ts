@@ -116,14 +116,18 @@ export function splitByPosition(text: string, position: SelRange<number>) {
     const allLinesAfter = allAfter.split('\n')
 
     const linesBefore = allLinesBefore.slice(0, -1)
-    const lineBefore = allLinesBefore.slice(-1)[0] || ""
-    const lineAfter = allLinesAfter[0] || ""
-    const linesAfter = allLinesAfter.slice(1)
+    const lineBefore = allLinesBefore.slice(-1)[0] ?? ""
+    const [lineAfter, linesAfter] = (
+        selection.slice(-1) === '\n' ?
+            ["", allLinesAfter]
+        :
+            [allLinesAfter[0] ?? "", allLinesAfter.slice(1)]
+    )
 
     return {
         linesBefore,
         lineBefore,
-        selection,
+        selection: selection.slice(-1) === '\n' ? selection.slice(0, -1) : selection,
         lineAfter,
         linesAfter,
     }
@@ -545,24 +549,16 @@ export function changeLinesContainingSelection(
     const positionRowCol = selRangeToRowCol(text, position)
 
     const selectionContainingLines = (splitText.lineBefore + splitText.selection + splitText.lineAfter).split('\n')
-    const changed = (
-        splitText.selection.length > 0 && positionRowCol.end.col !== 0 ?
-            changeLines(selectionContainingLines, positionRowCol.start.col, positionRowCol.end.col)
-        :
-            // ignore last line that's only part of the selection because the line before was selected fully
-            [
-                ...changeLines(
-                    selectionContainingLines.slice(0, -1),
-                    positionRowCol.start.col,
-                    selectionContainingLines.slice(-2)[0].length,
-                ),
-                selectionContainingLines.slice(-1)[0],
-            ]
-    )
+    const changed = changeLines(selectionContainingLines, positionRowCol.start.col, positionRowCol.end.col)
 
     const startDiff = changed[0].length - selectionContainingLines[0].length
     const endRowDiff = changed.length - selectionContainingLines.length
-    const endColDiff = changed.slice(-1)[0].length - selectionContainingLines.slice(-1)[0].length
+    const endColDiff = (
+        positionRowCol.end.col === 0 ?
+            0
+        :
+            changed.slice(-1)[0].length - selectionContainingLines.slice(-1)[0].length
+    )
 
     const outdentedText = [
         ...splitText.linesBefore,
