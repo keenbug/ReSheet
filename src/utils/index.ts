@@ -1,3 +1,9 @@
+export function clampBetween(minimumInclusive: number, maximumInclusive: number, value: number) {
+    if (value < minimumInclusive) { return minimumInclusive }
+    if (value > maximumInclusive) { return maximumInclusive }
+    return value
+}
+
 export function clampTo(minimumInclusive: number, maximumExclusive: number, value: number) {
     if (value < minimumInclusive) { return minimumInclusive }
     if (value >= maximumExclusive) { return maximumExclusive - 1 }

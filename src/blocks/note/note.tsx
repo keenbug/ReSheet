@@ -243,12 +243,12 @@ const ViewText = React.memo(
 )
 
 export const textClasses = {
-    h1: "text-5xl mt-12 mb-6",
-    h2: "text-4xl mt-12 mb-6",
-    h3: "text-3xl mt-12 mb-4",
-    h4: "text-2xl mt-8 mb-4",
-    h5: "text-xl mt-8 mb-4",
-    h6: "text-lg mt-4 mb-2",
+    h1: "text-5xl mt-6 my-3",
+    h2: "text-4xl mt-6 my-3",
+    h3: "text-3xl mt-6 my-2",
+    h4: "text-2xl mt-4 my-2",
+    h5: "text-xl mt-4 my-2",
+    h6: "text-lg mt-2 my-1",
     p: "whitespace-pre-wrap"
 }
 

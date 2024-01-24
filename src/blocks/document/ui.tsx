@@ -642,7 +642,7 @@ function MainView<State>({
     }
 
     return (
-        <div>
+        <div className="mb-[80cqh]">
             <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />
             {innerBlock.view({
                 ref: innerRef,

@@ -300,7 +300,7 @@ export const Sheet = React.forwardRef(
         )
 
         return (
-            <div ref={containerRef} className="pb-[80vh]">
+            <div ref={containerRef}>
                 <SheetLinesEnv
                     setLineRef={setLineRef}
                     lines={state.lines}
@@ -450,6 +450,14 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
     )
 
     const shouldNameBeHidden = line.name === ''
+    const focusIndicatorColor = {
+        block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
+
+        // yellow-400 is very similar to its neighbors, but this should happen
+        // seldom and there should be another indication (by the result), that
+        // focus is within
+        result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
+    }[line.visibility]
 
     return (
         <div
@@ -475,7 +483,13 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             </div>
             
             {/* Focus/Hover Indicator */}
-            <div className="border border-gray-300 self-stretch opacity-0 group-focus:border-blue-500 group-focus-within:border-blue-300 group-focus-within:opacity-100 group-hover:opacity-100" />
+            <div
+                className={`
+                    border border-${focusIndicatorColor.hover} self-stretch opacity-0
+                    group-focus:border-${focusIndicatorColor.focus} group-focus-within:border-${focusIndicatorColor.focusWithin}
+                    group-focus-within:opacity-100 group-hover:opacity-100
+                `}
+                />
 
             <div className="flex flex-col space-y-1 flex-1">
                 {line.visibility === 'block' &&

@@ -5,6 +5,7 @@ import { classed, getFullKey } from '../ui/utils'
 import { Highlight } from 'prism-react-renderer'
 import theme from './theme'
 import { Editable, changeLinesContainingSelection, splitByPosition, useEditable } from './useEditable'
+import { clampBetween } from '../utils'
 
 
 /**************** Code Editor *****************/
@@ -24,12 +25,7 @@ const CodeWithPlaceholder = styled.code`
     }
 `
 
-const CodeContent = classed<any>(CodeWithPlaceholder)`
-    block
-    rounded
-    hover:bg-gray-100 focus:bg-gray-100
-    break-word
-`
+const CodeContent = classed<any>(CodeWithPlaceholder)`block break-word`
 
 // FIXME: I think the type is not 100% correct, theoretically it should reject container="div"
 export type CodeViewProps<ContainerType extends React.ComponentType = typeof CodeContent> = React.ComponentPropsWithoutRef<ContainerType> & {
@@ -119,6 +115,18 @@ export const CodeEditor = React.forwardRef(
             indentationHandlers(event, editable)
         }, [editable, props.onKeyDown])
 
+        const codeLines = code.split('\n').length
+        const backgroundOpacity = clampBetween(0, 1, (codeLines - 3) / 5)
+        const [indicatorWidth, indicatorColor] = (
+            codeLines > 3 ?
+                [
+                    clampBetween(0, .25, codeLines / 40) + 'rem',
+                    `sky-300/[${clampBetween(0, 1, (codeLines - 3) / 20 + .4)}]`,
+                ]
+            :
+                ['0', 'transparent']
+        )
+
         return (
             <CodeView
                 ref={codeViewRef}
@@ -127,6 +135,12 @@ export const CodeEditor = React.forwardRef(
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                 }}
                 {...props}
+                className={`
+                    focus-within/code-editor:bg-gradient-to-r
+                    from-transparent from-10% to-sky-50/[${backgroundOpacity}]
+                    shadow-${indicatorColor} shadow-[inset_-${indicatorWidth}_0_0_0_--tw-shadow-color]
+                    ${props.className}
+                `}
                 onKeyDown={onKeyDown}
                 />
         )
@@ -154,7 +168,9 @@ function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Edit
             event.stopPropagation()
             changeLinesContainingSelection(
                 editable,
-                lines => lines.map(line => INDENT + line
+                lines =>
+                    lines.map(line =>
+                        INDENT + line
                 )
             )
             return
@@ -163,10 +179,14 @@ function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Edit
         case 'Shift-Tab': {
             event.preventDefault()
             event.stopPropagation()
-            const indentRegex = new RegExp('^' + INDENT)
             changeLinesContainingSelection(
                 editable,
-                lines => lines.map(line => line.replace(indentRegex, '')
+                lines =>
+                    lines.map(line =>
+                        line.startsWith(INDENT) ?
+                            line.slice(INDENT.length)
+                        :
+                            line
                 )
             )
             return
