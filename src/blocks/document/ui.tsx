@@ -489,7 +489,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                     undefined
             ))
         },
-    }), [setIsNameEditing, setShortcutsViewMode, setSearch])
+    }), [setIsNameEditing, setShortcutsViewMode, setSearch, activeBindings])
 
     const actions = React.useMemo(() => ACTIONS(update, innerBlock, env), [update, innerBlock, env])
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
