@@ -121,7 +121,7 @@ export const CodeEditor = React.forwardRef(
             codeLines > 3 ?
                 [
                     clampBetween(0, .25, codeLines / 40) + 'rem',
-                    `sky-300/[${clampBetween(0, 1, (codeLines - 3) / 20 + .4)}]`,
+                    `rgba(125, 211, 252, ${clampBetween(0, 1, (codeLines - 3) / 20 + .4)})`, // = sky-300/[${...}]
                 ]
             :
                 ['0', 'transparent']
@@ -133,12 +133,13 @@ export const CodeEditor = React.forwardRef(
                 code={code}
                 style={style ?? {
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                    boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
+                    '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
                 }}
                 {...props}
                 className={`
                     focus-within/code-editor:bg-gradient-to-r
-                    from-transparent from-10% to-sky-50/[${backgroundOpacity}]
-                    shadow-${indicatorColor} shadow-[inset_-${indicatorWidth}_0_0_0_--tw-shadow-color]
+                    from-transparent from-10%
                     ${props.className}
                 `}
                 onKeyDown={onKeyDown}

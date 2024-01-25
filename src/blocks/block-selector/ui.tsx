@@ -247,7 +247,10 @@ export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
                 Preview
             </h1>
             <ErrorBoundary title="Could not show block">
-                <div className="cursor-default border border-blue-100 rounded">
+                <div
+                    className="cursor-default shadow-sky-100 p-1 rounded"
+                    style={{ boxShadow: 'inset 0 0 4px 2px var(--tw-shadow-color)' }}
+                >
                     <BlockCmdResultView />
                 </div>
             </ErrorBoundary>
