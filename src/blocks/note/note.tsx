@@ -24,32 +24,34 @@ export type Note =
 export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<Note>): Note {
     const setResult = block.subUpdater(setNoteResult, updateNote)
 
-    if (input.startsWith('= ')) {
-        const expr = input.slice(2)
+    const EXPR = '='
+    if (input.startsWith(EXPR)) {
+        const expr = input.slice(EXPR.length)
         const result = computeExprResult(expr, env, setResult)
         return { type: 'expr', code: expr, result }
     }
 
-    if (input.startsWith('/block ')) {
-        const expr = input.slice('/block '.length)
+    const BLOCK = '/'
+    if (input.startsWith(BLOCK)) {
+        const expr = input.slice(BLOCK.length)
         const result = computeExprResult(expr, env, setResult)
         return { type: 'block', isInstantiated: false, code: expr, result }
     }
 
-    const header = input.match(/^#{1,6} /)
+    const header = input.match(/^(#{1,6})\s*/)
     if (header) {
-        const level = header[0].length - 1
+        const level = header[1].length
         return { type: 'text', tag: `h${level}`, text: input.slice(header[0].length) }
     }
 
-    const list = input.match(/^[-*] /)
+    const list = input.match(/^[-*]\s*/)
     if (list) {
         return { type: 'text', tag: 'li', text: input.slice(list[0].length) }
     }
 
-    const checkbox = input.match(/^\[[ xX]?\] /)
+    const checkbox = input.match(/^\[[ xX]?\]\s*/)
     if (checkbox) {
-        return { type: 'checkbox', checked: /^\[[xX]\] /.test(input), text: input.slice(checkbox[0].length) }
+        return { type: 'checkbox', checked: /^\[[xX]\]/.test(input), text: input.slice(checkbox[0].length) }
     }
 
     return { type: 'text', tag: 'p', text: input }
