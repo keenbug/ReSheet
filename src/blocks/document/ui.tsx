@@ -540,12 +540,12 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     />
                             </div>
                             {shortcutsViewMode !== 'hidden' &&
-                                <div className="flex flex-row w-full overflow-hidden items-end space-x-1">
+                                <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
                                     <div
                                         className={`
                                             flex-1 flex flex-row justify-between
                                             ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                            p-1 overflow-x-scroll border-t-2 border-gray-100
+                                            px-10 py-1 overflow-x-scroll
                                         `}
                                     >
                                         <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
