@@ -44,12 +44,12 @@ export function evaluateNote(input: string, env: block.Environment, updateNote: 
         return { type: 'text', tag: `h${level}`, text: input.slice(header[0].length) }
     }
 
-    const list = input.match(/^[-*]\s*/)
+    const list = input.match(/^[-*]\s+/)
     if (list) {
         return { type: 'text', tag: 'li', text: input.slice(list[0].length) }
     }
 
-    const checkbox = input.match(/^\[[ xX]?\]\s*/)
+    const checkbox = input.match(/^\[[ xX]?\]\s+/)
     if (checkbox) {
         return { type: 'checkbox', checked: /^\[[xX]\]/.test(input), text: input.slice(checkbox[0].length) }
     }
