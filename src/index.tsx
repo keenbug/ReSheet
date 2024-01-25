@@ -12,6 +12,7 @@ import { BlockRef } from './block'
 import { storeBackup, db, removeOldBackups } from './backup'
 import { PendingState, useThrottlePending } from './ui/hooks'
 
+import TablesIntroduction from './resources/introduction.js'
 
 const blocks = library.blocks
 
@@ -24,7 +25,7 @@ interface AppProps {
     initJson: any | undefined
 }
 
-function App({ backupId, initJson }: AppProps) {
+function App({ backupId, initJson=TablesIntroduction }: AppProps) {
     const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
     const toplevelBlockRef = React.useRef<BlockRef>()
 
