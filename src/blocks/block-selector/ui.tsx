@@ -6,7 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as block from '../../block'
 import { Block, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { CodeView, EditableCode } from '../../code-editor'
+import { CodeView, CodeEditor } from '../../code-editor'
 import { computeExpr } from '../../logic/compute'
 import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
 
@@ -202,7 +202,7 @@ export const BlockSelectorUI = React.forwardRef(
                 const blockCmdResult = computeExpr(blockExpr, { ...blockLibrary, ...env })
                 return (
                     <div className="flex flex-col space-y-1 flex-1" {...chooseBindingProps}>
-                        <EditableCode ref={inputRef} code={blockExpr} onUpdate={setBlockExpr} />
+                        <CodeEditor ref={inputRef} code={blockExpr} onUpdate={setBlockExpr} />
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
                                 env={env}

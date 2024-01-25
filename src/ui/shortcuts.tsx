@@ -66,10 +66,12 @@ export type Condition =
     | "selfFocused"
     | "!selfFocused"
     | "!inputFocused"
+    | "hidden"
 
 export function checkCondition(condition: Condition, isSelfFocused: boolean, isInputFocused: boolean) {
     switch (condition) {
         case "none":
+        case "hidden":
             return true
 
         case "selfFocused":
@@ -327,7 +329,8 @@ export function ShortcutSuggestions({ flat, allbindings }: { flat: boolean, allb
 }
 
 function KeybindingSuggestion({ binding }: { binding: Keybinding }) {
-    const [keys, _condition, description, action] = binding
+    const [keys, condition, description, action] = binding
+    if (condition === 'hidden') { return null }
     return (
         <div
             className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition text-xs"
@@ -356,7 +359,8 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
             {group.description && <div className="text-xs font-medium">{group.description}</div>}
             <table>
                 <tbody>
-                    {group.bindings.map(([keys, _condition, description, action]) => (
+                    {group.bindings.map(([keys, condition, description, action]) => (
+                        condition !== 'hidden' &&
                         <tr
                             className="cursor-pointer hover:-translate-x-0.5 transition"
                             onPointerDown={(event: React.PointerEvent) => {

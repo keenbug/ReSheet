@@ -239,7 +239,7 @@ function ACTIONS<Inner extends unknown>(
             })
         },
 
-        deleteCode(id: number) {
+        deleteCode(id: number, focusAfter: FocusTarget = 'line') {
             update(state => {
                 if (state.lines.length <= 1) {
                     return {
@@ -254,7 +254,7 @@ function ACTIONS<Inner extends unknown>(
 
                 return {
                     state: { ...state, lines: linesWithoutId },
-                    effect() { refMap.get(nextFocusId)?.focus() },
+                    effect() { focusLineRef(refMap.get(nextFocusId), focusAfter) },
                 }
             })
         },
@@ -522,6 +522,13 @@ function sheetLineBindings<Inner>(
         event?.preventDefault()
         event?.stopPropagation()
     }
+
+    function deleteByBackspace(event?: React.KeyboardEvent) {
+        if (event && !event.defaultPrevented) { return }
+        actions.deleteCode(line.id, 'inner')
+        event?.stopPropagation()
+    }
+
     return [
         {
             description: "change lines",
@@ -530,6 +537,7 @@ function sheetLineBindings<Inner>(
                 [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
                 [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
                 [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
+                [["C-Backspace", "Backspace"],       "hidden",       "delete line",      deleteByBackspace, { noAutoPrevent: true }],
                 [["Enter"],                          "!selfFocused", "insert below",     insertBelowByEnter, { noAutoPrevent: true }],
             ]
         },

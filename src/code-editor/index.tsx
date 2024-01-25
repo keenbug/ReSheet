@@ -85,7 +85,7 @@ export const CodeView = React.forwardRef<HTMLElement, CodeViewProps>(
 )
 
 
-export interface CodeEditorProps extends CodeViewProps {
+export type CodeEditorProps = CodeViewProps & {
     onUpdate: (code: string) => void
 }
 
@@ -148,11 +148,7 @@ export const CodeEditor = React.forwardRef(
     }
 )
 
-export const EditableCode = CodeEditor
-
-const INDENT = '  '
-
-function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Editable) {
+export function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Editable, indentation: string = '  ') {
     switch (getFullKey(event)) {
         case 'Enter': {
             event.preventDefault()
@@ -171,7 +167,7 @@ function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Edit
                 editable,
                 lines =>
                     lines.map(line =>
-                        INDENT + line
+                        indentation + line
                 )
             )
             return
@@ -184,8 +180,8 @@ function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Edit
                 editable,
                 lines =>
                     lines.map(line =>
-                        line.startsWith(INDENT) ?
-                            line.slice(INDENT.length)
+                        line.startsWith(indentation) ?
+                            line.slice(indentation.length)
                         :
                             line
                 )

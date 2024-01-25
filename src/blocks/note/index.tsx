@@ -321,18 +321,27 @@ type NodeEditorProps = Omit<CodeEditorProps, 'language' | 'container' | 'classNa
 
 export const NoteEditor = React.forwardRef(
     function NoteEditor(
-        { note, ...props }: NodeEditorProps,
+        { note, code, onKeyDown, ...props }: NodeEditorProps,
         ref: React.Ref<HTMLDivElement>
     ) {
         const [style, className, language] = editorStyle(note)
 
+        function ignoreEmptyBackspace(event: KeyboardEvent) {
+            if (event.key === 'Backspace' && code.length === 0) {
+                event.preventDefault()
+            }
+            onKeyDown?.(event)
+        }
+
         return (
             <CodeEditor
                 ref={ref}
+                code={code}
                 language={language}
                 container="div"
                 className={className}
                 style={style}
+                onKeyDown={ignoreEmptyBackspace}
                 {...props}
                 />
         )

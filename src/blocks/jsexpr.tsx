@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import { ViewResult } from '../ui/value'
-import { EditableCode } from '../code-editor'
+import { CodeEditor } from '../code-editor'
 import { computeScript } from '../logic/compute'
 import { BlockRef } from '../block'
 import * as block from '../block'
@@ -104,7 +104,7 @@ export const JSExprUi = React.forwardRef(
 
         return (
             <div className="flex flex-col space-y-1 flex-1 my-2">
-                <EditableCode
+                <CodeEditor
                     ref={editorRef}
                     code={state.code}
                     onUpdate={onUpdateCode}
