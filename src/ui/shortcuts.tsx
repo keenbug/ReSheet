@@ -229,7 +229,7 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 
     const reporters = React.useMemo(() => ({
         reportBindings(id: ReporterId, bindings: Keybindings) {
-            setActiveBindings(activeBindings => activeBindings.set(id, bindings))
+            setActiveBindings(activeBindings => activeBindings.delete(id).set(id, bindings)) // delete first to change the order
         },
 
         removeBindings(id: ReporterId) {
@@ -238,7 +238,7 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
     }), [])
 
     const allBindings = React.useMemo(
-        () => filterShadowedBindings(activeBindings.valueSeq().reverse().toArray().flat()),
+        () => filterShadowedBindings(activeBindings.valueSeq().toArray().flat()),
         [activeBindings]
     )
 
@@ -267,18 +267,11 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     }, [active])
 
     const onFocus = React.useCallback(function onFocus(event: React.FocusEvent) {
-        const wasSelfFocused = event.currentTarget === event.relatedTarget
         const isSelfFocused = event.currentTarget === event.target
-
-        // report if we gained or lost focus
-        const lostOrGainedFocus = wasSelfFocused || isSelfFocused
-        // and ignore if focus switched between children
-        const alreadyContainedFocus = event.currentTarget.contains(event.relatedTarget) // contains the element losing focus
-        if (!lostOrGainedFocus && alreadyContainedFocus) { return }
 
         const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInput(event.target))
         reportBindings(id, newActiveBindings)
-    }, [])
+    }, [bindings])
 
     const onBlur = React.useCallback(function onBlur(event: React.FocusEvent) {
         const isStillFocused = event.currentTarget.contains(event.relatedTarget) // contains the element receiving focus
