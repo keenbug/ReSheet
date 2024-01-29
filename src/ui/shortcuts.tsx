@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { Map, OrderedMap, List, Set } from 'immutable'
+import { debounce } from 'throttle-debounce'
 
 import { intersperse } from '../utils'
 
@@ -212,11 +213,53 @@ const dummyShortcutsReporter: ShortcutsReporter = {
     removeBindings() {},
 }
 
-const GatherShortcutsContext = React.createContext<ShortcutsReporter>(dummyShortcutsReporter)
-const ShortcutsContext = React.createContext<Keybindings>([])
+type NotificationConsumer = () => void
+type NotificationConsumerId = string
+
+type ShortcutsNotifier = {
+    getBindings(): Keybindings
+    subscribe(id: NotificationConsumerId, consumer: NotificationConsumer): void
+    unsubscribe(id: NotificationConsumerId): void
+}
+
+const dummyShortcutsNotifier: ShortcutsNotifier = {
+    getBindings() { return [] },
+    subscribe(id, consumer) {},
+    unsubscribe(id) {},
+}
+
+const ShortcutsReporterContext = React.createContext<ShortcutsReporter>(dummyShortcutsReporter)
+const ShortcutsNotifierContext = React.createContext<ShortcutsNotifier>(dummyShortcutsNotifier)
+
+export function useBindingNotifications() {
+    return React.useContext(ShortcutsNotifierContext)
+}
+
+export function useSubscribeBindings(consumer: (bindings: Keybindings) => void) {
+    const { getBindings, subscribe, unsubscribe } = useBindingNotifications()
+    const id = React.useId()
+
+    React.useEffect(() => {
+        subscribe(id, () => { consumer(getBindings()) })
+        return () => {
+            unsubscribe(id)
+        }
+    }, [consumer])
+}
 
 export function useActiveBindings() {
-    return React.useContext(ShortcutsContext)
+    const { getBindings, subscribe, unsubscribe } = useBindingNotifications()
+    const id = React.useId()
+    const [cachedBindings, setCachedBindings] = React.useState(getBindings)
+
+    React.useEffect(() => {
+        subscribe(id, () => { setCachedBindings(getBindings()) })
+        return () => {
+            unsubscribe(id)
+        }
+    }, [])
+
+    return cachedBindings
 }
 
 
@@ -225,36 +268,52 @@ export interface GatherShortcutsProps {
 }
 
 export function GatherShortcuts({ children }: GatherShortcutsProps) {
-    const [activeBindings, setActiveBindings] = React.useState<OrderedMap<ReporterId, Keybindings>>(OrderedMap())
+    const activeBindings = React.useRef<OrderedMap<ReporterId, Keybindings>>(OrderedMap())
+    const bindingUpdateNotificationConsumers = React.useRef<Map<NotificationConsumerId, NotificationConsumer>>(Map())
+
+    const notifyUpdate = React.useMemo(() => debounce(100, () => {
+        bindingUpdateNotificationConsumers.current.valueSeq().forEach(consumer => consumer())
+    }), [])
 
     const reporters = React.useMemo(() => ({
         reportBindings(id: ReporterId, bindings: Keybindings) {
-            setActiveBindings(activeBindings => activeBindings.delete(id).set(id, bindings)) // delete first to change the order
+            activeBindings.current = activeBindings.current.delete(id).set(id, bindings) // delete first to change the order
+            notifyUpdate()
         },
 
         removeBindings(id: ReporterId) {
-            setActiveBindings(activeBindings => activeBindings.delete(id))
+            activeBindings.current = activeBindings.current.delete(id)
+            notifyUpdate()
         },
     }), [])
 
-    const allBindings = React.useMemo(
-        () => filterShadowedBindings(activeBindings.valueSeq().toArray().flat()),
-        [activeBindings]
-    )
+    const notifier: ShortcutsNotifier = React.useMemo(() => ({
+        getBindings() {
+            return filterShadowedBindings(activeBindings.current.valueSeq().toArray().flat())
+        },
+
+        subscribe(id: NotificationConsumerId, consumer: NotificationConsumer) {
+            bindingUpdateNotificationConsumers.current = bindingUpdateNotificationConsumers.current.set(id, consumer)
+        },
+
+        unsubscribe(id: NotificationConsumerId) {
+            bindingUpdateNotificationConsumers.current = bindingUpdateNotificationConsumers.current.delete(id)
+        },
+    }), [])
 
     return (
-        <GatherShortcutsContext.Provider value={reporters}>
-            <ShortcutsContext.Provider value={allBindings}>
+        <ShortcutsReporterContext.Provider value={reporters}>
+            <ShortcutsNotifierContext.Provider value={notifier}>
                 {children}
-            </ShortcutsContext.Provider>
-        </GatherShortcutsContext.Provider>
+            </ShortcutsNotifierContext.Provider>
+        </ShortcutsReporterContext.Provider>
     )
 }
 
 
 export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     const id = React.useId()
-    const { reportBindings, removeBindings } = React.useContext(GatherShortcutsContext)
+    const { reportBindings, removeBindings } = React.useContext(ShortcutsReporterContext)
     const onKeyDown = useKeybindingsHandler(bindings)
 
     React.useEffect(() => {

@@ -3,18 +3,9 @@ import { throttle } from 'throttle-debounce'
 import { isPromise } from '../logic/result';
 
 export interface ThrottleOptions {
-    noTrailing?: boolean;
-    noLeading?: boolean;
-    debounceMode?: boolean;
-}
-
-export function useThrottle<Callback extends (...args: unknown[]) => unknown>(
-    delay: number,
-    callback: Callback,
-    options?: ThrottleOptions,
-): throttle<Callback> {
-    const [throttledFunc] = React.useState(() => throttle(delay, callback, options))
-    return throttledFunc
+    noTrailing?: boolean
+    noLeading?: boolean
+    debounceMode?: boolean
 }
 
 export type PendingState = 
@@ -26,7 +17,7 @@ export function useThrottlePending<Args extends unknown[], Callback extends (...
     delay: number,
     callback: Callback,
     options?: ThrottleOptions,
-): [PendingState, throttle<Callback>] {
+): [PendingState, (...args: Args) => void] {
     const [pendingState, setPendingState] = React.useState<PendingState>({ state: 'finished' })
 
     const callbackAndUpdate = React.useCallback((...args: Args) => {
@@ -35,7 +26,7 @@ export function useThrottlePending<Args extends unknown[], Callback extends (...
             if (isPromise(result)) {
                 result.then(
                     () => { setPendingState({ state: 'finished' }) },
-                    error => { setPendingState({ state: 'failed', error }) },
+                    (error: any) => { setPendingState({ state: 'failed', error }) },
                 )
             }
             else {
@@ -47,11 +38,11 @@ export function useThrottlePending<Args extends unknown[], Callback extends (...
         }
     }, [callback])
 
-    const throttledCallback = useThrottle(delay, callbackAndUpdate, options)
+    const throttledCallback = React.useMemo(() => throttle(delay, callbackAndUpdate, options), [callbackAndUpdate])
 
     const callbackWithPending = React.useCallback((...args: Args) => {
         setPendingState({ state: 'pending' })
-        return throttledCallback(...args)
+        throttledCallback(...args)
     }, [throttledCallback])
 
     return [pendingState, callbackWithPending]

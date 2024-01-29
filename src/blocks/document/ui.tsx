@@ -8,7 +8,7 @@ import { Menu, Transition } from '@headlessui/react'
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '../../utils'
-import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useActiveBindings, useShortcuts, KeyButton } from '../../ui/shortcuts'
+import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, KeyButton, useBindingNotifications } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -472,7 +472,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
     const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
     const [search, setSearch] = React.useState<Keybindings>()
 
-    const activeBindings = useActiveBindings()
+    const { getBindings } = useBindingNotifications()
 
     const localActions: LocalActions = React.useMemo(() => ({
         setIsNameEditing,
@@ -484,12 +484,12 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         toggleSearch() {
             setSearch(bindings => (
                 bindings === undefined ?
-                    activeBindings
+                    getBindings()
                 :
                     undefined
             ))
         },
-    }), [setIsNameEditing, setShortcutsViewMode, setSearch, activeBindings])
+    }), [])
 
     const actions = React.useMemo(() => ACTIONS(update, innerBlock, env), [update, innerBlock, env])
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
@@ -757,27 +757,17 @@ interface SidebarProps<State> extends ActionProps<State> {
 
 function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     function HistoryButton() {
-        if (isHistoryOpen) {
-            return (
-                <button
-                    className={`
-                        px-2 py-0.5 w-full text-left
-                        text-blue-50 bg-blue-700 hover:bg-blue-500
-                    `}
-                    onClick={actions.closeHistory}
-                    >
-                    History
-                </button>
-            )
-        }
-
         return (
             <button
                 className={`
                     px-2 py-0.5 w-full text-left
-                    hover:text-blue-900 hover:bg-blue-200
+                    ${isHistoryOpen ?
+                        "text-blue-50 bg-blue-700 hover:bg-blue-500"
+                    :
+                        "hover:text-blue-900 hover:bg-blue-200"
+                    }
                 `}
-                onClick={actions.openHistory}
+                onClick={isHistoryOpen ? actions.closeHistory : actions.openHistory}
                 >
                 History
             </button>
@@ -788,14 +778,14 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
         return (
             <div
                 className={`
-                        rounded-full mx-2 px-3 py-0.5
-                        flex flex-row items-baseline space-x-2
-                        bg-gray-200 text-gray-400 border border-gray-300 
-                        text-sm cursor-pointer
-                        hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
-                        transition
-                        group
-                    `}
+                    rounded-full mx-2 px-3 py-0.5
+                    flex flex-row items-baseline space-x-2
+                    bg-gray-200 text-gray-400 border border-gray-300 
+                    text-sm cursor-pointer
+                    hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
+                    transition
+                    group
+                `}
                 onClick={() => commandBinding[3]()}
             >
                 <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
@@ -865,7 +855,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
 
 
 
-function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
+function SidebarMenu<State>({ actions }: ActionProps<State>) {
     type MenuItemProps<Elem extends React.ElementType> =
         React.ComponentPropsWithoutRef<Elem>
         & { as?: Elem }
@@ -891,13 +881,14 @@ function SidebarMenu<State>({ state, actions }: ActionProps<State>) {
                 {({ open }) => (
                     <button
                         className={`
-                                    px-2 py-0.5 w-full text-left
-                                    ring-0 ring-blue-500 focus:ring-1
-                                    ${open ?
+                            px-2 py-0.5 w-full text-left
+                            ring-0 ring-blue-500 focus:ring-1
+                            ${open ?
                                 "text-blue-50 bg-blue-500 hover:bg-blue-500"
-                                :
+                            :
                                 "hover:text-blue-950 hover:bg-blue-200"}
-                                `}>
+                        `}
+                    >
                         File
                     </button>
                 )}
