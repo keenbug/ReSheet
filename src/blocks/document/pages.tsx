@@ -592,7 +592,7 @@ export function PageEntry<State>({
             <div
                 className={`
                     ${pageStyle.indentClass(depth)} py-1 text-left group cursor-pointer flex space-x-2
-                    ${arrayEquals(pathHere, openPage) && "bg-gray-300"}
+                    ${arrayEquals(pathHere, openPage) && "bg-gray-300 group-focus/document-ui:bg-blue-300"}
                 `}
                 onClick={() => actions.openPage(pathHere)}
                 >

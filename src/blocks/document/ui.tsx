@@ -471,6 +471,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         })
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
+    const [isSelfFocused, setIsSelfFocused] = React.useState(false)
     const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
     const [search, setSearch] = React.useState<Keybindings>()
 
@@ -502,85 +503,106 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         [actions, innerBlock],
     )
 
+    const onFocus = React.useCallback((ev: React.FocusEvent) => {
+        if (ev.target === ev.currentTarget) {
+            setIsSelfFocused(true)
+        }
+        bindingProps.onFocus(ev)
+    }, [bindingProps.onFocus])
+
+    const onBlur = React.useCallback((ev: React.FocusEvent) => {
+        if (ev.target === ev.currentTarget) {
+            setIsSelfFocused(false)
+        }
+        bindingProps.onBlur(ev)
+    }, [bindingProps.onBlur])
+
     return (
         <>
             <HistoryModePanel state={state} actions={actions} />
             <HistoryView state={state} update={update} env={env} fromJSON={fromJSON}>
-                {innerState => (
-                    <div
-                        ref={containerRef}
-                        tabIndex={-1}
-                        {...bindingProps}
-                        className="relative h-full w-full overflow-hidden"
-                        >
-                        <Sidebar
-                            state={innerState}
-                            actions={actions}
-                            isHistoryOpen={state.mode.type === 'history'}
-                            isNameEditing={isNameEditing}
-                            setIsNameEditing={setIsNameEditing}
-                            commandBinding={commandSearchBinding(localActions)}
-                            />
-                        <SidebarButton state={innerState} actions={actions} />
+                {innerState => {
+                    const sidebarVisible = isSelfFocused || innerState.viewState.sidebarOpen || isNameEditing
 
+                    return (
                         <div
-                            className={`
-                                h-full
-                                transition-all ${innerState.viewState.sidebarOpen || isNameEditing ? "ml-56" : ""}
-                                flex flex-col items-stretch overflow-hidden
-                            `}
-                        >
-                            <div className={`flex-1 overflow-scroll transition-all ${innerState.viewState.sidebarOpen || isNameEditing ? "px-1" : "px-10"}`}>
-                                <MainView
-                                    key={innerState.viewState.openPage.join('.')}
-                                    innerRef={innerRef}
-                                    state={state}
-                                    actions={actions}
-                                    innerState={innerState}
-                                    innerBlock={innerBlock}
-                                    env={env}
-                                    />
-                            </div>
-                            {shortcutsViewMode !== 'hidden' &&
-                                <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
-                                    <div
-                                        className={`
-                                            flex-1 flex flex-row justify-between
-                                            ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                            px-10 py-1 overflow-x-scroll
-                                        `}
-                                    >
-                                        <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
+                            ref={containerRef}
+                            tabIndex={-1}
+                            {...bindingProps}
+                            onFocus={onFocus}
+                            onBlur={onBlur}
+                            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
+                            >
+                            <Sidebar
+                                state={innerState}
+                                actions={actions}
+                                isVisible={sidebarVisible}
+                                isHistoryOpen={state.mode.type === 'history'}
+                                isNameEditing={isNameEditing}
+                                setIsNameEditing={setIsNameEditing}
+                                commandBinding={commandSearchBinding(localActions)}
+                                />
+                            <SidebarButton state={innerState} actions={actions} />
+
+                            <div
+                                className={`
+                                    h-full
+                                    transition-all ${sidebarVisible ? "ml-56" : ""}
+                                    flex flex-col items-stretch overflow-hidden
+                                `}
+                            >
+                                <div className={`flex-1 overflow-scroll transition-all ${sidebarVisible ? "px-1" : "px-10"}`}>
+                                    <MainView
+                                        key={innerState.viewState.openPage.join('.')}
+                                        innerRef={innerRef}
+                                        state={state}
+                                        actions={actions}
+                                        innerState={innerState}
+                                        innerBlock={innerBlock}
+                                        env={env}
+                                        />
+                                </div>
+                                {shortcutsViewMode !== 'hidden' &&
+                                    <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
+                                        <div
+                                            className={`
+                                                flex-1 flex flex-row justify-between
+                                                ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
+                                                px-10 py-1 overflow-x-scroll
+                                            `}
+                                        >
+                                            <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
+                                        </div>
+                                        <button
+                                            className={`
+                                                ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
+                                                px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
+                                            `}
+                                            onClick={localActions.toggleShortcutsVisible}
+                                        >
+                                            <FontAwesomeIcon icon={solidIcons.faCaretDown} />
+                                        </button>
                                     </div>
+                                }
+                                {shortcutsViewMode === 'hidden' &&
                                     <button
                                         className={`
-                                            ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
-                                            px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
+                                            absolute bottom-3 right-3 w-8 h-8
+                                            rounded-full border border-gray-100 shadow
+                                            bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
+                                            flex justify-center items-center
+                                            text-sm
                                         `}
                                         onClick={localActions.toggleShortcutsVisible}
                                     >
-                                        <FontAwesomeIcon icon={solidIcons.faCaretDown} />
+                                        ⌘
                                     </button>
-                                </div>
-                            }
-                            {shortcutsViewMode === 'hidden' &&
-                                <button
-                                    className={`
-                                        absolute bottom-3 right-3 w-8 h-8
-                                        rounded-full border border-gray-100 shadow
-                                        bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
-                                        flex justify-center items-center
-                                        text-sm
-                                    `}
-                                    onClick={localActions.toggleShortcutsVisible}
-                                >
-                                    ⌘
-                                </button>
-                            }
-                            {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
+                                }
+                                {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }}
             </HistoryView>
         </>
     )
@@ -751,13 +773,14 @@ function SidebarButton<State>({ state, actions }: ActionProps<State>) {
 
 
 interface SidebarProps<State> extends ActionProps<State> {
+    isVisible: boolean
     isHistoryOpen: boolean
     isNameEditing: boolean
     setIsNameEditing: (editing: boolean) => void
     commandBinding: Keybinding
 }
 
-function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
+function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     function HistoryButton() {
         return (
             <button
@@ -804,7 +827,7 @@ function Sidebar<State>({ state, actions, isHistoryOpen, isNameEditing, setIsNam
 
     return (
         <Transition
-            show={state.viewState.sidebarOpen || isNameEditing}
+            show={isVisible}
             className="absolute inset-y-0 h-full left-0 flex flex-col space-y-1 whitespace-nowrap overflow-scroll bg-gray-100 w-56"
             enter="transition-transform"
             enterFrom="-translate-x-full"
