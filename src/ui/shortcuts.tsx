@@ -521,7 +521,7 @@ export function KeySymbol({ keyName }) {
 
 
 
-type KeyMap = Map<string, { shift: string, noshift: string }>
+export type KeyMap = Map<string, { shift: string, noshift: string }>
 
 export function remapKey(keymap: KeyMap, code: string, isShiftPressed: boolean, fallbackKey: string) {
     if (!keymap.has(code)) {

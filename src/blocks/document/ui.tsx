@@ -5,10 +5,12 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
+import { Set } from 'immutable'
+
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '../../utils'
-import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, KeyButton, useBindingNotifications } from '../../ui/shortcuts'
+import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, KeyButton, useBindingNotifications, KeyMap } from '../../ui/shortcuts'
 
 import { DocumentState, DocumentInner } from './model'
 import * as Model from './model'
@@ -923,19 +925,32 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onSkip }: 
     const noshiftCount = keyMap.valueSeq().map(({ noshift }) => noshift).filter(noshift => noshift).count()
     const shiftCount = keyMap.valueSeq().map(({ shift }) => shift).filter(shift => shift).count()
 
-    const noshiftMissing = keyMap.valueSeq().filter(({ noshift }) => !noshift).map(({ shift }) => shift).sort().toArray()
-    const shiftMissing = keyMap.valueSeq().filter(({ shift }) => !shift).map(({ noshift }) => noshift).sort().toArray()
-    const matches = keyMap.count() >= 40 && noshiftMissing.length === 0 && shiftMissing.length === 0
+    const keyMapNotOnKeyboardVisualization = keyMap.filter((_value, key) => !KEYBOARD_CODES.includes(key))
+
+    const noshiftMissing = keyMapNotOnKeyboardVisualization
+        .valueSeq()
+        .filter(({ noshift }) => !noshift)
+        .map(({ shift }) => shift)
+        .sort()
+        .toArray()
+    const shiftMissing = keyMapNotOnKeyboardVisualization
+        .valueSeq()
+        .filter(({ shift }) => !shift)
+        .map(({ noshift }) => noshift)
+        .sort()
+        .toArray()
+
+    const matches = keyMap.count() >= 40 && keyMap.every(({ shift, noshift }) => !!shift && !!noshift)
 
     return (
-        <div
-            className="w-full h-full flex justify-center items-center bg-gray-50"
-            ref={ref}
-            tabIndex={-1}
-            autoFocus
-            onKeyDown={onCollectKey}
-        >
-            <div className="rounded-xl border border-gray-200 px-10 py-8 max-w-screen-sm flex flex-col space-y-5 text-center bg-white">
+        <div className="w-full h-full flex justify-center items-center bg-gray-50">
+            <div
+                className="max-w-screen-sm w-full h-full flex justify-center items-center"
+                style={{ containerType: 'size' }}
+            >
+            <div
+                className="rounded-xl border border-gray-200 px-10 py-8 w-full flex flex-col space-y-5 text-center bg-white"
+            >
                 <p>
                     For shortcuts to work properly, we need to collect your{' '}
                     keyboard layout's mapping from physical keys to their{' '}
@@ -950,6 +965,7 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onSkip }: 
                 <p>
                     Another time with only the Shift modifier pressed.
                 </p>
+                <KeyCollectorVisualization ref={ref} keyMap={keyMap} onCollectKey={onCollectKey} />
                 <p>
                     Collected: {noshiftCount} without shift / {shiftCount} with shift
                 </p>
@@ -988,6 +1004,81 @@ export function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onSkip }: 
                     }
                 </div>
             </div>
+            </div>
         </div>
     )
 }
+
+const KEYBOARD: [code: string, width?: number, ignore?: boolean][][] = [
+    [["IntlBackslash"],["Digit1"],["Digit2"],["Digit3"],["Digit4"],["Digit5"],["Digit6"],["Digit7"],["Digit8"],["Digit9"],["Digit0"],["Minus"],["Equal"],["Backspace", 1.5, true]],
+    [["Tab", 1.5, true],["KeyQ"],["KeyW"],["KeyE"],["KeyR"],["KeyT"],["KeyY"],["KeyU"],["KeyI"],["KeyO"],["KeyP"],["BracketLeft"],["BracketRight"],["Backslash"]],
+    [["CapsLock", 1.8, true],["KeyA"],["KeyS"],["KeyD"],["KeyF"],["KeyG"],["KeyH"],["KeyJ"],["KeyK"],["KeyL"],["Semicolon"],["Quote"],["Enter", 1.8, true]],
+    [["ShiftLeft", 1.2, true],["Backquote"],["KeyZ"],["KeyX"],["KeyC"],["KeyV"],["KeyB"],["KeyN"],["KeyM"],["Comma"],["Period"],["Slash"],["ShiftRight", 2.4, true]],
+    [["fn", 1, true], ["ControlLeft", 1, true],["AltLeft", 1, true],["MetaLeft", 1.2, true],["Space", 5.3, true],["MetaRight", 1.2, true],["AltRight", 1, true],["ArrowLeft", 1.05, true],["ArrowUp", 1, true],["ArrowRight", 1.05, true]],
+]
+
+const KEYBOARD_CODES = Set(KEYBOARD.flatMap(row => row.map(([code]) => code)))
+
+
+interface KeyCollectorVisualizationProps {
+    keyMap: KeyMap
+    onCollectKey(event: React.KeyboardEvent): void
+}
+
+const KeyCollectorVisualization = React.forwardRef<HTMLDivElement, KeyCollectorVisualizationProps>(function KeyCollectorVisualization(
+    { keyMap, onCollectKey },
+    ref,
+) {
+    const [keysDown, setKeysDown] = React.useState(Set())
+    const isShift = keysDown.includes('ShiftLeft') || keysDown.includes('ShiftRight')
+
+    function collectKey(event: React.KeyboardEvent) {
+        setKeysDown(set => set.add(event.code))
+        onCollectKey(event)
+        event.stopPropagation()
+        event.preventDefault()
+    }
+
+    function Key({ code, width = 1, ignore = false }: { code: string, width?: number, ignore?: boolean }) {
+        const base = 6
+        const { noshift, shift } = keyMap.get(code, { noshift: undefined, shift: undefined })
+        const countKnown = (noshift ? 1 : 0) + (shift ? 1 : 0)
+        const [primary, secondary] = isShift ? [shift, noshift] : [noshift, shift]
+        const color = ['red-200', 'yellow-200', 'green-200'][countKnown]
+        return (
+            <div
+                style={{ height: base + 'cqw', width: base * width + 'cqw' }}
+                className={`
+                    text-center rounded border
+                    flex justify-center items-center relative
+                    ${!ignore && `border-${color} shadow-${color}`}
+                    ${!ignore && keysDown.includes(code) ? `translate-y-0.5` : 'shadow'}
+                    ${ignore && (keysDown.includes(code) ? 'bg-gray-200' : 'bg-gray-100')}
+                `}
+            >
+                {!ignore && <>
+                    <span>{primary ?? ""}</span>
+                    <div className="hidden sm:block absolute right-0.5 top-0.5 text-gray-300 text-xs">{secondary ?? ""}</div>
+                </>}
+            </div>
+        )
+    }
+
+    return (
+        <div
+            ref={ref}
+            tabIndex={-1}
+            onKeyDown={collectKey}
+            onKeyUp={event => { setKeysDown(set => set.remove(event.code)) }}
+            className="w-full flex flex-col space-y-1 cursor-pointer opacity-50 focus:opacity-100 focus:outline-none"
+        >
+            {KEYBOARD.map(row =>
+                <div className="flex flex-row space-x-1">
+                    {row.map(([code, width=1, ignore=false]) => (
+                        <Key code={code} width={width} ignore={ignore}/>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+})
