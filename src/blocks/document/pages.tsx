@@ -401,7 +401,7 @@ export function recomputePagesFrom<State>(
 
             const pathHere = [...currentPath, page.id]
             const children = recomputePagesFrom(
-                pathWithChanges?.slice(1),
+                pathWithChanges?.slice(1) ?? null,
                 page.children,
                 localEnv,
                 innerBlock,
