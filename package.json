@@ -8,7 +8,8 @@
   "scripts": {
     "start": "parcel",
     "build": "parcel build --public-url ./",
-    "check": "tsc --noEmit --skipLibCheck"
+    "check": "tsc --noEmit --skipLibCheck",
+    "update-introduction": "echo 'export default ' >src/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/resources/introduction.js"
   },
   "devDependencies": {
     "@types/babel__code-frame": "^7.0.3",
