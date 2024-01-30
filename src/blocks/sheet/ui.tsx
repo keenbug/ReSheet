@@ -280,19 +280,32 @@ export const Sheet = React.forwardRef(
         ref: React.Ref<BlockRef>
     ) {
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
+        const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
         const updateWithEffect = useEffectfulUpdate(update)
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
+                    const lastIndex = lastFocus.current ?? 0
                     refMap
-                        .get(state.lines[0].id)
+                        .get(state.lines[lastIndex].id)
                         .focus()
                 }
             }),
             [state]
         )
+
+        function onBlur(ev: React.FocusEvent) {
+            const [id, _lineRef] = Array.from(refMap.entries()).find(([_id, lineRef]) => lineRef.getElement() === ev.target)
+            const index = state.lines.findIndex(line => line.id === id)
+            if (index >= 0) {
+                lastFocus.current = index
+            }
+            else {
+                lastFocus.current = null
+            }
+        }
 
         const actions = React.useMemo(
             () => ACTIONS(updateWithEffect, containerRef, refMap, innerBlock),
@@ -300,7 +313,7 @@ export const Sheet = React.forwardRef(
         )
 
         return (
-            <div ref={containerRef}>
+            <div ref={containerRef} onBlur={onBlur}>
                 <SheetLinesEnv
                     setLineRef={setLineRef}
                     lines={state.lines}
@@ -344,7 +357,7 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
         () => ({ ...env, ...siblingsEnv, $before: siblingsEnv }),
         [siblingsEnv, env],
     )
-    const [inViewRef, isInView, viewEntry] = useInView({ initialInView: true })
+    const [inViewRef, isInView, viewEntry] = useInView({ initialInView: true, rootMargin: '20px' })
     const isSheetOutOfView = (
         !isInView && viewEntry && viewEntry.rootBounds && viewEntry.boundingClientRect ?
             viewEntry.rootBounds.bottom < viewEntry.boundingClientRect.bottom
@@ -392,6 +405,7 @@ export interface SheetLineProps<InnerState> {
 }
 
 export interface SheetLineRef {
+    getElement(): HTMLElement
     isFocused(): boolean
     containsFocus(): boolean
     focus(): void
@@ -411,6 +425,9 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
     React.useImperativeHandle(
         lineRef,
         () => ({
+            getElement() {
+                return containerRef.current
+            },
             isFocused() {
                 return !!containerRef.current && document.activeElement === containerRef.current
             },
