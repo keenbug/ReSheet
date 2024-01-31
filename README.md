@@ -2,7 +2,7 @@
 
 *working title*
 
-[Live demo](https://keenbug.github.io/tables/?load=https%3A%2F%2Fraw.githubusercontent.com%2Fkeenbug%2Ftables%2Fmain%2Fexamples%2Fdemo.json)
+[Live demo](https://keenbug.github.io/tables/)
 
 The initial idea was to create some sort of Excel and Notion hybrid. Currently
 it is more of a Jupyter Notebook for JavaScript and React.
