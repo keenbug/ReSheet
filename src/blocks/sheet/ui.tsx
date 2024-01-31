@@ -297,7 +297,11 @@ export const Sheet = React.forwardRef(
         )
 
         function onBlur(ev: React.FocusEvent) {
-            const [id, _lineRef] = Array.from(refMap.entries()).find(([_id, lineRef]) => lineRef.getElement() === ev.target)
+            const id = Array.from(refMap.entries())
+                .find(([_id, lineRef]) =>
+                    lineRef.getElement() === ev.target
+                )
+                ?.[0]
             const index = state.lines.findIndex(line => line.id === id)
             if (index >= 0) {
                 lastFocus.current = index
@@ -338,15 +342,16 @@ export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<I
     if (lines.length === 0) {
         return null
     }
-    return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={block.emptyEnv} {...props} />
+    return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={block.emptyEnv} aboveViewport={true} {...props} />
 }
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     index: number
     siblingsEnv: Environment
+    aboveViewport: boolean
 }
 
-function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, siblingsEnv, env }: SheetLineHelperProps<InnerState>) {
+function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, siblingsEnv, env, aboveViewport }: SheetLineHelperProps<InnerState>) {
     const line = lines[index]
     const next = index + 1
     const localSiblingsEnv = React.useMemo(
@@ -357,13 +362,8 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
         () => ({ ...env, ...siblingsEnv, $before: siblingsEnv }),
         [siblingsEnv, env],
     )
-    const [inViewRef, isInView, viewEntry] = useInView({ initialInView: true, rootMargin: '20px' })
-    const isSheetOutOfView = (
-        !isInView && viewEntry && viewEntry.rootBounds && viewEntry.boundingClientRect ?
-            viewEntry.rootBounds.bottom < viewEntry.boundingClientRect.bottom
-        :
-            false
-    )
+    const [inViewRef, isInView] = useInView({ initialInView: true, root: document.body, rootMargin: '20px' })
+    const isBelowViewport = !aboveViewport && !isInView
     return (
         <>
             <SheetLine
@@ -385,7 +385,8 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
                     block={block}
                     siblingsEnv={localSiblingsEnv}
                     env={env}
-                    skipRender={isSheetOutOfView}
+                    aboveViewport={aboveViewport && !isInView} // once a SheetLine was inView, everything below is not aboveViewport anymore
+                    skipRender={isBelowViewport}
                     />
             }
         </>
@@ -481,8 +482,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             ref={containerRef}
             className={`
                 flex flex-row items-baseline space-x-2
-                focus-visible:outline-0
-                group
+                outline-none
+                group/sheet-line
             `}
             tabIndex={-1}
             {...bindingsProps}
@@ -495,7 +496,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                     actions={actions}
                     bindings={varInputBindings}
                     style={{ display: undefined }}
-                    className={shouldNameBeHidden ? "hidden group-focus-within:inline-block group-hover:inline-block" : "inline-block"}
+                    className={shouldNameBeHidden ? "hidden group-focus-within/sheet-line:inline-block group-hover/sheet-line:inline-block" : "inline-block"}
                     />
             </div>
             
@@ -503,8 +504,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             <div
                 className={`
                     border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                    group-focus:border-${focusIndicatorColor.focus} group-focus-within:border-${focusIndicatorColor.focusWithin}
-                    group-focus-within:opacity-100 group-hover:opacity-100
+                    group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
+                    group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
                 `}
                 />
 
