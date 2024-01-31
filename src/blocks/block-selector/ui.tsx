@@ -116,14 +116,14 @@ export const BlockSelectorUI = React.forwardRef(
                 switch (state.mode) {
                     case 'choose':
                         return {
-                            focus() {
-                                inputRef.current?.focus()
+                            focus(options) {
+                                inputRef.current?.focus(options)
                             }
                         }
                     case 'run':
                         return {
-                            focus() {
-                                innerBlockRef.current?.focus()
+                            focus(options) {
+                                innerBlockRef.current?.focus(options)
                             }
                         }
                 }

@@ -8,7 +8,7 @@ export const BlockTag = Symbol('block')
 export const isBlock = (obj): obj is Block<unknown> => obj?.[BlockTag] === BlockTag
 
 export interface BlockRef {
-    focus(): void
+    focus(options?: FocusOptions): void
 }
 
 export type BlockUpdater<State> =

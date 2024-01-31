@@ -110,14 +110,14 @@ export const NoteUi = React.forwardRef(
         React.useImperativeHandle(
             ref,
             () => ({
-                focus() {
+                focus(options) {
                     if (state.note.type === 'block' && state.note.isInstantiated === true) {
-                        blockRef.current?.focus()
+                        blockRef.current?.focus(options)
                     }
                     else {
                         setFocused(() => ({
                             state: true,
-                            effect() { editorRef.current?.focus() }
+                            effect() { editorRef.current?.focus(options) },
                         }))
                     }
                 }

@@ -562,17 +562,18 @@ function sheetLineBindings<Inner>(
         {
             description: "line view",
             bindings: [
+                [["Z"],                              "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
                 [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
-                [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus()],
+                [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus({ preventScroll: true })],
                 [
                     ["Enter"],
                     "selfFocused",
                     "focus inner",
                     () => {
                         if (line.visibility === 'block') {
-                            innerBlockRef.current?.focus()
+                            innerBlockRef.current?.focus({ preventScroll: true })
                         } else if (line.visibility === 'result') {
-                            resultRef.current?.focus()
+                            resultRef.current?.focus({ preventScroll: true })
                         }
                     },
                 ],
@@ -616,7 +617,7 @@ function assignmentLineBindings<Inner>(
                     "jump next",
                     () => {
                         if (line.visibility === 'block') {
-                            innerBlockRef.current?.focus()
+                            innerBlockRef.current?.focus({ preventScroll: true })
                         }
                         else {
                             actions.focusDown()
