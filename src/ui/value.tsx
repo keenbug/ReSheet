@@ -67,6 +67,7 @@ export const ValueInspector = React.forwardRef(
                 <ErrorBoundary
                     title="There was an error in your React element"
                     viewError={error => <ErrorInspector error={error} />}
+                    autoReset
                 >
                     {React.createElement(() => value)}
                 </ErrorBoundary>
@@ -216,6 +217,7 @@ interface ErrorBoundaryProps {
     title: string
     viewError?: (caughtError: any) => JSX.Element
     children: any
+    autoReset?: boolean
 }
 
 interface ErrorBoundaryState {
@@ -235,6 +237,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
     componentDidCatch(error, errorInfo) {
         console.log("componentDidCatch", error, errorInfo)
+    }
+
+    componentDidUpdate(prevProps: Readonly<ErrorBoundaryProps>, prevState: Readonly<ErrorBoundaryState>) {
+        if (this.props.autoReset && this.props !== prevProps && this.state.caughtError && prevState.caughtError) {
+            this.retry()
+        }
     }
 
     retry() {
