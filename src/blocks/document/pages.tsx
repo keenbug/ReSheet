@@ -280,8 +280,13 @@ export function movePage<State>(
         const siblingsWithout = siblings.filter(page => page.id !== pageToMove.id)
 
         if (delta < 0) {
-            const siblingAfterPageToMove = siblings[index + 1]
-            recomputePath = [ ...parentPath, siblingAfterPageToMove.id ]
+            if (index === siblings.length - 1) {
+                recomputePath = parentPath
+            }
+            else {
+                const siblingAfterPageToMove = siblings[index + 1]
+                recomputePath = [ ...parentPath, siblingAfterPageToMove.id ]
+            }
         }
 
         const newSiblings = [
