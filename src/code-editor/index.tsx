@@ -58,6 +58,7 @@ export const CodeView = React.forwardRef<HTMLElement, CodeViewProps>(
                     <Container
                         ref={ref}
                         tabIndex={-1}
+                        spellCheck={false}
                         className={`whitespace-pre-wrap outline-none ${className}`}
                         style={{
                             ...highlightStyle,

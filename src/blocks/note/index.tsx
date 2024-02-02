@@ -191,6 +191,7 @@ export const NoteUi = React.forwardRef(
                         onUpdate={onUpdateCode}
                         {...shortcutProps}
                         onKeyDown={preventEnter}
+                        spellCheck={!isCode}
                         />
                 }
                 {(!isFocused || isCode) &&
