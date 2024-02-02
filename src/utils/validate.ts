@@ -136,6 +136,12 @@ export function tuple(validators: Validator[]): ValidatorFunc {
     }
 }
 
+export function is(value: any): ValidatorFunc {
+    return function isValue(input: any, options = {}) {
+        return input === value
+    }
+}
+
 export function typeis(typeName: string): ValidatorFunc {
     return function validateTypeof(input: any, options = {}) {
         return typeof input === typeName
@@ -153,3 +159,12 @@ export function defined(input: any, options = {}) {
 export const string = typeis('string')
 export const number = typeis('number')
 export const boolean = typeis('boolean')
+
+
+export function validatorSwitch<T>(input: any, ...cases: Array<[validator: Validator, handler: (input: any) => T]>): T {
+    for (const [validator, handler] of cases) {
+        if (validate(validator, input)) {
+            return handler(input)
+        }
+    }
+}

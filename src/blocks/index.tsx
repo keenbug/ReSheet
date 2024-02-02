@@ -6,6 +6,7 @@ import { BlockSelector } from './block-selector'
 import { JSExpr } from './jsexpr'
 import { DocumentOf } from './document'
 import { Note } from './note'
+import { is, string, validatorSwitch } from '../utils/validate'
 
 export { JSExpr, BlockSelector, SheetOf, DocumentOf, Note }
 
@@ -65,7 +66,7 @@ export function Input(parser = str => str) {
     })
 }
 
-export const LoadFileButtonStyled = classed<any>(LoadFileButton)`
+const loadFileButtonStyle = `
     cursor-pointer
     p-1
     rounded
@@ -73,28 +74,58 @@ export const LoadFileButtonStyled = classed<any>(LoadFileButton)`
     bg-gray-100
     hover:bg-gray-200
 `
+export const LoadFileButtonStyled = classed<any>(LoadFileButton)`${loadFileButtonStyle}`
 
-export const LoadFile = Block.create<any>({
-    init: null,
-    view({ update }) {
-        const setData = data => update(() => data)
+export type LoadFileState =
+    | { state: 'init' }
+    | { state: 'loaded', content: string, filename: string }
 
-        return (
-            <LoadFileButtonStyled
-                onLoad={file => file.text().then(setData)}
-            >
-                Load File
-            </LoadFileButtonStyled>
-        )
+export const LoadFile = Block.create<LoadFileState>({
+    init: { state: 'init' },
+    view({ state, update }) {
+        async function loadFile(file: File) {
+            const content = await file.text()
+            update(() => ({ state: 'loaded', content, filename: file.name }))
+        }
+
+        function clear() {
+            update(() => ({ state: 'init' }))
+        }
+
+        switch (state.state) {
+            case 'init':
+                return (
+                    <LoadFileButtonStyled onLoad={loadFile}>
+                        Load File
+                    </LoadFileButtonStyled>
+                )
+
+            case 'loaded':
+                return (
+                    <div>
+                        File <code className="px-1 bg-gray-100 rounded-sm">{state.filename}</code> loaded {}
+                        <span className="text-sm text-gray-700">({state.content.length} chars)</span> {}
+                        <button className={loadFileButtonStyle} onClick={clear}>clear</button>
+                    </div>
+                )
+        }
     },
     recompute(state, update, env) {
         return state
     },
     getResult(state) {
-        return state
+        switch (state.state) {
+            case 'init': return null
+            case 'loaded': return state.content
+        }
     },
     fromJSON(json, env) {
-        return json
+        return validatorSwitch<LoadFileState>(json,
+            [is(null), () => ({ state: 'init' })],
+            [string, content => ({ state: 'loaded', content, filename: '<unknown>' })],
+            [{ state: 'init' }, init => init],
+            [{ state: 'loaded', content: string, filename: string }, loaded => loaded],
+        )
     },
     toJSON(state) {
         return state
