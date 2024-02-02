@@ -147,27 +147,6 @@ export const TextInput: React.FC<any> = React.forwardRef(
 )
 
 
-const ErrorViewContainer = classed<any>('div')`
-    rounded
-    flex flex-col
-    space-y-1 mx-1 p-2
-    bg-red-50
-`
-
-const ErrorTitle = classed<any>('h1')`
-    font-medium
-`
-const ErrorName = classed<any>('h2')`
-    text-red-900
-`
-const ErrorMessageButton = classed<any>('button')`
-    text-left text-sm flex items-center
-`
-const ErrorStack = classed<any>('pre')`
-    ml-3
-    text-sm leading-loose
-`
-
 interface ErrorViewProps {
     title: string
     error: Error
@@ -176,20 +155,38 @@ interface ErrorViewProps {
 }
 
 export function ErrorView({ title, error, children, className }: ErrorViewProps) {
-    const [isExpanded, setIsExpanded] = React.useState<boolean>(false)
-    const toggleExpanded = () => setIsExpanded(isExpanded => !isExpanded)
+    const [isExpanded, setExpanded] = React.useState(false)
+    const [isStackVisible, setStackVisible] = React.useState<boolean>(false)
+    const toggleStackVisible = () => setStackVisible(isExpanded => !isExpanded)
 
     return (
-        <ErrorViewContainer className={className}>
-            <ErrorTitle>{title}</ErrorTitle>
-            <ErrorName>{error.name}</ErrorName>
-            <ErrorMessageButton onClick={toggleExpanded}>
-                <FontAwesomeIcon className="mr-2" icon={isExpanded ? solidIcons.faAngleDown : solidIcons.faAngleRight} />
-                {error.message}
-            </ErrorMessageButton>
-            {isExpanded && <ErrorStack>{error.stack}</ErrorStack>}
-            {children}
-        </ErrorViewContainer>
+        <div className={`bg-red-50 px-1 flex flex-col space-y-1 ${className}`}>
+            <button
+                className="w-full text-red-900 flex flex-row justify-start items-baseline space-x-1"
+                onClick={() => setExpanded(e => !e)}
+            >
+                <span className="flex-1 text-left truncate">
+                    <FontAwesomeIcon className="text-red-400" icon={solidIcons.faTriangleExclamation} /> {}
+                    <span className="font-medium">{error.name}:</span> {error.message}
+                </span>
+                <span>
+                    <FontAwesomeIcon icon={isExpanded ? solidIcons.faAngleUp : solidIcons.faAngleDown} />
+                </span>
+            </button>
+            {isExpanded && <>
+                <div className="font-medium">{title}</div>
+                <div className="text-red-950">{error.name}</div>
+                <button
+                    className="text-left text-sm flex items-baseline"
+                    onClick={toggleStackVisible}
+                >
+                    <FontAwesomeIcon className="mr-2" icon={isStackVisible ? solidIcons.faAngleDown : solidIcons.faAngleRight} size="sm" />
+                    <span>{error.message}</span>
+                </button>
+                {isStackVisible && <pre className="ml-3 text-sm leading-loose">{error.stack}</pre>}
+                {children}
+            </>}
+        </div>
     )
 }
 
