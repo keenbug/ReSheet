@@ -552,7 +552,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     bg-gray-50
                                 `}
                             >
-                                <div className="flex-1 overflow-scroll transition-all">
+                                <div className="flex-1 overflow-y-auto transition-all">
                                     <MainView
                                         key={innerState.viewState.openPage.join('.')}
                                         innerRef={innerRef}
@@ -570,7 +570,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                             className={`
                                                 flex-1 flex flex-row justify-between
                                                 ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                                px-10 py-1 overflow-x-scroll
+                                                px-10 py-1 overflow-x-auto
                                             `}
                                         >
                                             <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
@@ -832,7 +832,7 @@ function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditin
     return (
         <Transition
             show={isVisible}
-            className="absolute inset-y-0 h-full left-0 flex flex-col space-y-1 whitespace-nowrap overflow-scroll bg-gray-100 w-56"
+            className="absolute inset-y-0 h-full left-0 flex flex-col space-y-1 whitespace-nowrap overflow-auto bg-gray-100 w-56"
             enter="transition-transform"
             enterFrom="-translate-x-full"
             enterTo="translate-x-0"

@@ -173,7 +173,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
 
     return (
         <div className="absolute inset-0 h-full bg-gray-300/30 py-10 overflow-hidden">
-            <div className="w-2/3 mx-auto max-h-full overflow-scroll shadow-xl border border-gray-200 bg-white rounded-lg min-h-0 flex flex-col items-stretch">
+            <div className="w-2/3 mx-auto max-h-full overflow-auto shadow-xl border border-gray-200 bg-white rounded-lg min-h-0 flex flex-col items-stretch">
                 <input
                     ref={inputRef}
                     type="text"
@@ -184,7 +184,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                     onChange={onChange}
                     onKeyDown={handleKeybindings}
                     />
-                <div className="overflow-y-scroll flex flex-col">
+                <div className="overflow-y-auto flex flex-col">
                     {filteredBindings.length === 0 && (
                         <div className="text-gray-700 px-5 py-3">No results</div>
                     )}

@@ -509,7 +509,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                 `}
                 />
 
-            <div className="w-[768px] flex flex-col space-y-1 overflow-x-scroll">
+            <div className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
                 {line.visibility === 'block' &&
                     <ErrorBoundary key="block" title="There was an error in the subblock">
                         {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
