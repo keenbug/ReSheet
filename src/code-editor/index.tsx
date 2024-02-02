@@ -158,6 +158,7 @@ function combineHandlers(event: React.UIEvent, ...handlers: Array<() => void>) {
 }
 
 export function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Editable, indentation: string = '  ') {
+    if (event.defaultPrevented) { return }
     switch (getFullKey(event)) {
         case 'Enter': {
             event.preventDefault()

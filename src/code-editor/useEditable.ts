@@ -138,7 +138,6 @@ function getPosition(element: HTMLElement): SelRange<number> {
     // of the text here is retrieved via a range, rather than traversal
     // as seen in makeRange()
     const range = getCurrentRange()
-    const extent = !range.collapsed ? range.toString().length : 0
 
     const untilStart = document.createRange()
     untilStart.setStart(element, 0)
@@ -397,24 +396,29 @@ export function useEditable(
 function fixNonPlaintextKeyDown(event: KeyboardEvent, editable: Editable, element: HTMLElement) {
     // Fix backspace not working
     if (event.key === 'Backspace') {
-        event.preventDefault()
-        defaultBackspaceBehavior(editable, element, event)
+        defaultBackspaceBehavior(event, editable, element)
     }
 }
 
-function defaultBackspaceBehavior(editable: Editable, element: HTMLElement, modifiers: { altKey: boolean, metaKey: boolean }) {
-    const range = getCurrentRange()
-    if (!range.collapsed) {
+function defaultBackspaceBehavior(event: KeyboardEvent, editable: Editable, element: HTMLElement) {
+    const position = getPosition(element)
+    if (position.start !== position.end) {
+        // delete selection
         editable.edit('', 0)
+        event.preventDefault()
+        event.stopPropagation()
+    }
+    else if (position.start === 0) {
+        // Don't do anything, if the caret is at the beginning of the text.
+        // Especially don't stop or prevent the event, so others still process this event.
+        return
     }
     else {
-        const position = getPosition(element)
-
         // default: delete one character
         let deleteCount = 1
 
         // delete word
-        if (modifiers.altKey) {
+        if (event.altKey) {
             const text = toString(element)
             const { lineBefore } = splitByPosition(text, position)
             const matchPreviousWord = /\S+\s*$/.exec(lineBefore)
@@ -427,13 +431,15 @@ function defaultBackspaceBehavior(editable: Editable, element: HTMLElement, modi
         }
 
         // delete line
-        else if (modifiers.metaKey) {
+        else if (event.ctrlKey || event.metaKey) {
             const text = toString(element)
             const { lineBefore } = splitByPosition(text, position)
             deleteCount = lineBefore.length || 1
         }
 
         editable.edit('', -deleteCount)
+        event.preventDefault()
+        event.stopPropagation()
     }
 }
 
