@@ -488,7 +488,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             tabIndex={-1}
             {...bindingsProps}
         >
-            <div className="w-32 flex flex-row justify-end">
+            <div className="flex-1 min-w-32 flex flex-row justify-end">
                 <AssignmentLine
                     key="name"
                     ref={varInputRef}
@@ -509,7 +509,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                 `}
                 />
 
-            <div className="flex flex-col space-y-1 flex-1">
+            <div className="w-[768px] flex flex-col space-y-1 overflow-x-scroll">
                 {line.visibility === 'block' &&
                     <ErrorBoundary key="block" title="There was an error in the subblock">
                         {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
@@ -519,6 +519,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                     <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
                 }
             </div>
+
+            <div className="flex-1" />
         </div>
     )
 }
