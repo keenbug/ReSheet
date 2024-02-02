@@ -110,10 +110,11 @@ export const CodeEditor = React.forwardRef(
         React.useImperativeHandle(ref, () => codeViewRef.current, [codeViewRef.current])
 
         const onKeyDown = React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
-            props.onKeyDown?.(event)
-            if (event.isDefaultPrevented() || event.isPropagationStopped()) { return }
-
-            indentationHandlers(event, editable)
+            combineHandlers(event,
+                () => props.onKeyDown?.(event),
+                () => indentationHandlers(event, editable),
+                () => arrowHandler(event, editable),
+            )
         }, [editable, props.onKeyDown])
 
         const codeLines = code.split('\n').length
@@ -148,6 +149,13 @@ export const CodeEditor = React.forwardRef(
         )
     }
 )
+
+function combineHandlers(event: React.UIEvent, ...handlers: Array<() => void>) {
+    for (const handler of handlers) {
+        handler()
+        if (event.isPropagationStopped()) { return }
+    }
+}
 
 export function indentationHandlers(event: React.KeyboardEvent<Element>, editable: Editable, indentation: string = '  ') {
     switch (getFullKey(event)) {
@@ -187,6 +195,28 @@ export function indentationHandlers(event: React.KeyboardEvent<Element>, editabl
                             line
                 )
             )
+            return
+        }
+    }
+}
+
+export function arrowHandler(event: React.KeyboardEvent, editable: Editable) {
+    switch (event.key) {
+        case 'ArrowDown': {
+            const { position, text } = editable.getState()
+            if (position.start === position.end && position.end === text.length - 1) { // text contains an extra '\n'
+                // there is no default action - some other handler is allowed to react to ArrowDown
+                event.preventDefault()
+            }
+            return
+        }
+
+        case 'ArrowUp': {
+            const { position } = editable.getState()
+            if (position.start === position.end && position.end === 0) {
+                // there is no default action - some other handler is allowed to react to ArrowUp
+                event.preventDefault()
+            }
             return
         }
     }

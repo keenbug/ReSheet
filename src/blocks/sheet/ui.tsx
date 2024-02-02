@@ -19,7 +19,7 @@ function findFocused(refMap: Map<number, SheetLineRef>) {
     if (!document.activeElement) {
         return undefined
     }
-    return [...refMap.entries()].find(([id, ref]) => ref.isFocused())
+    return [...refMap.entries()].find(([id, ref]) => ref.containsFocus())
 }
 
 function findRelativeTo<Id, Line extends { id: Id }>(lines: Line[], id: Id, relativeIndex: number): Line | null {
@@ -44,6 +44,7 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
             return
 
         case 'inner':
+            ref.focus() // if inner doesn't accept focus, at least the line is focused
             ref.focusInner()
             return
     }
@@ -104,13 +105,16 @@ function ACTIONS<Inner extends unknown>(
     function focusUp(state: SheetBlockState<Inner>) {
         return {
             effect() {
-                const focused = findFocused(refMap);
+                const focused = findFocused(refMap)
                 if (focused === undefined) {
                     refMap.get(state.lines[0].id)?.focus()
                 }
                 else {
-                    const prevId = findRelativeTo(state.lines, focused[0], -1)?.id
-                    refMap.get(prevId)?.focus()
+                    const [id, lineRef] = focused
+                    const focusTarget: FocusTarget = lineRef.isFocused() ? "line" : "inner"
+                    const prevId = findRelativeTo(state.lines, id, -1)?.id
+                    const prevLine = refMap.get(prevId)
+                    prevLine && focusLineRef(prevLine, focusTarget)
                 }
             },
         }
@@ -124,8 +128,11 @@ function ACTIONS<Inner extends unknown>(
                     refMap.get(state.lines[state.lines.length - 1].id)?.focus()
                 }
                 else {
-                    const nextId = findRelativeTo(state.lines, focused[0], 1)?.id
-                    refMap.get(nextId)?.focus()
+                    const [id, lineRef] = focused
+                    const focusTarget: FocusTarget = lineRef.isFocused() ? "line" : "inner"
+                    const nextId = findRelativeTo(state.lines, id, 1)?.id
+                    const nextLine = refMap.get(nextId)
+                    nextLine && focusLineRef(nextLine, focusTarget)
                 }
             },
         }
@@ -549,6 +556,18 @@ function sheetLineBindings<Inner>(
         event?.stopPropagation()
     }
 
+    function moveUp(event?: React.KeyboardEvent) {
+        if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
+        actions.focusUp()
+        event?.stopPropagation()
+    }
+
+    function moveDown(event?: React.KeyboardEvent) {
+        if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
+        actions.focusDown()
+        event?.stopPropagation()
+    }
+
     return [
         {
             description: "change lines",
@@ -584,8 +603,8 @@ function sheetLineBindings<Inner>(
         {
             description: "move between lines",
             bindings: [
-                [["ArrowUp", "K"],                   "selfFocused",   "move up",         () => actions.focusUp()],
-                [["ArrowDown", "J"],                 "selfFocused",   "move down",       () => actions.focusDown()],
+                [["ArrowUp", "K"],                   "none",          "move up",         moveUp, { noAutoPrevent: true }],
+                [["ArrowDown", "J"],                 "none",          "move down",       moveDown, { noAutoPrevent: true }],
                 [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.focusOrCreateNext(line.id, block)],
                 [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.focusOrCreatePrev(line.id, block)],
                 [["G"],                              "!inputFocused", "jump top",        () => actions.focusFirst()],
