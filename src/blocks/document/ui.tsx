@@ -549,9 +549,10 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                     h-full
                                     transition-all ${sidebarVisible ? "ml-56" : ""}
                                     flex flex-col items-stretch overflow-hidden
+                                    bg-gray-50
                                 `}
                             >
-                                <div className={`flex-1 overflow-scroll transition-all ${sidebarVisible ? "px-1" : "px-10"}`}>
+                                <div className="flex-1 overflow-scroll transition-all">
                                     <MainView
                                         key={innerState.viewState.openPage.join('.')}
                                         innerRef={innerRef}
@@ -560,6 +561,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                         innerState={innerState}
                                         innerBlock={innerBlock}
                                         env={env}
+                                        sidebarVisible={sidebarVisible}
                                         />
                                 </div>
                                 {shortcutsViewMode !== 'hidden' &&
@@ -615,6 +617,7 @@ interface MainViewProps<State> {
     innerState: DocumentInner<State>
     innerBlock: Block<State>
     env: Environment
+    sidebarVisible: boolean
 }
 
 function MainView<State>({
@@ -624,6 +627,7 @@ function MainView<State>({
     innerState,
     innerBlock,
     env,
+    sidebarVisible,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(innerState)
     const noOpenPage = openPage === null
@@ -666,7 +670,7 @@ function MainView<State>({
     }
 
     return (
-        <div className="mb-[80cqh]">
+        <div className={`mb-[80cqh] bg-white ${sidebarVisible ? "px-1" : "px-10"}`}>
             <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />
             {innerBlock.view({
                 ref: innerRef,
