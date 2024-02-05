@@ -200,7 +200,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                             key={binding.id}
                             className={`
                                 flex flex-row space-x-3 justify-start items-baseline px-5 py-3 border-b border-gray-300
-                                text-left ${index === activeBinding && "bg-gray-200"}
+                                cursor-pointer text-left ${index === activeBinding && "bg-gray-200"}
                             `}
                             onPointerMove={event => { if (event.movementX > 0 || event.movementY > 0) { setActiveBinding(index)  }}}
                             onClick={() => { runBindingAndClose(index) }}
