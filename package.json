@@ -12,6 +12,7 @@
     "update-introduction": "echo 'export default ' >src/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/resources/introduction.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.41.2",
     "@types/babel__code-frame": "^7.0.3",
     "@types/babel__core": "^7.1.19",
     "@types/react": "^18.0.25",
