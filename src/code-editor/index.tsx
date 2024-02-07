@@ -90,6 +90,11 @@ export type CodeEditorProps = CodeViewProps & {
     onUpdate: (code: string) => void
 }
 
+export interface CodeEditorHandle {
+    editable: Editable,
+    element: HTMLElement,
+}
+
 export const CodeEditor = React.forwardRef(
     function CodeEditor(
         {
@@ -98,7 +103,7 @@ export const CodeEditor = React.forwardRef(
             style,
             ...props
         }: CodeEditorProps,
-        ref: React.Ref<HTMLElement>
+        ref: React.Ref<CodeEditorHandle>
     ) {
         const codeViewRef = React.useRef<HTMLElement>()
         const onChange = React.useCallback((code: string) =>
@@ -107,7 +112,13 @@ export const CodeEditor = React.forwardRef(
             onUpdate(code.slice(0, -1))
         , [onUpdate])
         const editable = useEditable(codeViewRef, onChange)
-        React.useImperativeHandle(ref, () => codeViewRef.current, [codeViewRef.current])
+        React.useImperativeHandle(ref,
+            () => ({
+                editable,
+                element: codeViewRef.current,
+            }),
+            [editable, codeViewRef.current],
+        )
 
         const onKeyDown = React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
             combineHandlers(event,

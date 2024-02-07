@@ -49,7 +49,7 @@ export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
         (event.ctrlKey || event.metaKey) ? "C-" : "",
         shiftStable && event.shiftKey ? "Shift-" : "",
         event.altKey ? "Alt-" : "",
-        keyName,
+        keyName === ' ' ? 'Space' : keyName,
     ].join('')
 }
 
@@ -204,11 +204,13 @@ export function filterShadowedBindings(bindings: Keybindings): Keybindings {
 export type ReporterId = string
 
 export type ShortcutsReporter = {
+    updateBindings(id: ReporterId, bindings: Keybindings): void
     reportBindings(id: ReporterId, bindings: Keybindings): void
     removeBindings(id: ReporterId): void
 }
 
 const dummyShortcutsReporter: ShortcutsReporter = {
+    updateBindings() {},
     reportBindings() {},
     removeBindings() {},
 }
@@ -276,6 +278,11 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
     }), [])
 
     const reporters = React.useMemo(() => ({
+        updateBindings(id: ReporterId, bindings: Keybindings) {
+            activeBindings.current = activeBindings.current.set(id, bindings)
+            notifyUpdate()
+        },
+
         reportBindings(id: ReporterId, bindings: Keybindings) {
             activeBindings.current = activeBindings.current.delete(id).set(id, bindings) // delete first to change the order
             notifyUpdate()
@@ -313,8 +320,9 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 
 export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     const id = React.useId()
-    const { reportBindings, removeBindings } = React.useContext(ShortcutsReporterContext)
+    const { updateBindings, reportBindings, removeBindings } = React.useContext(ShortcutsReporterContext)
     const onKeyDown = useKeybindingsHandler(bindings)
+    const focusRef = React.useRef<{ isSelfFocused: boolean, isAnInputFocused: boolean }>(null)
 
     React.useEffect(() => {
         if (!active) {
@@ -325,16 +333,29 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
         }
     }, [active])
 
+    React.useEffect(() => {
+        if (focusRef.current) {
+            const activeBindings = filterBindings(bindings, focusRef.current.isSelfFocused, focusRef.current.isAnInputFocused)
+            updateBindings(id, activeBindings)
+        }
+    }, [bindings])
+
     const onFocus = React.useCallback(function onFocus(event: React.FocusEvent) {
         const isSelfFocused = event.currentTarget === event.target
+        const isAnInputFocused = isAnInput(event.target)
+        focusRef.current = {
+            isSelfFocused,
+            isAnInputFocused,
+        }
 
-        const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInput(event.target))
+        const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInputFocused)
         reportBindings(id, newActiveBindings)
     }, [bindings])
 
     const onBlur = React.useCallback(function onBlur(event: React.FocusEvent) {
         const isStillFocused = event.currentTarget.contains(event.relatedTarget) // contains the element receiving focus
         if (!isStillFocused) {
+            focusRef.current = null
             removeBindings(id)
         }
     }, [])

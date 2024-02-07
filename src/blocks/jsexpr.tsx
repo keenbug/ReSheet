@@ -1,13 +1,15 @@
 import * as React from 'react'
 
-import { ViewResult } from '../ui/value'
-import { CodeEditor } from '../code-editor'
-import { computeScript } from '../logic/compute'
 import { BlockRef } from '../block'
 import * as block from '../block'
-import { useShortcuts } from '../ui/shortcuts'
+import { computeScript } from '../logic/compute'
 import { Pending, Result, resultFrom } from '../logic/result'
-import { ViewCompletions } from '../ui/completions'
+
+import { ViewResult } from '../ui/value'
+import { useShortcuts } from '../ui/shortcuts'
+
+import { CodeEditor, CodeEditorHandle } from '../code-editor'
+import { useCompletionsOverlay } from '../code-editor/completions'
 
 
 export interface JSExprModel {
@@ -80,49 +82,46 @@ export const JSExprUi = React.forwardRef(
         { state, update, env }: JSExprUiProps,
         ref: React.Ref<BlockRef>
     ) {
-        const editorRef = React.useRef<HTMLElement>()
+        const codeEditor = React.useRef<CodeEditorHandle>()
+        const completions = useCompletionsOverlay(codeEditor, state.code, env)
         React.useImperativeHandle(
             ref,
             () => ({
                 focus() {
-                    editorRef.current?.focus()
+                    codeEditor.current?.element?.focus()
                 }
             })
         )
-        const [isFocused, setFocused] = React.useState(false)
 
-        const onUpdateCode = (code: string) => update(state => updateResult({ ...state, code }, update, env))
+        function onUpdateCode(code: string) {
+            update(state =>
+                updateResult({ ...state, code }, update, env)
+            )
+        }
 
         const shortcutProps = useShortcuts([
+            ...completions.shortcuts,
             {
                 description: "jsexpr",
                 bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation', () => { update(state => updateResult(state, update, env)) }],
+                    [["Alt-Enter"], 'none', 'rerun computation',  () => { update(state => updateResult(state, update, env)) }],
                 ]
-            }
+            },
         ])
 
         return (
-            <div className="flex flex-col space-y-1 flex-1 my-2">
+            <div
+                className="flex flex-col space-y-1 flex-1 my-2"
+                onBlur={completions.onBlur}
+            >
                 <CodeEditor
-                    ref={editorRef}
+                    ref={codeEditor}
                     code={state.code}
                     onUpdate={onUpdateCode}
                     {...shortcutProps}
-                    onFocus={event => {
-                        setFocused(true)
-                        shortcutProps.onFocus(event)
-                    }}
-                    onBlur={event => {
-                        setFocused(false)
-                        shortcutProps.onBlur(event)
-                    }}
                     />
-                <PreviewValue
-                    state={state}
-                    env={env}
-                    isFocused={isFocused}
-                    />
+                <PreviewValue state={state} />
+                {completions.ui}
             </div>
         )
     }
@@ -149,16 +148,9 @@ function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel
 
 export interface PreviewValueProps {
     state: JSExprModel
-    env: block.Environment
-    isFocused: boolean
 }
 
-export function PreviewValue({ state, env, isFocused }: PreviewValueProps) {
-    const code = state.code
-    if (!isFocused) {
-        if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
-        return <ViewResult result={state.result} />
-    }
-
-    return <ViewCompletions code={code} env={env} default={<ViewResult result={state.result} />} />
+export function PreviewValue({ state }: PreviewValueProps) {
+    if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
+    return <ViewResult result={state.result} />
 }

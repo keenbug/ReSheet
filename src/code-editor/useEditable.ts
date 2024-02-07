@@ -107,7 +107,15 @@ function toString(element: HTMLElement): string {
     return content
 }
 
-export function splitByPosition(text: string, position: SelRange<number>) {
+export interface SplitText {
+    linesBefore: string[]
+    lineBefore: string
+    selection: string
+    lineAfter: string
+    linesAfter: string[]
+}
+
+export function splitByPosition(text: string, position: SelRange<number>): SplitText {
     const allBefore = text.slice(0, position.start)
     const selection = text.slice(position.start, position.end)
     const allAfter = text.slice(position.end)

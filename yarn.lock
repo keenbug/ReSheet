@@ -2449,6 +2449,11 @@ utility-types@^3.10.0:
   resolved "https://registry.yarnpkg.com/utility-types/-/utility-types-3.10.0.tgz#ea4148f9a741015f05ed74fd615e1d20e6bed82b"
   integrity sha512-O11mqxmi7wMKCo6HKFt5AhO4BwY3VV68YU07tgxfz8zJTIxr4BpsezN49Ffwy9j3ZpwwJp4fkRwjRzq3uWE6Rg==
 
+virtua@^0.24.0:
+  version "0.24.0"
+  resolved "https://registry.yarnpkg.com/virtua/-/virtua-0.24.0.tgz#5898aedeb4fedd93753800f9b5f6a508342e63e5"
+  integrity sha512-TNtQHh6NjSQPgzpc3MDYC97VWAEpphMOgLN7F1m5RFQzzVnw2du/HKQGJEOzeby/elWX3MklROhqyofw3bI84g==
+
 weak-lru-cache@^1.2.2:
   version "1.2.2"
   resolved "https://registry.yarnpkg.com/weak-lru-cache/-/weak-lru-cache-1.2.2.tgz#fdbb6741f36bae9540d12f480ce8254060dccd19"
