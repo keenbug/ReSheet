@@ -74,6 +74,7 @@ const observerSettings = {
 }
 
 function getCurrentRange() {
+    if (window.getSelection().rangeCount === 0) { return null }
     return window.getSelection().getRangeAt(0)
 }
 
@@ -146,6 +147,7 @@ function getPosition(element: HTMLElement): SelRange<number> {
     // of the text here is retrieved via a range, rather than traversal
     // as seen in makeRange()
     const range = getCurrentRange()
+    if (!range) { return { start: 0, end: 0 } }
 
     const untilStart = document.createRange()
     untilStart.setStart(element, 0)
@@ -480,6 +482,7 @@ function editableActions(
 
             // delete selection
             let range = getCurrentRange()
+            if (!range) { return }
             range.deleteContents()
             range.collapse()
 
