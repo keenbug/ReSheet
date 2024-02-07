@@ -14,8 +14,7 @@ import { useSelectionRect } from '../ui/hooks'
 
 import { CodeEditorHandle } from '.'
 import { SplitText, splitByPosition } from './useEditable'
-
-
+import { Tab } from '@headlessui/react'
 
 
 // The resulting ui should lie anywhere near codeEditor, where both have the same relative parent
@@ -151,10 +150,11 @@ export interface CompletionsProps {
     splitCode: SplitText
     env: block.Environment
     onSelectSearchResult(searchResult: SearchResult<Completion>): void
+    docs?: WeakMap<any, string>
 }
 
 export const Completions = React.forwardRef(function Completions(
-    { splitCode, env, onSelectSearchResult }: CompletionsProps,
+    { splitCode, env, onSelectSearchResult, docs }: CompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const allBefore = [
@@ -166,7 +166,7 @@ export const Completions = React.forwardRef(function Completions(
         () => tryParseAnySuffix(splitCode.lineBefore),
     )
     const search = (parsed && parseCompletionSearch(parsed, env)) ?? EMPTY_SEARCH
-    return <RenderCompletions ref={ref} completionSearch={search} onSelectSearchResult={onSelectSearchResult} />
+    return <RenderCompletions ref={ref} completionSearch={search} onSelectSearchResult={onSelectSearchResult} docs={docs} />
 })
 
 function tryParseAnySuffix(code: string) {
@@ -206,10 +206,11 @@ export interface CompletionsHandle {
 export interface RenderCompletionsProps {
     completionSearch: CompletionSearch
     onSelectSearchResult(searchResult: SearchResult<Completion>): void
+    docs?: WeakMap<any, string>
 }
 
 export const RenderCompletions = React.forwardRef(function RenderCompletions(
-    { completionSearch, onSelectSearchResult }: RenderCompletionsProps,
+    { completionSearch, onSelectSearchResult, docs = new WeakMap() }: RenderCompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const vlistRef = React.useRef<VListHandle>(null)
@@ -232,8 +233,8 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
     )
 
     return (
-        <div className="flex flex-row">
-            <VList ref={vlistRef} style={{ height: "8rem", width: "12rem" }} className="flex flex-col overflow-auto">
+        <div className="flex flex-row items-stretch">
+            <VList ref={vlistRef} style={{ height: "12rem", width: "12rem" }} className="flex flex-col items-stretch overflow-auto">
                 {results.length === 0 &&
                     <div className="italic text-gray-700 text-xs text-center">No completions</div>
                 }
@@ -252,8 +253,40 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
                 ))}
             </VList>
             {results.length > selected &&
-                <div className="w-96 max-h-32 p-1 overflow-auto bg-white">
-                    <ValueInspector value={getCompletionValue(results[selected].candidate)} expandLevel={1} />
+                <div className="w-96 flex flex-col border-l border-gray-100">
+                    <Tab.Group>
+                        <Tab.Panels className="flex-1 p-1 overflow-auto bg-white">
+                            <Tab.Panel>
+                                <ValueInspector value={getCompletionValue(results[selected].candidate)} expandLevel={1} />
+                            </Tab.Panel>
+                            <Tab.Panel>
+                                {docs.get(results[selected].candidate)}
+                            </Tab.Panel>
+                        </Tab.Panels>
+                        <Tab.List className="flex flex-row items-stretch text-xs bg-gray-50">
+                            <Tab
+                                className={({ selected }) => `
+                                    flex-1 rounded-lg text-center m-1
+                                    ${selected ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}
+                                `}
+                            >
+                                value
+                            </Tab>
+                            <Tab
+                                className={({ selected: sel }) => `
+                                    flex-1 rounded-lg text-center m-1
+                                    ${
+                                        sel ? 'bg-white shadow-sm text-gray-900'
+                                        : docs.has(results[selected].candidate) ? 'text-gray-600'
+                                        : 'text-gray-400'
+                                    }
+                                `}
+                                disabled={!docs.has(results[selected].candidate)}
+                            >
+                                docs
+                            </Tab>
+                        </Tab.List>
+                    </Tab.Group>
                 </div>
             }
         </div>
