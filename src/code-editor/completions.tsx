@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Tab } from '@headlessui/react'
 import { VList, VListHandle } from 'virtua'
 
 import babelGenerator from '@babel/generator'
@@ -6,6 +7,7 @@ import * as babel from '@babel/types'
 
 import * as block from '../block'
 import { computeExprUNSAFE, parseJSExpr } from '../logic/compute'
+import { DOCS } from '../docs'
 
 import { Keybinding, Keybindings } from '../ui/shortcuts'
 import { ValueInspector } from '../ui/value'
@@ -14,24 +16,30 @@ import { useSelectionRect } from '../ui/hooks'
 
 import { CodeEditorHandle } from '.'
 import { SplitText, splitByPosition } from './useEditable'
-import { Tab } from '@headlessui/react'
 
+
+export type CompletionTab = 'value' | 'docs'
 
 // The resulting ui should lie anywhere near codeEditor, where both have the same relative parent
 export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHandle>, code: string, env: block.Environment, codeOffset: number = 0) {
-    const [isCompletionVisible, setCompletionVisible] = React.useState(false)
+    const [completionVisibilty, setCompletionVisibility] = React.useState<CompletionTab | null>(null)
     const completionsRef = React.useRef<CompletionsHandle>(null)
+
+    function findDocsFor(value: any) {
+        return DOCS.get(value)
+    }
 
     const shortcuts: Keybindings = [
         {
             description: "completions",
             bindings: [
-                [["C-Space"],   'none', 'toggle', () => { setCompletionVisible(visible => !visible) }],
-                ...(isCompletionVisible ? [
+                [["C-Space"],   'none', 'toggle', () => { setCompletionVisibility(visibility => visibility !== 'value' ? 'value' : null) }],
+                [["C-D"],       'none', 'docs',   () => { setCompletionVisibility(visibility => visibility !== 'docs' ? 'docs' : null) }],
+                ...(completionVisibilty ? [
                     [["ArrowUp", "C-P"],   'none', 'previous', () => { completionsRef.current?.moveSelection(-1) }],
                     [["ArrowDown", "C-N"], 'none', 'next',     () => { completionsRef.current?.moveSelection(1) }],
                     [["Tab"],              'none', 'complete',   () => { completionsRef.current && onComplete(completionsRef.current.selected) }],
-                    [["Escape"],           'none', 'close',    () => { setCompletionVisible(false) }],
+                    [["Escape"],           'none', 'close',    () => { setCompletionVisibility(null) }],
                 ] : []) as Keybinding[]
             ]
         }
@@ -64,11 +72,11 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
 
     function onBlur(event: React.FocusEvent) {
         if (!event.currentTarget.contains(event.relatedTarget)) {
-            setCompletionVisible(false)
+            setCompletionVisibility(null)
         }
     }
 
-    const ui = isCompletionVisible && caretRect && (
+    const ui = completionVisibilty && caretRect && (
         <div
             className="border border-gray-300 bg-gray-50 shadow"
             style={{
@@ -82,6 +90,9 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
                 splitCode={splitCode}
                 env={env}
                 onSelectSearchResult={onComplete}
+                tab={completionVisibilty}
+                onChangeTab={setCompletionVisibility}
+                docs={findDocsFor}
                 />
         </div>
     )
@@ -99,11 +110,21 @@ export interface Completion extends PropertyDescriptor {
     object: Object
 }
 
+export const EXCLUDED_PROTOTYPE_COMPLETIONS = new Set([
+    Object.prototype,
+])
+
 export function propertyCompletions(object: Object) {
+    if (object === null) { return [] }
+    const proto = Object.getPrototypeOf(object)
     return (
-        Object.entries(
-            Object.getOwnPropertyDescriptors(object)
-        )
+        Object.entries({
+            ...(
+                EXCLUDED_PROTOTYPE_COMPLETIONS.has(proto) ? {}
+                : Object.getOwnPropertyDescriptors(proto)
+            ),
+            ...Object.getOwnPropertyDescriptors(object),
+        })
             .map(([name, desc]) =>
                 ({ ...desc, name, object })
             )
@@ -150,11 +171,13 @@ export interface CompletionsProps {
     splitCode: SplitText
     env: block.Environment
     onSelectSearchResult(searchResult: SearchResult<Completion>): void
-    docs?: WeakMap<any, string>
+    tab: CompletionTab
+    onChangeTab(tab: CompletionTab): void
+    docs?: DocsProvider
 }
 
 export const Completions = React.forwardRef(function Completions(
-    { splitCode, env, onSelectSearchResult, docs }: CompletionsProps,
+    { splitCode, env, onSelectSearchResult, tab, onChangeTab, docs }: CompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const allBefore = [
@@ -166,7 +189,16 @@ export const Completions = React.forwardRef(function Completions(
         () => tryParseAnySuffix(splitCode.lineBefore),
     )
     const search = (parsed && parseCompletionSearch(parsed, env)) ?? EMPTY_SEARCH
-    return <RenderCompletions ref={ref} completionSearch={search} onSelectSearchResult={onSelectSearchResult} docs={docs} />
+    return (
+        <RenderCompletions
+            ref={ref}
+            completionSearch={search}
+            onSelectSearchResult={onSelectSearchResult}
+            tab={tab}
+            onChangeTab={onChangeTab}
+            docs={docs}
+            />
+    )
 })
 
 function tryParseAnySuffix(code: string) {
@@ -206,11 +238,15 @@ export interface CompletionsHandle {
 export interface RenderCompletionsProps {
     completionSearch: CompletionSearch
     onSelectSearchResult(searchResult: SearchResult<Completion>): void
-    docs?: WeakMap<any, string>
+    tab: CompletionTab
+    onChangeTab(tab: CompletionTab): void
+    docs?: DocsProvider
 }
 
+export type DocsProvider = (value: any) => undefined | React.FC
+
 export const RenderCompletions = React.forwardRef(function RenderCompletions(
-    { completionSearch, onSelectSearchResult, docs = new WeakMap() }: RenderCompletionsProps,
+    { completionSearch, onSelectSearchResult, tab, onChangeTab, docs = () => undefined }: RenderCompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const vlistRef = React.useRef<VListHandle>(null)
@@ -231,6 +267,58 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
         }),
         [moveSelection, select, results, selected],
     )
+
+    const selectedDocs = results.length > selected && docs(getCompletionValue(results[selected].candidate))
+    const selectedValue = results.length > selected ? getCompletionValue(results[selected].candidate) : undefined
+    const TABS = {
+        value: {
+            panel: (
+                <Tab.Panel key="value">
+                    <ValueInspector value={selectedValue} expandLevel={1} />
+                </Tab.Panel>
+            ),
+            button: (
+                <Tab
+                    key="value"
+                    className={({ selected }) => `
+                        flex-1 rounded-lg text-center m-1
+                        ${selected ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}
+                    `}
+                >
+                    value
+                </Tab>
+            ),
+        },
+        docs: {
+            panel: (
+                <Tab.Panel key="docs">
+                    {selectedDocs ?
+                        React.createElement(selectedDocs)
+                    :
+                        <div className="italic text-center text-sm text-gray-700">No documentation found</div>
+                    }
+                </Tab.Panel>
+            ),
+            button: (
+                <Tab
+                    key="docs"
+                    className={({ selected }) => `
+                        flex-1 rounded-lg text-center m-1
+                        ${
+                            selected ? 'bg-white shadow-sm text-gray-900'
+                            : 'text-gray-600'
+                        }
+                    `}
+                >
+                    docs
+                </Tab>
+            ),
+        },
+    }
+    const tabIndex = Object.keys(TABS).indexOf(tab)
+    function onChangeTabIndex(index: number) {
+        onChangeTab((Object.keys(TABS) as CompletionTab[])[index])
+    }
 
     return (
         <div className="flex flex-row items-stretch">
@@ -253,38 +341,13 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
                 ))}
             </VList>
             {results.length > selected &&
-                <div className="w-96 flex flex-col border-l border-gray-100">
-                    <Tab.Group>
+                <div className="w-96 flex flex-col max-h-[12rem] border-l border-gray-100">
+                    <Tab.Group selectedIndex={tabIndex} onChange={onChangeTabIndex}>
                         <Tab.Panels className="flex-1 p-1 overflow-auto bg-white">
-                            <Tab.Panel>
-                                <ValueInspector value={getCompletionValue(results[selected].candidate)} expandLevel={1} />
-                            </Tab.Panel>
-                            <Tab.Panel>
-                                {docs.get(results[selected].candidate)}
-                            </Tab.Panel>
+                            {Object.values(TABS).map(tab => tab.panel)}
                         </Tab.Panels>
                         <Tab.List className="flex flex-row items-stretch text-xs bg-gray-50">
-                            <Tab
-                                className={({ selected }) => `
-                                    flex-1 rounded-lg text-center m-1
-                                    ${selected ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'}
-                                `}
-                            >
-                                value
-                            </Tab>
-                            <Tab
-                                className={({ selected: sel }) => `
-                                    flex-1 rounded-lg text-center m-1
-                                    ${
-                                        sel ? 'bg-white shadow-sm text-gray-900'
-                                        : docs.has(results[selected].candidate) ? 'text-gray-600'
-                                        : 'text-gray-400'
-                                    }
-                                `}
-                                disabled={!docs.has(results[selected].candidate)}
-                            >
-                                docs
-                            </Tab>
+                            {Object.values(TABS).map(tab => tab.button)}
                         </Tab.List>
                     </Tab.Group>
                 </div>
