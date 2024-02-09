@@ -670,7 +670,7 @@ function MainView<State>({
     }
 
     return (
-        <div className={`mb-[80cqh] bg-white ${sidebarVisible ? "px-1" : "px-10"}`}>
+        <div className={`mb-[80cqh] bg-white relative ${sidebarVisible ? "px-1" : "px-10"}`}>
             <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />
             {innerBlock.view({
                 ref: innerRef,
