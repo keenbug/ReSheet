@@ -3,7 +3,7 @@ export class DocsMap {
     private other: Map<any, React.FC> = new Map()
 
     get(key: any): undefined | React.FC {
-        if (typeof key === 'object') {
+        if (typeof key === 'object' || typeof key === 'function') {
             return this.objects.get(key)
         }
         else {
@@ -12,7 +12,7 @@ export class DocsMap {
     }
 
     set(key: any, value: React.FC) {
-        if (typeof key === 'object') {
+        if (typeof key === 'object' || typeof key === 'function') {
             this.objects.set(key, value)
         }
         else {

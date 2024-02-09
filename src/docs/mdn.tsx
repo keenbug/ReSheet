@@ -143,7 +143,7 @@ function renderMarkdown(next: () => React.ReactChild, node: MarkdownToJSX.Parser
         case '3': { // [RuleType.codeBlock]
             const lang = { 'js-nolint': 'js' }[node.lang] ?? node.lang
             return (
-                <pre className="relative my-1 p-1 bg-gray-50 border border-gray-100 rounded">
+                <pre className="my-1 p-1 bg-gray-50 border border-gray-100 rounded">
                     <CodeView language={lang} code={node.text} />
                 </pre>
             )
@@ -224,6 +224,9 @@ export default function gatherMdnDocs(docs: DocsMap) {
             // For classes:
             const proto = globalVar.prototype
             if (proto) {
+                if (mdnContent[globalDocsKey]?.['index.md']) {
+                    docs.set(proto, docsRenderer(mdnContent[globalDocsKey]['index.md']))
+                }
                 for (const protoProperty of Object.getOwnPropertyNames(proto)) {
                     const propertyDocsKey = protoProperty.toLowerCase()
                     if (mdnContent[globalDocsKey]?.[propertyDocsKey]?.['index.md']) {

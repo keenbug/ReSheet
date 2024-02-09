@@ -78,7 +78,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
 
     const ui = completionVisibilty && caretRect && (
         <div
-            className="border border-gray-300 bg-gray-50 shadow"
+            className="border border-gray-300 bg-gray-50 shadow shadow-gray-200"
             style={{
                 position: 'absolute',
                 left: caretRect.left + 'px',
