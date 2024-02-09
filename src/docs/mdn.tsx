@@ -1,40 +1,103 @@
 import mdnContent from "./sources/mdn/js-global-objects"
 import { DocsMap } from "./DocsMap"
 
-import Markdown from 'markdown-to-jsx'
+import Markdown, { MarkdownToJSX, RuleType } from 'markdown-to-jsx'
 import styled from "styled-components"
+import { CodeView } from "../code-editor"
 
 const StyledMarkdown = styled(Markdown)`
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+
+
+    /* Headers */
 
     & h1 {
-        font-size: 1.5rem;
+        font-weight: 500;
+        font-size: 1.25rem;
+        margin-bottom: 0.375rem;
     }
 
     & h2 {
-        font-size: 1.3rem;
-        margin-top: 1.5rem;
+        font-weight: 500;
+        font-size: 1rem;
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
     }
 
     & h3 {
-        font-size: 1rem;
-        margin-top: 1.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
     }
 
     & h4 {
-        font-size: 0.72rem;
+        font-weight: 500;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.25rem;
     }
 
     & h5 {
-        font-size: 0.55rem;
+        font-weight: 500;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.25rem;
     }
 
     & h6 {
-        font-size: 0.48rem;
+        font-weight: 500;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.25rem;
     }
 
-    & p {
-        margin: 0.75rem 0;
+
+    /* Paragraphs */
+
+    & p + p {
+        margin: 0.625rem 0;
+    }
+
+
+    /* Lists */
+
+    & ul ul {
+        padding-inline-start: 1rem;
+    }
+
+    & li + li {
+        margin-top: 0.5rem;
+    }
+
+
+    /* Tables */
+
+    & table {
+        margin: 1rem 0;
+        overflow-x: auto;
+    }
+
+    & td,
+    & th {
+        text-align: start;
+        padding: 0.25rem 0.5rem;
+    }
+
+    & th {
+        background-color: rgb(243 244 246); /* gray-100 */
+        font-weight: bold;
+    }
+
+    & tr:nth-child(even) {
+        background-color: rgb(243 244 246); /* gray-100 */
+    }
+
+
+    /* Links */
+
+    a {
+        color: rgb(30 64 175); /* blue-800 */
     }
 `
 
@@ -51,7 +114,7 @@ function matchArgs(str: string) {
 
 const MDN_KUMA_FUNCS = {
     jsxref(name: string) {
-        return '*' + name.replace(/\//g, '.') + '*'
+        return '`' + name.replace(/\//g, '.') + '`'
     },
     domxref(name: string) {
         return '*' + name + '*'
@@ -72,6 +135,37 @@ const MDN_KUMA_FUNCS = {
     optional_inline() { return '' },
 }
 
+function renderMarkdown(next: () => React.ReactChild, node: MarkdownToJSX.ParserResult, renderChildren: MarkdownToJSX.RuleOutput, state: MarkdownToJSX.State) {
+    // FIXME: I'd like to use RuleType.link, but the combination of RuleType
+    // being a const enum and tsc isolatedModules does not allow it. I hope this
+    // gets fixed in a future version of markdown-to-jsx
+    switch (node.type) {
+        case '3': { // [RuleType.codeBlock]
+            const lang = { 'js-nolint': 'js' }[node.lang] ?? node.lang
+            return (
+                <pre className="relative my-1 p-1 bg-gray-50 border border-gray-100 rounded">
+                    <CodeView language={lang} code={node.text} />
+                </pre>
+            )
+        }
+
+        case '5': // [RuleType.codeInline]
+            return (
+                <code className="bg-gray-50 shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)] rounded px-0.5">{node.text}</code>
+            )
+        
+        case '15': { // [RuleType.link]
+            const target = node.target.startsWith('/') ? 'https://developer.mozilla.org' + node.target : node.target
+            return (
+                <a title={node.title} target="_blank" href={target}>
+                    {renderChildren(node.children, state)}
+                </a>
+            )
+        }
+    }
+    return next()
+}
+
 function docsRenderer(docs: string) {
     const rendered = docs
         .replace(/^---$.*^---$/ms, '')
@@ -85,7 +179,8 @@ function docsRenderer(docs: string) {
                 return str
             }
         })
-        .replace(/(^#+\s+Specifications$.*)|(^#+\s+Browser compatibility$.*)|(^#+\s+See also$.*)/ms, '')
+        .replace(/^#+\s+Specifications$\n(^$\n|^[^#\n].*$\n)*/m, '')
+        .replace(/^#+\s+Browser compatibility$\n(^$\n|^[^#\n].*$\n)*/m, '')
 
     const sourcePath = docs
         .match(/^---$(.*)^---$/ms)[1]
@@ -95,8 +190,8 @@ function docsRenderer(docs: string) {
     return function MDNDoc() {
         return (
             <div>
-                <StyledMarkdown>{rendered}</StyledMarkdown>
-                <p className="text-xs my-2"><a className="text-blue-800" href={sourceLink}>Source: MDN</a></p>
+                <StyledMarkdown options={{ renderRule: renderMarkdown }}>{rendered}</StyledMarkdown>
+                <p className="text-xs my-2"><a className="text-blue-800" target="_blank" href={sourceLink}>Source: MDN</a></p>
             </div>
         )
     }
@@ -117,7 +212,7 @@ export default function gatherMdnDocs(docs: DocsMap) {
         else if (mdnContent[globalDocsKey]?.['index.md']) {
             docs.set(globalVar, docsRenderer(mdnContent[globalDocsKey]['index.md']))
         }
-        if (globalVar !== null && typeof globalVar === 'object') {
+        if (globalVar !== null && typeof globalVar === 'object' || typeof globalVar === 'function') {
             for (const objectProperty of Object.getOwnPropertyNames(globalVar)) {
                 const propertyDocsKey = objectProperty.toLowerCase()
                 if (mdnContent[globalDocsKey]?.[propertyDocsKey]?.['index.md']) {
