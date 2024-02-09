@@ -191,7 +191,9 @@ function docsRenderer(docs: string) {
         return (
             <div>
                 <StyledMarkdown options={{ renderRule: renderMarkdown }}>{rendered}</StyledMarkdown>
-                <p className="text-xs my-2"><a className="text-blue-800" target="_blank" href={sourceLink}>Source: MDN</a></p>
+                <div className="text-xs mt-4">
+                    <a className="text-blue-800" target="_blank" href={sourceLink}>Source: MDN</a>
+                </div>
             </div>
         )
     }

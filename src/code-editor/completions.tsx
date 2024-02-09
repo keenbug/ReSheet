@@ -146,10 +146,10 @@ export function getCompletionValue(completion: Completion) {
 
 
 
-type CompletionSearch = { search: string, options: Completion[], end: number }
-const EMPTY_SEARCH: CompletionSearch = { search: '', options: [], end: 0 }
+type CompletionOptions = { search: string, options: Completion[], end: number }
+const noCompletionOptions: CompletionOptions = { search: '', options: [], end: 0 }
 
-function parseCompletionSearch(expr: babel.Expression, env: block.Environment): CompletionSearch {
+function findCompletions(expr: babel.Expression, env: block.Environment): CompletionOptions {
     try {
         if (expr.type === 'MemberExpression' && expr.property.type === 'Identifier') {
             const obj = computeExprUNSAFE(babelGenerator(expr.object).code, env)
@@ -160,12 +160,15 @@ function parseCompletionSearch(expr: babel.Expression, env: block.Environment): 
             return { search: expr.name, options: [ ...propertyCompletions(env), ...propertyCompletions(globalThis) ], end: expr.end }
         }
         if (expr.type === 'CallExpression' && expr.callee.type !== 'V8IntrinsicIdentifier') {
-            return parseCompletionSearch(expr.callee, env)
+            return findCompletions(expr.callee, env)
+        }
+        if (expr.type === 'NewExpression' && expr.callee.type !== 'V8IntrinsicIdentifier') {
+            return findCompletions(expr.callee, env)
         }
     }
     catch (e) {}
 
-    return EMPTY_SEARCH
+    return noCompletionOptions
 }
 
 
@@ -188,11 +191,11 @@ export const Completions = React.forwardRef(function Completions(
         splitCode.lineBefore
     ].join('\n')
     const parsed = looseParseCode(allBefore)
-    const search = (parsed && parseCompletionSearch(parsed, env)) ?? EMPTY_SEARCH
+    const search = (parsed && findCompletions(parsed, env)) ?? noCompletionOptions
     return (
         <RenderCompletions
             ref={ref}
-            completionSearch={search}
+            completionOptions={search}
             offset={allBefore.length - search.end}
             onSelectSearchResult={onSelectSearchResult}
             tab={tab}
@@ -248,7 +251,7 @@ export interface CompletionsHandle {
 }
 
 export interface RenderCompletionsProps {
-    completionSearch: CompletionSearch
+    completionOptions: CompletionOptions
     offset: number
     onSelectSearchResult(searchResult: SearchResult<Completion>, offset: number): void
     tab: CompletionTab
@@ -259,7 +262,7 @@ export interface RenderCompletionsProps {
 export type DocsProvider = (value: any) => undefined | React.FC
 
 export const RenderCompletions = React.forwardRef(function RenderCompletions(
-    { completionSearch, offset, onSelectSearchResult, tab, onChangeTab, docs = () => undefined }: RenderCompletionsProps,
+    { completionOptions: completionSearch, offset, onSelectSearchResult, tab, onChangeTab, docs = () => undefined }: RenderCompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const vlistRef = React.useRef<VListHandle>(null)
