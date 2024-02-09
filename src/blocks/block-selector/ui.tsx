@@ -5,20 +5,23 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '../../block'
 import { Block, BlockRef, Environment } from '../../block'
-import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { CodeView, CodeEditor } from '../../code-editor'
 import { computeExpr } from '../../logic/compute'
+
+import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
+import { useShortcuts } from '../../ui/shortcuts'
+
+import { CodeView, CodeEditor, CodeEditorHandle } from '../../code-editor'
+import { useCompletionsOverlay } from '../../code-editor/completions'
 
 import { BlockSelectorState } from './model'
 import * as Model from './model'
-import { useShortcuts } from '../../ui/shortcuts'
 
 
 function ACTIONS(
     update: EffectfulUpdater<BlockSelectorState>,
-    inputRef: React.MutableRefObject<HTMLElement>,
-    innerBlockRef: React.MutableRefObject<BlockRef>,
+    codeEditor: React.RefObject<CodeEditorHandle>,
+    innerBlockRef: React.RefObject<BlockRef>,
     blockLibrary: Environment
 ) {
     return {
@@ -39,7 +42,7 @@ function ACTIONS(
                         innerBlock: state.innerBlock,
                         innerBlockState: state.innerBlockState,
                     },
-                    effect() { inputRef.current?.focus() },
+                    effect() { codeEditor.current?.element?.focus() },
                 }
             })
         },
@@ -65,13 +68,13 @@ function ACTIONS(
         cancelLoading() {
             update(state => ({
                 state: Model.init(state.expr),
-                effect() { inputRef.current?.focus() },
+                effect() { codeEditor.current?.element?.focus() },
             }))
         },
     
-        chooseBlock(expr: string, env: Environment) {
+        chooseBlock(expr: string, blockEnv: Environment) {
             update((state: BlockSelectorState) => ({
-                state: Model.chooseBlock(expr, state, env, blockLibrary),
+                state: Model.chooseBlock(expr, state, blockEnv),
                 effect() { innerBlockRef.current?.focus() },
             }))
         },
@@ -100,14 +103,16 @@ export const BlockSelectorUI = React.forwardRef(
         const { blockLibrary } = props
 
         const updateWithEffect = useEffectfulUpdate(update)
-        const inputRef = React.useRef<HTMLElement>()
+        const codeEditor = React.useRef<CodeEditorHandle>()
         const innerBlockRef = React.useRef<BlockRef>()
 
         const [blockExpr, setBlockExpr] = React.useState<string>(state.expr)
+        const blockEnv = { ...blockLibrary, ...env }
+        const completions = useCompletionsOverlay(codeEditor, blockExpr, blockEnv)
 
         const actions = React.useMemo(
-            () => ACTIONS(updateWithEffect, inputRef, innerBlockRef, blockLibrary),
-            [updateWithEffect, inputRef, innerBlockRef, blockLibrary],
+            () => ACTIONS(updateWithEffect, codeEditor, innerBlockRef, blockLibrary),
+            [updateWithEffect, codeEditor, innerBlockRef, blockLibrary],
         )
 
         React.useImperativeHandle(
@@ -117,7 +122,7 @@ export const BlockSelectorUI = React.forwardRef(
                     case 'choose':
                         return {
                             focus(options) {
-                                inputRef.current?.focus(options)
+                                codeEditor.current?.element?.focus(options)
                             }
                         }
                     case 'run':
@@ -133,11 +138,12 @@ export const BlockSelectorUI = React.forwardRef(
 
         const chooseBindingProps = useShortcuts(
             [
+                ...completions.shortcuts,
                 {
                     description: "selector",
                     bindings: [
-                        [["C-Enter"], 'none', 'select block', () => { actions.chooseBlock(blockExpr, env) }],
-                        [["Escape"], 'none', 'cancel', () => { actions.cancelChoose() }],
+                        [["C-Enter"], 'none', 'select block', () => { actions.chooseBlock(blockExpr, blockEnv) }],
+                        [["Escape"],  'none', 'cancel',       () => { actions.cancelChoose() }],
                     ]
                 }
             ],
@@ -199,19 +205,24 @@ export const BlockSelectorUI = React.forwardRef(
                 )
 
             case 'choose':
-                const blockCmdResult = computeExpr(blockExpr, { ...blockLibrary, ...env })
+                const blockCmdResult = computeExpr(blockExpr, blockEnv)
+                function onBlur(event: React.FocusEvent) {
+                    completions.onBlur(event)
+                    chooseBindingProps.onBlur(event)
+                }
                 return (
-                    <div className="flex flex-col space-y-1 flex-1" {...chooseBindingProps}>
-                        <CodeEditor ref={inputRef} code={blockExpr} onUpdate={setBlockExpr} />
+                    <div className="flex flex-col space-y-1 flex-1" {...chooseBindingProps} onBlur={onBlur}>
+                        <CodeEditor ref={codeEditor} code={blockExpr} onUpdate={setBlockExpr} />
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
                                 env={env}
                                 block={blockCmdResult}
-                                onChooseBlock={() => actions.chooseBlock(blockExpr, env)}
+                                onChooseBlock={() => actions.chooseBlock(blockExpr, blockEnv)}
                                 />
                         :
                             <ValueInspector value={blockCmdResult} />
                         }
+                        {completions.ui}
                     </div>
                 )
         }

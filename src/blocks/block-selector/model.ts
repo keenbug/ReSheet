@@ -43,10 +43,9 @@ export function init(
 export function chooseBlock(
     expr: string,
     state: BlockSelectorState,
-    env: Environment,
-    blockLibrary: Environment
+    blockEnv: Environment,
 ): BlockSelectorState {
-    const blockCmdResult = computeExpr(expr, { ...blockLibrary, ...env })
+    const blockCmdResult = computeExpr(expr, blockEnv)
     if (block.isBlock(blockCmdResult)) {
         return {
             ...state,

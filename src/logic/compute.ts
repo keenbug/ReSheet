@@ -50,21 +50,16 @@ export function cleanupEnv(env: Environment) {
 }
 
 
-export function runExprAst(exprAst: babel.types.Expression, exprSource: string, env: Environment) {
-    try {
-        const cleanEnv = cleanupEnv(env)
-        const programAst = programReturnExprAst(exprAst)
-        const isAsync = containsToplevelAsync(babelAst.file(programAst))
-        const FuncConstructor = isAsync ? AsyncFunction : Function
-        const exprFunc = FuncConstructor(
-            ...Object.keys(cleanEnv),
-            transformJSAst(programAst, exprSource),
-        )
-        return exprFunc(...Object.values(cleanEnv))
-    }
-    catch (e) {
-        return e
-    }
+export function runExprAstUNSAFE(exprAst: babel.types.Expression, exprSource: string, env: Environment) {
+    const cleanEnv = cleanupEnv(env)
+    const programAst = programReturnExprAst(exprAst)
+    const isAsync = containsToplevelAsync(babelAst.file(programAst))
+    const FuncConstructor = isAsync ? AsyncFunction : Function
+    const exprFunc = FuncConstructor(
+        ...Object.keys(cleanEnv),
+        transformJSAst(programAst, exprSource),
+    )
+    return exprFunc(...Object.values(cleanEnv))
 }
 
 
@@ -73,12 +68,23 @@ export const computeExpr = (code: string | null, env: Environment) => {
     if (!code?.trim()) { return }
     try {
         const ast = parseJSExpr(code)
-        return runExprAst(ast, code, env)
+        try {
+            return runExprAstUNSAFE(ast, code, env)
+        }
+        catch (e) {
+            return e
+        }
     }
     catch (e) {
         annotateCodeFrame(e, code)
         return e
     }
+}
+
+export const computeExprUNSAFE = (code: string | null, env: Environment) => {
+    if (!code?.trim()) { return }
+    const ast = parseJSExpr(code)
+    return runExprAstUNSAFE(ast, code, env)
 }
 
 

@@ -1,16 +1,17 @@
 import * as React from 'react'
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
-import { ViewResult } from '../../ui/value'
-import { computeExpr, parseJSExpr } from '../../logic/compute'
 import * as block from '../../block'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Result, resultFrom } from '../../logic/result'
+import { computeExpr, parseJSExpr } from '../../logic/compute'
+
+import { ViewResult } from '../../ui/value'
 import { BlockPreview } from '../block-selector/ui'
 import { any, assertValid, boolean, loosely, strict, string } from '../../utils/validate'
-import { Result, resultFrom } from '../../logic/result'
-import { ViewCompletions } from '../../ui/completions'
 
 
 export type Note =
@@ -21,19 +22,40 @@ export type Note =
     | { type: 'checkbox', checked: boolean, text: string }
 
 
+export function getCode(note: Note) {
+    switch (note.type) {
+        case 'expr':
+        case 'block':
+            return note.code
+
+        default:
+            return null
+    }
+}
+
+export function getPrefix(note: Note) {
+    switch (note.type) {
+        case 'expr': return EXPR_PREFIX
+        case 'block': return BLOCK_PREFIX
+        default: return ''
+    }
+}
+
+
+export const EXPR_PREFIX = '='
+export const BLOCK_PREFIX = '/'
+
 export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<Note>): Note {
     const setResult = block.subUpdater(setNoteResult, updateNote)
 
-    const EXPR = '='
-    if (input.startsWith(EXPR)) {
-        const expr = input.slice(EXPR.length)
+    if (input.startsWith(EXPR_PREFIX)) {
+        const expr = input.slice(EXPR_PREFIX.length)
         const result = computeExprResult(expr, env, setResult)
         return { type: 'expr', code: expr, result }
     }
 
-    const BLOCK = '/'
-    if (input.startsWith(BLOCK)) {
-        const expr = input.slice(BLOCK.length)
+    if (input.startsWith(BLOCK_PREFIX)) {
+        const expr = input.slice(BLOCK_PREFIX.length)
         const result = computeExprResult(expr, env, setResult)
         return { type: 'block', isInstantiated: false, code: expr, result }
     }
@@ -314,13 +336,13 @@ const ViewBlock = React.memo(
         if (note.isInstantiated === true) { return null }
 
         if (note.result.type !== 'immediate' || !block.isBlock(note.result.value)) {
-            return <ViewCompletions code={note.code} env={env} default={<ViewResult result={note.result} />} />
+            return <ViewResult result={note.result} />
         }
 
         const innerBlock = note.result.value
         return (
             <>
-                <ViewCompletions code={note.code} env={env} default={<ViewResult result={note.result} />} />
+                <ViewResult result={note.result} />
                 <BlockPreview block={innerBlock} env={env} onChooseBlock={instantiateBlock} />
             </>
         )
@@ -362,16 +384,10 @@ interface ViewExprResultProps {
 
 const ViewExprResult = React.memo(
     function ViewExprResult({ note, env, isFocused }: ViewExprResultProps) {
-        if (isLiteral(note.code)) {
-            return null
-        }
+        if (isLiteral(note.code)) { return null }
+        if (note.result.type === 'immediate' && note.result.value === undefined) { return null }
 
-        if (!isFocused) {
-            if (note.result.type === 'immediate' && note.result.value === undefined) { return null }
-            return <ViewResult result={note.result} />
-        }
-
-        return <ViewCompletions code={note.code} env={env} default={<ViewResult result={note.result} />} />
+        return <ViewResult result={note.result} />
     },
     (before, after) => (
         before.note.code === after.note.code

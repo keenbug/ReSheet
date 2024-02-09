@@ -1,47 +1,25 @@
 import * as React from 'react'
-import styled, { css } from 'styled-components'
 
-import { classed, getFullKey } from '../ui/utils'
+import { getFullKey } from '../ui/utils'
 import { Highlight } from 'prism-react-renderer'
 import theme from './theme'
 import { Editable, changeLinesContainingSelection, splitByPosition, useEditable } from './useEditable'
 import { clampBetween } from '../utils'
 
 
-/**************** Code Editor *****************/
-
-const CodeWithPlaceholder = styled.code`
-    ${({ placeholder }) =>
-        placeholder ?
-            css`
-                &:empty:after {
-                    content: "${placeholder}";
-                    color: #bbb;
-                    font-size: 0.75rem;
-                }
-            `
-        :
-            ''
-    }
-`
-
-const CodeContent = classed<any>(CodeWithPlaceholder)`block break-word`
-
 // FIXME: I think the type is not 100% correct, theoretically it should reject container="div"
-export type CodeViewProps<ContainerType extends React.ComponentType = typeof CodeContent> = React.ComponentPropsWithoutRef<ContainerType> & {
+export type CodeViewProps<ContainerType extends React.ComponentType> = React.ComponentPropsWithoutRef<ContainerType> & {
     code: string
     container?: ContainerType
     language?: string
-    placeholder?: string
 }
 
-export const CodeView = React.forwardRef<HTMLElement, CodeViewProps>(
+export const CodeView = React.forwardRef<HTMLElement, CodeViewProps<any>>(
     function CodeView(
         {
             code,
-            container: Container = CodeContent,
+            container: Container = 'code',
             language = 'jsx',
-            placeholder = '<code/>',
             className = '',
             style = {},
             ...props
@@ -64,7 +42,6 @@ export const CodeView = React.forwardRef<HTMLElement, CodeViewProps>(
                             ...highlightStyle,
                             ...style,
                         }}
-                        placeholder={placeholder}
                         {...props}
                     >
                         {tokens.map((line, i) => (
@@ -86,8 +63,13 @@ export const CodeView = React.forwardRef<HTMLElement, CodeViewProps>(
 )
 
 
-export type CodeEditorProps = CodeViewProps & {
+export type CodeEditorProps = CodeViewProps<any> & {
     onUpdate: (code: string) => void
+}
+
+export interface CodeEditorHandle {
+    editable: Editable,
+    element: HTMLElement,
 }
 
 export const CodeEditor = React.forwardRef(
@@ -98,7 +80,7 @@ export const CodeEditor = React.forwardRef(
             style,
             ...props
         }: CodeEditorProps,
-        ref: React.Ref<HTMLElement>
+        ref: React.Ref<CodeEditorHandle>
     ) {
         const codeViewRef = React.useRef<HTMLElement>()
         const onChange = React.useCallback((code: string) =>
@@ -107,7 +89,13 @@ export const CodeEditor = React.forwardRef(
             onUpdate(code.slice(0, -1))
         , [onUpdate])
         const editable = useEditable(codeViewRef, onChange)
-        React.useImperativeHandle(ref, () => codeViewRef.current, [codeViewRef.current])
+        React.useImperativeHandle(ref,
+            () => ({
+                editable,
+                element: codeViewRef.current,
+            }),
+            [editable, codeViewRef.current],
+        )
 
         const onKeyDown = React.useCallback(function onKeyDown(event: React.KeyboardEvent) {
             combineHandlers(event,

@@ -38,7 +38,7 @@ export function getFullKey(event: KeyboardEvent) {
         (event.ctrlKey || event.metaKey) ? "C-" : "",
         shiftStable && event.shiftKey ? "Shift-" : "",
         event.altKey ? "Alt-" : "",
-        keyName,
+        keyName === ' ' ? 'Space' : keyName,
     ].join('')
 }
 

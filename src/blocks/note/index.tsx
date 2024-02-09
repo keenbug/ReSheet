@@ -1,14 +1,18 @@
 import * as React from 'react'
 
-import { CodeEditor, CodeEditorProps } from '../../code-editor'
 import { BlockRef } from '../../block'
 import * as block from '../../block'
+import { getResultValue } from '../../logic/result'
+
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 import { EffectfulUpdater, useEffectfulState, useEffectfulUpdate } from '../../ui/hooks'
 import { getFullKey } from '../../ui/utils'
 import { assertValid, defined, number, string, validate } from '../../utils/validate'
-import { Note, ViewNote, evaluateNote, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
-import { getResultValue } from '../../logic/result'
+
+import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '../../code-editor'
+import { useCompletionsOverlay } from '../../code-editor/completions'
+
+import { Note, ViewNote, evaluateNote, getCode, getPrefix, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
 
 
 export interface NoteModel {
@@ -102,10 +106,11 @@ export const NoteUi = React.forwardRef(
         { state, update, env }: NoteUiProps,
         ref: React.Ref<BlockRef>
     ) {
-        const editorRef = React.useRef<HTMLDivElement>()
+        const editorRef = React.useRef<CodeEditorHandle>()
         const blockRef = React.useRef<BlockRef>()
         const updateFX = useEffectfulUpdate(update)
         const [isFocused, setFocused] = useEffectfulState(false)
+        const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
 
         React.useImperativeHandle(
             ref,
@@ -117,7 +122,7 @@ export const NoteUi = React.forwardRef(
                     else {
                         setFocused(() => ({
                             state: true,
-                            effect() { editorRef.current?.focus(options) },
+                            effect() { editorRef.current?.element?.focus(options) },
                         }))
                     }
                 }
@@ -135,10 +140,22 @@ export const NoteUi = React.forwardRef(
             })
         }, [update])
 
-        const actions = React.useMemo(() => ACTIONS(update, updateFX, blockRef), [update, updateFX, blockRef])
-        const shortcutProps = useShortcuts(keybindings(state, actions))
+        const isCode = (
+            state.note.type === 'expr'
+            || (state.note.type === 'block' && !state.note.isInstantiated)
+        )
 
-        const onUpdateCode = (code: string) => update(state => recompute({ ...state, input: code }, update, env))
+        const actions = React.useMemo(() => ACTIONS(update, updateFX, blockRef), [update, updateFX, blockRef])
+        const shortcutProps = useShortcuts([
+            ...isCode ? completions.shortcuts : [],
+            ...keybindings(state, actions),
+        ])
+
+        function onUpdateCode(input: string){
+            update(state =>
+                recompute({ ...state, input }, update, env)
+            )
+        }
 
         const preventEnter = React.useCallback(function preventEnter(event: React.KeyboardEvent) {
             if (getFullKey(event) === 'Enter') {
@@ -146,11 +163,6 @@ export const NoteUi = React.forwardRef(
             }
             shortcutProps.onKeyDown(event)
         }, [shortcutProps])
-
-        const isCode = (
-            state.note.type === 'expr'
-            || (state.note.type === 'block' && !state.note.isInstantiated)
-        )
 
         if (state.note.type === 'block' && state.note.isInstantiated === true) {
             return state.note.block.view({
@@ -169,7 +181,7 @@ export const NoteUi = React.forwardRef(
                 onClick={() => {
                     setFocused(() => ({
                         state: true,
-                        effect() { editorRef.current?.focus() }
+                        effect() { editorRef.current?.element?.focus() }
                     }))
                 }}
                 onFocus={event => {
@@ -180,6 +192,7 @@ export const NoteUi = React.forwardRef(
                     if (!event.currentTarget.contains(event.relatedTarget)) {
                         setFocused(() => ({ state: false }))
                     }
+                    completions.onBlur(event)
                     shortcutProps.onBlur(event)
                 }}
             >
@@ -202,6 +215,7 @@ export const NoteUi = React.forwardRef(
                         actions={actions}
                         />
                 }
+                {isCode && completions.ui}
             </div>
         )
     }
@@ -323,7 +337,7 @@ type NodeEditorProps = Omit<CodeEditorProps, 'language' | 'container' | 'classNa
 export const NoteEditor = React.forwardRef(
     function NoteEditor(
         { note, code, onKeyDown, ...props }: NodeEditorProps,
-        ref: React.Ref<HTMLDivElement>
+        ref: React.Ref<CodeEditorHandle>
     ) {
         const [style, className, language] = editorStyle(note)
 

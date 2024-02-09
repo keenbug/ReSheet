@@ -74,6 +74,7 @@ const observerSettings = {
 }
 
 function getCurrentRange() {
+    if (window.getSelection().rangeCount === 0) { return null }
     return window.getSelection().getRangeAt(0)
 }
 
@@ -107,7 +108,15 @@ function toString(element: HTMLElement): string {
     return content
 }
 
-export function splitByPosition(text: string, position: SelRange<number>) {
+export interface SplitText {
+    linesBefore: string[]
+    lineBefore: string
+    selection: string
+    lineAfter: string
+    linesAfter: string[]
+}
+
+export function splitByPosition(text: string, position: SelRange<number>): SplitText {
     const allBefore = text.slice(0, position.start)
     const selection = text.slice(position.start, position.end)
     const allAfter = text.slice(position.end)
@@ -138,6 +147,7 @@ function getPosition(element: HTMLElement): SelRange<number> {
     // of the text here is retrieved via a range, rather than traversal
     // as seen in makeRange()
     const range = getCurrentRange()
+    if (!range) { return { start: 0, end: 0 } }
 
     const untilStart = document.createRange()
     untilStart.setStart(element, 0)
@@ -472,6 +482,7 @@ function editableActions(
 
             // delete selection
             let range = getCurrentRange()
+            if (!range) { return }
             range.deleteContents()
             range.collapse()
 

@@ -3,74 +3,14 @@ import * as React from 'react'
 import { intersperse } from '../../utils'
 import { KeyComposition, Keybindings, ShortcutSuggestions, useKeybindingsHandler, KeyButtonContainer, KeyButton } from '../../ui/shortcuts'
 
-import { useEffectQueue, useEffectfulUpdate, useRefMap } from '../../ui/hooks'
+import { useEffectQueue } from '../../ui/hooks'
+import { renderMatch, useSearchResults } from '../../ui/search'
 
-
-type Match = [prefix: string, match: string][]
-
-function fuzzyMatch(search: string, text: string): null | Match {
-    if (search.length === 0) {
-        return [[text, '']]
-    }
-
-    const matchStart = text.indexOf(search[0])
-    if (matchStart < 0) {
-        return null
-    }
-
-    const prefix = text.slice(0, matchStart)
-    const textFromMatch = text.slice(matchStart)
-    const maxMatchLength = Math.min(search.length, textFromMatch.length)
-    let matchLength = 1
-    while (matchLength < maxMatchLength && search[matchLength] === textFromMatch[matchLength]) {
-        matchLength++
-    }
-    const fullMatch = textFromMatch.slice(0, matchLength)
-    const restText = textFromMatch.slice(matchLength)
-    const restSearch = search.slice(matchLength)
-
-    const restMatch = fuzzyMatch(restSearch, restText)
-    if (restMatch === null) {
-        return null
-    }
-
-    return [
-        [prefix, fullMatch],
-        ...restMatch,
-    ]
-}
-
-function renderMatch(match: Match) {
-    return match.map(([prefix, match]) => (
-        <>{prefix}<b>{match}</b></>
-    ))
-}
-
-function rankMatch(match: Match): number {
-    const joinedMatch = match.map(([_prefix, match]) => match).join('')
-    const joinedFull = match.flat().join('')
-    const matchRatio = joinedMatch.length / joinedFull.length
-    
-    const wordFit = match
-        .map(
-            ([prefix, match]) => (
-                prefix.length === 0 || prefix.endsWith(" ") ?  0.8
-                : match.includes(" ") ?  0.9
-                : 1
-            )
-        )
-        .reduce((a, b) => a + b, 0)
-
-    return wordFit * (2 - matchRatio)
-}
 
 export function CommandSearch({ bindings, close }: { bindings: Keybindings, close(): void }) {
     const inputRef = React.useRef<HTMLInputElement>()
     const focusBefore = React.useMemo(() => document.activeElement, [])
     const [searchText, setSearchText] = React.useState('')
-    const [activeBinding, setActiveBinding] = React.useState(0)
-    const [setResultRef, refMap] = useRefMap<number, HTMLDivElement>()
-    const updateActiveBinding = useEffectfulUpdate(setActiveBinding)
     const queueEffect = useEffectQueue()
 
     const flatBindings = (
@@ -83,56 +23,23 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
             .map((binding, index) => ({ ...binding, id: index }))
     )
 
-    const filteredBindings = flatBindings
-        .flatMap(binding => {
-            const match = fuzzyMatch(searchText, binding.description)
-            if (match === null) {
-                return []
-            }
-            return [
-                { ...binding, description: match }
-            ]
-        })
-        .sort((a, b) => rankMatch(a.description) - rankMatch(b.description))
-
-    function scrollToFocus(filteredIndex: number) {
-        refMap.get(filteredBindings[filteredIndex]?.id)?.scrollIntoView({ block: 'nearest' })
-    }
-
-    function moveActiveBinding(delta: number) {
-        updateActiveBinding(current => {
-            const newActive = (
-                (current + delta + /* so we don't get negative values: */ filteredBindings.length)
-                % filteredBindings.length
-            )
-            return {
-                state: newActive,
-                effect() { scrollToFocus(newActive) },
-            }
-        })
-    }
-
-    function onChange(event: React.ChangeEvent<HTMLInputElement>) {
-        setSearchText(event.target.value)
-        updateActiveBinding(() => ({
-            state: 0,
-            effect() { scrollToFocus(0) },
-        }))
-    }
+    const { setRef, results, selected, moveSelection, select } = (
+        useSearchResults(searchText, flatBindings, binding => binding.description)
+    )
 
     function runBindingAndClose(filteredIndex: number) {
-        if (filteredBindings[filteredIndex] !== undefined) {
+        if (results[filteredIndex] !== undefined) {
             close()
             if (focusBefore instanceof HTMLElement) {
                 focusBefore.focus()
             }
-            filteredBindings[filteredIndex].action()
+            results[filteredIndex].candidate.action()
         }
     }
 
     function runBinding(filteredIndex: number) {
-        if (filteredBindings[filteredIndex] !== undefined) {
-            filteredBindings[filteredIndex].action()
+        if (results[filteredIndex] !== undefined) {
+            results[filteredIndex].candidate.action()
             queueEffect(() => { inputRef.current?.focus() })
         }
     }
@@ -152,14 +59,14 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
     const localBindings: Keybindings = [
         {
             bindings: [
-                [['ArrowUp', 'C-P'],   'none', "prev result",  () => { moveActiveBinding(-1) }],
-                [['ArrowDown', 'C-N'], 'none', "next result",  () => { moveActiveBinding(1) }],
+                [['ArrowUp', 'C-P'],   'none', "prev result",  () => { moveSelection(-1) }],
+                [['ArrowDown', 'C-N'], 'none', "next result",  () => { moveSelection(1) }],
             ]
         },
         {
             bindings: [
-                [['Enter'],            'none', "run & close", () => { runBindingAndClose(activeBinding) }],
-                [['Alt-Enter'],        'none', "run",         () => { runBinding(activeBinding) }],
+                [['Enter'],            'none', "run & close", () => { runBindingAndClose(selected) }],
+                [['Alt-Enter'],        'none', "run",         () => { runBinding(selected) }],
             ]
         },
         {
@@ -187,36 +94,36 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                     placeholder="Search commands"
                     className="p-5 bg-transparent focus:outline-none border-b border-gray-200"
                     value={searchText}
-                    onChange={onChange}
+                    onChange={ev => setSearchText(ev.target.value)}
                     onKeyDown={handleKeybindings}
                     />
                 <div className="overflow-y-auto flex flex-col">
-                    {filteredBindings.length === 0 && (
+                    {results.length === 0 && (
                         <div className="text-gray-700 px-5 py-3">No results</div>
                     )}
-                    {filteredBindings.map((binding, index) => (
+                    {results.map((result, index) => (
                         <div
-                            ref={setResultRef(binding.id)}
-                            key={binding.id}
+                            ref={setRef(result.id)}
+                            key={result.id}
                             className={`
                                 flex flex-row space-x-3 justify-start items-baseline px-5 py-3 border-b border-gray-300
-                                cursor-pointer text-left ${index === activeBinding && "bg-gray-200"}
+                                cursor-pointer text-left ${index === selected && "bg-gray-200"}
                             `}
-                            onPointerMove={event => { if (event.movementX > 0 || event.movementY > 0) { setActiveBinding(index)  }}}
+                            onPointerEnter={() => select(index)}
                             onClick={() => { runBindingAndClose(index) }}
                         >
                             <span className="text-gray-500 text-sm">
-                                {binding.group}
+                                {result.candidate.group}
                             </span>
                             <span>
-                                {renderMatch(binding.description)}
+                                {renderMatch(result.match)}
                             </span>
-                            {index === activeBinding && <KeyButton className="text-sm" keyName="Enter" />}
+                            {index === selected && <KeyButton className="text-sm" keyName="Enter" />}
 
                             <div className="flex-1 flex flex-row justify-end space-x-1 text-sm">
                                 {intersperse(
                                     <span>/</span>,
-                                    binding.keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
+                                    result.candidate.keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
                                 )}
                             </div>
                         </div>

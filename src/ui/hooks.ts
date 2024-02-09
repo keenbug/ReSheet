@@ -206,3 +206,49 @@ export function renderConditionally<Props>(Component: React.FC<Props>, comparePr
     }
     return React.memo(Component, compare)
 }
+
+
+export function useSelectionRect(element: HTMLElement) {
+    const [rect, setRect] = React.useState<DOMRect | null>(null)
+    const rectRef = useSyncRef(rect)
+
+    function updateSelectionRect() {
+        if (!document.getSelection() || document.getSelection().rangeCount <= 0) {
+            if (rectRef.current !== null) {
+                setRect(null)
+            }
+            return
+        }
+
+        const newRect = document.getSelection().getRangeAt(0).getBoundingClientRect()
+        if (
+            rectRef.current?.x === newRect.x
+            && rectRef.current?.y === newRect.y
+            && rectRef.current?.width === newRect.width
+            && rectRef.current?.height === newRect.height
+        ) {
+            return
+        }
+        setRect(newRect)
+    }
+
+    const observer = React.useMemo(() => new ResizeObserver(updateSelectionRect), [])
+    React.useEffect(() => () => observer.disconnect(), [])
+
+    React.useEffect(() => {
+        if (!element) { return }
+
+        observer.observe(element)
+        element.addEventListener('pointerup', updateSelectionRect)
+        element.addEventListener('keyup', updateSelectionRect)
+        return () => {
+            observer.unobserve(element)
+            element.removeEventListener('pointerup', updateSelectionRect)
+            element.removeEventListener('keyup', updateSelectionRect)
+        }
+    }, [element])
+
+    React.useEffect(updateSelectionRect)
+
+    return rect
+}
