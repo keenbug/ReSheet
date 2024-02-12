@@ -246,6 +246,7 @@ interface State {
     positionToUpdateTo: SelRange<number> | null
     dontUpdate: boolean
     lastRange: Range | null
+    isMouseDown: boolean
 }
 
 export interface Editable {
@@ -274,6 +275,7 @@ export function useEditable(
         positionToUpdateTo: null,
         dontUpdate: false,
         lastRange: null,
+        isMouseDown: false,
     })
     const editable = useMemo<Editable>(
         () => editableActions(elementRef, state, onChange),
@@ -386,6 +388,7 @@ export function useEditable(
         }
 
         function onMouseDown(event: MouseEvent) {
+            state.isMouseDown = true
             if (document.caretRangeFromPoint) {
                 setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
             }
@@ -397,6 +400,23 @@ export function useEditable(
             }
         }
 
+        function onMouseUp(event: MouseEvent) {
+            // The editable likely got created by a mousedown. We didn't see the
+            // mousedown itself and still want to set the mouse position
+            if (!state.isMouseDown) {
+                if (document.caretRangeFromPoint) {
+                    setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
+                }
+                else if ((document as any).caretPositionFromPoint) {
+                    const caretPosition = (document as any).caretPositionFromPoint(event.clientX, event.clientY)
+                    const range = document.createRange()
+                    range.setStart(caretPosition.offsetNode, caretPosition.offset)
+                    setCurrentRange(range)
+                }
+            }
+            state.isMouseDown = false
+        }
+
         element.addEventListener('keydown', onKeyDown)
         element.addEventListener('paste', onPaste)
         element.addEventListener('compositionstart', onCompositionStart)
@@ -404,6 +424,7 @@ export function useEditable(
         element.addEventListener('blur', onBlur)
         element.addEventListener('focus', onFocus)
         element.addEventListener('mousedown', onMouseDown)
+        element.addEventListener('mouseup', onMouseUp)
 
         return () => {
             element.removeEventListener('keydown', onKeyDown)
@@ -413,6 +434,7 @@ export function useEditable(
             element.removeEventListener('blur', onBlur)
             element.removeEventListener('focus', onFocus)
             element.removeEventListener('mousedown', onMouseDown)
+            element.removeEventListener('mouseup', onMouseUp)
         }
     }, [elementRef.current])
 

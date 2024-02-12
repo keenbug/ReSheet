@@ -560,12 +560,14 @@ function sheetLineBindings<Inner>(
         if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
         actions.focusUp()
         event?.stopPropagation()
+        event?.preventDefault()
     }
 
     function moveDown(event?: React.KeyboardEvent) {
         if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
         actions.focusDown()
         event?.stopPropagation()
+        event?.preventDefault()
     }
 
     return [

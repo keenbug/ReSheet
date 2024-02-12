@@ -112,6 +112,12 @@ export const NoteUi = React.forwardRef(
         const [isFocused, setFocused] = useEffectfulState(false)
         const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
 
+        React.useEffect(() => {
+            if (isFocused) {
+                editorRef.current?.element?.focus()
+            }
+        }, [isFocused, editorRef])
+
         React.useImperativeHandle(
             ref,
             () => ({
@@ -178,12 +184,6 @@ export const NoteUi = React.forwardRef(
                 className="flex flex-col py-0.5 space-y-1 flex-1"
                 tabIndex={-1}
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
-                onClick={() => {
-                    setFocused(wasFocused => wasFocused ? {} : {
-                        state: true,
-                        effect() { editorRef.current?.element?.focus() }
-                    })
-                }}
                 onFocus={event => {
                     setFocused(() => ({ state: true }))
                     shortcutProps.onFocus(event)
