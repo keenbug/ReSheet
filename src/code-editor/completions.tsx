@@ -192,11 +192,12 @@ export const Completions = React.forwardRef(function Completions(
     ].join('\n')
     const parsed = looseParseCode(allBefore)
     const search = (parsed && findCompletions(parsed, env)) ?? noCompletionOptions
+    const offset = search.end === undefined ? 0 : allBefore.length - search.end
     return (
         <RenderCompletions
             ref={ref}
             completionOptions={search}
-            offset={allBefore.length - search.end}
+            offset={offset}
             onSelectSearchResult={onSelectSearchResult}
             tab={tab}
             onChangeTab={onChangeTab}
@@ -225,16 +226,18 @@ function looseParseCode(code: string) {
     }
 }
 
-function parseCurrentExpression(code: string) {
+function parseCurrentExpression(code: string): babel.Expression {
     if (code.trim() === '') {
         return babel.identifier('')
     }
     // looks like an incomplete member access?
     else if (code.slice(-1) === '.') {
-        return babel.memberExpression(
-            parseJSExpr(code.slice(0, -1)),
-            babel.identifier('')
-        )
+        const objExpr = parseJSExpr(code.slice(0, -1))
+        return {
+            ...babel.memberExpression(objExpr, babel.identifier('')),
+            start: objExpr.start,
+            end: objExpr.end + 1,
+        }
     }
     else {
         return parseJSExpr(code)
