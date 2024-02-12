@@ -172,7 +172,7 @@ export const PromiseView = React.forwardRef(
         ref: React.ForwardedRef<HTMLElement>,
     ) {
         return (
-            <div className="group flex flex-row space-x-2">
+            <div className="group/promise-inspect flex flex-col">
                 <PromiseIndicator promiseResult={promiseResult} />
                 <PromiseViewValue ref={ref} promiseResult={promiseResult} />
             </div>
@@ -183,13 +183,28 @@ export const PromiseView = React.forwardRef(
 function PromiseIndicator({ promiseResult }: { promiseResult: PromiseResult }) {
     switch (promiseResult.state) {
         case 'pending':
-            return <FontAwesomeIcon className="mr-2" icon={solidIcons.faSpinner} spinPulse />
+            return (
+                <div>
+                    <FontAwesomeIcon className="mr-2" icon={solidIcons.faSpinner} spinPulse />
+                    Promise pending...
+                </div>
+            )
 
         case 'failed':
-            return <FontAwesomeIcon className="mr-2 text-red-700" icon={solidIcons.faCircleExclamation} />
+            return (
+                <div className="h-0 group-hover/promise-inspect:h-8 group-hover/promise-inspect:border-b-2 overflow-y-hidden transition-all text-red-900 px-1 border-t-4 border-red-100 bg-red-50">
+                    <FontAwesomeIcon className="mr-2 text-red-700" icon={solidIcons.faCircleExclamation} />
+                    Promise rejected
+                </div>
+            )
 
         case 'finished':
-            return <FontAwesomeIcon className="group-hover:block hidden mr-2 text-green-500" icon={solidIcons.faCircleCheck} />
+            return (
+                <div className="h-0 group-hover/promise-inspect:h-8 overflow-y-hidden transition-all text-green-950 px-1 border-t-4 border-green-100 bg-green-50">
+                    <FontAwesomeIcon className="mr-2 text-green-500" icon={solidIcons.faCircleCheck} />
+                    Promise resolved
+                </div>
+            )
     }
 }
 
@@ -203,10 +218,10 @@ const PromiseViewValue = React.forwardRef(
                 return null
 
             case 'failed':
-                return <ValueInspector ref={ref} value={promiseResult.error} />
+                return <div><ValueInspector ref={ref} value={promiseResult.error} /></div>
 
             case 'finished':
-                return <ValueInspector ref={ref} value={promiseResult.value} />
+                return <div><ValueInspector ref={ref} value={promiseResult.value} /></div>
         }
     }
 )
