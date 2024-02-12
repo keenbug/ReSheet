@@ -10,6 +10,9 @@ import { useShortcuts } from '../ui/shortcuts'
 
 import { CodeEditor, CodeEditorHandle } from '../code-editor'
 import { useCompletionsOverlay } from '../code-editor/completions'
+import { DocMarkdown } from '../docs/ui'
+import { Block } from '../block/component'
+import { DocsMap } from '../docs'
 
 
 export interface JSExprModel {
@@ -116,6 +119,7 @@ export const JSExprUi = React.forwardRef(
             >
                 <CodeEditor
                     ref={codeEditor}
+                    className="border-b border-gray-100"
                     code={state.code}
                     onUpdate={onUpdateCode}
                     {...shortcutProps}
@@ -154,3 +158,104 @@ export function PreviewValue({ state }: PreviewValueProps) {
     if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
     return <ViewResult result={state.result} />
 }
+
+
+
+// Docs
+
+export function JSExprDoc() {
+    return (
+        <DocMarkdown options={{ overrides: allExamples }}>
+            {`
+A multiline JavaScript Block. Supports JSX and toplevel await. The Block's value is the value
+of the last expression.
+
+## Examples
+
+<Example1 />
+
+<Example2 />
+
+<Example3 />
+
+<Example4 />
+            `.trim()}
+        </DocMarkdown>
+    )
+}
+export function gatherDocs(docs: DocsMap) {
+    docs.set(JSExpr, JSExprDoc)
+}
+
+
+export function Example(code: string, env: block.Environment) {
+    const initWithCode = { ...init, code }
+
+    return function Example() {
+        const [state, setState] = React.useState(null)
+
+        React.useEffect(() => {
+            setState(updateResult(initWithCode, setState, env))
+        }, [])
+
+        if (state === null) { return null }
+
+        return (
+            <div className="border rounded border-gray-100 my-4">
+                <Block block={JSExpr} state={state} update={setState} env={env} />
+            </div>
+        )
+    }
+}
+
+export const Example1 = Example(`
+const x = 1;
+const y = 2;
+Math.min(x, y);
+    `.trim(),
+    { React },
+)
+
+export const Example2 = Example(`
+<span className="text-xl font-bold text-red-900">
+    Alert
+</span>
+    `.trim(),
+    { React },
+)
+
+export const Example3 = Example(`
+function Test() {
+    const [input, setInput] = React.useState("Hey there")
+
+    function onChange(ev) {
+        setState(ev.target.value)
+    }
+
+    return (
+        <div>
+            <div><input className="rounded bg-sky-50" type="text" value={input} onChange={onChange} /></div>
+            <div>{input.toUpperCase()}</div>
+        </div>
+    )
+}
+
+<Test />
+    `.trim(),
+    { React },
+)
+
+export const Example4 = Example(`
+function wait(ms) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms)
+    })
+}
+
+await wait(5000);
+<span className="text-xl">Done</span>
+    `.trim(),
+    { React },
+)
+
+export const allExamples = { Example1, Example2, Example3, Example4 }

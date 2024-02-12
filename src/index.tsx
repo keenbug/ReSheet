@@ -13,6 +13,8 @@ import { storeBackup, db, removeOldBackups } from './backup'
 import { PendingState, useThrottlePending } from './ui/hooks'
 
 import TablesIntroduction from './resources/introduction.js'
+import docs from './docs'
+import gatherDocs from './docs/all'
 
 const blocks = library.blocks
 
@@ -241,3 +243,4 @@ async function startApp() {
 }
 
 startApp()
+gatherDocs(docs)

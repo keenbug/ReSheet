@@ -1,9 +1,6 @@
-import { DocsMap } from "./DocsMap"
+import { DocsMap } from ".."
 import gatherMdnDocs from "./mdn"
 
 export function gatherDocs(docs: DocsMap) {
     gatherMdnDocs(docs)
-    return docs
 }
-
-export const DOCS = gatherDocs(new DocsMap())

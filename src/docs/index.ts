@@ -20,3 +20,5 @@ export class DocsMap {
         }
     }
 }
+
+export default new DocsMap()

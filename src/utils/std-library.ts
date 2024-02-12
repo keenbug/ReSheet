@@ -44,8 +44,9 @@ import * as codeEditor_useEditable from '../code-editor/useEditable'
 import * as utils from '.'
 // docs
 import * as docs from '../docs'
-import docs_sources_mdn_jsGlobalObjects from '../docs/sources/mdn/js-global-objects'
-import * as docs_mdn from '../docs/mdn'
+import * as docs_external from '../docs/external'
+import * as docs_external_mdn from '../docs/external/mdn'
+import docs_external_mdn_jsGlobalObjects from '../docs/external/mdn/js-global-objects'
 
 export const library = {
     $library() { return library },
@@ -102,10 +103,11 @@ export const library = {
         },
         docs: {
             index: docs,
-            mdn: docs_mdn,
-            sources: {
+            external: {
+                index: docs_external,
                 mdn: {
-                    jsGlobalObjects: docs_sources_mdn_jsGlobalObjects,
+                    index: docs_external_mdn,
+                    jsGlobalObjects: docs_external_mdn_jsGlobalObjects,
                 },
             },
         },

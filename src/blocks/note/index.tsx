@@ -320,7 +320,7 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>, updateFX: EffectfulUpdat
 
 
 
-function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
+export function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
     return {
         ...state,
         note: recomputeNote(state.input, state.note, block.fieldUpdater('note', update), env),

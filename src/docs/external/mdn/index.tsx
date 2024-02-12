@@ -1,105 +1,9 @@
-import mdnContent from "./sources/mdn/js-global-objects"
-import { DocsMap } from "./DocsMap"
+import mdnContent from "./js-global-objects"
+import { DocsMap } from "../.."
 
-import Markdown, { MarkdownToJSX, RuleType } from 'markdown-to-jsx'
-import styled from "styled-components"
-import { CodeView } from "../code-editor"
-
-const StyledMarkdown = styled(Markdown)`
-    font-size: 0.75rem;
-
-
-    /* Headers */
-
-    & h1 {
-        font-weight: 500;
-        font-size: 1.25rem;
-        margin-bottom: 0.375rem;
-    }
-
-    & h2 {
-        font-weight: 500;
-        font-size: 1rem;
-        margin-top: 0.75rem;
-        margin-bottom: 0.25rem;
-    }
-
-    & h3 {
-        font-weight: 500;
-        font-size: 0.875rem;
-        margin-top: 0.75rem;
-        margin-bottom: 0.25rem;
-    }
-
-    & h4 {
-        font-weight: 500;
-        font-size: 0.75rem;
-        margin-top: 0.5rem;
-        margin-bottom: 0.25rem;
-    }
-
-    & h5 {
-        font-weight: 500;
-        font-size: 0.75rem;
-        margin-top: 0.5rem;
-        margin-bottom: 0.25rem;
-    }
-
-    & h6 {
-        font-weight: 500;
-        font-size: 0.75rem;
-        margin-top: 0.5rem;
-        margin-bottom: 0.25rem;
-    }
-
-
-    /* Paragraphs */
-
-    & p + p {
-        margin: 0.625rem 0;
-    }
-
-
-    /* Lists */
-
-    & ul ul {
-        padding-inline-start: 1rem;
-    }
-
-    & li + li {
-        margin-top: 0.5rem;
-    }
-
-
-    /* Tables */
-
-    & table {
-        margin: 1rem 0;
-        overflow-x: auto;
-    }
-
-    & td,
-    & th {
-        text-align: start;
-        padding: 0.25rem 0.5rem;
-    }
-
-    & th {
-        background-color: rgb(243 244 246); /* gray-100 */
-        font-weight: bold;
-    }
-
-    & tr:nth-child(even) {
-        background-color: rgb(243 244 246); /* gray-100 */
-    }
-
-
-    /* Links */
-
-    a {
-        color: rgb(30 64 175); /* blue-800 */
-    }
-`
+import { MarkdownToJSX, RuleType } from 'markdown-to-jsx'
+import { DocMarkdown } from "../../ui"
+import { CodeView } from "../../../code-editor"
 
 const MATCH_KUMASCRIPT = /{{(\w+)(\((?:\s*(?:"[^"]*"|\d+)\s*,?\s*)*\))?}}/
 const MATCH_ARG = /"([^"]*|\d+)"/g
@@ -190,7 +94,7 @@ function docsRenderer(docs: string) {
     return function MDNDoc() {
         return (
             <div>
-                <StyledMarkdown options={{ renderRule: renderMarkdown }}>{rendered}</StyledMarkdown>
+                <DocMarkdown options={{ renderRule: renderMarkdown }}>{rendered}</DocMarkdown>
                 <div className="text-xs mt-4">
                     <a className="text-blue-800" target="_blank" href={sourceLink}>Source: MDN</a>
                 </div>

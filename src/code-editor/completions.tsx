@@ -7,7 +7,7 @@ import * as babel from '@babel/types'
 
 import * as block from '../block'
 import { computeExprUNSAFE, parseJSExpr } from '../logic/compute'
-import { DOCS } from '../docs'
+import docs from '../docs'
 
 import { Keybinding, Keybindings } from '../ui/shortcuts'
 import { ValueInspector } from '../ui/value'
@@ -26,7 +26,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
     const completionsRef = React.useRef<CompletionsHandle>(null)
 
     function findDocsFor(value: any) {
-        return DOCS.get(value)
+        return docs.get(value)
     }
 
     const shortcuts: Keybindings = [
