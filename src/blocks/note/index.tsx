@@ -179,10 +179,10 @@ export const NoteUi = React.forwardRef(
                 tabIndex={-1}
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 onClick={() => {
-                    setFocused(() => ({
+                    setFocused(wasFocused => wasFocused ? {} : {
                         state: true,
                         effect() { editorRef.current?.element?.focus() }
-                    }))
+                    })
                 }}
                 onFocus={event => {
                     setFocused(() => ({ state: true }))

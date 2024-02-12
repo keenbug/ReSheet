@@ -585,7 +585,7 @@ function sheetLineBindings<Inner>(
             bindings: [
                 [["Z"],                              "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
                 [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
-                [["Escape"],                         "!selfFocused", "focus out",        () => containerRef.current?.focus({ preventScroll: true })],
+                [["Escape"],                         "!selfFocused", "focus sheet line", () => containerRef.current?.focus({ preventScroll: true })],
                 [
                     ["Enter"],
                     "selfFocused",

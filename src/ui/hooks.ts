@@ -232,21 +232,12 @@ export function useSelectionRect(element: HTMLElement) {
         setRect(newRect)
     }
 
-    const observer = React.useMemo(() => new ResizeObserver(updateSelectionRect), [])
-    React.useEffect(() => () => observer.disconnect(), [])
-
     React.useEffect(() => {
-        if (!element) { return }
-
-        observer.observe(element)
-        element.addEventListener('pointerup', updateSelectionRect)
-        element.addEventListener('keyup', updateSelectionRect)
+        document.addEventListener('selectionchange', updateSelectionRect)
         return () => {
-            observer.unobserve(element)
-            element.removeEventListener('pointerup', updateSelectionRect)
-            element.removeEventListener('keyup', updateSelectionRect)
+            document.removeEventListener('selectionchange', updateSelectionRect)
         }
-    }, [element])
+    }, [])
 
     React.useEffect(updateSelectionRect)
 

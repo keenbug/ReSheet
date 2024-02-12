@@ -245,6 +245,7 @@ interface State {
     mutations: MutationRecord[]
     positionToUpdateTo: SelRange<number> | null
     dontUpdate: boolean
+    lastRange: Range | null
 }
 
 export interface Editable {
@@ -272,6 +273,7 @@ export function useEditable(
         mutations: [],
         positionToUpdateTo: null,
         dontUpdate: false,
+        lastRange: null,
     })
     const editable = useMemo<Editable>(
         () => editableActions(elementRef, state, onChange),
@@ -365,16 +367,52 @@ export function useEditable(
             flushChanges()
         }
 
+        function onBlur() {
+            state.lastRange = getCurrentRange()
+            window.getSelection().removeAllRanges()
+        }
+
+        function onFocus() {
+            if (state.lastRange) {
+                state.lastRange.collapse()
+                setCurrentRange(state.lastRange)
+                state.lastRange = null
+            }
+            else if (element.lastChild && element.innerText !== '\n') {
+                const range = document.createRange()
+                range.setStartAfter(element.lastChild)
+                setCurrentRange(range)
+            }
+        }
+
+        function onMouseDown(event: MouseEvent) {
+            if (document.caretRangeFromPoint) {
+                setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
+            }
+            else if ((document as any).caretPositionFromPoint) {
+                const caretPosition = (document as any).caretPositionFromPoint(event.clientX, event.clientY)
+                const range = document.createRange()
+                range.setStart(caretPosition.offsetNode, caretPosition.offset)
+                setCurrentRange(range)
+            }
+        }
+
         element.addEventListener('keydown', onKeyDown)
         element.addEventListener('paste', onPaste)
         element.addEventListener('compositionstart', onCompositionStart)
         element.addEventListener('compositionend', onCompositionEnd)
+        element.addEventListener('blur', onBlur)
+        element.addEventListener('focus', onFocus)
+        element.addEventListener('mousedown', onMouseDown)
 
         return () => {
             element.removeEventListener('keydown', onKeyDown)
             element.removeEventListener('paste', onPaste)
             element.removeEventListener('compositionstart', onCompositionStart)
             element.removeEventListener('compositionend', onCompositionEnd)
+            element.removeEventListener('blur', onBlur)
+            element.removeEventListener('focus', onFocus)
+            element.removeEventListener('mousedown', onMouseDown)
         }
     }, [elementRef.current])
 
