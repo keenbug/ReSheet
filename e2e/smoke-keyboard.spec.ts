@@ -33,17 +33,20 @@ test('test', async ({ page }) => {
 
   await setup(page)
 
-  // Focus "Tables" header
+  // Clear File
+  await typeIn('', 'Control+Backspace', 'Control+N')
+  await typeIn('Test', 'Enter')
+
+  // Create "Test" header
   await typeIn('', 'Enter', 'Enter');
-  await jumpInputEnd();
-  await typeIn(' Test', 'Escape');
+  await typeIn('# Test', 'Escape', 'Enter', 'Enter', 'Enter', 'Escape', 'g');
 
   // Append at bottom
   await typeIn('', 'Shift+g', 'o', 'Enter');
   await typeIn('Hello World!', 'Enter');
   await typeIn('Delete this', 'Alt+Backspace', 'Enter');
   await typeIn('', 'Enter');
-  await typeIn('= $0.text + $65.text + $66.text + $67.text');
+  await typeIn('= $0.text + $4.text + $5.text + $6.text');
 
   // Open CommandSearch
   await typeIn('', 'Control+Shift+P');
@@ -59,7 +62,7 @@ test('test', async ({ page }) => {
   await typeIn('/blocks.JSExpr', 'Control+Enter');
   await typeIn('Math.abs(-10)', 'Escape', 'Escape');
 
-  // Focus Introduction Page
+  // Focus Top Page
   await typeIn('', 'ArrowUp', 'Enter');
 
   // Focus Last Line
@@ -75,7 +78,7 @@ test('test', async ({ page }) => {
 
   // Focus Note
   await typeIn('', 'Enter', 'Enter');
-  await typeIn('= <span>{Introduction}</span>');
+  await typeIn('= <span>{Test}</span>');
 
-  await expect(page.locator('#app')).toContainText('Tables TestHello World!Delete 10');
+  await expect(page.locator('#app')).toContainText('TestHello World!Delete 10');
 });
