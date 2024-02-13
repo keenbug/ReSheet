@@ -203,6 +203,16 @@ function makeRange(
     return range
 }
 
+function lastTextDescendant(node: Node): Text | null {
+    if (node instanceof Text) {
+        return node
+    }
+    if (node.lastChild) {
+        return lastTextDescendant(node.lastChild)
+    }
+    return null
+}
+
 
 function findPositionInNodes(
     position: number,
@@ -224,7 +234,7 @@ function findPositionInNodes(
         if (nodeTextLength > 0) {
             const offset = position - currentPosition
             // searched position inside this node?
-            if (offset < nodeTextLength) {
+            if (offset <= nodeTextLength) {
                 return [node, offset]
             }
 
@@ -380,10 +390,19 @@ export function useEditable(
                 setCurrentRange(state.lastRange)
                 state.lastRange = null
             }
-            else if (element.lastChild && element.innerText !== '\n') {
-                const range = document.createRange()
-                range.setStartAfter(element.lastChild)
-                setCurrentRange(range)
+            else {
+                const lastText = lastTextDescendant(element)
+                if (lastText) {
+                    const range = document.createRange()
+                    const content = lastText.textContent
+
+                    // Don't include the invisible (but apparently required) '\n' at the end, otherwise:
+                    //   On Safari: selection's BoundingBox is off by one character to the right
+                    const offset = content.endsWith('\n') ? content.length - 1 : content.length
+
+                    range.setStart(lastText, offset)
+                    setCurrentRange(range)
+                }
             }
         }
 
@@ -447,7 +466,6 @@ export function useEditable(
 
         if (state.positionToUpdateTo) {
             const { start, end } = state.positionToUpdateTo
-            elementRef.current.focus()
             setCurrentRange(
                 makeRange(elementRef.current, start, end)
             )
