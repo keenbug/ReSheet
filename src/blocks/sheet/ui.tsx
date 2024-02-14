@@ -459,7 +459,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
     )
 
     const bindings = React.useMemo(
-        () => sheetLineBindings(actions, line, block, containerRef, innerBlockRef, resultRef, varInputRef),
+        () => sheetLineBindings(actions, line, block, containerRef, innerBlockRef, resultRef),
         [actions, line, block, containerRef, innerBlockRef, resultRef, varInputRef],
     )
 
@@ -541,7 +541,6 @@ function sheetLineBindings<Inner>(
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerBlockRef: React.MutableRefObject<block.BlockRef>,
     resultRef: React.MutableRefObject<HTMLElement>,
-    varInputRef: React.MutableRefObject<HTMLElement>,
 ): Keybindings {
     function insertBelowByEnter(event?: React.KeyboardEvent) {
         if (event && !event.defaultPrevented) { return }

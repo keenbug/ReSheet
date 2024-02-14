@@ -20,10 +20,10 @@ import { SplitText, splitByPosition } from './useEditable'
 
 export type CompletionTab = 'value' | 'docs'
 
-// The resulting ui should lie anywhere near codeEditor, where both have the same relative parent
 export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHandle>, code: string, env: block.Environment, codeOffset: number = 0) {
     const [completionVisibilty, setCompletionVisibility] = React.useState<CompletionTab | null>(null)
     const completionsRef = React.useRef<CompletionsHandle>(null)
+    const containerRef = React.useRef<HTMLDivElement>(null)
 
     function findDocsFor(value: any) {
         return docs.get(value)
@@ -45,8 +45,8 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
         }
     ]
 
-    const selectionRect = useSelectionRect(codeEditor.current?.element)
-    const relativeRect = codeEditor.current?.element?.offsetParent?.getBoundingClientRect()
+    const selectionRect = useSelectionRect()
+    const relativeRect = containerRef.current?.offsetParent && containerRef.current.offsetParent.getBoundingClientRect()
     const caretRect = selectionRect && relativeRect && (
         new DOMRect(
             selectionRect.x - relativeRect.x,
@@ -76,26 +76,30 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
         }
     }
 
-    const ui = completionVisibilty && caretRect && (
-        <div
-            className="border border-gray-300 bg-gray-50 shadow shadow-gray-200"
-            style={{
-                position: 'absolute',
-                left: caretRect.left + 'px',
-                top: caretRect.bottom + 'px',
-            }}
-        >
-            <Completions
-                ref={completionsRef}
-                splitCode={splitCode}
-                env={env}
-                onSelectSearchResult={onComplete}
-                tab={completionVisibilty}
-                onChangeTab={setCompletionVisibility}
-                docs={findDocsFor}
-                />
-        </div>
-    )
+    let ui = <div ref={containerRef} style={{ position: 'absolute' }} />
+    if (completionVisibilty && caretRect) {
+        ui = (
+            <div
+                ref={containerRef}
+                className="border border-gray-300 bg-gray-50 shadow shadow-gray-200"
+                style={{
+                    position: 'absolute',
+                    left: caretRect.left + 'px',
+                    top: caretRect.bottom + 'px',
+                }}
+            >
+                <Completions
+                    ref={completionsRef}
+                    splitCode={splitCode}
+                    env={env}
+                    onSelectSearchResult={onComplete}
+                    tab={completionVisibilty}
+                    onChangeTab={setCompletionVisibility}
+                    docs={findDocsFor}
+                    />
+            </div>
+        )
+    }
 
     return {
         onBlur,

@@ -208,7 +208,7 @@ export function renderConditionally<Props>(Component: React.FC<Props>, comparePr
 }
 
 
-export function useSelectionRect(element: HTMLElement) {
+export function useSelectionRect() {
     const [rect, setRect] = React.useState<DOMRect | null>(null)
     const rectRef = useSyncRef(rect)
 
