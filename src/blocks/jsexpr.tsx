@@ -165,7 +165,7 @@ export function PreviewValue({ state }: PreviewValueProps) {
 
 export function JSExprDoc() {
     return (
-        <DocMarkdown options={{ overrides: allExamples }}>
+        <DocMarkdown options={{ overrides: allOverrides }}>
             {`
 A multiline JavaScript Block. Supports JSX and toplevel await. The Block's value is the value
 of the last expression.
@@ -218,7 +218,7 @@ Math.min(x, y);
 
 export const Example2 = Example(`
 <span className="text-xl font-bold text-red-900">
-    Alert
+  Alert
 </span>
     `.trim(),
     { React },
@@ -226,18 +226,25 @@ export const Example2 = Example(`
 
 export const Example3 = Example(`
 function Test() {
-    const [input, setInput] = React.useState("Hey there")
+  const [input, setInput] = React.useState("Hey there")
 
-    function onChange(ev) {
-        setState(ev.target.value)
-    }
+  function onChange(ev) {
+    setInput(ev.target.value)
+  }
 
-    return (
-        <div>
-            <div><input className="rounded bg-sky-50" type="text" value={input} onChange={onChange} /></div>
-            <div>{input.toUpperCase()}</div>
-        </div>
-    )
+  return (
+    <div>
+      <div>
+        <input
+          className="rounded outline outline-1 outline-sky-200 focus:outline-sky-500"
+          type="text"
+          value={input}
+          onChange={onChange}
+          />
+      </div>
+      <div>{input.toUpperCase()}</div>
+    </div>
+  )
 }
 
 <Test />
@@ -247,9 +254,9 @@ function Test() {
 
 export const Example4 = Example(`
 function wait(ms) {
-    return new Promise(resolve => {
-        setTimeout(resolve, ms)
-    })
+  return new Promise(resolve => {
+    setTimeout(resolve, ms)
+  })
 }
 
 await wait(5000);
@@ -258,4 +265,4 @@ await wait(5000);
     { React },
 )
 
-export const allExamples = { Example1, Example2, Example3, Example4 }
+export const allOverrides = { Example1, Example2, Example3, Example4 }

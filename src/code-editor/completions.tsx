@@ -362,12 +362,11 @@ function CompletionTabs({ selected, onChange, children: tabs }: CompletionTabsPr
     }
 
     function TabPanel({ tab, children }: { tab: string, children: React.ReactNode }) {
-        return <Tab.Panel key={tab}>{children}</Tab.Panel>
+        return <Tab.Panel>{children}</Tab.Panel>
     }
     function TabButton({ tab, children }: { tab: string, children: React.ReactNode }) {
         return (
             <Tab
-                key={tab}
                 className={({ selected }) => `
                     flex-1 rounded-lg text-center m-1
                     ${selected ? 'bg-white shadow font-medium' : 'text-gray-600 hover:shadow'}
@@ -387,12 +386,12 @@ function CompletionTabs({ selected, onChange, children: tabs }: CompletionTabsPr
         <Tab.Group selectedIndex={tabIndex} onChange={onChangeTabIndex}>
             <Tab.Panels className="flex-1 p-1 overflow-auto bg-white">
                 {Object.entries(tabs).map(([tab, content]) => (
-                    <TabPanel tab={tab}>{content}</TabPanel>
+                    <TabPanel key={tab} tab={tab}>{content}</TabPanel>
                 ))}
             </Tab.Panels>
             <Tab.List className="flex flex-row items-stretch text-xs bg-gray-50">
                 {Object.keys(tabs).map(tab => (
-                    <TabButton tab={tab}>{tab}</TabButton>
+                    <TabButton key={tab} tab={tab}>{tab}</TabButton>
                 ))}
             </Tab.List>
         </Tab.Group>
