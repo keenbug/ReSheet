@@ -290,55 +290,6 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
 
     const selectedDocs = results.length > selected && docs(getCompletionValue(results[selected].candidate))
     const selectedValue = results.length > selected ? getCompletionValue(results[selected].candidate) : undefined
-    const TABS = {
-        value: {
-            panel: (
-                <Tab.Panel key="value">
-                    <ValueInspector value={selectedValue} expandLevel={1} />
-                </Tab.Panel>
-            ),
-            button: (
-                <Tab
-                    key="value"
-                    className={({ selected }) => `
-                        flex-1 rounded-lg text-center m-1
-                        ${selected ? 'bg-white shadow font-medium' : 'text-gray-600'}
-                    `}
-                >
-                    value
-                </Tab>
-            ),
-        },
-        docs: {
-            panel: (
-                <Tab.Panel key="docs">
-                    {selectedDocs ?
-                        React.createElement(selectedDocs)
-                    :
-                        <div className="italic text-center text-sm text-gray-700">No documentation found</div>
-                    }
-                </Tab.Panel>
-            ),
-            button: (
-                <Tab
-                    key="docs"
-                    className={({ selected }) => `
-                        flex-1 rounded-lg text-center m-1
-                        ${
-                            selected ? 'bg-white shadow font-medium'
-                            : 'text-gray-600'
-                        }
-                    `}
-                >
-                    docs
-                </Tab>
-            ),
-        },
-    }
-    const tabIndex = Object.keys(TABS).indexOf(tab)
-    function onChangeTabIndex(index: number) {
-        onChangeTab((Object.keys(TABS) as CompletionTab[])[index])
-    }
 
     return (
         <div className="flex flex-row items-stretch" onPointerDown={event => event.preventDefault()}>
@@ -364,14 +315,19 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
             </VList>
             {results.length > selected &&
                 <div className="w-96 flex flex-col max-h-[12rem] border-l border-gray-100">
-                    <Tab.Group selectedIndex={tabIndex} onChange={onChangeTabIndex}>
-                        <Tab.Panels className="flex-1 p-1 overflow-auto bg-white">
-                            {Object.values(TABS).map(tab => tab.panel)}
-                        </Tab.Panels>
-                        <Tab.List className="flex flex-row items-stretch text-xs bg-gray-50">
-                            {Object.values(TABS).map(tab => tab.button)}
-                        </Tab.List>
-                    </Tab.Group>
+                    <CompletionTabs selected={tab} onChange={onChangeTab}>
+                        {{
+                            value: (
+                                <ValueInspector value={selectedValue} expandLevel={1} />
+                            ),
+                            docs: (
+                                selectedDocs ?
+                                    React.createElement(selectedDocs)
+                                :
+                                    <div className="italic text-center text-sm text-gray-700">No documentation found</div>
+                            ),
+                        }}
+                    </CompletionTabs>
                 </div>
             }
         </div>
@@ -385,4 +341,56 @@ function completionName(completion: Completion) {
 function countNotInString(str: string, char: string) {
     const findStringRegex = /"(\\.|[^\\"])*"|'(\\.|[^\\'])*'|`(\\.|[^\\`])*`/g
     return str.replace(findStringRegex, '').split('').filter(c => c === char).length
+}
+
+
+interface CompletionTabsProps {
+    selected: string
+    onChange(selected: string): void
+    children: { [tabName: string]: React.ReactNode }
+}
+
+function CompletionTabs({ selected, onChange, children: tabs }: CompletionTabsProps) {
+    const tabIndex = Object.keys(tabs).indexOf(selected)
+
+    function onChangeTabIndex(index: number) {
+        onChange(Object.keys(tabs)[index])
+    }
+
+    function TabPanel({ tab, children }: { tab: string, children: React.ReactNode }) {
+        return <Tab.Panel key={tab}>{children}</Tab.Panel>
+    }
+    function TabButton({ tab, children }: { tab: string, children: React.ReactNode }) {
+        return (
+            <Tab
+                key={tab}
+                className={({ selected }) => `
+                    flex-1 rounded-lg text-center m-1
+                    ${selected ? 'bg-white shadow font-medium' : 'text-gray-600 hover:shadow'}
+                `}
+                onClick={ev => {
+                    ev.stopPropagation()
+                    ev.preventDefault()
+                    onChange(tab as string)
+                }}
+            >
+                {children}
+            </Tab>
+        )
+    }
+
+   return (
+        <Tab.Group selectedIndex={tabIndex} onChange={onChangeTabIndex}>
+            <Tab.Panels className="flex-1 p-1 overflow-auto bg-white">
+                {Object.entries(tabs).map(([tab, content]) => (
+                    <TabPanel tab={tab}>{content}</TabPanel>
+                ))}
+            </Tab.Panels>
+            <Tab.List className="flex flex-row items-stretch text-xs bg-gray-50">
+                {Object.keys(tabs).map(tab => (
+                    <TabButton tab={tab}>{tab}</TabButton>
+                ))}
+            </Tab.List>
+        </Tab.Group>
+   ) 
 }
