@@ -138,17 +138,44 @@ export function recompute<State, Entry extends BlockEntry<State>>(
     env: Environment,
     innerBlock: Block<State>,
 ): Entry[] {
-    return updateEntries(
-        entries,
+    return recomputeFrom(entries, undefined, env, innerBlock, update)
+}
+
+
+export function recomputeFrom<State, Entry extends BlockEntry<State>>(
+    entries: Entry[],
+    id: number | undefined,
+    env: Environment,
+    innerBlock: Block<State>,
+    update: block.BlockUpdater<Entry[]>,
+    offset: number = 0,
+): Entry[] {
+    const index = id === undefined ? 0 : entries.findIndex(entry => entry.id === id)
+    if (index < 0) { return entries }
+
+    const entriesUntilId = entries.slice(0, Math.max(0, index + offset))
+    const entriesAfter = entries.slice(Math.max(0, index + offset))
+
+    const siblingsBeforeEnv = getSiblingEnv(entriesUntilId, innerBlock)
+
+    const recomputedEntries = updateEntries(
+        entriesAfter,
         (entry, localEnv, localUpdate) => ({
             ...entry,
             state: innerBlock.recompute(entry.state, localUpdate, localEnv),
         }),
         update,
         innerBlock,
-        entryEnv(env),
+        (siblingsEnv: Environment) => ({
+            ...env,
+            ...siblingsBeforeEnv,
+            ...siblingsEnv,
+            $before: { ...siblingsBeforeEnv, ...siblingsEnv },
+        })
     )
+    return [ ...entriesUntilId, ...recomputedEntries ]
 }
+
 
 
 export function updateEntryState<State, Entry extends BlockEntry<State>>(

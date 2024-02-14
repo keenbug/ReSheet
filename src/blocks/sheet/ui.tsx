@@ -6,7 +6,7 @@ import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { SheetBlockState, SheetBlockLine } from './model'
 import * as Model from './model'
-import { EffectfulUpdater, useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender } from '../../ui/hooks'
+import { useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender, Effectful } from '../../ui/hooks'
 import { clampTo } from '../../utils'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 import { useInView } from 'react-intersection-observer'
@@ -50,40 +50,60 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
     }
 }
 
+// Effectful action with Env
+type EAction<State> = (state: State, env: Environment) => Effectful<State>
+
+// Effectful updater with Env
+type EUpdater<State> = (action: EAction<State>) => void
+
 type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 function ACTIONS<Inner extends unknown>(
-    update: EffectfulUpdater<SheetBlockState<Inner>>,
+    eupdate: EUpdater<SheetBlockState<Inner>>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>,
 ) {
-    function effectlessUpdate(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
-        update(state => ({ state: action(state) }))
+    function update(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
+        eupdate(state => ({ state: action(state) }))
     }
 
-    function insertBeforeCode(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+    function insertBeforeCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
         const newId = Model.nextFreeId(state);
         return {
-            state: Model.insertLineBefore(state, id, {
-                id: newId,
-                name: '',
-                visibility: Model.VISIBILITY_STATES[0],
-                state: innerBlock.init,
-            }),
+            state: Model.insertLineBefore(
+                state,
+                id,
+                {
+                    id: newId,
+                    name: '',
+                    visibility: Model.VISIBILITY_STATES[0],
+                    state: innerBlock.init,
+                },
+                update,
+                env,
+                innerBlock,
+            ),
             effect() { focusLineRef(refMap.get(newId), focusTarget) },
         }
     }
 
-    function insertAfterCode(state: SheetBlockState<Inner>, id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+    function insertAfterCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
         const newId = Model.nextFreeId(state)
         return {
-            state: Model.insertLineAfter(state, id, {
-                id: newId,
-                name: '',
-                visibility: Model.VISIBILITY_STATES[0],
-                state: innerBlock.init,
-            }),
+            state: Model.insertLineAfter(
+                state,
+                id,
+                {
+                    id: newId,
+                    name: '',
+                    visibility: Model.VISIBILITY_STATES[0],
+                    state: innerBlock.init,
+                },
+                update,
+                env,
+                innerBlock,
+            ),
             effect() { focusLineRef(refMap.get(newId), focusTarget) },
         }
     }
@@ -140,14 +160,14 @@ function ACTIONS<Inner extends unknown>(
 
 
     return {
-        scroll(amount: number) { update(() => scroll(amount)) },
+        scroll(amount: number) { eupdate(() => scroll(amount)) },
 
-        focusUp() { update(focusUp) },
+        focusUp() { eupdate(focusUp) },
 
-        focusDown() { update(focusDown) },
+        focusDown() { eupdate(focusDown) },
 
         focusFirst() {
-            update(state => ({
+            eupdate(state => ({
                 effect() {
                     const firstId = state.lines[0].id
                     refMap.get(firstId)?.focus()
@@ -156,7 +176,7 @@ function ACTIONS<Inner extends unknown>(
         },
 
         focusLast() {
-            update(state => ({
+            eupdate(state => ({
                 effect() {
                     const lastId = state.lines.slice(-1)[0].id
                     refMap.get(lastId)?.focus()
@@ -165,7 +185,7 @@ function ACTIONS<Inner extends unknown>(
         },
 
         rename(id: number) {
-            update(() => ({
+            eupdate(() => ({
                 effect() {
                     refMap.get(id)?.focusVar()
                 },
@@ -173,14 +193,14 @@ function ACTIONS<Inner extends unknown>(
         },
 
         setName(id: number, name: string) {
-            update(state => ({
-                state: Model.updateLineWithId(state, id, line => ({ ...line, name })),
+            eupdate((state, env) => ({
+                state: Model.updateLineWithId(state, id, line => ({ ...line, name }), update, env, innerBlock),
             }));
         },
 
         switchCollapse(id: number) {
-            update(state => ({
-                state: Model.updateLineWithId(state, id, line => ({
+            eupdate(state => ({
+                state: Model.updateLineUiWithId(state, id, line => ({
                     ...line,
                     visibility: Model.nextLineVisibility(line.visibility),
                 })),
@@ -199,25 +219,25 @@ function ACTIONS<Inner extends unknown>(
             innerBlock: Block<Inner>,
             env: Environment
         ) {
-            effectlessUpdate(state =>
-                Model.updateLineBlock(state, id, action, innerBlock, env, effectlessUpdate)
+            update(state =>
+                Model.updateLineBlock(state, id, action, innerBlock, env, update)
             )
         },
 
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-            update(state => insertBeforeCode(state, id, innerBlock, focusTarget))
+            eupdate((state, env) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
         },
 
         insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-            update(state => insertAfterCode(state, id, innerBlock, focusTarget))
+            eupdate((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
         },
 
         focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
-            update(state => {
+            eupdate((state, env) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
                 if (currentIndex < 0) { return {} }
                 if (currentIndex === 0) {
-                    return insertBeforeCode(state, id, innerBlock, 'inner')
+                    return insertBeforeCode(state, id, env, innerBlock, 'inner')
                 }
 
                 const prevLine = state.lines[currentIndex - 1]
@@ -230,11 +250,11 @@ function ACTIONS<Inner extends unknown>(
         },
 
         focusOrCreateNext(id: number, innerBlock: Block<Inner>) {
-            update(state => {
+            eupdate((state, env) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
                 if (currentIndex < 0) { return {} }
                 if (currentIndex === state.lines.length - 1) {
-                    return insertAfterCode(state, id, innerBlock, 'inner')
+                    return insertAfterCode(state, id, env, innerBlock, 'inner')
                 }
 
                 const nextLine = state.lines[currentIndex + 1]
@@ -247,21 +267,17 @@ function ACTIONS<Inner extends unknown>(
         },
 
         deleteCode(id: number, focusAfter: FocusTarget = 'line') {
-            update(state => {
+            eupdate((state, env) => {
                 if (state.lines.length <= 1) {
                     return {
                         state: Model.init(innerBlock.init),
                     }
                 }
 
-                const idIndex = state.lines.findIndex(line => line.id === id);
-                const linesWithoutId = state.lines.filter(line => line.id !== id);
-                const nextFocusIndex = Math.max(0, Math.min(linesWithoutId.length - 1, idIndex - 1));
-                const nextFocusId = linesWithoutId[nextFocusIndex].id;
-
+                const [prevId, newState] = Model.deleteLine(state, id, update, env, innerBlock)
                 return {
-                    state: { ...state, lines: linesWithoutId },
-                    effect() { focusLineRef(refMap.get(nextFocusId), focusAfter) },
+                    state: newState,
+                    effect() { focusLineRef(refMap.get(prevId), focusAfter) },
                 }
             })
         },
@@ -303,6 +319,10 @@ export const Sheet = React.forwardRef(
             [state]
         )
 
+        const eupdate = React.useCallback(function eupdate(eaction: EAction<SheetBlockState<InnerState>>) {
+            updateWithEffect(state => eaction(state, env))
+        }, [updateWithEffect, env])
+
         function onBlur(ev: React.FocusEvent) {
             const id = Array.from(refMap.entries())
                 .find(([_id, lineRef]) =>
@@ -319,8 +339,8 @@ export const Sheet = React.forwardRef(
         }
 
         const actions = React.useMemo(
-            () => ACTIONS(updateWithEffect, containerRef, refMap, innerBlock),
-            [updateWithEffect, containerRef, refMap, innerBlock],
+            () => ACTIONS(eupdate, containerRef, refMap, innerBlock),
+            [eupdate, containerRef, refMap, innerBlock],
         )
 
         return (

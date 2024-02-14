@@ -2,7 +2,7 @@ import * as block from '../../block'
 import { Block, BlockUpdater } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
-import { nextElem } from '../../utils'
+import { clampTo, nextElem } from '../../utils'
 
 export interface SheetBlockState<InnerBlockState> {
     readonly lines: SheetBlockLine<InnerBlockState>[]
@@ -49,14 +49,37 @@ export function nextFreeId(state: SheetBlockState<unknown>) {
     return Multiple.nextFreeId(state.lines)
 }
 
-export function updateLineWithId<Inner>(
+export function updateLineUiWithId<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
-    update: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
+    action: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
 ) {
     return {
         ...state,
-        lines: Multiple.updateBlockWithId(state.lines, id, update),
+        lines: Multiple.updateBlockWithId(state.lines, id, action),
+    }
+}
+
+export function updateLineWithId<Inner>(
+    state: SheetBlockState<Inner>,
+    id: number,
+    action: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
+    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    env: block.Environment,
+    innerBlock: Block<Inner>,
+) {
+    return {
+        ...state,
+        lines: (
+            Multiple.recomputeFrom(
+                Multiple.updateBlockWithId(state.lines, id, action),
+                id,
+                env,
+                innerBlock,
+                block.fieldUpdater('lines', update),
+                1,
+            )
+        )
     }
 }
 
@@ -64,10 +87,21 @@ export function insertLineBefore<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
+    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    env: block.Environment,
+    innerBlock: Block<Inner>,
 ) {
     return {
         ...state,
-        lines: Multiple.insertEntryBefore(state.lines, id, newLine),
+        lines: (
+            Multiple.recomputeFrom(
+                Multiple.insertEntryBefore(state.lines, id, newLine),
+                id,
+                env,
+                innerBlock,
+                block.fieldUpdater('lines', update),
+            )
+        ),
     }
 }
 
@@ -75,11 +109,50 @@ export function insertLineAfter<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
+    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    env: block.Environment,
+    innerBlock: Block<Inner>,
 ) {
     return {
         ...state,
-        lines: Multiple.insertEntryAfter(state.lines, id, newLine),
+        lines: (
+            Multiple.recomputeFrom(
+                Multiple.insertEntryAfter(state.lines, id, newLine),
+                newLine.id,
+                env,
+                innerBlock,
+                block.fieldUpdater('lines', update),
+            )
+        ),
     }
+}
+
+export function deleteLine<Inner>(
+    state: SheetBlockState<Inner>,
+    id: number,
+    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    env: block.Environment,
+    innerBlock: Block<Inner>,
+): [number, SheetBlockState<Inner>] {
+    const index = state.lines.findIndex(line => line.id === id)
+    const linesWithoutId = state.lines.filter(line => line.id !== id)
+    const prevIndex = clampTo(0, linesWithoutId.length, index - 1)
+    const prevId = linesWithoutId[prevIndex].id
+
+    return [
+        prevId,
+        {
+            ...state,
+            lines: Multiple.recomputeFrom(
+                linesWithoutId,
+                undefined,
+                env,
+                innerBlock,
+                block.fieldUpdater('lines', update),
+                index,
+            ),
+        },
+    ]
 }
 
 export function recompute<State>(state: SheetBlockState<State>, update: block.BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
