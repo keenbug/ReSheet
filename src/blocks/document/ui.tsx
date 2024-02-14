@@ -531,7 +531,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             {...bindingProps}
                             onFocus={onFocus}
                             onBlur={onBlur}
-                            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
+                            className="group/document-ui h-full w-full overflow-hidden outline-none"
                             >
                             <Sidebar
                                 state={innerState}
@@ -542,7 +542,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                                 setIsNameEditing={setIsNameEditing}
                                 commandBinding={commandSearchBinding(localActions)}
                                 />
-                            <SidebarButton state={innerState} actions={actions} />
+                            <SidebarButton sidebarVisible={sidebarVisible} toggleSidebar={actions.toggleSidebar} />
 
                             <div
                                 className={`
@@ -760,14 +760,14 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
 }
 
 
-function SidebarButton<State>({ state, actions }: ActionProps<State>) {
-    if (state.viewState.sidebarOpen) {
+function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisible: boolean, toggleSidebar(): void }) {
+    if (sidebarVisible) {
         return null
     }
 
     return (
-        <div className="absolute top-1 left-2">
-            <button className="text-gray-300 hover:text-gray-500 transition" onClick={actions.toggleSidebar}>
+        <div className="absolute top-1 left-2 z-10">
+            <button className="text-gray-300 hover:text-gray-500 transition" onClick={toggleSidebar}>
                 <FontAwesomeIcon icon={solidIcons.faBars} />
             </button>
         </div>
