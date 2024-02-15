@@ -531,7 +531,7 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
                             {...bindingProps}
                             onFocus={onFocus}
                             onBlur={onBlur}
-                            className="group/document-ui h-full w-full overflow-hidden outline-none"
+                            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
                             >
                             <Sidebar
                                 state={innerState}
