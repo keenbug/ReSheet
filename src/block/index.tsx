@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { ErrorBoundary } from '../ui/value'
+import { ValidationError } from '../utils/validate'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -76,7 +77,13 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
         fromJSON(json: any, update: BlockUpdater<State>, env: Environment) {
             try { return description.fromJSON(json, update, env) }
             catch (e) {
-                console.warn("Could not load JSON:", e, e.stack, '\nJSON:', json)
+                if (e instanceof ValidationError) {
+                    console.warn("Could not load JSON\n" + e.toString(), e.stack, '\nJSON:', json)
+                }
+                else {
+
+                    console.warn("Could not load JSON:", e, e.stack, '\nJSON:', json)
+                }
                 return description.init
             }
         },

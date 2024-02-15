@@ -1,5 +1,6 @@
 import { Block, Environment } from "."
 import * as block from "."
+import { Validator, ValidatorObj, number, string } from "../utils/validate"
 
 export interface BlockEntry<InnerBlockState> {
     readonly id: number
@@ -218,6 +219,14 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
 }
 
 
+export function entryJSONV(inner: Validator, rest: ValidatorObj) {
+    return {
+        id: number,
+        name: string,
+        state: inner,
+        ...rest,
+    }
+}
 
 export function fromJSON<State, Entry extends BlockEntry<State>>(
     json: any[],

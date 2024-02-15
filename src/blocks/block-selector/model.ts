@@ -1,6 +1,7 @@
 import * as block from '../../block'
 import { Block, BlockUpdater, Environment } from '../../block'
 import { computeExpr } from '../../logic/compute'
+import { Validator, any, assertValid, oneOf, strict, string } from '../../utils/validate'
 
 
 export type BlockSelectorState =
@@ -98,7 +99,18 @@ export function recompute(
     }
 }
 
-export function fromJSON({ mode, inner, expr }, update: BlockUpdater<BlockSelectorState>, env: Environment, blockLibrary: Environment): BlockSelectorState {
+export function selectorJSONV(inner: Validator) {
+    return strict({
+        mode: oneOf('run', 'choose'),
+        expr: string,
+        inner: inner,
+    })
+}
+
+export function fromJSON(json: any, update: BlockUpdater<BlockSelectorState>, env: Environment, blockLibrary: Environment): BlockSelectorState {
+    assertValid(selectorJSONV(any), json)
+    const { mode, inner, expr } = json
+
     function updateInner(action: (inner: unknown) => unknown) {
         update(state => updateBlock(state, action))
     }

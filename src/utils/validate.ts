@@ -45,6 +45,15 @@ export class ValidationError extends Error {
         this.input = input
         this.options = options
     }
+
+    toString() {
+        return [
+            `Validation failed`,
+            `  Expected: ${stringify(this.validator)}`,
+            `  Got: ${stringify(this.input)}`,
+            `  Options: ${stringify(this.options)}`,
+        ].join('\n')
+    }
 }
 
 export function assertValid(validator: Validator, input: any, options?: ValidatorOptions) {
@@ -53,8 +62,8 @@ export function assertValid(validator: Validator, input: any, options?: Validato
     }
 }
 
-export function loosely(fields: { [field: string]: Validator }): ValidatorFunc {
-    return function validateObject(input: any, options = {}) {
+export function loosely(fields: ValidatorObj): ValidatorFunc {
+    function validateObjectLoosely(input: any, options = {}) {
         if (typeof input !== 'object') { return false }
         if (input === null) { return false }
         if (Array.isArray(input)) { return false }
@@ -68,10 +77,12 @@ export function loosely(fields: { [field: string]: Validator }): ValidatorFunc {
 
         return true
     }
+    validateObjectLoosely.toString = () => strfy`loosely(${fields})`
+    return validateObjectLoosely
 }
 
-export function strict(fieldValidators: { [field: string]: Validator }): ValidatorFunc {
-    return function validateObjectStrictly(input: any, options = {}) {
+export function strict(fieldValidators: ValidatorObj): ValidatorFunc {
+    function validateObjectStrictly(input: any, options = {}) {
         if (!loosely(fieldValidators)(input, options)) { return false }
 
         // check if both `input` and `fieldValidators` have exactly the smae fields
@@ -87,44 +98,64 @@ export function strict(fieldValidators: { [field: string]: Validator }): Validat
 
         return true
     }
+    validateObjectStrictly.toString = () => strfy`strict(${fieldValidators})`
+    return validateObjectStrictly
 }
 
 export function and(...validators: Validator[]): ValidatorFunc {
-    return function validateEvery(input: any, options = {}) {
+    function validateEvery(input: any, options = {}) {
         return validators.every(validator => validate(validator, input, options))
     }
+    validateEvery.toString = () => strfy`and(${argfy(validators)})`
+    return validateEvery
 }
 
 export function or(...validators: Validator[]): ValidatorFunc {
-    return function validateSome(input: any, options = {}) {
+    function validateSome(input: any, options = {}) {
         return validators.some(validator => validate(validator, input, options))
     }
+    validateSome.toString = () => strfy`or(${argfy(validators)})`
+    return validateSome
 }
 
 export function not(validator: Validator): ValidatorFunc {
-    return function validateNot(input: any, options = {}) {
+    function validateNot(input: any, options = {}) {
         return !validate(validator, input, options)
     }
+    validateNot.toString = () => strfy`not(${validator})`
+    return validateNot
 }
 
 export function nullable(validator: Validator): Validator {
-    return function validateNullable(input: any, options = {}) {
+    function validateNullable(input: any, options = {}) {
         if (input === null || typeof input === 'undefined') {
             return true
         }
         return validate(validator, input, options)
     }
+    validateNullable.toString = () => strfy`nullable(${validator})`
+    return validateNullable
 }
 
-export function forEach(validator: Validator): ValidatorFunc {
-    return function validateForEach(input: any, options = {}) {
+export function oneOf(...validators: Validator[]): ValidatorFunc {
+    function validateOneOf(input: any, options = {}) {
+        return validators.some(validator => validate(validator, input, options))
+    }
+    validateOneOf.toString = () => strfy`oneOf(${argfy(validators)})`
+    return validateOneOf
+}
+
+export function array(validator: Validator): ValidatorFunc {
+    function validateArray(input: any, options = {}) {
         if (!Array.isArray(input)) { return false }
         return input.every(item => validate(validator, item, options))
     }
+    validateArray.toString = () => strfy`array(${validator})`
+    return validateArray
 }
 
 export function tuple(validators: Validator[]): ValidatorFunc {
-    return function validateTuple(input: any, options = {}) {
+    function validateTuple(input: any, options = {}) {
         if (!Array.isArray(input)) { return false }
         if (validators.length !== input.length) { return false }
         for (let index = 0; index < validators.length; index++) {
@@ -134,27 +165,43 @@ export function tuple(validators: Validator[]): ValidatorFunc {
         }
         return true
     }
+    validateTuple.toString = () => strfy`${validators}`
+    return validateTuple
+}
+
+export function lazy<Args extends any[]>(validatorCreator: (...args: Args) => Validator, ...args: Args): ValidatorFunc {
+    function lazyValidator(input: any, options = {}) {
+        return validate(validatorCreator(...args), input, options)
+    }
+    lazyValidator.toString = () => strfy`lazy(${validatorCreator}, ${argfy(args)})`
+    return lazyValidator
 }
 
 export function is(value: any): ValidatorFunc {
-    return function isValue(input: any, options = {}) {
+    function isValue(input: any, options = {}) {
         return input === value
     }
+    isValue.toString = () => strfy`is(${value})`
+    return isValue
 }
 
 export function typeis(typeName: string): ValidatorFunc {
-    return function validateTypeof(input: any, options = {}) {
+    function validateTypeof(input: any, options = {}) {
         return typeof input === typeName
     }
+    validateTypeof.toString = () => typeName
+    return validateTypeof
 }
 
 export function any(input: any, options = {}) {
     return true
 }
+any.toString = () => 'any'
 
 export function defined(input: any, options = {}) {
     return typeof input !== 'undefined'
 }
+defined.toString = () => 'defined'
 
 export const string = typeis('string')
 export const number = typeis('number')
@@ -167,4 +214,48 @@ export function validatorSwitch<T>(input: any, ...cases: Array<[validator: Valid
             return handler(input)
         }
     }
+}
+
+
+function strfy(strs: TemplateStringsArray, ...interpolations: any[]) {
+    return (
+        strs[0]
+        + strs.slice(1)
+            .map((str, idx) => (
+                (
+                    idx < interpolations.length ?
+                        stringify(interpolations[idx])
+                    :
+                        ''
+                )
+                + str
+            ))
+            .join('')
+    )
+}
+
+function argfy(args: any[]) {
+    return { toString() { return args.map(stringify).join(', ') } }
+}
+
+function stringify(value: any) {
+    if (typeof value === 'string') {
+        return JSON.stringify(value)
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(stringify).join(', ')}]`
+    }
+    if (value?.toString === Object.prototype.toString) {
+        return `{ ${stringifyFields(value)} }`
+    }
+    if (value?.toString) {
+        return value.toString()
+    }
+    return String(value)
+}
+
+function stringifyFields(obj: object) {
+    return Object.entries(obj)
+        .map(([field, value]) => `${field}: ${stringify(value)}`)
+        .join(', ')
 }

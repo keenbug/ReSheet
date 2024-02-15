@@ -1,5 +1,6 @@
 import { Block, BlockUpdater, Environment } from '../../block'
 import * as Multiple from '../../block/multiple'
+import { boolean, array, number, any, strict, Validator, nullable, assertValid } from '../../utils/validate'
 import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 import { PageId, PageState } from './pages'
 import * as Pages from './pages'
@@ -64,12 +65,25 @@ export function recompute<State>(state: DocumentState<State>, update: BlockUpdat
 }
 
 
+export function documentInnerJSONV(inner: Validator) {
+    return {
+        pages: nullable(array(Pages.pageJSONV(inner))),
+        template: nullable(any),
+        viewState: nullable({
+            sidebarOpen: nullable(boolean),
+            openPage: nullable(array(number)),
+        }),
+    }
+}
+
 export function innerFromJSON<State>(
     json: any,
     update: BlockUpdater<DocumentInner<State>>,
     env: Environment,
     innerBlock: Block<State>,
 ): DocumentInner<State> {
+    assertValid(documentInnerJSONV(any), json)
+
     const {
         pages = [],
         template,

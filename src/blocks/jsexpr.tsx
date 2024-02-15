@@ -13,6 +13,7 @@ import { useCompletionsOverlay } from '../code-editor/completions'
 import { DocMarkdown } from '../docs/ui'
 import { Block } from '../block/component'
 import { DocsMap } from '../docs'
+import { assertValid, string } from '../utils/validate'
 
 
 export interface JSExprModel {
@@ -53,19 +54,15 @@ export const JSExpr = block.create<JSExprModel>({
         }
     },
     fromJSON(json, update, env) {
-        if (typeof json === 'string') {
-            return updateResult(
-                {
-                    code: json,
-                    result: { type: 'immediate', value: undefined },
-                },
-                update,
-                env,
-            )
-        }
-        else {
-            return init
-        }
+        assertValid(string, json)
+        return updateResult(
+            {
+                code: json,
+                result: { type: 'immediate', value: undefined },
+            },
+            update,
+            env,
+        )
     },
     toJSON(state) {
         return state.code

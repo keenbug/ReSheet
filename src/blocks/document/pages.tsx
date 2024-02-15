@@ -10,6 +10,7 @@ import * as Multiple from '../../block/multiple'
 
 import { arrayEquals, arrayStartsWith, clampTo } from '../../utils'
 import { getFullKey } from '../../ui/utils'
+import { Validator, array, boolean, lazy, nullable, number, strict, string } from '../../utils/validate'
 
 
 export type PageId = number
@@ -468,6 +469,16 @@ export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State
     return pages.map(page => pageToJSON(page, innerBlock))
 }
 
+
+export function pageJSONV(inner: Validator) {
+    return strict({
+        id: number,
+        name: string,
+        state: inner,
+        children: array(lazy(pageJSONV, inner)),
+        isCollapsed: nullable(boolean),
+    })
+}
 
 export function pageFromJSON<State>(
     json: any,

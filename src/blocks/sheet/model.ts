@@ -3,6 +3,7 @@ import { Block, BlockUpdater } from '../../block'
 import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 import { clampTo, nextElem } from '../../utils'
+import { any, assertValid, array, oneOf, strict } from '../../utils/validate'
 
 export interface SheetBlockState<InnerBlockState> {
     readonly lines: SheetBlockLine<InnerBlockState>[]
@@ -206,6 +207,9 @@ export function updateLineBlock<State>(
     }
 }
 
+const visibilityJSONV = oneOf(...VISIBILITY_STATES)
+const sheetLineJSONV = strict(Multiple.entryJSONV(any, { visibility: visibilityJSONV }))
+const sheetJSONV = array(sheetLineJSONV)
 
 export function fromJSON<State>(json: any[], update: BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>): SheetBlockState<State> {
     function updateLines(action: (state: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
@@ -213,6 +217,8 @@ export function fromJSON<State>(json: any[], update: BlockUpdater<SheetBlockStat
             lines: action(state.lines)
         }))
     }
+
+    assertValid(sheetJSONV, json)
 
     return {
         lines: (
