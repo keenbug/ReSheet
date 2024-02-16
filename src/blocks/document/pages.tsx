@@ -5,24 +5,12 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
 import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
-import { BlockEntry } from '../../block/multiple'
 import * as Multiple from '../../block/multiple'
 
 import { arrayEquals, arrayStartsWith, clampTo } from '../../utils'
 import { getFullKey } from '../../ui/utils'
-import { Validator, array, boolean, lazy, nullable, number, strict, string } from '../../utils/validate'
+import { PageId, PageState, getDefaultName, getName } from './versioned'
 
-
-export type PageId = number
-
-export interface PageState<State> extends BlockEntry<State> {
-    id: PageId
-    name: string
-    state: State
-
-    isCollapsed: boolean
-    children: Array<PageState<State>>
-}
 
 export function init<State>(id: PageId, initState: State): PageState<State> {
     return {
@@ -32,17 +20,6 @@ export function init<State>(id: PageId, initState: State): PageState<State> {
         isCollapsed: true,
         children: [],
     }
-}
-
-export function getDefaultName(page: PageState<any>) {
-    return 'Untitled_' + page.id
-}
-
-export function getName(page: PageState<any>) {
-    if (page.name.length === 0) {
-        return getDefaultName(page)
-    }
-    return page.name
 }
 
 export function toEnv<State>(page: PageState<State>, innerBlock: Block<State>) {
@@ -453,82 +430,6 @@ export function updatePageAt<State>(
         )
     )
 }
-
-
-export function pageToJSON<State>(page: PageState<State>, innerBlock: Block<State>) {
-    return {
-        id: page.id,
-        name: page.name,
-        state: innerBlock.toJSON(page.state),
-        isCollapsed: page.isCollapsed,
-        children: toJSON(page.children, innerBlock),
-    }
-}
-
-export function toJSON<State>(pages: PageState<State>[], innerBlock: Block<State>) {
-    return pages.map(page => pageToJSON(page, innerBlock))
-}
-
-
-export function pageJSONV(inner: Validator) {
-    return strict({
-        id: number,
-        name: string,
-        state: inner,
-        children: array(lazy(pageJSONV, inner)),
-        isCollapsed: nullable(boolean),
-    })
-}
-
-export function pageFromJSON<State>(
-    json: any,
-    update: BlockUpdater<PageState<State>[]>,
-    env: Environment,
-    innerBlock: Block<State>,
-    path: PageId[]
-): PageState<State> {
-    const { id, name, state, children, isCollapsed = true } = json
-
-    const pathHere = [...path, id]
-    function localUpdate(action: (state: State) => State) {
-        updatePageStateAt(pathHere, update, action, env, innerBlock)
-    }
-
-    const loadedChildren = fromJSON(children, update, env, innerBlock, pathHere)
-    const pageEnv = getSiblingsEnv(children, env, innerBlock)
-    const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
-    const page: PageState<State> = {
-        id,
-        name,
-        state: loadedState,
-        isCollapsed,
-        children: loadedChildren,
-    }
-    return page
-}
-
-
-export function fromJSON<State>(
-    json: any[],
-    update: BlockUpdater<PageState<State>[]>,
-    env: Environment,
-    innerBlock: Block<State>,
-    path: PageId[]
-): PageState<State>[] {
-    return mapWithEnv(
-        json,
-        (jsonEntry, localEnv) => {
-            const page = pageFromJSON(jsonEntry, update, localEnv, innerBlock, path)
-            return {
-                out: page,
-                env: toEnv(page, innerBlock)
-            }
-        },
-        env,
-    )
-}
-
-
 
 
 

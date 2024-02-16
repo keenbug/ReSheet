@@ -1,9 +1,10 @@
 import * as React from 'react'
 
 import * as block from '../../block'
-import { SheetBlockState } from './model'
 import * as Model from './model'
 import * as UI from './ui'
+import * as t from './versioned'
+import { SheetBlockState } from './versioned'
 
 
 export type { SheetBlockState }
@@ -21,19 +22,10 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
             return Model.getResult(state, innerBlock)
         },
         fromJSON(json: any[], update, env) {
-            return Model.fromJSON(json, update, env, innerBlock)
+            return t.fromJSON(json)(update, env, innerBlock)
         },
         toJSON(state) {
-            return state.lines.map(
-                ({ id, name, visibility, state }) => (
-                    {
-                        id,
-                        name,
-                        visibility,
-                        state: innerBlock.toJSON(state),
-                    }
-                )
-            )
+            return t.toJSON(state, innerBlock)
         },
     })
 }

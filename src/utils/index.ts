@@ -118,3 +118,29 @@ export function $update(
         [key]: $update(update, obj[key], ...path.slice(1)),
     }
 }
+
+
+export function stringify(value: any) {
+    if (typeof value === 'string') {
+        return JSON.stringify(value)
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(stringify).join(', ')}]`
+    }
+    if (typeof value === 'object' && Object.getPrototypeOf(value) === null) {
+        return `{ ${stringifyFields(value)} }`
+    }
+    if (value?.toString === Object.prototype.toString) {
+        return `{ ${stringifyFields(value)} }`
+    }
+    if (value?.toString) {
+        return value.toString()
+    }
+    return String(value)
+}
+
+export function stringifyFields(obj: object) {
+    return Object.entries(obj)
+        .map(([field, value]) => `${field}: ${stringify(value)}`)
+        .join(', ')
+}

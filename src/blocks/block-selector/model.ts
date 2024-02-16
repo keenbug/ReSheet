@@ -1,31 +1,7 @@
 import * as block from '../../block'
-import { Block, BlockUpdater, Environment } from '../../block'
+import { Block, Environment } from '../../block'
 import { computeExpr } from '../../logic/compute'
-import { Validator, any, assertValid, oneOf, strict, string } from '../../utils/validate'
-
-
-export type BlockSelectorState =
-    | {
-        mode: 'run'
-        expr: string
-        innerBlock: Block<unknown>
-        innerBlockState: unknown
-    }
-    | {
-        mode: 'choose'
-        expr: string
-        innerBlock?: Block<unknown>
-        innerBlockState?: unknown
-    }
-    | {
-        mode: 'loading'
-        expr: string
-        modeAfter: LoadedMode
-        jsonToLoad: any
-    }
-
-export type Mode = BlockSelectorState['mode']
-export type LoadedMode = Exclude<Mode, 'loading'>
+import { BlockSelectorState } from './versioned'
 
 
 export function init(
@@ -97,30 +73,4 @@ export function recompute(
         innerBlock,
         innerBlockState: innerBlock.recompute(state.innerBlockState, updateInner, env)
     }
-}
-
-export function selectorJSONV(inner: Validator) {
-    return strict({
-        mode: oneOf('run', 'choose'),
-        expr: string,
-        inner: inner,
-    })
-}
-
-export function fromJSON(json: any, update: BlockUpdater<BlockSelectorState>, env: Environment, blockLibrary: Environment): BlockSelectorState {
-    assertValid(selectorJSONV(any), json)
-    const { mode, inner, expr } = json
-
-    function updateInner(action: (inner: unknown) => unknown) {
-        update(state => updateBlock(state, action))
-    }
-
-    const innerBlock = computeExpr(expr, { ...blockLibrary, ...env })
-
-    if (!block.isBlock(innerBlock)) {
-        return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
-    }
-
-    const innerBlockState = innerBlock.fromJSON(inner, updateInner, env)
-    return { mode, expr, innerBlock, innerBlockState }
 }

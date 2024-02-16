@@ -7,7 +7,7 @@ import { Block as BlockComponent } from '../../block/component'
 import { computeExpr } from '../../logic/compute'
 import { CodeView } from '../../code-editor'
 
-import { JSExpr } from '../jsexpr'
+import { JSExpr } from '../js'
 
 import { BlockSelector } from '.'
 

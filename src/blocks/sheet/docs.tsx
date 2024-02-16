@@ -8,7 +8,7 @@ import { computeExpr } from '../../logic/compute'
 import { CodeView } from '../../code-editor'
 
 import { Note } from '../note'
-import { JSExpr } from '../jsexpr'
+import { JSExpr } from '../js'
 
 import { SheetOf } from '.'
 import { BlockSelector } from '../block-selector'

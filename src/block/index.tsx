@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { ErrorBoundary } from '../ui/value'
-import { ValidationError } from '../utils/validate'
+import { ValidationError, Validator, ValidatorObj, validate } from '../utils/validate'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -114,7 +114,7 @@ export function mapWithEnv<Item, Out>(
 }
 
 
-export function fieldUpdater<State extends Object, Field extends keyof State>(
+export function fieldUpdater<State extends object, Field extends keyof State>(
     fieldName: Field,
     updater: BlockUpdater<State>,
 ): BlockUpdater<State[Field]> {
@@ -141,4 +141,33 @@ export function updaterToSetter<State>(
     return function setState(newState: State) {
         updater(() => newState)
     }
+}
+
+export function updateWhenMatch(
+    schema: Validator,
+    updater: BlockUpdater<any>,
+): BlockUpdater<any> {
+    return function updateMatch(action: (state: any) => any) {
+        updater(state => {
+            if (validate(schema, state)) {
+                return action(state)
+            }
+            return state
+        })
+    }
+}
+
+export function updateCaseField<
+    State extends object,
+    Discriminator extends Partial<State & ValidatorObj>,
+    Field extends keyof Extract<State, Discriminator>,
+>(
+    discriminator: Discriminator,
+    fieldName: Field,
+    updater: BlockUpdater<State>,
+): BlockUpdater<Extract<State, Discriminator>[Field]> {
+    return fieldUpdater<Extract<State, Discriminator>, Field>(
+        fieldName,
+        updateWhenMatch(discriminator, updater),
+    )
 }

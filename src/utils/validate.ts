@@ -1,5 +1,7 @@
 // inspired by https://github.com/manvel-khnkoyan/jpv
 
+import { stringify } from "."
+
 export type ValidatorOptions = {
 }
 
@@ -236,26 +238,4 @@ function strfy(strs: TemplateStringsArray, ...interpolations: any[]) {
 
 function argfy(args: any[]) {
     return { toString() { return args.map(stringify).join(', ') } }
-}
-
-function stringify(value: any) {
-    if (typeof value === 'string') {
-        return JSON.stringify(value)
-    }
-    if (Array.isArray(value)) {
-        return `[${value.map(stringify).join(', ')}]`
-    }
-    if (value?.toString === Object.prototype.toString) {
-        return `{ ${stringifyFields(value)} }`
-    }
-    if (value?.toString) {
-        return value.toString()
-    }
-    return String(value)
-}
-
-function stringifyFields(obj: object) {
-    return Object.entries(obj)
-        .map(([field, value]) => `${field}: ${stringify(value)}`)
-        .join(', ')
 }

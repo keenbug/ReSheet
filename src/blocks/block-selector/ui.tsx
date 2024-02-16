@@ -14,8 +14,8 @@ import { useShortcuts } from '../../ui/shortcuts'
 import { CodeView, CodeEditor, CodeEditorHandle } from '../../code-editor'
 import { useCompletionsOverlay } from '../../code-editor/completions'
 
-import { BlockSelectorState } from './model'
 import * as Model from './model'
+import { BlockSelectorState } from './versioned'
 
 
 function ACTIONS(

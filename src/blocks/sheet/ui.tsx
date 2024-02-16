@@ -1,15 +1,20 @@
 import * as React from 'react'
 
-import { TextInput, findScrollableAncestor } from '../../ui/utils'
+import { useInView } from 'react-intersection-observer'
+
 import * as block from '../../block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
-import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { SheetBlockState, SheetBlockLine } from './model'
-import * as Model from './model'
-import { useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender, Effectful } from '../../ui/hooks'
+
 import { clampTo } from '../../utils'
+
+import { ErrorBoundary, ValueInspector } from '../../ui/value'
+import { useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender, Effectful } from '../../ui/hooks'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
-import { useInView } from 'react-intersection-observer'
+import { TextInput, findScrollableAncestor } from '../../ui/utils'
+
+import * as Model from './model'
+import { SheetBlockState, SheetBlockLine } from './versioned'
+import * as versioned from './versioned'
 
 
 /**************** Code Actions **************/
@@ -77,7 +82,7 @@ function ACTIONS<Inner extends unknown>(
                 {
                     id: newId,
                     name: '',
-                    visibility: Model.VISIBILITY_STATES[0],
+                    visibility: versioned.VISIBILITY_STATES[0],
                     state: innerBlock.init,
                 },
                 update,
@@ -97,7 +102,7 @@ function ACTIONS<Inner extends unknown>(
                 {
                     id: newId,
                     name: '',
-                    visibility: Model.VISIBILITY_STATES[0],
+                    visibility: versioned.VISIBILITY_STATES[0],
                     state: innerBlock.init,
                 },
                 update,

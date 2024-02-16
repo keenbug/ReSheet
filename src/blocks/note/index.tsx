@@ -7,19 +7,14 @@ import { getResultValue } from '../../logic/result'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 import { EffectfulUpdater, useEffectfulState, useEffectfulUpdate } from '../../ui/hooks'
 import { getFullKey } from '../../ui/utils'
-import { assertValid, defined, number, string, validate } from '../../utils/validate'
 
 import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '../../code-editor'
 import { useCompletionsOverlay } from '../../code-editor/completions'
 
-import { Note, ViewNote, evaluateNote, getCode, getPrefix, noteFromJSON, noteToJSON, recomputeNote, textClasses } from './note'
+import { ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
+import { NoteModel, NoteType } from './versioned'
+import * as versioned from './versioned'
 
-
-export interface NoteModel {
-    level: number
-    input: string
-    note: Note
-}
 
 const init: NoteModel = {
     level: 0,
@@ -27,8 +22,7 @@ const init: NoteModel = {
     note: evaluateNote('', block.emptyEnv, () => {}),
 }
 
-export { NoteBlock as Note }
-const NoteBlock = block.create<NoteModel>({
+export const Note = block.create<NoteModel>({
     init,
     view({ env, state, update }, ref) {
         return <NoteUi ref={ref} state={state} update={update} env={env} />
@@ -54,42 +48,18 @@ const NoteBlock = block.create<NoteModel>({
         }
     },
     fromJSON(json, update, env) {
-        assertValid({ level: number, input: string }, json)
-
-        if (validate({ v: 0, note: defined }, json)) {
-            const note = noteFromJSON(json.note, block.fieldUpdater('note', update), env)
-
-            return {
-                level: json.level,
-                input: json.input,
-                note,
-            }
-        }
-        else if (validate({ interpreted: defined }, json)) {
-            const note = noteFromJSON(json.interpreted, block.fieldUpdater('note', update), env)
-
-            return {
-                level: json.level,
-                input: json.input,
-                note,
-            }
-        }
-        else {
-            const note = evaluateNote(json.input, env, block.fieldUpdater('note', update))
-
-            return recompute(
-                {
-                    level: json.level,
-                    input: json.input,
-                    note,
-                },
-                update,
-                env,
-            )
-        }
+        return versioned.fromJSON(json)({
+            update,
+            env,
+            modelFromInput(level, input) {
+                const updateNote = block.fieldUpdater('note', update)
+                const note = evaluateNote(input, env, updateNote)
+                return recompute({ level, input, note }, update, env)
+            },
+        })
     },
     toJSON(state) {
-        return { v: 0, level: state.level, input: state.input, note: noteToJSON(state.note) }
+        return versioned.toJSON(state)
     }
 })
 
@@ -330,7 +300,7 @@ export function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel
 
 
 type NodeEditorProps = Omit<CodeEditorProps, 'language' | 'container' | 'className' | 'style'> & {
-    note: Note
+    note: NoteType
     onUpdate: (code: string) => void
 }
 
@@ -367,7 +337,7 @@ const codeStyle = {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
 }
 
-function editorStyle(note: Note): [React.CSSProperties, string, string] {
+function editorStyle(note: NoteType): [React.CSSProperties, string, string] {
     switch (note.type) {
         case 'expr':
             return [codeStyle, "", "jsx"]

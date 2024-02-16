@@ -1,30 +1,10 @@
 import * as block from '../../block'
-import { Block, BlockUpdater } from '../../block'
-import { BlockEntry } from '../../block/multiple'
+import { Block } from '../../block'
 import * as Multiple from '../../block/multiple'
 import { clampTo, nextElem } from '../../utils'
-import { any, assertValid, array, oneOf, strict } from '../../utils/validate'
 
-export interface SheetBlockState<InnerBlockState> {
-    readonly lines: SheetBlockLine<InnerBlockState>[]
-}
+import { LineVisibility, SheetBlockLine, SheetBlockState, VISIBILITY_STATES } from './versioned'
 
-export interface SheetBlockLine<InnerBlockState> extends BlockEntry<InnerBlockState> {
-    readonly id: number
-    readonly name: string
-    readonly state: InnerBlockState
-
-    readonly visibility: LineVisibility
-}
-
-export type LineVisibility =
-    | "block"
-    | "result"
-
-export const VISIBILITY_STATES: LineVisibility[] = [
-    "block",
-    "result",
-]
 
 export function nextLineVisibility(visibility: LineVisibility) {
     return nextElem(visibility, VISIBILITY_STATES)
@@ -202,35 +182,6 @@ export function updateLineBlock<State>(
                 env,
                 innerBlock,
                 updateLines,
-            )
-        ),
-    }
-}
-
-const visibilityJSONV = oneOf(...VISIBILITY_STATES)
-const sheetLineJSONV = strict(Multiple.entryJSONV(any, { visibility: visibilityJSONV }))
-const sheetJSONV = array(sheetLineJSONV)
-
-export function fromJSON<State>(json: any[], update: BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>): SheetBlockState<State> {
-    function updateLines(action: (state: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
-        update(state => ({
-            lines: action(state.lines)
-        }))
-    }
-
-    assertValid(sheetJSONV, json)
-
-    return {
-        lines: (
-            Multiple.fromJSON(
-                json,
-                updateLines,
-                env,
-                innerBlock,
-                (entry, { visibility }) => ({
-                    ...entry,
-                    visibility: VISIBILITY_STATES.includes(visibility) ? visibility : VISIBILITY_STATES[0],
-                }),
             )
         ),
     }

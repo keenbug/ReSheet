@@ -6,23 +6,16 @@ import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
 import * as block from '../../block'
-import { Result, resultFrom } from '../../logic/result'
+import { resultFrom } from '../../logic/result'
 import { computeExpr, parseJSExpr } from '../../logic/compute'
 
 import { ViewResult } from '../../ui/value'
 import { BlockPreview } from '../block-selector/ui'
-import { any, assertValid, boolean, loosely, strict, string } from '../../utils/validate'
+
+import { NoteType } from './versioned'
 
 
-export type Note =
-    | { type: 'expr', code: string, result: Result }
-    | { type: 'block', isInstantiated: false, code: string, result: Result }
-    | { type: 'block', isInstantiated: true, code: string, block: block.Block<unknown>, state: unknown }
-    | { type: 'text', tag: string, text: string }
-    | { type: 'checkbox', checked: boolean, text: string }
-
-
-export function getCode(note: Note) {
+export function getCode(note: NoteType) {
     switch (note.type) {
         case 'expr':
         case 'block':
@@ -33,7 +26,7 @@ export function getCode(note: Note) {
     }
 }
 
-export function getPrefix(note: Note) {
+export function getPrefix(note: NoteType) {
     switch (note.type) {
         case 'expr': return EXPR_PREFIX
         case 'block': return BLOCK_PREFIX
@@ -45,18 +38,21 @@ export function getPrefix(note: Note) {
 export const EXPR_PREFIX = '='
 export const BLOCK_PREFIX = '/'
 
-export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<Note>): Note {
-    const setResult = block.subUpdater(setNoteResult, updateNote)
+export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<NoteType>): NoteType {
+    const updateExprResult = block.updateCaseField({ type: 'expr' }, 'result', updateNote)
+    const updateBlockResult = block.updateCaseField({ type: 'block', isInstantiated: false}, 'result', updateNote)
 
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
-        const result = computeExprResult(expr, env, setResult)
+        const value = computeExpr(expr, env)
+        const result = resultFrom(value, block.updaterToSetter(updateExprResult))
         return { type: 'expr', code: expr, result }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
-        const result = computeExprResult(expr, env, setResult)
+        const value = computeExpr(expr, env)
+        const result = resultFrom(value, block.updaterToSetter(updateBlockResult))
         return { type: 'block', isInstantiated: false, code: expr, result }
     }
 
@@ -80,110 +76,7 @@ export function evaluateNote(input: string, env: block.Environment, updateNote: 
 }
 
 
-export function setNoteResult(note: Note, newResult: Result) {
-    switch (note.type) {
-        case 'block':
-            if (note.isInstantiated === true) { return note }
-            // fall through
-        case 'expr':
-            return {
-                ...note,
-                result: newResult,
-            }
-
-        default:
-            return note
-    }
-}
-
-
-export function noteBlockStateUpdater(updateNote: block.BlockUpdater<Note>) {
-    return function updateNoteBlockState(action: (blockState: unknown) => unknown) {
-        updateNote(note => {
-            if (note.type === 'block' && note.isInstantiated === true) {
-                return { ...note, state: action(note.state) }
-            }
-            return note
-        })
-    }
-}
-
-
-export function noteFromJSON(json: any, updateNote: block.BlockUpdater<Note>, env: block.Environment): Note {
-    switch (json.type) {
-        case 'expr':
-            assertValid({ type: 'expr', code: string }, json)
-            const result = computeExprResult(json.code, env, block.subUpdater(setNoteResult, updateNote))
-            return { type: 'expr', code: json.code, result }
-
-        case 'block':
-            assertValid(loosely({ type: 'block', isInstantiated: boolean }), json)
-            if (json.isInstantiated) {
-                assertValid({ type: 'block', isInstantiated: true, code: string, state: any }, json)
-
-                function setBlockFromResult(result: Result) {
-                    updateNote(() => {
-                        if (result.type === 'immediate' && block.isBlock(result.value)) {
-                            const state = result.value.fromJSON(json.state, noteBlockStateUpdater(updateNote), env)
-                            return { type: 'block', isInstantiated: true, code: json.code, block: result.value, state }
-                        }
-
-                        if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
-                            const state = result.value.fromJSON(json.state, noteBlockStateUpdater(updateNote), env)
-                            return { type: 'block', isInstantiated: true, code: json.code, block: result.value, state }
-                        }
-
-                        return { type: 'block', isInstantiated: false, code: json.code, result }
-                    })
-                }
-
-                const result = computeExprResult(json.code, env, setBlockFromResult)
-                if (result.type === 'immediate' && block.isBlock(result.value)) {
-                    const state = result.value.fromJSON(json.state, noteBlockStateUpdater(updateNote), env)
-                    return { type: 'block', isInstantiated: true, code: json.code, block: result.value, state }
-                }
-                else {
-                    return { type: 'block', isInstantiated: false, code: json.code, result }
-                }
-            }
-            else {
-                assertValid({ type: 'block', isInstantiated: false, code: string }, json)
-                const result = computeExprResult(json.code, env, block.subUpdater(setNoteResult, updateNote))
-                return { type: 'block', isInstantiated: false, code: json.code, result }
-            }
-
-        case 'text':
-            assertValid(strict({ type: 'text', tag: string, text: string }), json)
-            return json
-
-        case 'checkbox':
-            assertValid(strict({ type: 'checkbox', checked: boolean, text: string }), json)
-            return json
-    }
-}
-
-
-export function noteToJSON(note: Note) {
-    switch (note.type) {
-        case 'expr':
-            return { type: 'expr', code: note.code }
-
-        case 'block':
-            if (note.isInstantiated === true) {
-                return { type: 'block', isInstantiated: true, code: note.code, state: note.block.toJSON(note.state) }
-            }
-            else {
-                return { type: 'block', isInstantiated: false, code: note.code }
-            }
-
-        case 'text':
-        case 'checkbox':
-            return note
-    }
-}
-
-
-export function recomputeNote(input: string, note: Note, update: block.BlockUpdater<Note>, env: block.Environment): Note {
+export function recomputeNote(input: string, note: NoteType, update: block.BlockUpdater<NoteType>, env: block.Environment): NoteType {
     if (note.type === 'expr' && note.result.type === 'promise') {
         note.result.cancel()
     }
@@ -192,13 +85,11 @@ export function recomputeNote(input: string, note: Note, update: block.BlockUpda
     }
 
     if (note.type === 'block' && note.isInstantiated === true) {
+        const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+
         return {
             ...note,
-            state: note.block.recompute(
-                note.state,
-                noteBlockStateUpdater(update),
-                env,
-            ),
+            state: note.block.recompute(note.state, updateBlockState, env),
         }
     }
 
@@ -208,15 +99,8 @@ export function recomputeNote(input: string, note: Note, update: block.BlockUpda
 
 
 
-export function computeExprResult(expr: string, env: block.Environment, setResult: (result: Result) => void): Result {
-    return resultFrom(computeExpr(expr, env), setResult)
-}
-
-
-
-
 export interface ViewNoteProps {
-    note: Note
+    note: NoteType
     env: block.Environment
     isFocused: boolean
     actions: {
@@ -246,7 +130,7 @@ export function ViewNote({ note, env, isFocused, actions }: ViewNoteProps) {
 // Text
 
 interface ViewTextProps {
-    note: Extract<Note, { type: 'text' }>
+    note: Extract<NoteType, { type: 'text' }>
 }
 
 const ViewText = React.memo(
@@ -281,7 +165,7 @@ export const textClasses = {
 // Checkbox
 
 interface ViewCheckboxProps {
-    note: Extract<Note, { type: 'checkbox' }>
+    note: Extract<NoteType, { type: 'checkbox' }>
     toggleCheckbox(): void
 }
 
@@ -326,7 +210,7 @@ const ViewCheckbox = React.memo(
 // Block
 
 interface ViewBlockProps {
-    note: Extract<Note, { type: 'block' }>
+    note: Extract<NoteType, { type: 'block' }>
     env: block.Environment
     instantiateBlock(): void
 }
@@ -377,7 +261,7 @@ const ViewBlock = React.memo(
 // Expression
 
 interface ViewExprResultProps {
-    note: Extract<Note, { type: 'expr' }>
+    note: Extract<NoteType, { type: 'expr' }>
     env: block.Environment
     isFocused: boolean
 }

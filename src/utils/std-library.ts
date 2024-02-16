@@ -26,7 +26,7 @@ import * as block_component from '../block/component'
 // blocks
 import * as blocks from '../blocks'
 import * as blocks_blockSelector from '../blocks/block-selector'
-import * as blocks_jsexpr from '../blocks/jsexpr'
+import * as blocks_jsexpr from '../blocks/js'
 import * as blocks_note from '../blocks/note'
 import * as blocks_note_note from '../blocks/note/note'
 import * as blocks_sheet from '../blocks/sheet'

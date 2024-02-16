@@ -1,34 +1,25 @@
 import * as React from 'react'
 
-import { BlockRef } from '../block'
-import * as block from '../block'
-import { computeScript } from '../logic/compute'
-import { Pending, Result, resultFrom } from '../logic/result'
+import { BlockRef } from '../../block'
+import * as block from '../../block'
+import { computeScript } from '../../logic/compute'
+import { Pending, resultFrom } from '../../logic/result'
 
-import { ViewResult } from '../ui/value'
-import { useShortcuts } from '../ui/shortcuts'
+import { ViewResult } from '../../ui/value'
+import { useShortcuts } from '../../ui/shortcuts'
 
-import { CodeEditor, CodeEditorHandle } from '../code-editor'
-import { useCompletionsOverlay } from '../code-editor/completions'
-import { DocMarkdown } from '../docs/ui'
-import { Block } from '../block/component'
-import { DocsMap } from '../docs'
-import { assertValid, string } from '../utils/validate'
+import { CodeEditor, CodeEditorHandle } from '../../code-editor'
+import { useCompletionsOverlay } from '../../code-editor/completions'
+import { DocMarkdown } from '../../docs/ui'
+import { Block } from '../../block/component'
+import { DocsMap } from '../../docs'
 
-
-export interface JSExprModel {
-    code: string
-    result: Result
-}
-
-const init: JSExprModel = {
-    code: '',
-    result: { type: 'immediate', value: undefined },
-}
+import { JSExprModel } from './versioned'
+import * as versioned from './versioned'
 
 
 export const JSExpr = block.create<JSExprModel>({
-    init,
+    init: versioned.init,
     view({ env, state, update }, ref) {
         return <JSExprUi ref={ref} state={state} update={update} env={env} />
     },
@@ -54,15 +45,7 @@ export const JSExpr = block.create<JSExprModel>({
         }
     },
     fromJSON(json, update, env) {
-        assertValid(string, json)
-        return updateResult(
-            {
-                code: json,
-                result: { type: 'immediate', value: undefined },
-            },
-            update,
-            env,
-        )
+        return updateResult(versioned.fromJSON(json), update, env)
     },
     toJSON(state) {
         return state.code
@@ -186,7 +169,7 @@ export function gatherDocs(docs: DocsMap) {
 
 
 export function Example(code: string, env: block.Environment) {
-    const initWithCode = { ...init, code }
+    const initWithCode = { ...versioned.init, code }
 
     return function Example() {
         const [state, setState] = React.useState(null)

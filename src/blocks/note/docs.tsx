@@ -5,7 +5,7 @@ import { DocsMap } from '../../docs'
 
 import { Block } from '../../block/component'
 
-import { JSExpr } from '../jsexpr'
+import { JSExpr } from '../js'
 import { Note, recompute } from '../note'
 
 

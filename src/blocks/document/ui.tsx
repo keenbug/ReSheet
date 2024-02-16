@@ -12,19 +12,20 @@ import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '../../utils'
 import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, KeyButton, useBindingNotifications, KeyMap } from '../../ui/shortcuts'
 
-import { DocumentState, DocumentInner } from './model'
+import { DocumentState } from './model'
 import * as Model from './model'
-import { PageEntry, PageId } from './pages'
 import * as Pages from './pages'
 import { HistoryView } from './history'
 import * as History from './history'
 import { HistoryModePanel } from './history'
 import { CommandSearch } from './commands'
+import { Document, PageId, PageState } from './versioned'
+import * as versioned from './versioned'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
 interface ActionProps<State> {
-    state: DocumentInner<State>
+    state: Document<State>
     actions: Actions<State>
 }
 
@@ -33,7 +34,7 @@ function ACTIONS<State extends unknown>(
     innerBlock: Block<State>,
     env: Environment,
 ) {
-    function updateInner(action: (state: DocumentInner<State>) => DocumentInner<State>) {
+    function updateInner(action: (state: Document<State>) => Document<State>) {
         update(state =>
             History.updateHistoryCurrent(
                 state,
@@ -42,7 +43,7 @@ function ACTIONS<State extends unknown>(
         )
     }
 
-    function updatePages(action: (pages: Pages.PageState<State>[]) => Pages.PageState<State>[]) {
+    function updatePages(action: (pages: PageState<State>[]) => PageState<State>[]) {
         update(state => ({
             ...state,
             inner: {
@@ -614,7 +615,7 @@ interface MainViewProps<State> {
     innerRef: React.Ref<BlockRef>
     state: DocumentState<State>
     actions: Actions<State>
-    innerState: DocumentInner<State>
+    innerState: Document<State>
     innerBlock: Block<State>
     env: Environment
     sidebarVisible: boolean
@@ -684,12 +685,12 @@ function MainView<State>({
 
 interface BreadcrumbsProps {
     openPage: PageId[]
-    pages: Pages.PageState<unknown>[]
+    pages: PageState<unknown>[]
     onOpenPage(path: PageId[]): void
 }
 
 function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
-    function pathToPages(path: PageId[], pages: Pages.PageState<unknown>[], currentPath: PageId[] = []) {
+    function pathToPages(path: PageId[], pages: PageState<unknown>[], currentPath: PageId[] = []) {
         if (path.length === 0) { return [] }
 
         const page = pages.find(p => p.id === path[0])
@@ -717,14 +718,14 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
                         className="rounded px-1.5 -mx-0.5 hover:bg-gray-200"
                         onClick={() => { onOpenPage([ ...path, page.id ]) }}
                     >
-                        {Pages.getName(page)}
+                        {versioned.getName(page)}
                     </button>
                 </React.Fragment>
             ))}
         </div>
     )
 
-    function siblingsMenuItems(siblings: Pages.PageState<unknown>[], path: PageId[]) {
+    function siblingsMenuItems(siblings: PageState<unknown>[], path: PageId[]) {
         return (
             <Menu.Items
                 className={`
@@ -748,7 +749,7 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
                                     `}
                                     onClick={() => { onOpenPage(pathHere) } }
                                 >
-                                    {Pages.getName(page)}
+                                    {versioned.getName(page)}
                                 </button>
                             )
                         }}
@@ -861,7 +862,7 @@ function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditin
             <hr />
 
             {state.pages.map(page => (
-                <PageEntry
+                <Pages.PageEntry
                     key={page.id}
                     page={page}
                     openPage={state.viewState.openPage}
