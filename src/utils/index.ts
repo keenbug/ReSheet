@@ -144,3 +144,22 @@ export function stringifyFields(obj: object) {
         .map(([field, value]) => `${field}: ${stringify(value)}`)
         .join(', ')
 }
+
+export function uint8ArrayToBase64(uint8Array: Uint8Array, chunkSize: number = 1024 * 1024) {
+    const chunks = []
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize)
+        const binaryString = String.fromCharCode.apply(null, chunk)
+        chunks.push(btoa(binaryString))
+    }
+    return chunks.join('')
+}
+
+export function base64ToUint8Array(base64String: string) {
+    const binaryString = atob(base64String)
+    const uint8Array = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i)
+    }
+    return uint8Array
+}

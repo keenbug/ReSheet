@@ -6,7 +6,8 @@ import { BlockSelector } from './block-selector'
 import { JSExpr } from './js'
 import { DocumentOf } from './document'
 import { Note } from './note'
-import { is, string, validatorSwitch } from '../utils/validate'
+import { any, is, number, string, validatorSwitch } from '../utils/validate'
+import { base64ToUint8Array, uint8ArrayToBase64 } from '../utils'
 
 export { JSExpr, BlockSelector, SheetOf, DocumentOf, Note }
 
@@ -68,7 +69,10 @@ export function Input(parser = str => str) {
 
 const loadFileButtonStyle = `
     cursor-pointer
-    p-1
+    m-0.5
+    px-1
+    border
+    border-gray-200
     rounded
     font-gray-700
     bg-gray-100
@@ -78,14 +82,14 @@ export const LoadFileButtonStyled = classed<any>(LoadFileButton)`${loadFileButto
 
 export type LoadFileState =
     | { state: 'init' }
-    | { state: 'loaded', content: string, filename: string }
+    | { state: 'loaded', file: File, buffer: ArrayBuffer }
 
 export const LoadFile = Block.create<LoadFileState>({
     init: { state: 'init' },
     view({ state, update }) {
         async function loadFile(file: File) {
-            const content = await file.text()
-            update(() => ({ state: 'loaded', content, filename: file.name }))
+            const buffer = await file.arrayBuffer()
+            update(() => ({ state: 'loaded', file, buffer }))
         }
 
         function clear() {
@@ -103,8 +107,8 @@ export const LoadFile = Block.create<LoadFileState>({
             case 'loaded':
                 return (
                     <div>
-                        File <code className="px-1 bg-gray-100 rounded-sm">{state.filename}</code> loaded {}
-                        <span className="text-sm text-gray-700">({state.content.length} chars)</span> {}
+                        File <code className="px-1 bg-gray-100 rounded-sm">{state.file.name}</code> loaded {}
+                        <span className="text-sm text-gray-700">({state.file.size} bytes)</span> {}
                         <button className={loadFileButtonStyle} onClick={clear}>clear</button>
                     </div>
                 )
@@ -116,18 +120,55 @@ export const LoadFile = Block.create<LoadFileState>({
     getResult(state) {
         switch (state.state) {
             case 'init': return null
-            case 'loaded': return state.content
+            case 'loaded': return state.file
         }
     },
     fromJSON(json, env) {
         return validatorSwitch<LoadFileState>(json,
             [is(null), () => ({ state: 'init' })],
-            [string, content => ({ state: 'loaded', content, filename: '<unknown>' })],
+            [string, content => {
+                const uint8Array = new TextEncoder().encode(content)
+                return {
+                    state: 'loaded',
+                    file: new File([uint8Array], '<unknown>'),
+                    buffer: uint8Array.buffer,
+                }
+            }],
             [{ state: 'init' }, init => init],
-            [{ state: 'loaded', content: string, filename: string }, loaded => loaded],
+            [{ state: 'loaded', content: string, filename: string }, ({ content, filename }) => {
+                const uint8Array = new TextEncoder().encode(content)
+                return {
+                    state: 'loaded',
+                    file: new File([uint8Array], filename),
+                    buffer: uint8Array.buffer,
+                }
+            }],
+            [{ state: 'loaded', file: { content: string, name: string, options: { type: string, lastModified: number } } }, ({ file: { content, name, options: { type, lastModified } } }) => {
+                const uint8Array = base64ToUint8Array(content)
+                return {
+                    state: 'loaded',
+                    file: new File([uint8Array], name, { type, lastModified }),
+                    buffer: uint8Array.buffer,
+                }
+            }],
+            [any, () => ({ state: 'init' })],
         )
     },
     toJSON(state) {
-        return state
+        switch (state.state) {
+            case 'init': return { state: 'init' }
+            case 'loaded':
+                return {
+                    state: 'loaded',
+                    file: {
+                        content: uint8ArrayToBase64(new Uint8Array(state.buffer)),
+                        name: state.file.name,
+                        options: {
+                            type: state.file.type,
+                            lastModified: state.file.lastModified,
+                        }
+                    }
+                }
+        }
     }
 })

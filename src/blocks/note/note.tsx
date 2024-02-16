@@ -233,12 +233,11 @@ const ViewBlock = React.memo(
         return (
             <BlockViewContainer
                 header={
-                    <div className="text-gray-600 text-center">
-                        Preview of {}
+                    <button className="text-gray-600" onClick={instantiateBlock}>
                         <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
                             {note.code}
                         </code>
-                    </div>
+                    </button>
                 }
             >
                 <ErrorBoundary title="Could not show block">
@@ -350,7 +349,7 @@ export const ViewBlockInstantiated = React.memo(
 
 function BlockViewContainer({ header, children }: { header: React.ReactNode, children: React.ReactNode }) {
     return (
-        <div className="flex flex-col item-stretch rounded pb-1 border-t border-b border-gray-300 bg-gray-100">
+        <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
             {header}
             <div className="bg-white flex flex-col items-stretch">
                 {children}
