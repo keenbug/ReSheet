@@ -9,8 +9,7 @@ import * as block from '../../block'
 import { resultFrom } from '../../logic/result'
 import { computeExpr, parseJSExpr } from '../../logic/compute'
 
-import { ViewResult } from '../../ui/value'
-import { BlockPreview } from '../block-selector/ui'
+import { ErrorBoundary, ViewResult } from '../../ui/value'
 
 import { NoteType } from './versioned'
 
@@ -38,7 +37,7 @@ export function getPrefix(note: NoteType) {
 export const EXPR_PREFIX = '='
 export const BLOCK_PREFIX = '/'
 
-export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<NoteType>): NoteType {
+export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<NoteType>, lastNote?: NoteType): NoteType {
     const updateExprResult = block.updateCaseField({ type: 'expr' }, 'result', updateNote)
     const updateBlockResult = block.updateCaseField({ type: 'block', isInstantiated: false}, 'result', updateNote)
 
@@ -53,7 +52,8 @@ export function evaluateNote(input: string, env: block.Environment, updateNote: 
         const expr = input.slice(BLOCK_PREFIX.length)
         const value = computeExpr(expr, env)
         const result = resultFrom(value, block.updaterToSetter(updateBlockResult))
-        return { type: 'block', isInstantiated: false, code: expr, result }
+        const lastState = (lastNote as any)?.lastState
+        return { type: 'block', isInstantiated: false, code: expr, result, lastState }
     }
 
     const header = input.match(/^(#{1,6})\s*/)
@@ -93,7 +93,7 @@ export function recomputeNote(input: string, note: NoteType, update: block.Block
         }
     }
 
-    return evaluateNote(input, env, update)
+    return evaluateNote(input, env, update, note)
 }
 
 
@@ -224,11 +224,31 @@ const ViewBlock = React.memo(
         }
 
         const innerBlock = note.result.value
+        let state = innerBlock.init
+        try {
+            state = innerBlock.fromJSON(note.lastState, () => {}, env)
+        }
+        catch (e) { /* do nothing */ }
+
         return (
-            <>
-                <ViewResult result={note.result} />
-                <BlockPreview block={innerBlock} env={env} onChooseBlock={instantiateBlock} />
-            </>
+            <BlockViewContainer
+                header={
+                    <div className="text-gray-600 text-center">
+                        Preview of {}
+                        <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
+                            {note.code}
+                        </code>
+                    </div>
+                }
+            >
+                <ErrorBoundary title="Could not show block">
+                    {innerBlock.view({
+                        state,
+                        update() {},
+                        env,
+                    })}
+                </ErrorBoundary>
+            </BlockViewContainer>
         )
     },
     (before, after) => {
@@ -256,6 +276,88 @@ const ViewBlock = React.memo(
     },
 )
 
+interface ViewBlockInstantiatedProps {
+    note: Extract<NoteType, { type: 'block', isInstantiated: true }>
+    update: block.BlockUpdater<NoteType>
+    env: block.Environment
+}
+
+export const ViewBlockInstantiated = React.memo(
+    React.forwardRef<block.BlockRef, ViewBlockInstantiatedProps>(
+        function ViewBlockInstantiated({ note, update, env }, ref) {
+            const updateBlock = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+
+            function onChangeBlockType() {
+                update(state => {
+                    if (state.type !== 'block' || !state.isInstantiated) {
+                        return state
+                    }
+                    return {
+                        type: 'block',
+                        isInstantiated: false,
+                        code: state.code,
+                        result: { type: 'immediate', value: state.block },
+                        lastState: state.block.toJSON(state.state),
+                    }
+                })
+            }
+
+            return (
+                <BlockViewContainer
+                    header={
+                        <div className="flex flex-row justify-end">
+                            <button
+                                className="group/note-block-header px-2 py-1 text-xs text-gray-400 hover:text-gray-600"
+                                onClick={onChangeBlockType}
+                            >
+                                {note.code} {}
+                                <FontAwesomeIcon className="text-gray-300 group-hover/note-block-header:text-gray-500" icon={solidIcons.faCog} />
+                            </button>
+                        </div>
+                    }
+                >
+                    {note.block.view({
+                        state: note.state,
+                        update: updateBlock,
+                        env,
+                        ref,
+                    })}
+                </BlockViewContainer>
+            )
+        }
+    ),
+    (before, after) => {
+        if (before.env !== after.env || before.update !== after.update) {
+            return false
+        }
+
+        if (after.note.isInstantiated) {
+            return (
+                before.note.isInstantiated
+                && before.note.code === after.note.code
+                && before.note.block === after.note.block
+                && before.note.state === after.note.state
+            )
+        }
+        else {
+            return (
+                !before.note.isInstantiated
+                && before.note.code === after.note.code
+            )
+        }
+    },
+)
+
+function BlockViewContainer({ header, children }: { header: React.ReactNode, children: React.ReactNode }) {
+    return (
+        <div className="flex flex-col item-stretch rounded pb-1 border-t border-b border-gray-300 bg-gray-100">
+            {header}
+            <div className="bg-white flex flex-col items-stretch">
+                {children}
+            </div>
+        </div>
+    )
+}
 
 
 // Expression

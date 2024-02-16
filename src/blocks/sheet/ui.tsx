@@ -8,7 +8,7 @@ import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
 import { clampTo } from '../../utils'
 
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { useRefMap, useEffectfulUpdate, renderConditionally, WithSkipRender, Effectful } from '../../ui/hooks'
+import { useRefMap, renderConditionally, WithSkipRender, EUpdater, useEUpdate } from '../../ui/hooks'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
 import { TextInput, findScrollableAncestor } from '../../ui/utils'
 
@@ -54,12 +54,6 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
             return
     }
 }
-
-// Effectful action with Env
-type EAction<State> = (state: State, env: Environment) => Effectful<State>
-
-// Effectful updater with Env
-type EUpdater<State> = (action: EAction<State>) => void
 
 type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
@@ -310,7 +304,7 @@ export const Sheet = React.forwardRef(
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
-        const updateWithEffect = useEffectfulUpdate(update)
+        const eupdate = useEUpdate(update, env)
         React.useImperativeHandle(
             ref,
             () => ({
@@ -323,10 +317,6 @@ export const Sheet = React.forwardRef(
             }),
             [state]
         )
-
-        const eupdate = React.useCallback(function eupdate(eaction: EAction<SheetBlockState<InnerState>>) {
-            updateWithEffect(state => eaction(state, env))
-        }, [updateWithEffect, env])
 
         function onBlur(ev: React.FocusEvent) {
             const id = Array.from(refMap.entries())

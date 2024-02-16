@@ -25,7 +25,7 @@ interface NoteModelV0 {
 
 type NoteTypeV0 =
     | { type: 'expr', code: string, result: Result }
-    | { type: 'block', isInstantiated: false, code: string, result: Result }
+    | { type: 'block', isInstantiated: false, code: string, result: Result, lastState?: any }
     | { type: 'block', isInstantiated: true, code: string, block: block.Block<unknown>, state: unknown }
     | { type: 'text', tag: string, text: string }
     | { type: 'checkbox', checked: boolean, text: string }
