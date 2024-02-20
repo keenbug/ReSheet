@@ -1,5 +1,8 @@
 import * as React from 'react'
 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+
 import { BlockRef } from '../../block'
 import * as block from '../../block'
 import { getResultValue } from '../../logic/result'
@@ -314,19 +317,45 @@ export const NoteEditor = React.forwardRef(
         }
 
         return (
-            <CodeEditor
-                ref={ref}
-                code={code}
-                language={language}
-                container="div"
-                className={className}
-                style={style}
-                onKeyDown={ignoreEmptyBackspace}
-                {...props}
-                />
+            <div className="relative group/note-editor">
+                <CodeEditor
+                    ref={ref}
+                    code={code}
+                    language={language}
+                    container="div"
+                    className={className}
+                    style={style}
+                    onKeyDown={ignoreEmptyBackspace}
+                    {...props}
+                    />
+                <div className="absolute top-1 right-0 flex ">
+                    <NoteTypeIndicator noteType={note.type} />
+                </div>
+            </div>
         )
     }
 )
+
+function NoteTypeIndicator({ noteType }: { noteType: NoteType["type"] }) {
+    switch (noteType) {
+        case 'block':
+            return (
+                <div className="text-xs rounded px-1 bg-sky-100 group-focus-within/note-editor:bg-sky-400 text-white cursor-default">
+                    block
+                </div>
+            )
+
+        case 'expr':
+            return (
+                <div className="bg-amber-100 group-focus-within/note-editor:bg-amber-300 text-white w-4 h-4 rounded text-center font-bold cursor-default">
+                    <span className="inline-block translate-y-[-.34rem]">=</span>
+                </div>
+            )
+
+        default:
+            return null
+    }
+}
 
 const codeStyle = {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
