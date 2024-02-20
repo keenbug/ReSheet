@@ -220,7 +220,15 @@ const ViewBlock = React.memo(
         if (note.isInstantiated === true) { return null }
 
         if (note.result.type !== 'immediate' || !block.isBlock(note.result.value)) {
-            return <ViewResult result={note.result} />
+            return (
+                <div>
+                    <div className="bg-blue-100 px-1">
+                        <FontAwesomeIcon className="text-blue-400" icon={solidIcons.faCircleInfo} /> {}
+                        Not a Block:
+                    </div>
+                    <ViewResult result={note.result} />
+                </div>
+            )
         }
 
         const innerBlock = note.result.value
@@ -234,6 +242,7 @@ const ViewBlock = React.memo(
             <BlockViewContainer
                 header={
                     <button className="text-gray-600" onClick={instantiateBlock}>
+                        Block {}
                         <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
                             {note.code}
                         </code>
@@ -247,6 +256,12 @@ const ViewBlock = React.memo(
                         env,
                     })}
                 </ErrorBoundary>
+                <button
+                    className="absolute inset-0 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
+                    onClick={instantiateBlock}
+                    >
+                    <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
+                </button>
             </BlockViewContainer>
         )
     },
@@ -351,7 +366,7 @@ function BlockViewContainer({ header, children }: { header: React.ReactNode, chi
     return (
         <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
             {header}
-            <div className="bg-white flex flex-col items-stretch">
+            <div className="bg-white flex flex-col items-stretch relative">
                 {children}
             </div>
         </div>
