@@ -513,12 +513,16 @@ export function PageEntry<State>({
                 `}
                 onClick={() => actions.openPage(pathHere)}
                 >
-                <button onClick={() => actions.toggleCollapsed(pathHere)}>
-                    <FontAwesomeIcon
-                        className="text-gray-500 w-4"
-                        icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
-                        />
-                </button>
+                {page.children.length > 0 ?
+                    <button onClick={() => actions.toggleCollapsed(pathHere)}>
+                        <FontAwesomeIcon
+                            className="text-gray-500 w-4"
+                            icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
+                            />
+                    </button>
+                :
+                    <div className="w-4" />
+                }
 
                 {isNameEditing && arrayEquals(pathHere, openPage) ? (
                     <input
@@ -566,19 +570,6 @@ export function PageEntry<State>({
 
 
 export function PageChildren<State>({ page, actions, path, openPage, ...props }: PageEntryProps<State>) {
-    if (page.children.length === 0) {
-        const depth = path.length
-        return (
-            <button
-                className={`${pageStyle.indentClass(depth)} py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700`}
-                onClick={() => actions.addPage(path)}
-            >
-                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
-                Add Page
-            </button>
-        )
-    }
-
     const keyHere = path.join('.')
     return (
         <>

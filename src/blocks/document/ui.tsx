@@ -191,9 +191,11 @@ function ACTIONS<State extends unknown>(
         },
 
         openParent(currentPath: PageId[]) {
-            updateInner(inner =>
-                Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, updateInner)
-            )
+            if (currentPath.length > 1) {
+                updateInner(inner =>
+                    Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, updateInner)
+                )
+            }
         },
 
         openNextPage(currentPath: PageId[]) {
@@ -346,25 +348,25 @@ function DocumentKeyBindings<State>(
             bindings: [
                 [
                     ["K", "ArrowUp"],
-                    "!inputFocused",
+                    "selfFocused",
                     "open prev page",
                     () => { actions.openPrevPage(state.inner.viewState.openPage) },
                 ],
                 [
                     ["J", "ArrowDown"],
-                    "!inputFocused",
+                    "selfFocused",
                     "open next page",
                     () => { actions.openNextPage(state.inner.viewState.openPage) },
                 ],
                 [
                     ["L", "ArrowRight"],
-                    "!inputFocused",
+                    "selfFocused",
                     "open first child page",
                     () => { actions.openFirstChild(state.inner.viewState.openPage) },
                 ],
                 [
                     ["H", "ArrowLeft"],
-                    "!inputFocused",
+                    "selfFocused",
                     "open parent page",
                     () => { actions.openParent(state.inner.viewState.openPage) },
                 ],
