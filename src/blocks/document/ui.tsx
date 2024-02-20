@@ -877,7 +877,9 @@ function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditin
                 className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
                 onClick={() => actions.addPage([])}
                 >
-                <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                <span className="inline-block px-0.5 w-6">
+                    <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                </span>
                 Add Page
             </button>
         </Transition>
