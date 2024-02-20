@@ -15,6 +15,7 @@ import { PendingState, useThrottlePending } from './ui/hooks'
 import TablesIntroduction from './resources/introduction.js'
 import docs from './docs'
 import gatherDocs from './docs/all'
+import { FocusIndicator } from './ui/focus-indicator'
 
 const blocks = library.blocks
 
@@ -115,6 +116,7 @@ function App({ backupId, initJson=TablesIntroduction }: AppProps) {
                 blockRef={toplevelBlockRef}
                 />
             <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />
+            <FocusIndicator />
         </>
     )
 }
