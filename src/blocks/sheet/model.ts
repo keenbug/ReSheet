@@ -11,15 +11,8 @@ export function nextLineVisibility(visibility: LineVisibility) {
 }
 
 
-export function init<InnerBlockState>(innerBlockInit: InnerBlockState): SheetBlockState<InnerBlockState> {
-    return {
-        lines: [{
-            id: 0,
-            name: '',
-            visibility: VISIBILITY_STATES[0],
-            state: innerBlockInit, 
-        }]
-    }
+export const init = {
+    lines: []
 }
 
 
@@ -108,6 +101,27 @@ export function insertLineAfter<Inner>(
     }
 }
 
+export function insertLineEnd<Inner>(
+    state: SheetBlockState<Inner>,
+    newLine: SheetBlockLine<Inner>,
+    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    env: block.Environment,
+    innerBlock: Block<Inner>,
+) {
+    return {
+        ...state,
+        lines: (
+            Multiple.recomputeFrom(
+                [...state.lines, newLine],
+                newLine.id,
+                env,
+                innerBlock,
+                block.fieldUpdater('lines', update),
+            )
+        ),
+    }
+}
+
 export function deleteLine<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
@@ -118,7 +132,7 @@ export function deleteLine<Inner>(
     const index = state.lines.findIndex(line => line.id === id)
     const linesWithoutId = state.lines.filter(line => line.id !== id)
     const prevIndex = clampTo(0, linesWithoutId.length, index - 1)
-    const prevId = linesWithoutId[prevIndex].id
+    const prevId = linesWithoutId[prevIndex]?.id
 
     return [
         prevId,

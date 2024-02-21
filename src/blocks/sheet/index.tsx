@@ -11,7 +11,7 @@ export type { SheetBlockState }
 
 export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
     return block.create<SheetBlockState<State>>({
-        init: Model.init(innerBlock.init),
+        init: Model.init,
         view({ state, update, env }, ref) {
             return <UI.Sheet ref={ref} state={state} update={update} innerBlock={innerBlock} env={env} />
         },

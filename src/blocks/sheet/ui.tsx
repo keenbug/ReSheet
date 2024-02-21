@@ -1,6 +1,8 @@
 import * as React from 'react'
 
 import { useInView } from 'react-intersection-observer'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '../../block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
@@ -49,7 +51,6 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
             return
 
         case 'inner':
-            ref.focus() // if inner doesn't accept focus, at least the line is focused
             ref.focusInner()
             return
     }
@@ -93,6 +94,25 @@ function ACTIONS<Inner extends unknown>(
             state: Model.insertLineAfter(
                 state,
                 id,
+                {
+                    id: newId,
+                    name: '',
+                    visibility: versioned.VISIBILITY_STATES[0],
+                    state: innerBlock.init,
+                },
+                update,
+                env,
+                innerBlock,
+            ),
+            effect() { focusLineRef(refMap.get(newId), focusTarget) },
+        }
+    }
+
+    function insertEnd(state: SheetBlockState<Inner>, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
+        const newId = Model.nextFreeId(state)
+        return {
+            state: Model.insertLineEnd(
+                state,
                 {
                     id: newId,
                     name: '',
@@ -231,6 +251,10 @@ function ACTIONS<Inner extends unknown>(
             eupdate((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
         },
 
+        insertEnd(innerBlock: Block<Inner>, focusTarget: FocusTarget = 'inner') {
+            eupdate((state, env) => insertEnd(state, env, innerBlock, focusTarget))
+        },
+
         focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
             eupdate((state, env) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
@@ -267,16 +291,17 @@ function ACTIONS<Inner extends unknown>(
 
         deleteCode(id: number, focusAfter: FocusTarget = 'line') {
             eupdate((state, env) => {
-                if (state.lines.length <= 1) {
-                    return {
-                        state: Model.init(innerBlock.init),
-                    }
-                }
-
                 const [prevId, newState] = Model.deleteLine(state, id, update, env, innerBlock)
                 return {
                     state: newState,
-                    effect() { focusLineRef(refMap.get(prevId), focusAfter) },
+                    effect() {
+                        if (refMap.has(prevId)) {
+                            focusLineRef(refMap.get(prevId), focusAfter)
+                        }
+                        else {
+                            container.current.focus()
+                        }
+                    },
                 }
             })
         },
@@ -310,13 +335,33 @@ export const Sheet = React.forwardRef(
             () => ({
                 focus() {
                     const lastIndex = lastFocus.current ?? 0
-                    refMap
-                        .get(state.lines[lastIndex].id)
-                        .focus()
+                    if (state.lines[lastIndex]) {
+                        refMap
+                            .get(state.lines[lastIndex].id)
+                            ?.focus?.()
+                        return
+                    }
+                    else {
+                        containerRef.current?.focus?.()
+                    }
                 }
             }),
             [state]
         )
+
+        const actions = React.useMemo(
+            () => ACTIONS(eupdate, containerRef, refMap, innerBlock),
+            [eupdate, containerRef, refMap, innerBlock],
+        )
+
+        const shortcutProps = useShortcuts([
+            {
+                description: "sheet",
+                bindings: [
+                    [["Enter"], "selfFocused", "add line", () => actions.insertEnd(innerBlock)],
+                ],
+            },
+        ])
 
         function onBlur(ev: React.FocusEvent) {
             const id = Array.from(refMap.entries())
@@ -331,15 +376,18 @@ export const Sheet = React.forwardRef(
             else {
                 lastFocus.current = null
             }
+
+            shortcutProps.onBlur(ev)
         }
 
-        const actions = React.useMemo(
-            () => ACTIONS(eupdate, containerRef, refMap, innerBlock),
-            [eupdate, containerRef, refMap, innerBlock],
-        )
-
         return (
-            <div ref={containerRef} onBlur={onBlur}>
+            <div
+                ref={containerRef}
+                tabIndex={-1}
+                className="group/sheet focus:border-b-2 focus:border-blue-300 outline-none"
+                {...shortcutProps}
+                onBlur={onBlur}
+            >
                 <SheetLinesEnv
                     setLineRef={setLineRef}
                     lines={state.lines}
@@ -347,6 +395,24 @@ export const Sheet = React.forwardRef(
                     block={innerBlock}
                     env={env}
                     />
+
+                {/* Add line button */}
+                <div className="relative">
+                    <button
+                        className={`
+                            peer z-10
+                            absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2
+                            px-1 rounded-full bg-gray-100 border-2 border-gray-100
+                            text-gray-400 text-xs
+                            ${state.lines.length > 0 && "group-focus-within/sheet:opacity-50 hover:group-focus-within/sheet:opacity-100"}
+                            transition-[opacity_color] hover:text-blue-600 hover:bg-blue-50 hover:border-blue-500/50
+                        `}
+                        onClick={() => actions.insertEnd(innerBlock)}
+                    >
+                        <FontAwesomeIcon icon={solidIcons.faPlus} />
+                    </button>
+                    <div className="absolute top-0 left-0 right-0 border-t-2 border-blue-500 opacity-0 peer-hover:opacity-50 transition-[opacity]" />
+                </div>
             </div>
         )
     }
@@ -469,6 +535,9 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             },
             focusInner() {
                 innerBlockRef.current?.focus()
+                if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
+                    containerRef.current.focus()
+                }
             }
         }),
     )
@@ -630,10 +699,10 @@ function sheetLineBindings<Inner>(
         {
             description: "scroll sheet",
             bindings: [
-                [["C-ArrowUp", "C-K"],               "none",         "scroll UP",        () => actions.scroll(-0.25)],
-                [["C-ArrowDown", "C-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.25)],
-                [["C-Shift-ArrowUp", "C-Shift-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
-                [["C-Shift-ArrowDown", "C-Shift-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
+                [["C-Alt-ArrowUp", "C-Alt-K"],               "none",         "scroll UP",        () => actions.scroll(-0.5)],
+                [["C-Alt-ArrowDown", "C-Alt-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.5)],
+                [["C-Shift-Alt-ArrowUp", "C-Shift-Alt-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
+                [["C-Shift-Alt-ArrowDown", "C-Shift-Alt-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
             ]
         },
     ]
