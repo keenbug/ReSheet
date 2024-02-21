@@ -269,7 +269,7 @@ function DocumentKeyBindings<State>(
                 ],
                 [
                     ["C-Backspace"],
-                    "!inputFocused",
+                    "selfFocused",
                     "delete page",
                     () => { actions.deletePage(state.viewState.openPage) },
                 ],
@@ -280,25 +280,25 @@ function DocumentKeyBindings<State>(
             bindings: [
                 [
                     ["C-Shift-K", "C-Shift-ArrowUp"],
-                    "none",
+                    "selfFocused",
                     "move page up",
                     () => { actions.movePage(-1, state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-J", "C-Shift-ArrowDown"],
-                    "none",
+                    "selfFocused",
                     "move page down",
                     () => { actions.movePage(1, state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-H", "C-Shift-ArrowLeft"],
-                    "none",
+                    "selfFocused",
                     "move page one level up",
                     () => { actions.unnestPage(state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-L", "C-Shift-ArrowRight"],
-                    "none",
+                    "selfFocused",
                     "move page one level down",
                     () => { actions.nestPage(state.viewState.openPage) },
                 ],
@@ -338,13 +338,13 @@ function DocumentKeyBindings<State>(
             bindings: [
                 [
                     ["C-Shift-R"],
-                    "none",
+                    "selfFocused",
                     "edit page name",
                     () => { localActions.setIsNameEditing(true) },
                 ],
                 [
                     ["Space"],
-                    "!inputFocused",
+                    "selfFocused",
                     "toggle page collapsed",
                     () => { actions.toggleCollapsed(state.viewState.openPage) },
                 ],
