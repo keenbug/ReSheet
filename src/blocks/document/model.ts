@@ -2,41 +2,23 @@ import * as block from '../../block'
 import { Block, BlockUpdater, Environment } from '../../block'
 import * as Multiple from '../../block/multiple'
 
-import { HistoryWrapper, initHistory, historyFromJSON, historyToJSON } from './history'
 import * as Pages from './pages'
-
 import { Document, PageId, PageState } from './versioned'
 import * as versioned from './versioned'
 
 
-export type DocumentState<Inner> = HistoryWrapper<Document<Inner>>
-
-export function init<Inner>(initInner: Inner): DocumentState<Inner> {
-    return (
-        initHistory({
-            viewState: {
-                sidebarOpen: true,
-                openPage: [],
-            },
-            template: Pages.init(-1, initInner),
-            pages: [],
-        })
-    )
+export function init<Inner>(initInner: Inner): Document<Inner> {
+    return {
+        viewState: {
+            sidebarOpen: true,
+            openPage: [],
+        },
+        template: Pages.init(-1, initInner),
+        pages: [],
+    }
 }
 
-export function fromJSON<Inner>(
-    json: any,
-    update: BlockUpdater<DocumentState<Inner>>,
-    env: Environment,
-    innerBlock: Block<Inner>
-): DocumentState<Inner> {
-    const updateInner = block.fieldUpdater('inner', update)
-    return historyFromJSON(json, env, (stateJSON, env) => {
-        return innerFromJSON<Inner>(stateJSON, updateInner, env, innerBlock)
-    })
-}
-
-export function innerFromJSON<Inner>(json, update: block.BlockUpdater<Document<Inner>>, env: block.Environment, innerBlock: block.Block<Inner>) {
+export function fromJSON<Inner>(json, update: block.BlockUpdater<Document<Inner>>, env: block.Environment, innerBlock: block.Block<Inner>) {
     const updatePages = block.fieldUpdater('pages', update)
     function updatePageStateAt(path: PageId[], action: (state: Inner) => Inner) {
         Pages.updatePageStateAt(path, updatePages, action, env, innerBlock)
@@ -45,39 +27,23 @@ export function innerFromJSON<Inner>(json, update: block.BlockUpdater<Document<I
     return versioned.fromJSON(json)({ updatePageStateAt, env, innerBlock })
 }
 
-export function toJSON<Inner>(state: DocumentState<Inner>, innerBlock: Block<Inner>) {
-    return historyToJSON(state, innerState => {
-        return versioned.toJSON(innerState, innerBlock)
-    })
+export { toJSON } from './versioned'
+
+export function getResult<Inner>(state: Document<Inner>, innerBlock: Block<Inner>) {
+    return Multiple.getResultEnv(state.pages, innerBlock)
 }
 
-
-export function getResult<Inner>(state: DocumentState<Inner>, innerBlock: Block<Inner>) {
-    return Multiple.getResultEnv(state.inner.pages, innerBlock)
-}
-
-export function recompute<Inner>(state: DocumentState<Inner>, update: BlockUpdater<DocumentState<Inner>>, env: Environment, innerBlock: Block<Inner>) {
-    function updatePages(action: (state: PageState<Inner>[]) => PageState<Inner>[]) {
-        update(state => ({
-            ...state,
-            inner: {
-                ...state.inner,
-                pages: action(state.inner.pages),
-            },
-        }))
-    }
+export function recompute<Inner>(state: Document<Inner>, update: BlockUpdater<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
+    const updatePages = block.fieldUpdater('pages', update)
     return {
         ...state,
-        inner: {
-            ...state.inner,
-            pages: Pages.recomputePagesFrom(
-                null,
-                state.inner.pages,
-                env,
-                innerBlock,
-                updatePages,
-            ),
-        },
+        pages: Pages.recomputePagesFrom(
+            null,
+            state.pages,
+            env,
+            innerBlock,
+            updatePages,
+        ),
     }
 }
 

@@ -1,10 +1,6 @@
 import * as React from "react"
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import * as solidIcons from "@fortawesome/free-solid-svg-icons"
-
 import { BlockUpdater, Environment } from "../../block"
-import { useAutoretrigger } from "../../ui/hooks"
 import { getFullKey } from "../../ui/utils"
 import { clampTo } from "../../utils"
 
@@ -26,19 +22,22 @@ export interface HistoryWrapperJSON<StateJSON> {
 
 export type HistoryEntry<State> =
     | {
-        readonly type: 'state'
-        readonly time: Date
-        readonly state: State
+        type: 'state'
+        time: Date
+        state: State
+        prev?: Date
     }
     | {
-        readonly type: 'json'
-        readonly time: Date
-        readonly stateJSON: any
+        type: 'json'
+        time: Date
+        stateJSON: any
+        prev?: Date
     }
 
 export interface HistoryEntryJSON<StateJSON> {
     time: number
     state: StateJSON
+    prev?: number
 }
 
 
@@ -50,29 +49,75 @@ export function initHistory<State>(initState: State): HistoryWrapper<State> {
     }
 }
 
+export function innerUpdater<State>(
+    update: BlockUpdater<HistoryWrapper<State>>,
+    env: Environment,
+    fromJSON: (json: any, env: Environment) => State,
+): BlockUpdater<State> {
+    return function updateInner(action: (state: State) => State) {
+        update(state => updateHistoryCurrent(state, action, env, fromJSON))
+    }
+}
+
 export function updateHistoryCurrent<State>(
     state: HistoryWrapper<State>,
-    update: (state: State) => State,
+    action: (state: State) => State,
+    env: Environment,
+    fromJSON: (state: any, env: Environment) => State,
 ): HistoryWrapper<State> {
-    if (state.mode.type !== 'current') { return state }
+    switch (state.mode.type) {
+        case 'current': {
+            const newInner = action(state.inner)
+            return {
+                ...state,
+                history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner, prev: state.history[0]?.time }]),
+                inner: newInner,
+            }
+        }
 
-    const newInner = update(state.inner)
-    return {
-        ...state,
-        history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner }]),
-        inner: newInner,
+        case 'history': {
+            const entryInHistory = state.history[state.mode.position]
+            if (entryInHistory === undefined) { return state }
+
+            const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
+            const newInner = action(stateInHistory)
+            return {
+                mode: { type: 'current' },
+                history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner, prev: entryInHistory.time }]),
+                inner: newInner,
+            }
+        }
+    }
+}
+
+export function getCurrentState<State>(
+    state: HistoryWrapper<State>,
+    env: Environment,
+    fromJSON: (json: any, env: Environment) => State,
+): State {
+    switch (state.mode.type) {
+        case 'current':
+            return state.inner
+
+        case 'history': {
+            const entryInHistory = state.history[state.mode.position]
+            if (entryInHistory === undefined) { return state.inner }
+
+            const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
+            return stateInHistory
+        }
     }
 }
 
 
 export function openHistory<State>(state: HistoryWrapper<State>): HistoryWrapper<State> {
-    if (state.history.length === 0) { return state }
+    if (state.history.length <= 1) { return state }
 
     return {
         ...state,
         mode: {
             type: 'history',
-            position: state.history.length - 1,
+            position: state.history.length - 2,
         },
     }
 }
@@ -143,11 +188,13 @@ export function historyToJSON<State>(
                     return {
                         time: entry.time.getTime(),
                         state: entry.stateJSON,
+                        prev: entry.prev?.getTime?.(),
                     }
                 case 'state':
                     return {
                         time: entry.time.getTime(),
                         state: toJSON(entry.state),
+                        prev: entry.prev?.getTime?.(),
                     }
             }
         }),
@@ -167,6 +214,7 @@ export function historyFromJSON<State>(
                 type: 'json',
                 time: new Date(historyEntryJson.time),
                 stateJSON: historyEntryJson.state,
+                prev: historyEntryJson.prev !== undefined && new Date(historyEntryJson.prev),
             }
         )),
         inner: fromJSON(json.inner, env),
@@ -219,11 +267,10 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
 
 
 
-
 export interface HistoryViewProps<Inner> {
     state: HistoryWrapper<Inner>
     update: BlockUpdater<HistoryWrapper<Inner>>
-    children: (state: Inner) => JSX.Element
+    children: (props: { state: Inner, update: BlockUpdater<Inner>, updateHistory: BlockUpdater<HistoryWrapper<Inner>> }) => React.ReactNode
     env: Environment
     fromJSON: (json: any, env: Environment) => Inner
 }
@@ -239,31 +286,8 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
                 return
 
             case "C-Shift-Z":
-                update(state => moveInHistory(-10, state))
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
             case "C-Y":
                 update(state => moveInHistory(1, state))
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Shift-Y":
-                update(state => moveInHistory(10, state))
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "Escape":
-                update(closeHistory)
-                event.stopPropagation()
-                event.preventDefault()
-                return
-
-            case "C-Enter":
-                update(state => restoreStateFromHistory(state, env, fromJSON))
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -280,11 +304,20 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
         }
     }
 
+    const updateInner = React.useCallback(
+        (action: (state: Inner) => Inner) => (
+            update(state => (
+                updateHistoryCurrent(state, action, env, fromJSON)
+            ))
+        ),
+        [env, fromJSON],
+    )
+
     switch (state.mode.type) {
         case 'current':
             return (
                 <div className="h-full w-full" onKeyDownCapture={onKeyDownCurrent}>
-                    {viewInner(state.inner)}
+                    {viewInner({ state: state.inner, update: updateInner, updateHistory: update })}
                 </div>
             )
         
@@ -295,81 +328,8 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
             const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
             return (
                 <div className="h-full w-full" onKeyDownCapture={onKeyDownHistory}>
-                    {viewInner(stateInHistory)}
+                    {viewInner({ state: stateInHistory, update: updateInner, updateHistory: update })}
                 </div>
             )
-    }
-}
-
-
-
-export interface HistoryActions {
-    goBack(): void
-    goForward(): void
-    restoreStateFromHistory(): void
-}
-
-export interface HistoryModePanelProps<Inner> {
-    state: HistoryWrapper<Inner>
-    actions: HistoryActions
-}
-
-
-export function HistoryModePanel<Inner>({ state, actions }: HistoryModePanelProps<Inner>) {
-    const [startGoBack, stopGoBack] = useAutoretrigger(actions.goBack)
-    const [startGoForward, stopGoForward] = useAutoretrigger(actions.goForward)
-
-    if (state.mode.type !== 'history') {
-        return null
-    }
-
-    return (
-        <div
-            className={`
-                sticky top-0 left-0 right-0 z-10
-                bg-blue-100 text-blue-950 backdrop-opacity-90 backdrop-blur
-                shadow mb-2 flex space-x-2 items-baseline
-            `}
-        >
-            <button className="px-2 rounded hover:bg-blue-500 hover:text-blue-50" onClick={actions.restoreStateFromHistory}>
-                Restore
-            </button>
-
-            <div className="flex-1 flex space-x-1 px-2">
-                <button className="px-2 hover:text-blue-500" onMouseDown={startGoBack} onMouseUp={stopGoBack} onMouseLeave={stopGoBack}>
-                    <FontAwesomeIcon icon={solidIcons.faAngleLeft} />
-                </button>
-                <button className="px-2 hover:text-blue-500" onMouseDown={startGoForward} onMouseUp={stopGoForward} onMouseLeave={stopGoBack}>
-                    <FontAwesomeIcon icon={solidIcons.faAngleRight} />
-                </button>
-                <div className="self-center px-1">
-                    {formatTime(state.history[state.mode.position].time)}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-
-const secondInMs = 1000
-const minuteInMs = 60 * secondInMs
-const hourInMs = 60 * minuteInMs
-const dayInMs = 24 * hourInMs
-
-const formatTime = (date: Date) => {
-    const diffInMs = Date.now() - date.getTime()
-    if (diffInMs < dayInMs) {
-        return Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)
-    }
-    else {
-        const formatOptions: Intl.DateTimeFormatOptions = {
-            year: '2-digit',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        }
-        return Intl.DateTimeFormat(undefined, formatOptions).format(date)
     }
 }

@@ -8,17 +8,16 @@ import { Menu, Transition } from '@headlessui/react'
 import { Set } from 'immutable'
 
 import { Block, BlockRef, BlockUpdater, Environment } from '../../block'
+import * as block from '../../block'
 import { LoadFileButton, saveFile, selectFile } from '../../ui/utils'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '../../utils'
 import { CollectorDialogProps, KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, KeyButton, useBindingNotifications, KeyMap } from '../../ui/shortcuts'
 
-import { DocumentState } from './model'
 import * as Model from './model'
 import * as Pages from './pages'
-import { HistoryView } from './history'
-import * as History from './history'
-import { HistoryModePanel } from './history'
 import { CommandSearch } from './commands'
+import { HistoryWrapper } from './history'
+import * as History from './history'
 import { Document, PageId, PageState } from './versioned'
 import * as versioned from './versioned'
 
@@ -30,34 +29,16 @@ interface ActionProps<State> {
 }
 
 function ACTIONS<State extends unknown>(
-    update: BlockUpdater<DocumentState<State>>,
+    update: BlockUpdater<Document<State>>,
+    updateHistory: BlockUpdater<HistoryWrapper<Document<State>>>,
     innerBlock: Block<State>,
     env: Environment,
 ) {
-    function updateInner(action: (state: Document<State>) => Document<State>) {
-        update(state =>
-            History.updateHistoryCurrent(
-                state,
-                action,
-            )
-        )
-    }
-
-    function updatePages(action: (pages: PageState<State>[]) => PageState<State>[]) {
-        update(state => ({
-            ...state,
-            inner: {
-                ...state.inner,
-                pages: action(state.inner.pages),
-            },
-        }))
-    }
+    const updatePages = block.fieldUpdater('pages', update)
 
     return {
-        updateInner,
-
         updateOpenPageInner(action: (state: State) => State) {
-            updateInner(inner =>
+            update(inner =>
                 Model.updateOpenPage(inner, action, innerBlock, env)
             )
         },
@@ -68,8 +49,8 @@ function ACTIONS<State extends unknown>(
         },
 
         save() {
-            update(state => {
-                const content = JSON.stringify(Model.toJSON(state, innerBlock))
+            updateHistory(state => {
+                const content = JSON.stringify(History.historyToJSON(state, inner => Model.toJSON(inner, innerBlock)))
                 saveFile(
                     'tables.json',
                     'application/json',
@@ -82,8 +63,8 @@ function ACTIONS<State extends unknown>(
         async loadLocalFile(file: File) {
             const content = JSON.parse(await file.text())
             try {
-                const newState = Model.fromJSON(content, update, env, innerBlock)
-                update(() => newState)
+                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, update, env, innerBlock))
+                updateHistory(() => newState)
             }
             catch (e) {
                 window.alert(`Could not load file: ${e}`)
@@ -97,8 +78,8 @@ function ACTIONS<State extends unknown>(
             try {
                 const response = await fetch(url)
                 const content = await response.json()
-                const newState = Model.fromJSON(content, update, env, innerBlock)
-                update(() => newState)
+                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, update, env, innerBlock))
+                updateHistory(() => newState)
             }
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
@@ -106,26 +87,26 @@ function ACTIONS<State extends unknown>(
         },
 
         useAsTempate(path: PageId[]) {
-            updateInner(inner => ({
+            update(inner => ({
                 ...inner,
                 template: Pages.getPageAt(path, inner.pages) ?? inner.template,
             }))
         },
 
         addPage(path: PageId[]) {
-            updateInner(inner =>
+            update(inner =>
                 Model.addPageAt(path, inner)
             )
         },
 
         deletePage(path: PageId[]) {
-            updateInner(inner =>
-                Model.deletePageAt(path, inner, innerBlock, env, updateInner)
+            update(inner =>
+                Model.deletePageAt(path, inner, innerBlock, env, update)
             )
         },
 
         setPageName(path: PageId[], name: string) {
-            updateInner(innerState => {
+            update(innerState => {
                 return {
                     ...innerState,
                     pages: Pages.updatePageAt(
@@ -138,7 +119,7 @@ function ACTIONS<State extends unknown>(
         },
 
         nestPage(path: PageId[]) {
-            updateInner(innerState => {
+            update(innerState => {
                 const [newPath, pages] = Pages.nestPage(path, innerState.pages, env, innerBlock, updatePages)
                 return {
                     ...innerState,
@@ -152,7 +133,7 @@ function ACTIONS<State extends unknown>(
         },
 
         unnestPage(path: PageId[]) {
-            updateInner(innerState => {
+            update(innerState => {
                 const [newPath, pages] = Pages.unnestPage(path, innerState.pages, env, innerBlock, updatePages)
                 return {
                     ...innerState,
@@ -166,7 +147,7 @@ function ACTIONS<State extends unknown>(
         },
 
         movePage(delta: number, path: PageId[]) {
-            updateInner(innerState => {
+            update(innerState => {
                 return {
                     ...innerState,
                     pages: Pages.movePage(delta, path, innerState.pages, innerBlock, env, updatePages),
@@ -175,87 +156,67 @@ function ACTIONS<State extends unknown>(
         },
 
         openPage(path: PageId[]) {
-            updateInner(inner =>
-                Model.changeOpenPage(path, inner, env, innerBlock, updateInner)
+            update(inner =>
+                Model.changeOpenPage(path, inner, env, innerBlock, update)
             )
         },
 
         openFirstChild(currentPath: PageId[]) {
-            updateInner(inner => {
+            update(inner => {
                 const parent = Pages.getPageAt(currentPath, inner.pages)
                 if (parent === null || parent.children.length === 0) { return inner }
 
                 const path = [...currentPath, parent.children[0].id]
-                return Model.changeOpenPage(path, inner, env, innerBlock, updateInner)
+                return Model.changeOpenPage(path, inner, env, innerBlock, update)
             })
         },
 
         openParent(currentPath: PageId[]) {
             if (currentPath.length > 1) {
-                updateInner(inner =>
-                    Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, updateInner)
+                update(inner =>
+                    Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, update)
                 )
             }
         },
 
         openNextPage(currentPath: PageId[]) {
-            updateInner(inner => {
-                const allPaths = Pages.getExpandedPaths(inner.pages, currentPath)
+            update(state => {
+                const allPaths = Pages.getExpandedPaths(state.pages, currentPath)
                 const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
                 const nextPageIndex = clampTo(0, allPaths.length, openPageIndex + 1)
 
                 const newPath = allPaths[nextPageIndex]
-                return Model.changeOpenPage(newPath, inner, env, innerBlock, updateInner)
+                return Model.changeOpenPage(newPath, state, env, innerBlock, update)
             })
         },
 
         openPrevPage(currentPath: PageId[]) {
-            updateInner(inner => {
-                const allPaths = Pages.getExpandedPaths(inner.pages, currentPath)
+            update(state => {
+                const allPaths = Pages.getExpandedPaths(state.pages, currentPath)
                 const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
                 const prevPageIndex = clampTo(0, allPaths.length, openPageIndex - 1)
 
                 const newPath = allPaths[prevPageIndex]
-                return Model.changeOpenPage(newPath, inner, env, innerBlock, updateInner)
+                return Model.changeOpenPage(newPath, state, env, innerBlock, update)
             })
         },
 
         toggleCollapsed(path: PageId[]) {
-            updateInner(innerState => {
+            update(state => {
                 return {
-                    ...innerState,
+                    ...state,
                     pages: Pages.updatePageAt(
                         path,
-                        innerState.pages,
+                        state.pages,
                         page => ({ ...page, isCollapsed: !page.isCollapsed }),
                     ),
                 }
             })
         },
 
-        openHistory() {
-            update(History.openHistory)
-        },
-
-        closeHistory() {
-            update(History.closeHistory)
-        },
-
-        goBack() {
-            update(state => History.moveInHistory(-1, state))
-        },
-
-        goForward() {
-            update(state => History.moveInHistory(1, state))
-        },
-        
-        restoreStateFromHistory() {
-            update(state => History.restoreStateFromHistory(state, env, (state, env) => Model.innerFromJSON(state, updateInner, env, innerBlock)))
-        },
-        
         toggleSidebar() {
-            updateInner(inner =>
-                $update(open => !open, inner,'viewState','sidebarOpen')
+            update(state =>
+                $update(open => !open, state,'viewState','sidebarOpen')
             )
         },
 
@@ -264,7 +225,7 @@ function ACTIONS<State extends unknown>(
 
 
 interface LocalActions {
-    setIsNameEditing(editin: boolean): void
+    setIsNameEditing(editing: boolean): void
     toggleShortcutsVisible(): void
     toggleSearch(): void
 }
@@ -277,7 +238,7 @@ const commandSearchBinding = (localActions: LocalActions): Keybinding => [
 ]
 
 function DocumentKeyBindings<State>(
-    state: DocumentState<State>,
+    state: Document<State>,
     actions: Actions<State>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
     innerRef: React.MutableRefObject<BlockRef>,
@@ -293,7 +254,7 @@ function DocumentKeyBindings<State>(
                     "!inputFocused",
                     "new page",
                     () => {
-                        actions.addPage(state.inner.viewState.openPage.slice(0, -1))
+                        actions.addPage(state.viewState.openPage.slice(0, -1))
                         localActions.setIsNameEditing(true)
                     },
                 ],
@@ -302,7 +263,7 @@ function DocumentKeyBindings<State>(
                     "none",
                     "new child page",
                     () => {
-                        actions.addPage(state.inner.viewState.openPage)
+                        actions.addPage(state.viewState.openPage)
                         localActions.setIsNameEditing(true)
                     },
                 ],
@@ -310,7 +271,7 @@ function DocumentKeyBindings<State>(
                     ["C-Backspace"],
                     "!inputFocused",
                     "delete page",
-                    () => { actions.deletePage(state.inner.viewState.openPage) },
+                    () => { actions.deletePage(state.viewState.openPage) },
                 ],
             ]
         },
@@ -321,25 +282,25 @@ function DocumentKeyBindings<State>(
                     ["C-Shift-K", "C-Shift-ArrowUp"],
                     "none",
                     "move page up",
-                    () => { actions.movePage(-1, state.inner.viewState.openPage) },
+                    () => { actions.movePage(-1, state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-J", "C-Shift-ArrowDown"],
                     "none",
                     "move page down",
-                    () => { actions.movePage(1, state.inner.viewState.openPage) },
+                    () => { actions.movePage(1, state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-H", "C-Shift-ArrowLeft"],
                     "none",
                     "move page one level up",
-                    () => { actions.unnestPage(state.inner.viewState.openPage) },
+                    () => { actions.unnestPage(state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-L", "C-Shift-ArrowRight"],
                     "none",
                     "move page one level down",
-                    () => { actions.nestPage(state.inner.viewState.openPage) },
+                    () => { actions.nestPage(state.viewState.openPage) },
                 ],
             ]
         },
@@ -350,25 +311,25 @@ function DocumentKeyBindings<State>(
                     ["K", "ArrowUp"],
                     "selfFocused",
                     "open prev page",
-                    () => { actions.openPrevPage(state.inner.viewState.openPage) },
+                    () => { actions.openPrevPage(state.viewState.openPage) },
                 ],
                 [
                     ["J", "ArrowDown"],
                     "selfFocused",
                     "open next page",
-                    () => { actions.openNextPage(state.inner.viewState.openPage) },
+                    () => { actions.openNextPage(state.viewState.openPage) },
                 ],
                 [
                     ["L", "ArrowRight"],
                     "selfFocused",
                     "open first child page",
-                    () => { actions.openFirstChild(state.inner.viewState.openPage) },
+                    () => { actions.openFirstChild(state.viewState.openPage) },
                 ],
                 [
                     ["H", "ArrowLeft"],
                     "selfFocused",
                     "open parent page",
-                    () => { actions.openParent(state.inner.viewState.openPage) },
+                    () => { actions.openParent(state.viewState.openPage) },
                 ],
             ]
         },
@@ -382,16 +343,16 @@ function DocumentKeyBindings<State>(
                     () => { localActions.setIsNameEditing(true) },
                 ],
                 [
-                    [" "],
+                    ["Space"],
                     "!inputFocused",
                     "toggle page collapsed",
-                    () => { actions.toggleCollapsed(state.inner.viewState.openPage) },
+                    () => { actions.toggleCollapsed(state.viewState.openPage) },
                 ],
                 [
                     ["C-Shift-D"],
                     "none",
                     "safe as default template",
-                    () => { actions.useAsTempate(state.inner.viewState.openPage) },
+                    () => { actions.useAsTempate(state.viewState.openPage) },
                 ],
             ]
         },
@@ -425,13 +386,13 @@ function DocumentKeyBindings<State>(
                 [
                     ["Escape"],
                     "!selfFocused",
-                    "focus out",
+                    "focus sidebar",
                     () => { containerRef.current?.focus() },
                 ],
                 [
                     ["Enter"],
                     "selfFocused",
-                    "focus block",
+                    "focus page content",
                     () => { innerRef.current?.focus() },
                 ],
             ]
@@ -452,8 +413,9 @@ function DocumentKeyBindings<State>(
 
 
 export interface DocumentUiProps<State> {
-    state: DocumentState<State>
-    update: (action: (state: DocumentState<State>) => DocumentState<State>) => void
+    state: Document<State>
+    update: BlockUpdater<Document<State>>
+    updateHistory: BlockUpdater<HistoryWrapper<Document<State>>>
     env: Environment
     innerBlock: Block<State>
     blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
@@ -462,7 +424,7 @@ export interface DocumentUiProps<State> {
 type ShortcutsViewMode = 'hidden' | 'flat' | 'full'
 const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
 
-export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: DocumentUiProps<State>) {
+export function DocumentUi<State>({ state, update, env, updateHistory, innerBlock, blockRef }: DocumentUiProps<State>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const innerRef = React.useRef<BlockRef>()
     React.useImperativeHandle(
@@ -497,14 +459,12 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         },
     }), [])
 
-    const actions = React.useMemo(() => ACTIONS(update, innerBlock, env), [update, innerBlock, env])
+    const actions = React.useMemo(
+        () => ACTIONS(update, updateHistory, innerBlock, env),
+        [update, updateHistory, innerBlock, env],
+    )
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
-
-    const fromJSON = React.useCallback(
-        (json: any, env: Environment) => Model.innerFromJSON(json, actions.updateInner, env, innerBlock),
-        [actions, innerBlock],
-    )
 
     const onFocus = React.useCallback((ev: React.FocusEvent) => {
         if (ev.target === ev.currentTarget) {
@@ -520,104 +480,92 @@ export function DocumentUi<State>({ state, update, env, innerBlock, blockRef }: 
         bindingProps.onBlur(ev)
     }, [bindingProps.onBlur])
 
+    const sidebarVisible = isSelfFocused || state.viewState.sidebarOpen || isNameEditing
+
     return (
-        <>
-            <HistoryModePanel state={state} actions={actions} />
-            <HistoryView state={state} update={update} env={env} fromJSON={fromJSON}>
-                {innerState => {
-                    const sidebarVisible = isSelfFocused || innerState.viewState.sidebarOpen || isNameEditing
+        <div
+            ref={containerRef}
+            tabIndex={-1}
+            {...bindingProps}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
+            >
+            <Sidebar
+                state={state}
+                actions={actions}
+                isVisible={sidebarVisible}
+                isNameEditing={isNameEditing}
+                setIsNameEditing={setIsNameEditing}
+                commandBinding={commandSearchBinding(localActions)}
+                />
+            <SidebarButton sidebarVisible={sidebarVisible} toggleSidebar={actions.toggleSidebar} />
 
-                    return (
+            <div
+                className={`
+                    h-full
+                    transition-all ${sidebarVisible ? "ml-56" : ""}
+                    flex flex-col items-stretch overflow-hidden
+                    bg-gray-50
+                `}
+            >
+                <div className="flex-1 overflow-y-auto transition-all">
+                    <MainView
+                        key={state.viewState.openPage.join('.')}
+                        innerRef={innerRef}
+                        state={state}
+                        actions={actions}
+                        innerBlock={innerBlock}
+                        env={env}
+                        sidebarVisible={sidebarVisible}
+                        />
+                </div>
+                {shortcutsViewMode !== 'hidden' &&
+                    <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
                         <div
-                            ref={containerRef}
-                            tabIndex={-1}
-                            {...bindingProps}
-                            onFocus={onFocus}
-                            onBlur={onBlur}
-                            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
-                            >
-                            <Sidebar
-                                state={innerState}
-                                actions={actions}
-                                isVisible={sidebarVisible}
-                                isHistoryOpen={state.mode.type === 'history'}
-                                isNameEditing={isNameEditing}
-                                setIsNameEditing={setIsNameEditing}
-                                commandBinding={commandSearchBinding(localActions)}
-                                />
-                            <SidebarButton sidebarVisible={sidebarVisible} toggleSidebar={actions.toggleSidebar} />
-
-                            <div
-                                className={`
-                                    h-full
-                                    transition-all ${sidebarVisible ? "ml-56" : ""}
-                                    flex flex-col items-stretch overflow-hidden
-                                    bg-gray-50
-                                `}
-                            >
-                                <div className="flex-1 overflow-y-auto transition-all">
-                                    <MainView
-                                        key={innerState.viewState.openPage.join('.')}
-                                        innerRef={innerRef}
-                                        state={state}
-                                        actions={actions}
-                                        innerState={innerState}
-                                        innerBlock={innerBlock}
-                                        env={env}
-                                        sidebarVisible={sidebarVisible}
-                                        />
-                                </div>
-                                {shortcutsViewMode !== 'hidden' &&
-                                    <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
-                                        <div
-                                            className={`
-                                                flex-1 flex flex-row justify-between
-                                                ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                                px-10 py-1 overflow-x-auto
-                                            `}
-                                        >
-                                            <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
-                                        </div>
-                                        <button
-                                            className={`
-                                                ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
-                                                px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
-                                            `}
-                                            onClick={localActions.toggleShortcutsVisible}
-                                        >
-                                            <FontAwesomeIcon icon={solidIcons.faCaretDown} />
-                                        </button>
-                                    </div>
-                                }
-                                {shortcutsViewMode === 'hidden' &&
-                                    <button
-                                        className={`
-                                            absolute bottom-3 right-3 w-8 h-8
-                                            rounded-full border border-gray-100 shadow
-                                            bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
-                                            flex justify-center items-center
-                                            text-sm
-                                        `}
-                                        onClick={localActions.toggleShortcutsVisible}
-                                    >
-                                        ⌘
-                                    </button>
-                                }
-                                {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
-                            </div>
+                            className={`
+                                flex-1 flex flex-row justify-between
+                                ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
+                                px-10 py-1 overflow-x-auto
+                            `}
+                        >
+                            <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
                         </div>
-                    )
-                }}
-            </HistoryView>
-        </>
+                        <button
+                            className={`
+                                ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
+                                px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
+                            `}
+                            onClick={localActions.toggleShortcutsVisible}
+                        >
+                            <FontAwesomeIcon icon={solidIcons.faCaretDown} />
+                        </button>
+                    </div>
+                }
+                {shortcutsViewMode === 'hidden' &&
+                    <button
+                        className={`
+                            absolute bottom-3 right-3 w-8 h-8
+                            rounded-full border border-gray-100 shadow
+                            bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
+                            flex justify-center items-center
+                            text-sm
+                        `}
+                        onClick={localActions.toggleShortcutsVisible}
+                    >
+                        ⌘
+                    </button>
+                }
+                {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
+            </div>
+        </div>
     )
 }
 
 interface MainViewProps<State> {
     innerRef: React.Ref<BlockRef>
-    state: DocumentState<State>
     actions: Actions<State>
-    innerState: Document<State>
+    state: Document<State>
     innerBlock: Block<State>
     env: Environment
     sidebarVisible: boolean
@@ -625,28 +573,27 @@ interface MainViewProps<State> {
 
 function MainView<State>({
     innerRef,
-    state,
     actions,
-    innerState,
+    state,
     innerBlock,
     env,
     sidebarVisible,
 }: MainViewProps<State>) {
-    const openPage = Model.getOpenPage(innerState)
+    const openPage = Model.getOpenPage(state)
     const noOpenPage = openPage === null
-    // don't include `innerState` as dependency, because:
-    //   - `Model.getOpenPageEnv` only needs `innerState` for Pages before the current `openPage`
+    // don't include `state` as a dependency, because:
+    //   - `Model.getOpenPageEnv` only needs `state` for Pages before the current `openPage`
     //   - only the current `openPage` can change (and following pages as they depend on it, but they are irrelevant for this case)
     //   - so the real dependency, the Pages before `openPage`, can only change if one of them becomes the `openPage`
     //   - so `innerState.viewState.openPage` suffices as dependency
     //   - otherwise `pageEnv` would change every time something in `openPage` changes
     //      => which leads to everything in `openPage` being reevaluated, even though just some subset could suffice
     // This could be better solved, if I could break innerState up into the pages before and only feed them as argument and dependency.
-    // But currently it looks like this would harm seperation of concerns, as it seems that the inner workings of `Model.getOpenPageEnv`
-    // would have to spill into here.
+    // But currently it looks like this would harm seperation of concerns. It seems that the inner workings of `Model.getOpenPageEnv`
+    // therefore would have to spill into here.
     const pageEnv = React.useMemo(
-        () => noOpenPage ? null : Model.getOpenPageEnv(innerState, env, innerBlock),
-        [innerState.viewState.openPage, noOpenPage, env, innerBlock],
+        () => noOpenPage ? null : Model.getOpenPageEnv(state, env, innerBlock),
+        [state.viewState.openPage, noOpenPage, env, innerBlock],
     )
 
     if (!pageEnv) {
@@ -660,7 +607,7 @@ function MainView<State>({
                         Add new Page
                     </Link><br />
                     or select one from the{' '}
-                    {state.inner.viewState.sidebarOpen ?
+                    {state.viewState.sidebarOpen ?
                         "Sidebar"
                     :
                         <Link onClick={actions.toggleSidebar}>
@@ -674,7 +621,7 @@ function MainView<State>({
 
     return (
         <div className={`mb-[80cqh] bg-white relative ${sidebarVisible ? "px-1" : "px-10"}`}>
-            <Breadcrumbs openPage={innerState.viewState.openPage} pages={innerState.pages} onOpenPage={actions.openPage} />
+            <Breadcrumbs openPage={state.viewState.openPage} pages={state.pages} onOpenPage={actions.openPage} />
             {innerBlock.view({
                 ref: innerRef,
                 state: openPage.state,
@@ -781,31 +728,12 @@ function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisibl
 
 interface SidebarProps<State> extends ActionProps<State> {
     isVisible: boolean
-    isHistoryOpen: boolean
     isNameEditing: boolean
     setIsNameEditing: (editing: boolean) => void
     commandBinding: Keybinding
 }
 
-function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
-    function HistoryButton() {
-        return (
-            <button
-                className={`
-                    px-2 py-0.5 w-full text-left
-                    ${isHistoryOpen ?
-                        "text-blue-50 bg-blue-700 hover:bg-blue-500"
-                    :
-                        "hover:text-blue-900 hover:bg-blue-200"
-                    }
-                `}
-                onClick={isHistoryOpen ? actions.closeHistory : actions.openHistory}
-                >
-                History
-            </button>
-        )
-    }
-
+function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     function CommandSearchButton() {
         return (
             <div
@@ -856,8 +784,6 @@ function Sidebar<State>({ state, actions, isVisible, isHistoryOpen, isNameEditin
             <CommandSearchButton />
 
             <div className="h-3" />
-
-            <HistoryButton />
 
             <SidebarMenu state={state} actions={actions} />
 
