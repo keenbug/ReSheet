@@ -5,14 +5,14 @@ const MOVE_ANIMATION_MS = 300
 const POSITION_TRANSITION = `${MOVE_ANIMATION_MS}ms ease-out`
 
 export function FocusIndicator() {
-    const focusRect = useFocusRect()
-    const [visible, setVisible] = React.useState(false)
+    const [focusRect, movedBetweenSiblings] = useFocusRect()
+    const [rectChanged, setRectChanged] = React.useState(false)
 
     React.useEffect(() => {
-        setVisible(true)
+        setRectChanged(true)
 
         const hide = setTimeout(() => {
-            setVisible(false)
+            setRectChanged(false)
         }, MOVE_ANIMATION_MS)
 
         return () => {
@@ -21,6 +21,8 @@ export function FocusIndicator() {
     }, [focusRect])
 
     if (!focusRect) { return null }
+
+    const visible = rectChanged && !movedBetweenSiblings
     return (
         <div
             className="border-4 border-blue-500/20 pointer-events-none"
@@ -42,8 +44,8 @@ export function FocusIndicator() {
     )
 }
 
-function useFocusRect() {
-    const [rect, setRect] = React.useState<DOMRect | null>(null)
+function useFocusRect(): [rect: DOMRect | null, movedBetweenSiblings: boolean] {
+    const [[rect, movedBetweenSiblings], setRect] = React.useState<[DOMRect | null, boolean]>([null, false])
     const rectRef = useSyncRef(rect)
 
     function updateRect(ev: FocusEvent) {
@@ -54,21 +56,19 @@ function useFocusRect() {
                 :
                     [ev.relatedTarget, ev.target]
             )
-            if (!(gainsFocus instanceof HTMLElement)) {
+            if (gainsFocus === null || !(gainsFocus instanceof HTMLElement)) {
                 if (rectRef.current !== null) {
-                    setRect(null)
+                    setRect([null, false])
                 }
                 return
             }
             // Only show focus change between parent/child
-            if (
+            const gainsLoosesAreSiblings = (
                 loosesFocus instanceof HTMLElement
+                && gainsFocus instanceof HTMLElement
                 && !gainsFocus.contains(loosesFocus)
                 && !loosesFocus.contains(gainsFocus)
-            ) {
-                // ignore focus change between siblings
-                return
-            }
+            )
 
             const newRect = gainsFocus.getBoundingClientRect()
             if (
@@ -79,7 +79,7 @@ function useFocusRect() {
             ) {
                 return
             }
-            setRect(newRect)
+            setRect([newRect, gainsLoosesAreSiblings])
         })
     }
 
@@ -92,5 +92,5 @@ function useFocusRect() {
         }
     }, [])
 
-    return rect
+    return [rect, movedBetweenSiblings]
 }

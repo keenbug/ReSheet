@@ -239,30 +239,29 @@ const ViewBlock = React.memo(
         catch (e) { /* do nothing */ }
 
         return (
-            <BlockViewContainer
-                header={
-                    <button className="text-gray-600" onClick={instantiateBlock}>
-                        Block {}
-                        <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
-                            {note.code}
-                        </code>
-                    </button>
-                }
-            >
-                <ErrorBoundary title="Could not show block">
-                    {innerBlock.view({
-                        state,
-                        update() {},
-                        env,
-                    })}
-                </ErrorBoundary>
-                <button
-                    className="absolute inset-0 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
-                    onClick={instantiateBlock}
-                    >
-                    <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
+            <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
+                <button className="text-gray-600" onClick={instantiateBlock}>
+                    Block {}
+                    <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
+                        {note.code}
+                    </code>
                 </button>
-            </BlockViewContainer>
+                <div className="bg-white flex flex-col items-stretch overflow-x-auto relative">
+                    <ErrorBoundary title="Could not show block">
+                        {innerBlock.view({
+                            state,
+                            update() {},
+                            env,
+                        })}
+                    </ErrorBoundary>
+                    <button
+                        className="absolute inset-0 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
+                        onClick={instantiateBlock}
+                        >
+                        <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
+                    </button>
+                </div>
+            </div>
         )
     },
     (before, after) => {
@@ -317,26 +316,25 @@ export const ViewBlockInstantiated = React.memo(
             }
 
             return (
-                <BlockViewContainer
-                    header={
-                        <div className="flex flex-row justify-end">
-                            <button
-                                className="group/note-block-header px-2 py-1 text-xs text-gray-400 hover:text-gray-600"
-                                onClick={onChangeBlockType}
-                            >
-                                {note.code} {}
-                                <FontAwesomeIcon className="text-gray-300 group-hover/note-block-header:text-gray-500" icon={solidIcons.faCog} />
-                            </button>
-                        </div>
-                    }
-                >
-                    {note.block.view({
-                        state: note.state,
-                        update: updateBlock,
-                        env,
-                        ref,
-                    })}
-                </BlockViewContainer>
+                <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
+                    <div className="flex flex-row justify-end">
+                        <button
+                            className="group/note-block-header px-2 py-1 text-xs text-gray-400 hover:text-gray-600"
+                            onClick={onChangeBlockType}
+                        >
+                            {note.code} {}
+                            <FontAwesomeIcon className="text-gray-300 group-hover/note-block-header:text-gray-500" icon={solidIcons.faCog} />
+                        </button>
+                    </div>
+                    <div className="bg-white flex flex-col items-stretch overflow-x-auto">
+                        {note.block.view({
+                            state: note.state,
+                            update: updateBlock,
+                            env,
+                            ref,
+                        })}
+                    </div>
+                </div>
             )
         }
     ),
@@ -361,17 +359,6 @@ export const ViewBlockInstantiated = React.memo(
         }
     },
 )
-
-function BlockViewContainer({ header, children }: { header: React.ReactNode, children: React.ReactNode }) {
-    return (
-        <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
-            {header}
-            <div className="bg-white flex flex-col items-stretch relative">
-                {children}
-            </div>
-        </div>
-    )
-}
 
 
 // Expression
