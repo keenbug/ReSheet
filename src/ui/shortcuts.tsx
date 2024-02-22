@@ -576,16 +576,15 @@ export function useKeymap() {
     return React.useContext(KeymapContext)
 }
 
-export interface CollectorDialogProps {
+export interface CollectorUiProps {
     keyMap: KeyMap
     onCollectKey(event: React.KeyboardEvent): void
     onDone(): void
-    onSkip(): void
 }
 
 export interface CollectKeymapProps {
     children: React.ReactNode
-    collectorDialog: React.FC<CollectorDialogProps>
+    collectorUi: React.FC<CollectorUiProps>
 }
 
 const IGNORE_KEYS_COLLECT = [
@@ -595,7 +594,7 @@ const IGNORE_KEYS_COLLECT = [
     "Control",
 ]
 
-export function CollectKeymap({ children, collectorDialog: CollectorDialog }: CollectKeymapProps) {
+export function CollectKeymap({ children, collectorUi: CollectorUi }: CollectKeymapProps) {
     const [[keyMap, isComplete], setKeyMap] = React.useState<[KeyMap, boolean]>(loadSavedKeymap)
 
     if (isComplete) {
@@ -636,9 +635,10 @@ export function CollectKeymap({ children, collectorDialog: CollectorDialog }: Co
         })
     }
 
-    function onSkip() {
-        setKeyMap([Map(), true])
-    }
-
-    return <CollectorDialog keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} onSkip={onSkip} />
+    return (
+        <>
+            {children}
+            <CollectorUi keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} />
+        </>
+    )
 }
