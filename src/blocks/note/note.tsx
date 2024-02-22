@@ -239,14 +239,8 @@ const ViewBlock = React.memo(
         catch (e) { /* do nothing */ }
 
         return (
-            <div className="flex flex-col item-stretch rounded pb-1 border border-t border-b border-gray-200 bg-gray-100">
-                <button className="text-gray-600" onClick={instantiateBlock}>
-                    Block {}
-                    <code className="px-0.5 text-gray-500 bg-gray-50 rounded shadow-gray-200 shadow-[0_0_2px_1px_var(--tw-shadow-color)]">
-                        {note.code}
-                    </code>
-                </button>
-                <div className="bg-white flex flex-col items-stretch overflow-x-auto relative">
+            <div className="flex flex-col item-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
+                <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto relative">
                     <ErrorBoundary title="Could not show block">
                         {innerBlock.view({
                             state,
@@ -255,7 +249,7 @@ const ViewBlock = React.memo(
                         })}
                     </ErrorBoundary>
                     <button
-                        className="absolute inset-0 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
+                        className="absolute inset-0 z-10 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
                         onClick={instantiateBlock}
                         >
                         <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
@@ -326,7 +320,7 @@ export const ViewBlockInstantiated = React.memo(
                             <FontAwesomeIcon className="text-gray-300 group-hover/note-block-header:text-gray-500" icon={solidIcons.faCog} />
                         </button>
                     </div>
-                    <div className="bg-white flex flex-col items-stretch overflow-x-auto">
+                    <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto">
                         {note.block.view({
                             state: note.state,
                             update: updateBlock,
