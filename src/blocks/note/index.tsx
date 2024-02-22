@@ -82,7 +82,7 @@ export const NoteUi = React.forwardRef(
         const editorRef = React.useRef<CodeEditorHandle>()
         const blockRef = React.useRef<BlockRef>()
         const eupdate = useEUpdate(update, env)
-        const [isFocused, setFocused] = useEffectfulState(false)
+        const [isFocused, setFocused] = React.useState(false)
         const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
 
         React.useEffect(() => {
@@ -99,10 +99,7 @@ export const NoteUi = React.forwardRef(
                         blockRef.current?.focus(options)
                     }
                     else {
-                        setFocused(() => ({
-                            state: true,
-                            effect() { editorRef.current?.element?.focus(options) },
-                        }))
+                        setFocused(true)
                     }
                 }
             })
@@ -144,12 +141,12 @@ export const NoteUi = React.forwardRef(
                 tabIndex={-1}
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 onFocus={event => {
-                    setFocused(() => ({ state: true }))
+                    setFocused(true)
                     shortcutProps.onFocus(event)
                 }}
                 onBlur={event => {
                     if (!event.currentTarget.contains(event.relatedTarget)) {
-                        setFocused(() => ({ state: false }))
+                        setFocused(false)
                     }
                     completions.onBlur(event)
                     shortcutProps.onBlur(event)

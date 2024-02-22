@@ -535,9 +535,21 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             },
             focusInner() {
                 innerBlockRef.current?.focus()
-                if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
-                    containerRef.current.focus()
-                }
+                // Workaround: Focus whole line if inner can't be focused
+                // Problem: How to find out if inner didn't accept focus?
+                //          Immediately checking misses cases, when inner first
+                //          has to update, render and then sets focus. So even
+                //          one setTimeout didn't suffice. Effects may not yet
+                //          have run after an update and render. Therefore we
+                //          queue setTimeout a second time before checking for
+                //          focus.
+                setTimeout(() => {
+                    setTimeout(() => {
+                        if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
+                            containerRef.current.focus()
+                        }
+                    })
+                })
             }
         }),
     )

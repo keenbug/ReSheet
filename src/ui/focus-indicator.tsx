@@ -5,24 +5,24 @@ const MOVE_ANIMATION_MS = 300
 const POSITION_TRANSITION = `${MOVE_ANIMATION_MS}ms ease-out`
 
 export function FocusIndicator() {
-    const [focusRect, movedBetweenSiblings] = useFocusRect()
-    const [rectChanged, setRectChanged] = React.useState(false)
+    const [focusRect, showFocusChange] = useFocusRect()
+    const [animationRunning, setAnimationRunning] = React.useState(false)
 
     React.useEffect(() => {
-        setRectChanged(true)
+        setAnimationRunning(true)
 
-        const hide = setTimeout(() => {
-            setRectChanged(false)
+        const animationStopped = setTimeout(() => {
+            setAnimationRunning(false)
         }, MOVE_ANIMATION_MS)
 
         return () => {
-            clearTimeout(hide)
+            clearTimeout(animationStopped)
         }
     }, [focusRect])
 
     if (!focusRect) { return null }
 
-    const visible = rectChanged && !movedBetweenSiblings
+    const visible = animationRunning && showFocusChange
     return (
         <div
             className="border-4 border-blue-500/20 pointer-events-none"
@@ -44,43 +44,41 @@ export function FocusIndicator() {
     )
 }
 
-function useFocusRect(): [rect: DOMRect | null, movedBetweenSiblings: boolean] {
-    const [[rect, movedBetweenSiblings], setRect] = React.useState<[DOMRect | null, boolean]>([null, false])
+function useFocusRect(): [rect: DOMRect | null, showFocusChange: boolean] {
+    const [[rect, showFocusChange], setRect] = React.useState<[DOMRect | null, boolean]>([null, true])
     const rectRef = useSyncRef(rect)
 
     function updateRect(ev: FocusEvent) {
-        setTimeout(() => {
-            const [gainsFocus, loosesFocus] = (
-                ev.type === 'focusin' ?
-                    [ev.target, ev.relatedTarget]
-                :
-                    [ev.relatedTarget, ev.target]
-            )
-            if (gainsFocus === null || !(gainsFocus instanceof HTMLElement)) {
-                if (rectRef.current !== null) {
-                    setRect([null, false])
-                }
-                return
+        const [gainsFocus, loosesFocus] = (
+            ev.type === 'focusin' ?
+                [ev.target, ev.relatedTarget]
+            :
+                [ev.relatedTarget, ev.target]
+        )
+        if (gainsFocus === null || !(gainsFocus instanceof HTMLElement)) {
+            if (rectRef.current !== null) {
+                setRect([null, true])
             }
-            // Only show focus change between parent/child
-            const gainsLoosesAreSiblings = (
-                loosesFocus instanceof HTMLElement
-                && gainsFocus instanceof HTMLElement
-                && !gainsFocus.contains(loosesFocus)
-                && !loosesFocus.contains(gainsFocus)
-            )
+            return
+        }
+        // Only show focus change between parent/child
+        const gainsLoosesAreSiblings = (
+            loosesFocus instanceof HTMLElement
+            && gainsFocus instanceof HTMLElement
+            && !gainsFocus.contains(loosesFocus)
+            && !loosesFocus.contains(gainsFocus)
+        )
 
-            const newRect = gainsFocus.getBoundingClientRect()
-            if (
-                rectRef.current?.x === newRect.x
-                && rectRef.current?.y === newRect.y
-                && rectRef.current?.width === newRect.width
-                && rectRef.current?.height === newRect.height
-            ) {
-                return
-            }
-            setRect([newRect, gainsLoosesAreSiblings])
-        })
+        const newRect = gainsFocus.getBoundingClientRect()
+        if (
+            rectRef.current?.x === newRect.x
+            && rectRef.current?.y === newRect.y
+            && rectRef.current?.width === newRect.width
+            && rectRef.current?.height === newRect.height
+        ) {
+            return
+        }
+        setRect([newRect, !gainsLoosesAreSiblings])
     }
 
     React.useEffect(() => {
@@ -92,5 +90,5 @@ function useFocusRect(): [rect: DOMRect | null, movedBetweenSiblings: boolean] {
         }
     }, [])
 
-    return [rect, movedBetweenSiblings]
+    return [rect, showFocusChange]
 }
