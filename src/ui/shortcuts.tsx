@@ -334,11 +334,11 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     }, [active])
 
     React.useEffect(() => {
-        if (focusRef.current) {
+        if (focusRef.current && active) {
             const activeBindings = filterBindings(bindings, focusRef.current.isSelfFocused, focusRef.current.isAnInputFocused)
             updateBindings(id, activeBindings)
         }
-    }, [bindings])
+    }, [bindings, active])
 
     const onFocus = React.useCallback(function onFocus(event: React.FocusEvent) {
         const isSelfFocused = event.currentTarget === event.target
@@ -349,8 +349,8 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
         }
 
         const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInputFocused)
-        reportBindings(id, newActiveBindings)
-    }, [bindings])
+        active && reportBindings(id, newActiveBindings)
+    }, [bindings, active])
 
     const onBlur = React.useCallback(function onBlur(event: React.FocusEvent) {
         const isStillFocused = event.currentTarget.contains(event.relatedTarget) // contains the element receiving focus
