@@ -9,7 +9,7 @@ import * as block from '../block'
 import { computeExprUNSAFE, parseJSExpr } from '../logic/compute'
 import docs from '../docs'
 
-import { Keybinding, Keybindings } from '../ui/shortcuts'
+import { KeyButtonContainer, Keybinding, Keybindings } from '../ui/shortcuts'
 import { ValueInspector } from '../ui/value'
 import { SearchResult, matchSearch, renderMatch, useSearchResults } from '../ui/search'
 import { useSelectionRect } from '../ui/hooks'
@@ -96,6 +96,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
                     tab={completionVisibilty}
                     onChangeTab={setCompletionVisibility}
                     docs={findDocsFor}
+                    selectedMarker={<KeyButtonContainer className="float-right my-1 font-semibold text-[0.625rem] bg-gray-50">Tab</KeyButtonContainer>}
                     />
             </div>
         )
@@ -184,10 +185,11 @@ export interface CompletionsProps {
     tab: CompletionTab
     onChangeTab(tab: CompletionTab): void
     docs?: DocsProvider
+    selectedMarker?: React.ReactNode
 }
 
 export const Completions = React.forwardRef(function Completions(
-    { splitCode, env, onSelectSearchResult, tab, onChangeTab, docs }: CompletionsProps,
+    { splitCode, env, onSelectSearchResult, tab, onChangeTab, docs, selectedMarker }: CompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const allBefore = [
@@ -206,6 +208,7 @@ export const Completions = React.forwardRef(function Completions(
             tab={tab}
             onChangeTab={onChangeTab}
             docs={docs}
+            selectedMarker={selectedMarker}
             />
     )
 })
@@ -264,12 +267,21 @@ export interface RenderCompletionsProps {
     tab: CompletionTab
     onChangeTab(tab: CompletionTab): void
     docs?: DocsProvider
+    selectedMarker?: React.ReactNode
 }
 
 export type DocsProvider = (value: any) => undefined | React.FC
 
 export const RenderCompletions = React.forwardRef(function RenderCompletions(
-    { completionOptions: completionSearch, offset, onSelectSearchResult, tab, onChangeTab, docs = () => undefined }: RenderCompletionsProps,
+    {
+        completionOptions: completionSearch,
+        offset,
+        onSelectSearchResult,
+        tab,
+        onChangeTab,
+        docs = () => undefined,
+        selectedMarker = null,
+    }: RenderCompletionsProps,
     ref: React.Ref<CompletionsHandle>,
 ) {
     const vlistRef = React.useRef<VListHandle>(null)
@@ -314,6 +326,7 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
                         <code className="text-xs">
                             {renderMatch(result.match)}
                         </code>
+                        {selected === index && selectedMarker}
                     </div>
                 ))}
             </VList>
