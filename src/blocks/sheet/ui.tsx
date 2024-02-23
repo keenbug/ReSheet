@@ -411,6 +411,8 @@ export const Sheet = React.forwardRef(
                     >
                         <FontAwesomeIcon icon={solidIcons.faPlus} />
                     </button>
+
+                    {/* Has to be after the button for `peer-hover:` to work, even though it should be placed below the button */}
                     <div className="absolute top-0 left-0 right-0 border-t-2 border-blue-500 opacity-0 peer-hover:opacity-50 transition-[opacity]" />
                 </div>
             </div>

@@ -81,7 +81,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
         ui = (
             <div
                 ref={containerRef}
-                className="border border-gray-300 bg-gray-50 shadow shadow-gray-200"
+                className="z-20 border border-gray-300 bg-gray-50 shadow shadow-gray-200"
                 style={{
                     position: 'absolute',
                     left: caretRect.left + 'px',
