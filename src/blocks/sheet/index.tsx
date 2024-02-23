@@ -3,7 +3,7 @@ import * as React from 'react'
 import * as block from '../../block'
 import * as Model from './model'
 import * as UI from './ui'
-import * as t from './versioned'
+import * as versioned from './versioned'
 import { SheetBlockState } from './versioned'
 
 
@@ -22,10 +22,10 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
             return Model.getResult(state, innerBlock)
         },
         fromJSON(json: any[], update, env) {
-            return t.fromJSON(json)(update, env, innerBlock)
+            return versioned.fromJSON(json)(update, env, innerBlock)
         },
         toJSON(state) {
-            return t.toJSON(state, innerBlock)
+            return versioned.toJSON(state, innerBlock)
         },
     })
 }

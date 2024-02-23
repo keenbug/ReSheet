@@ -21,6 +21,11 @@ export function entryName(entry: BlockEntry<unknown>) {
     return entry.name
 }
 
+export function getEntriesUntil<State>(entries: BlockEntry<State>[], id: number) {
+    const index = entries.findIndex(entry => entry.id === id)
+    return entries.slice(0, index + 1)
+}
+
 export function getLastResult<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     if (entries.length === 0) { return undefined }
 
@@ -78,11 +83,11 @@ export function updateBlockWithId<Inner, Entry extends BlockEntry<Inner>>(
 export function insertEntryBefore<Inner, Entry extends BlockEntry<Inner>>(
     entries: Entry[],
     id: number,
-    newEntry: Entry,
+    ...newEntries: Entry[]
 ) {
     return entries.flatMap(entry =>
         entry.id === id ?
-            [newEntry, entry]
+            [...newEntries, entry]
         :
             [entry]
     )
@@ -91,11 +96,11 @@ export function insertEntryBefore<Inner, Entry extends BlockEntry<Inner>>(
 export function insertEntryAfter<Inner, Entry extends BlockEntry<Inner>>(
     entries: Entry[],
     id: number,
-    newEntry: Entry,
+    ...newEntries: Entry[]
 ) {
     return entries.flatMap(entry =>
         entry.id === id ?
-            [entry, newEntry]
+            [entry, ...newEntries]
         :
             [entry]
     )

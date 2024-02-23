@@ -6,6 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '../../block'
 import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
+import * as Multiple from '../../block/multiple'
 
 import { clampTo } from '../../utils'
 
@@ -53,6 +54,19 @@ function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
         case 'inner':
             ref.focusInner()
             return
+    }
+}
+
+/** Focus `ref` and keep the same FocusTarget as before or fall back to `fallbackTarget` */
+function focusLineRefSameOr(refMap: Map<number, SheetLineRef>, ref: SheetLineRef, fallbackTarget: FocusTarget) {
+    const focus = findFocused(refMap)
+    if (focus) {
+        const [id, currentRef] = focus
+        const currentTarget = currentRef.isFocused() ? 'line' : 'inner'
+        focusLineRef(ref, currentTarget)
+    }
+    else {
+        focusLineRef(ref, fallbackTarget)
     }
 }
 
@@ -241,6 +255,45 @@ function ACTIONS<Inner extends unknown>(
             update(state =>
                 Model.updateLineBlock(state, id, action, innerBlock, env, update)
             )
+        },
+
+        pasteAfter(id: number, json: any, innerBlock: Block<Inner>) {
+            const updateLines = block.fieldUpdater('lines', update)
+            eupdate((state, env) => {
+                try {
+                    const siblingsUntilId = Multiple.getResultEnv(Multiple.getEntriesUntil(state.lines, id), innerBlock)
+                    const envForPasted = { ...env, ...siblingsUntilId }
+                    const { lines } = versioned.fromJSON(json)(() => {}, envForPasted, innerBlock)
+                    const nextId = Model.nextFreeId(state)
+                    const remappedLines = lines.map((line, index) => ({
+                        ...line,
+                        id: nextId + index,
+                    }))
+                    const newState = {
+                        ...state,
+                        lines: (
+                            Multiple.recomputeFrom(
+                                Multiple.insertEntryAfter(state.lines, id, ...remappedLines),
+                                id,
+                                env,
+                                innerBlock,
+                                updateLines,
+                                1,
+                            )
+                        )
+                    }
+                    return {
+                        state: newState,
+                        effect() {
+                            const lastPastedRef = refMap.get(remappedLines.slice(-1)[0]?.id)
+                            lastPastedRef && focusLineRefSameOr(refMap, lastPastedRef, 'line')
+                        },
+                    }
+                }
+                catch (e) {
+                    return {}
+                }
+            })
         },
 
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
@@ -572,6 +625,23 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
         [line, innerBlockRef, actions],
     )
 
+    function onPaste(ev: React.ClipboardEvent) {
+        if (ev.currentTarget !== document.activeElement) { return }
+        if (ev.clipboardData.types.includes('application/tables-block')) {
+            const json = JSON.parse(ev.clipboardData.getData('application/tables-block'))
+            actions.pasteAfter(line.id, json, block)
+            ev.stopPropagation()
+            ev.preventDefault()
+        }
+    }
+
+    function onCopy(ev: React.ClipboardEvent) {
+        if (ev.currentTarget !== document.activeElement) { return }
+        ev.clipboardData.setData('application/tables-block', JSON.stringify(versioned.toJSON({ lines: [line] }, block)))
+        ev.stopPropagation()
+        ev.preventDefault()
+    }
+
     const shouldNameBeHidden = line.name === ''
     const focusIndicatorColor = {
         block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
@@ -592,6 +662,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             `}
             tabIndex={-1}
             {...bindingsProps}
+            onCopy={onCopy}
+            onPaste={onPaste}
         >
             <div className="flex-1 min-w-32 flex flex-row justify-end">
                 <AssignmentLine

@@ -234,7 +234,9 @@ const ViewBlock = React.memo(
         const innerBlock = note.result.value
         let state = innerBlock.init
         try {
-            state = innerBlock.fromJSON(note.lastState, () => {}, env)
+            if (note.lastState !== undefined) {
+                state = innerBlock.fromJSON(note.lastState, () => {}, env)
+            }
         }
         catch (e) { /* do nothing */ }
 
