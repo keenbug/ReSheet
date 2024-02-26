@@ -87,6 +87,22 @@ export function recomputeNote(input: string, note: NoteType, update: block.Block
     if (note.type === 'block' && note.isInstantiated === true) {
         const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
 
+        const newBlock = computeExpr(note.code, env)
+        if (block.isBlock(newBlock) && newBlock !== note.block) {
+            try {
+                const jsonState = note.block.toJSON(note.state)
+                const newState = newBlock.fromJSON(jsonState, updateBlockState, env)
+                return {
+                    type: 'block',
+                    isInstantiated: true,
+                    code: note.code,
+                    block: newBlock,
+                    state: newState,
+                }
+            }
+            catch (e) { /* do nothing */ }
+        }
+
         return {
             ...note,
             state: note.block.recompute(note.state, updateBlockState, env),
