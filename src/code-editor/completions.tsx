@@ -65,7 +65,12 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
         // (eg setCompletionVisible) is called, otherwise the DOM state and
         // React's Virtual DOM diverge. Somehow the React update interferes with
         // the MutationObserver inside the editable, which then doesn't register
-        // the changes by .edit() and so can't do its magic.
+        // the changes by .edit() and so can't do its magic. Probably because
+        // the update triggers the useLayoutEffect, which disables the
+        // MutationObserver. Normally in this phase there should only be changes
+        // to the DOM made by React, which we really don't want to see. But in
+        // this case we're making changes on our which should be observed. So we
+        // have to make sure we do them outside of a React state update.
         codeEditor.current.editable.edit(searchResult.candidate.name, -matchSearch(searchResult.match).length, -offset)
     }
 
@@ -197,8 +202,8 @@ export const Completions = React.forwardRef(function Completions(
         splitCode.lineBefore
     ].join('\n')
     const parsed = looseParseCode(allBefore)
-    const search = (parsed && findCompletions(parsed, env)) ?? noCompletionOptions
-    const offset = search.end === undefined ? 0 : allBefore.length - search.end
+    const search = (parsed && findCompletions(parsed.ast, env)) ?? noCompletionOptions
+    const offset = search.end === undefined ? 0 : parsed.str.length - search.end
     return (
         <RenderCompletions
             ref={ref}
@@ -225,10 +230,20 @@ function looseParseCode(code: string) {
 
     for (let suffix = code; suffix.length > 0; suffix = suffix.slice(1)) {
         if (parseWholeFunction) {
-            try { return parseCurrentExpression(suffix + missingStringEnd + missingParens) }
+            try {
+                return {
+                    str: suffix,
+                    ast: parseCurrentExpression(suffix + missingStringEnd + missingParens),
+                }
+            }
             catch (e) {}
         }
-        try { return parseCurrentExpression(suffix + missingStringEnd) }
+        try {
+            return {
+                str: suffix,
+                ast: parseCurrentExpression(suffix + missingStringEnd)
+            }
+        }
         catch (e) {}
     }
 }
