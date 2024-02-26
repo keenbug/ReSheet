@@ -64,7 +64,7 @@ function parseV0({ mode, inner, expr}, update: BlockUpdater<BlockSelectorStateV0
 
     const innerBlock = computeExpr(expr, { ...blockLibrary, ...env })
 
-    if (!block.isBlock(innerBlock)) {
+    if (mode === 'run' && !block.isBlock(innerBlock)) {
         return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
     }
 
