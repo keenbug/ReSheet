@@ -380,6 +380,7 @@ export function useEditable(
         }
 
         function onBlur() {
+            state.isMouseDown = false
             state.lastRange = getCurrentRange()
             window.getSelection().removeAllRanges()
         }
@@ -406,22 +407,13 @@ export function useEditable(
             }
         }
 
-        function onMouseDown(event: MouseEvent) {
+        function onMouseDown() {
             state.isMouseDown = true
-            if (document.caretRangeFromPoint) {
-                setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
-            }
-            else if ((document as any).caretPositionFromPoint) {
-                const caretPosition = (document as any).caretPositionFromPoint(event.clientX, event.clientY)
-                const range = document.createRange()
-                range.setStart(caretPosition.offsetNode, caretPosition.offset)
-                setCurrentRange(range)
-            }
         }
 
         function onMouseUp(event: MouseEvent) {
             // The editable likely got created by a mousedown. We didn't see the
-            // mousedown itself and still want to set the mouse position
+            // mousedown itself and want to set the mouse position
             if (!state.isMouseDown) {
                 if (document.caretRangeFromPoint) {
                     setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
