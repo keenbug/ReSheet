@@ -13,7 +13,7 @@ import { clampTo } from '../../utils'
 import { ErrorBoundary, ValueInspector } from '../../ui/value'
 import { useRefMap, renderConditionally, WithSkipRender, EUpdater, useEUpdate } from '../../ui/hooks'
 import { Keybindings, useShortcuts } from '../../ui/shortcuts'
-import { TextInput, findScrollableAncestor } from '../../ui/utils'
+import { TextInput, findScrollableAncestor, focusWithKeyboard, isInsideInput } from '../../ui/utils'
 
 import * as Model from './model'
 import { SheetBlockState, SheetBlockLine } from './versioned'
@@ -579,11 +579,12 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                 return !!containerRef.current && containerRef.current.contains(document.activeElement)
             },
             focus() {
-                containerRef.current?.scrollIntoView({
+                if (!containerRef.current) { return }
+                containerRef.current.scrollIntoView({
                     block: 'nearest',
                     behavior: 'auto',
                 })
-                containerRef.current?.focus({ preventScroll: true })
+                focusWithKeyboard(containerRef.current, { preventScroll: true })
             },
             focusVar() {
                 varInputRef.current?.focus()
@@ -626,9 +627,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
     )
 
     function onPaste(ev: React.ClipboardEvent) {
-        if (ev.currentTarget !== document.activeElement) { return }
-        if (ev.clipboardData.types.includes('application/tables-block')) {
-            const json = JSON.parse(ev.clipboardData.getData('application/tables-block'))
+        if (ev.clipboardData.types.includes('application/x.tables-block')) {
+            const json = JSON.parse(ev.clipboardData.getData('application/x.tables-block'))
             actions.pasteAfter(line.id, json, block)
             ev.stopPropagation()
             ev.preventDefault()
@@ -636,8 +636,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
     }
 
     function onCopy(ev: React.ClipboardEvent) {
-        if (ev.currentTarget !== document.activeElement) { return }
-        ev.clipboardData.setData('application/tables-block', JSON.stringify(versioned.toJSON({ lines: [line] }, block)))
+        if (ev.target instanceof HTMLElement && isInsideInput(ev.target)) { return }
+        ev.clipboardData.setData('application/x.tables-block', JSON.stringify(versioned.toJSON({ lines: [line] }, block)))
         ev.stopPropagation()
         ev.preventDefault()
     }

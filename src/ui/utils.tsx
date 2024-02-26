@@ -281,3 +281,36 @@ export function saveFile(filename: string, mimeType: string, textContent: string
     downloadButton.click()
     downloadButton.remove()
 }
+
+
+export function findParent(predicate: (elem: HTMLElement) => boolean, elem: HTMLElement) {
+    if (!elem) {
+        return null
+    }
+    if (predicate(elem)) {
+        return elem
+    }
+    return findParent(predicate, elem.parentElement)
+}
+
+
+export function isInsideInput(elem: HTMLElement) {
+    return (
+        elem instanceof HTMLTextAreaElement
+        || elem instanceof HTMLInputElement
+        || (elem instanceof HTMLElement && !!findParent(parent => parent.isContentEditable, elem))
+    )
+}
+
+
+export function focusWithKeyboard(elem: HTMLElement, options?: FocusOptions) {
+    elem.focus(options)
+
+    // Also setting the range makes sure that copy/paste events get fired on `elem`
+    const range = document.createRange()
+    range.setStart(elem, 0)
+    range.setEnd(elem, 0)
+
+    document.getSelection().removeAllRanges()
+    document.getSelection().addRange(range)
+}
