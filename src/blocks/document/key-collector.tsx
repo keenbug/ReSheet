@@ -51,6 +51,12 @@ function KeymapCollectorBar({ hidden, onChangeUi }: { hidden: boolean, onChangeU
 function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: CollectorUiProps & { onCancel(): void }) {
     const [step, setStep] = React.useState<'explain' | 'noshift' | 'shift'>('explain')
 
+    const keyboardVisRef = React.useRef<HTMLDivElement>()
+    React.useEffect(() => {
+        keyboardVisRef.current && keyboardVisRef.current.focus()
+    }, [keyboardVisRef.current, step])
+
+
     const keyMapNotOnKeyboardVisualization = keyMap.filter((_value, key) => !KEYBOARD_CODES.includes(key))
 
     const noshiftMissing = keyMapNotOnKeyboardVisualization
@@ -71,6 +77,12 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
     function onClickDismiss(ev: React.MouseEvent) {
         if (ev.currentTarget === ev.target) {
             onCancel()
+        }
+    }
+
+    function keepFocusOnBlur(ev: React.FocusEvent) {
+        if (!ev.currentTarget.contains(ev.relatedTarget)) {
+            keyboardVisRef.current && keyboardVisRef.current.focus()
         }
     }
 
@@ -111,7 +123,7 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
                             </span>
                         </p>
 
-                        <KeyCollectorVisualization keyMap={keyMap} />
+                        <KeyCollectorVisualization ref={keyboardVisRef} keyMap={keyMap} />
 
                         <div className="flex flex-col space-y-2 items-stretch">
                             <button
@@ -142,7 +154,7 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
                             <em>with Shift</em>.
                         </p>
 
-                        <KeyCollectorVisualization keyMap={keyMap} />
+                        <KeyCollectorVisualization ref={keyboardVisRef} keyMap={keyMap} />
 
                         {shiftMissing.length > 0 &&
                             <p>
@@ -200,6 +212,7 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
             className="absolute z-10 inset-0 flex justify-center items-center bg-gray-300/50 backdrop-blur-sm"
             onClick={onClickDismiss}
             onKeyDown={collectKey}
+            onBlur={keepFocusOnBlur}
         >
             <div
                 className="max-w-screen-sm w-full h-full flex justify-center items-center"
@@ -234,14 +247,12 @@ interface KeyCollectorVisualizationProps {
     keyMap: KeyMap
 }
 
-function KeyCollectorVisualization({ keyMap }: KeyCollectorVisualizationProps) {
-    const ref = React.useRef<HTMLDivElement>()
+const KeyCollectorVisualization = React.forwardRef<HTMLDivElement, KeyCollectorVisualizationProps>(function KeyCollectorVisualization(
+    { keyMap },
+    ref,
+) {
     const [keysDown, setKeysDown] = React.useState(Set())
     const isShift = keysDown.includes('ShiftLeft') || keysDown.includes('ShiftRight')
-
-    React.useEffect(() => {
-        ref.current?.focus()
-    }, [ref.current])
 
     function Key({ code, width = 1, ignore = false }: { code: string, width?: number, ignore?: boolean }) {
         const base = 6
@@ -285,4 +296,4 @@ function KeyCollectorVisualization({ keyMap }: KeyCollectorVisualizationProps) {
             )}
         </div>
     )
-}
+})
