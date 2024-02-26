@@ -423,6 +423,7 @@ const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
 
 export function DocumentUi<State>({ state, update, env, updateHistory, innerBlock, blockRef }: DocumentUiProps<State>) {
     const containerRef = React.useRef<HTMLDivElement>()
+    const mainScrollRef = React.useRef<HTMLDivElement>()
     const innerRef = React.useRef<BlockRef>()
     React.useImperativeHandle(
         blockRef,
@@ -477,6 +478,12 @@ export function DocumentUi<State>({ state, update, env, updateHistory, innerBloc
         bindingProps.onBlur(ev)
     }, [bindingProps.onBlur])
 
+
+    React.useEffect(() => {
+        mainScrollRef.current && mainScrollRef.current.scroll({ top: 0, behavior: 'instant' })
+    }, [state.viewState.openPage])
+
+
     const sidebarVisible = isSelfFocused || state.viewState.sidebarOpen || isNameEditing
 
     return (
@@ -506,7 +513,7 @@ export function DocumentUi<State>({ state, update, env, updateHistory, innerBloc
                     bg-gray-50
                 `}
             >
-                <div className="flex-1 overflow-y-auto transition-all">
+                <div ref={mainScrollRef} className="flex-1 overflow-y-auto transition-all">
                     <MainView
                         key={state.viewState.openPage.join('.')}
                         innerRef={innerRef}
