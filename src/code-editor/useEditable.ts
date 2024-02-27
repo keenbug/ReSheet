@@ -411,10 +411,18 @@ export function useEditable(
             state.isMouseDown = true
         }
 
-        function onMouseUp(event: MouseEvent) {
+        function onMousePositionCaret(event: MouseEvent) {
             // The editable likely got created by a mousedown. We didn't see the
             // mousedown itself and want to set the mouse position
-            if (!state.isMouseDown) {
+            const emptyOrOwnSelection = (
+                document.getSelection().rangeCount === 0
+                || element.contains(document.getSelection().getRangeAt(0).startContainer)
+            )
+            if (
+                !state.isMouseDown
+                && emptyOrOwnSelection
+                && (event.type === 'mouseup' || event.buttons & 1)
+            ) {
                 if (document.caretRangeFromPoint) {
                     setCurrentRange(document.caretRangeFromPoint(event.clientX, event.clientY))
                 }
@@ -425,6 +433,10 @@ export function useEditable(
                     setCurrentRange(range)
                 }
             }
+        }
+
+        function onMouseUp(event: MouseEvent) {
+            onMousePositionCaret(event)
             state.isMouseDown = false
         }
 
@@ -435,6 +447,7 @@ export function useEditable(
         element.addEventListener('blur', onBlur)
         element.addEventListener('focus', onFocus)
         element.addEventListener('mousedown', onMouseDown)
+        element.addEventListener('mousemove', onMousePositionCaret)
         element.addEventListener('mouseup', onMouseUp)
 
         return () => {
@@ -445,6 +458,7 @@ export function useEditable(
             element.removeEventListener('blur', onBlur)
             element.removeEventListener('focus', onFocus)
             element.removeEventListener('mousedown', onMouseDown)
+            element.removeEventListener('mousemove', onMousePositionCaret)
             element.removeEventListener('mouseup', onMouseUp)
         }
     }, [elementRef.current])
