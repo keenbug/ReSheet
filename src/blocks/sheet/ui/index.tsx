@@ -4,367 +4,19 @@ import { useInView } from 'react-intersection-observer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '../../block'
-import { Block, BlockUpdater, BlockRef, Environment } from '../../block'
-import * as Multiple from '../../block/multiple'
+import * as block from '../../../block'
+import { Block, BlockUpdater, BlockRef, Environment } from '../../../block'
 
-import { clampTo } from '../../utils'
+import { ErrorBoundary, ValueInspector } from '../../../ui/value'
+import { useRefMap, renderConditionally, WithSkipRender, useEUpdate } from '../../../ui/hooks'
+import { Keybindings, useShortcuts } from '../../../ui/shortcuts'
+import { TextInput, focusWithKeyboard } from '../../../ui/utils'
 
-import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { useRefMap, renderConditionally, WithSkipRender, EUpdater, useEUpdate } from '../../ui/hooks'
-import { Keybindings, useShortcuts } from '../../ui/shortcuts'
-import { TextInput, findScrollableAncestor, focusWithKeyboard, isInsideInput } from '../../ui/utils'
+import * as Model from '../model'
+import { SheetBlockState, SheetBlockLine } from '../versioned'
 
-import * as Model from './model'
-import { SheetBlockState, SheetBlockLine } from './versioned'
-import * as versioned from './versioned'
-
-
-/**************** Code Actions **************/
-
-
-function findFocused(refMap: Map<number, SheetLineRef>) {
-    if (!document.activeElement) {
-        return undefined
-    }
-    return [...refMap.entries()].find(([id, ref]) => ref.containsFocus())
-}
-
-function findRelativeTo<Id, Line extends { id: Id }>(lines: Line[], id: Id, relativeIndex: number): Line | null {
-    if (lines.length === 0) { return null }
-    const index = lines.findIndex(line => line.id === id)
-    if (index < 0) { return null }
-    const newIndex = clampTo(0, lines.length, index + relativeIndex)
-    return lines[newIndex]
-}
-
-
-type FocusTarget = 'line' | 'var' | 'inner'
-
-function focusLineRef(ref: SheetLineRef, target: FocusTarget) {
-    switch (target) {
-        case 'line':
-            ref.focus()
-            return
-
-        case 'var':
-            ref.focusVar()
-            return
-
-        case 'inner':
-            ref.focusInner()
-            return
-    }
-}
-
-/** Focus `ref` and keep the same FocusTarget as before or fall back to `fallbackTarget` */
-function focusLineRefSameOr(refMap: Map<number, SheetLineRef>, ref: SheetLineRef, fallbackTarget: FocusTarget) {
-    const focus = findFocused(refMap)
-    if (focus) {
-        const [id, currentRef] = focus
-        const currentTarget = currentRef.isFocused() ? 'line' : 'inner'
-        focusLineRef(ref, currentTarget)
-    }
-    else {
-        focusLineRef(ref, fallbackTarget)
-    }
-}
-
-type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
-
-function ACTIONS<Inner extends unknown>(
-    eupdate: EUpdater<SheetBlockState<Inner>>,
-    container: React.MutableRefObject<HTMLElement>,
-    refMap: Map<number, SheetLineRef>,
-    innerBlock: Block<Inner>,
-) {
-    function update(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
-        eupdate(state => ({ state: action(state) }))
-    }
-
-    function insertBeforeCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-        const newId = Model.nextFreeId(state);
-        return {
-            state: Model.insertLineBefore(
-                state,
-                id,
-                {
-                    id: newId,
-                    name: '',
-                    visibility: versioned.VISIBILITY_STATES[0],
-                    state: innerBlock.init,
-                },
-                update,
-                env,
-                innerBlock,
-            ),
-            effect() { focusLineRef(refMap.get(newId), focusTarget) },
-        }
-    }
-
-    function insertAfterCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-        const newId = Model.nextFreeId(state)
-        return {
-            state: Model.insertLineAfter(
-                state,
-                id,
-                {
-                    id: newId,
-                    name: '',
-                    visibility: versioned.VISIBILITY_STATES[0],
-                    state: innerBlock.init,
-                },
-                update,
-                env,
-                innerBlock,
-            ),
-            effect() { focusLineRef(refMap.get(newId), focusTarget) },
-        }
-    }
-
-    function insertEnd(state: SheetBlockState<Inner>, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-        const newId = Model.nextFreeId(state)
-        return {
-            state: Model.insertLineEnd(
-                state,
-                {
-                    id: newId,
-                    name: '',
-                    visibility: versioned.VISIBILITY_STATES[0],
-                    state: innerBlock.init,
-                },
-                update,
-                env,
-                innerBlock,
-            ),
-            effect() { focusLineRef(refMap.get(newId), focusTarget) },
-        }
-    }
-
-    function scroll(amount: number) {
-        return {
-            effect() {
-                const scrollableContainer = findScrollableAncestor(container.current)
-                if (scrollableContainer) {
-                    scrollableContainer.scrollBy({
-                        top: amount * scrollableContainer.clientHeight,
-                        behavior: 'smooth',
-                    })
-                }
-            },
-        }
-    }
-
-    function focusUp(state: SheetBlockState<Inner>) {
-        return {
-            effect() {
-                const focused = findFocused(refMap)
-                if (focused === undefined) {
-                    refMap.get(state.lines[0].id)?.focus()
-                }
-                else {
-                    const [id, lineRef] = focused
-                    const focusTarget: FocusTarget = lineRef.isFocused() ? "line" : "inner"
-                    const prevId = findRelativeTo(state.lines, id, -1)?.id
-                    const prevLine = refMap.get(prevId)
-                    prevLine && focusLineRef(prevLine, focusTarget)
-                }
-            },
-        }
-    }
-
-    function focusDown(state: SheetBlockState<Inner>) {
-        return {
-            effect() {
-                const focused = findFocused(refMap)
-                if (focused === undefined) {
-                    refMap.get(state.lines[state.lines.length - 1].id)?.focus()
-                }
-                else {
-                    const [id, lineRef] = focused
-                    const focusTarget: FocusTarget = lineRef.isFocused() ? "line" : "inner"
-                    const nextId = findRelativeTo(state.lines, id, 1)?.id
-                    const nextLine = refMap.get(nextId)
-                    nextLine && focusLineRef(nextLine, focusTarget)
-                }
-            },
-        }
-    }
-
-
-    return {
-        scroll(amount: number) { eupdate(() => scroll(amount)) },
-
-        focusUp() { eupdate(focusUp) },
-
-        focusDown() { eupdate(focusDown) },
-
-        focusFirst() {
-            eupdate(state => ({
-                effect() {
-                    const firstId = state.lines[0].id
-                    refMap.get(firstId)?.focus()
-                }
-            }))
-        },
-
-        focusLast() {
-            eupdate(state => ({
-                effect() {
-                    const lastId = state.lines.slice(-1)[0].id
-                    refMap.get(lastId)?.focus()
-                }
-            }))
-        },
-
-        rename(id: number) {
-            eupdate(() => ({
-                effect() {
-                    refMap.get(id)?.focusVar()
-                },
-            }))
-        },
-
-        setName(id: number, name: string) {
-            eupdate((state, env) => ({
-                state: Model.updateLineWithId(state, id, line => ({ ...line, name }), update, env, innerBlock),
-            }));
-        },
-
-        switchCollapse(id: number) {
-            eupdate(state => ({
-                state: Model.updateLineUiWithId(state, id, line => ({
-                    ...line,
-                    visibility: Model.nextLineVisibility(line.visibility),
-                })),
-                effect() {
-                    const line = refMap.get(id)
-                    if (line && !line.containsFocus()) {
-                        line.focus();
-                    }
-                },
-            }))
-        },
-
-        updateInner(
-            id: number,
-            action: (state: Inner) => Inner,
-            innerBlock: Block<Inner>,
-            env: Environment
-        ) {
-            update(state =>
-                Model.updateLineBlock(state, id, action, innerBlock, env, update)
-            )
-        },
-
-        pasteAfter(id: number, json: any, innerBlock: Block<Inner>) {
-            const updateLines = block.fieldUpdater('lines', update)
-            eupdate((state, env) => {
-                try {
-                    const siblingsUntilId = Multiple.getResultEnv(Multiple.getEntriesUntil(state.lines, id), innerBlock)
-                    const envForPasted = { ...env, ...siblingsUntilId }
-                    const { lines } = versioned.fromJSON(json)(() => {}, envForPasted, innerBlock)
-                    const nextId = Model.nextFreeId(state)
-                    const remappedLines = lines.map((line, index) => ({
-                        ...line,
-                        id: nextId + index,
-                    }))
-                    const newState = {
-                        ...state,
-                        lines: (
-                            Multiple.recomputeFrom(
-                                Multiple.insertEntryAfter(state.lines, id, ...remappedLines),
-                                id,
-                                env,
-                                innerBlock,
-                                updateLines,
-                                1,
-                            )
-                        )
-                    }
-                    return {
-                        state: newState,
-                        effect() {
-                            const lastPastedRef = refMap.get(remappedLines.slice(-1)[0]?.id)
-                            lastPastedRef && focusLineRefSameOr(refMap, lastPastedRef, 'line')
-                        },
-                    }
-                }
-                catch (e) {
-                    return {}
-                }
-            })
-        },
-
-        insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-            eupdate((state, env) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
-        },
-
-        insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
-            eupdate((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
-        },
-
-        insertEnd(innerBlock: Block<Inner>, focusTarget: FocusTarget = 'inner') {
-            eupdate((state, env) => insertEnd(state, env, innerBlock, focusTarget))
-        },
-
-        focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
-            eupdate((state, env) => {
-                const currentIndex = state.lines.findIndex(line => line.id === id)
-                if (currentIndex < 0) { return {} }
-                if (currentIndex === 0) {
-                    return insertBeforeCode(state, id, env, innerBlock, 'inner')
-                }
-
-                const prevLine = state.lines[currentIndex - 1]
-                return {
-                    effect() {
-                        refMap.get(prevLine.id)?.focusInner()
-                    }
-                }
-            })
-        },
-
-        focusOrCreateNext(id: number, innerBlock: Block<Inner>) {
-            eupdate((state, env) => {
-                const currentIndex = state.lines.findIndex(line => line.id === id)
-                if (currentIndex < 0) { return {} }
-                if (currentIndex === state.lines.length - 1) {
-                    return insertAfterCode(state, id, env, innerBlock, 'inner')
-                }
-
-                const nextLine = state.lines[currentIndex + 1]
-                return {
-                    effect() {
-                        refMap.get(nextLine.id)?.focusInner()
-                    }
-                }
-            })
-        },
-
-        deleteCode(id: number, focusAfter: FocusTarget = 'line') {
-            eupdate((state, env) => {
-                const [prevId, newState] = Model.deleteLine(state, id, update, env, innerBlock)
-                return {
-                    state: newState,
-                    effect() {
-                        if (refMap.has(prevId)) {
-                            focusLineRef(refMap.get(prevId), focusAfter)
-                        }
-                        else {
-                            container.current.focus()
-                        }
-                    },
-                }
-            })
-        },
-    }
-
-}
-
-
-
-/**************** UI *****************/
+import { ACTIONS, Actions, SheetLineRef, findFocused } from './actions'
+import { useSelection } from './useSelection'
 
 
 export interface SheetProps<InnerState> {
@@ -383,6 +35,7 @@ export const Sheet = React.forwardRef(
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
         const eupdate = useEUpdate(update, env)
+
         React.useImperativeHandle(
             ref,
             () => ({
@@ -392,19 +45,26 @@ export const Sheet = React.forwardRef(
                         refMap
                             .get(state.lines[lastIndex].id)
                             ?.focus?.()
-                        return
                     }
                     else {
                         containerRef.current?.focus?.()
                     }
                 }
             }),
-            [state]
+            [state],
         )
 
+        const { selectionAnchorIds, setSelectionAnchorIds, selectionEventHandlers } = useSelection(refMap)
+        const lineIds = state.lines.map(({ id }) => id)
+        const selectionAnchorIndices = selectionAnchorIds && [
+            lineIds.indexOf(selectionAnchorIds.start),
+            lineIds.indexOf(selectionAnchorIds.end),
+        ].sort((a, b) => a - b) as [number, number]
+        const selectedIds = selectionAnchorIds && lineIds.slice(selectionAnchorIndices[0], selectionAnchorIndices[1] + 1)
+
         const actions = React.useMemo(
-            () => ACTIONS(eupdate, containerRef, refMap, innerBlock),
-            [eupdate, containerRef, refMap, innerBlock],
+            () => ACTIONS(eupdate, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
+            [eupdate, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
         )
 
         const shortcutProps = useShortcuts([
@@ -430,7 +90,47 @@ export const Sheet = React.forwardRef(
                 lastFocus.current = null
             }
 
+            selectionEventHandlers.onBlur(ev)
             shortcutProps.onBlur(ev)
+        }
+
+        function onFocus(ev: React.FocusEvent) {
+            selectionEventHandlers.onFocus(ev)
+            shortcutProps.onFocus(ev)
+        }
+
+        function onPaste(ev: React.ClipboardEvent) {
+            if (ev.clipboardData.types.includes('application/x.tables-block')) {
+                const json = JSON.parse(ev.clipboardData.getData('application/x.tables-block'))
+                actions.paste(json, innerBlock)
+                ev.stopPropagation()
+                ev.preventDefault()
+            }
+        }
+
+        function onCopy(ev: React.ClipboardEvent) {
+            const selection = document.getSelection()
+            const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
+            if (isTextSelected) { return }
+
+            actions.copy(state, innerBlock, (type, content) => {
+                ev.clipboardData.setData(type, content)
+                ev.stopPropagation()
+                ev.preventDefault()
+            })
+        }
+
+        function onCut(ev: React.ClipboardEvent) {
+            const selection = document.getSelection()
+            const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
+            if (isTextSelected) { return }
+
+            actions.copy(state, innerBlock, (type, content) => {
+                ev.clipboardData.setData(type, content)
+                actions.deleteCode(findFocused(refMap)?.[0])
+                ev.stopPropagation()
+                ev.preventDefault()
+            })
         }
 
         return (
@@ -440,6 +140,12 @@ export const Sheet = React.forwardRef(
                 className="group/sheet focus:border-b-2 focus:border-blue-300 outline-none"
                 {...shortcutProps}
                 onBlur={onBlur}
+                onFocus={onFocus}
+                onMouseDown={selectionEventHandlers.onMouseDown}
+                onMouseMove={selectionEventHandlers.onMouseMove}
+                onCopy={onCopy}
+                onPaste={onPaste}
+                onCut={onCut}
             >
                 <SheetLinesEnv
                     setLineRef={setLineRef}
@@ -447,6 +153,7 @@ export const Sheet = React.forwardRef(
                     actions={actions}
                     block={innerBlock}
                     env={env}
+                    selection={selectionAnchorIndices}
                     />
 
                 {/* Add line button */}
@@ -473,12 +180,14 @@ export const Sheet = React.forwardRef(
     }
 )
 
+
 export interface SheetLinesProps<InnerState> {
     setLineRef: (id: number) => React.Ref<SheetLineRef>
     lines: SheetBlockLine<InnerState>[]
     actions: Actions<InnerState>
     block: Block<InnerState>
     env: Environment
+    selection: [number, number] | null
 }
 
 export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
@@ -494,7 +203,8 @@ interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     aboveViewport: boolean
 }
 
-function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, siblingsEnv, env, aboveViewport }: SheetLineHelperProps<InnerState>) {
+function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, actions, block, siblingsEnv, env, selection, aboveViewport }: SheetLineHelperProps<InnerState>) {
+    const isSelected = selection && selection[0] <= index && index <= selection[1]
     const line = lines[index]
     const next = index + 1
     const localSiblingsEnv = React.useMemo(
@@ -516,6 +226,7 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
                 line={line}
                 actions={actions}
                 block={block}
+                isSelected={isSelected}
                 env={localEnv}
                 skipRender={!isInView}
                 />
@@ -528,6 +239,7 @@ function SheetLinesEnvHelperComponent<InnerState>({ setLineRef, index, lines, ac
                     block={block}
                     siblingsEnv={localSiblingsEnv}
                     env={env}
+                    selection={selection}
                     aboveViewport={aboveViewport && !isInView} // once a SheetLine was inView, everything below is not aboveViewport anymore
                     skipRender={isBelowViewport}
                     />
@@ -544,22 +256,15 @@ export interface SheetLineProps<InnerState> {
     actions: Actions<InnerState>
     block: Block<InnerState>
     env: Environment
+    isSelected: boolean
     setLineRef(id: number): React.Ref<SheetLineRef>
     inViewRef: React.Ref<HTMLElement>
 }
 
-export interface SheetLineRef {
-    getElement(): HTMLElement
-    isFocused(): boolean
-    containsFocus(): boolean
-    focus(): void
-    focusVar(): void
-    focusInner(): void
-}
-
-function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inViewRef }: SheetLineProps<Inner>) {
+function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setLineRef, inViewRef }: SheetLineProps<Inner>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const varInputRef = React.useRef<HTMLElement>()
+    const innerContainerRef = React.useRef<HTMLDivElement>()
     const innerBlockRef = React.useRef<BlockRef>()
     const resultRef = React.useRef<HTMLElement>()
     const lineRef = React.useMemo(() => setLineRef(line.id), [setLineRef, line.id])
@@ -572,11 +277,14 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             getElement() {
                 return containerRef.current
             },
+            getInnerContainer() {
+                return innerContainerRef.current
+            },
+            getVarInput() {
+                return varInputRef.current
+            },
             isFocused() {
                 return !!containerRef.current && document.activeElement === containerRef.current
-            },
-            containsFocus() {
-                return !!containerRef.current && containerRef.current.contains(document.activeElement)
             },
             focus() {
                 if (!containerRef.current) { return }
@@ -626,22 +334,6 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
         [line, innerBlockRef, actions],
     )
 
-    function onPaste(ev: React.ClipboardEvent) {
-        if (ev.clipboardData.types.includes('application/x.tables-block')) {
-            const json = JSON.parse(ev.clipboardData.getData('application/x.tables-block'))
-            actions.pasteAfter(line.id, json, block)
-            ev.stopPropagation()
-            ev.preventDefault()
-        }
-    }
-
-    function onCopy(ev: React.ClipboardEvent) {
-        if (ev.target instanceof HTMLElement && isInsideInput(ev.target)) { return }
-        ev.clipboardData.setData('application/x.tables-block', JSON.stringify(versioned.toJSON({ lines: [line] }, block)))
-        ev.stopPropagation()
-        ev.preventDefault()
-    }
-
     const shouldNameBeHidden = line.name === ''
     const focusIndicatorColor = {
         block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
@@ -658,12 +350,11 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
             className={`
                 flex flex-row items-baseline space-x-2
                 outline-none
+                ${isSelected && 'bg-blue-100'}
                 group/sheet-line
             `}
             tabIndex={-1}
             {...bindingsProps}
-            onCopy={onCopy}
-            onPaste={onPaste}
         >
             <div className="flex-1 min-w-32 flex flex-row justify-end">
                 <AssignmentLine
@@ -686,7 +377,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, setLineRef, inVi
                 `}
                 />
 
-            <div className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
+            <div ref={innerContainerRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
                 {line.visibility === 'block' &&
                     <ErrorBoundary key="block" title="There was an error in the subblock">
                         {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
@@ -739,6 +430,20 @@ function sheetLineBindings<Inner>(
         event?.preventDefault()
     }
 
+    function selectUp(event?: React.KeyboardEvent) {
+        if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
+        actions.selectUp()
+        event?.stopPropagation()
+        event?.preventDefault()
+    }
+
+    function selectDown(event?: React.KeyboardEvent) {
+        if (event && event.target !== event.currentTarget && !event.defaultPrevented) { return }
+        actions.selectDown()
+        event?.stopPropagation()
+        event?.preventDefault()
+    }
+
     return [
         {
             description: "change lines",
@@ -756,7 +461,7 @@ function sheetLineBindings<Inner>(
             bindings: [
                 [["Z"],                              "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
                 [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
-                [["Escape"],                         "!selfFocused", "focus sheet line", () => containerRef.current?.focus({ preventScroll: true })],
+                [["Escape"],                         "!selfFocused", "focus sheet line", () => containerRef.current && focusWithKeyboard(containerRef.current, { preventScroll: true })],
                 [
                     ["Enter"],
                     "selfFocused",
@@ -776,6 +481,8 @@ function sheetLineBindings<Inner>(
             bindings: [
                 [["ArrowUp", "K"],                   "none",          "move up",         moveUp, { noAutoPrevent: true }],
                 [["ArrowDown", "J"],                 "none",          "move down",       moveDown, { noAutoPrevent: true }],
+                [["Shift-ArrowUp", "Shift-K"],       "none",          "select up",       selectUp, { noAutoPrevent: true }],
+                [["Shift-ArrowDown", "Shift-J"],     "none",          "select down",     selectDown, { noAutoPrevent: true }],
                 [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.focusOrCreateNext(line.id, block)],
                 [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.focusOrCreatePrev(line.id, block)],
                 [["G"],                              "!inputFocused", "jump top",        () => actions.focusFirst()],

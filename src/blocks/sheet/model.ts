@@ -122,24 +122,24 @@ export function insertLineEnd<Inner>(
     }
 }
 
-export function deleteLine<Inner>(
+export function deleteLines<Inner>(
     state: SheetBlockState<Inner>,
-    id: number,
+    ids: number[],
     update: block.BlockUpdater<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ): [number, SheetBlockState<Inner>] {
-    const index = state.lines.findIndex(line => line.id === id)
-    const linesWithoutId = state.lines.filter(line => line.id !== id)
-    const prevIndex = clampTo(0, linesWithoutId.length, index - 1)
-    const prevId = linesWithoutId[prevIndex]?.id
+    const index = state.lines.findIndex(line => ids.includes(line.id))
+    const linesWithoutIds = state.lines.filter(line => !ids.includes(line.id))
+    const prevIndex = clampTo(0, linesWithoutIds.length, index - 1)
+    const prevId = linesWithoutIds[prevIndex]?.id
 
     return [
         prevId,
         {
             ...state,
             lines: Multiple.recomputeFrom(
-                linesWithoutId,
+                linesWithoutIds,
                 undefined,
                 env,
                 innerBlock,
