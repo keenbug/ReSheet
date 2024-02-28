@@ -258,7 +258,7 @@ const ViewBlock = React.memo(
 
         return (
             <div className="flex flex-col item-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
-                <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto relative">
+                <div className="bg-white flex flex-col justify-center items-stretch min-h-14 overflow-x-auto relative">
                     <ErrorBoundary title="Could not show block">
                         {innerBlock.view({
                             state,
@@ -267,10 +267,11 @@ const ViewBlock = React.memo(
                         })}
                     </ErrorBoundary>
                     <button
-                        className="absolute inset-0 z-10 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-gray-300"
+                        className="absolute inset-0 w-full z-10 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-sky-300"
                         onClick={instantiateBlock}
                         >
                         <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
+                        <div className="text-xs font-thin">Click to instantiate</div>
                     </button>
                 </div>
             </div>
