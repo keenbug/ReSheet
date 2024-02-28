@@ -47,7 +47,7 @@ function ACTIONS<State extends unknown>(
 
         save() {
             updateHistory(state => {
-                const content = JSON.stringify(History.historyToJSON(state, inner => Model.toJSON(inner, innerBlock)))
+                const content = JSON.stringify(History.historyToJSON(state, inner => Model.toJSON(inner, innerBlock)), null, 2)
                 saveFile(
                     'tables.json',
                     'application/json',
