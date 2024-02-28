@@ -282,7 +282,6 @@ export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename,
 
 export async function saveFile(filename: string, mimeType: string, textContent: string) {
     if (isDesktop) {
-
         const filePath = await save({
             filters: [{
                 name: filename,

@@ -29,6 +29,9 @@
         "readDir": true,
         "readFile": true,
         "writeFile": true
+      },
+      "path": {
+        "all": true
       }
     },
     "windows": [
