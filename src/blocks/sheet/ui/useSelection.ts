@@ -57,6 +57,9 @@ export function useSelection(refMap: Map<number, SheetLineRef>) {
             if (!target) { return }
             const [targetFocusId, targetLine] = target
 
+            // Don't capture shift-click selection inside a line
+            if (currentFocusId === targetFocusId && targetLine.getInnerContainer().contains(ev.target)) { return }
+
             focusWithKeyboard(targetLine.getElement(), { preventScroll: true })
             setSelectionAnchorIds(selection => ({
                 start: selection?.start ?? currentFocusId,
@@ -119,7 +122,6 @@ export function useSelection(refMap: Map<number, SheetLineRef>) {
                 end: targetId,
             }
         })
-        ev.preventDefault()
     }, [refMap, mouseStartId, setSelectionAnchorIds])
 
             
