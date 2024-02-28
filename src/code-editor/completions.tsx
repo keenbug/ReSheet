@@ -3,6 +3,7 @@ import { Tab } from '@headlessui/react'
 import { VList, VListHandle } from 'virtua'
 
 import babelGenerator from '@babel/generator'
+import babelTraverse from '@babel/traverse'
 import * as babel from '@babel/types'
 
 import * as block from '../block'
@@ -101,7 +102,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
                     tab={completionVisibilty}
                     onChangeTab={setCompletionVisibility}
                     docs={findDocsFor}
-                    selectedMarker={<KeyButtonContainer className="float-right my-1 font-semibold text-[0.625rem] bg-gray-50">Tab</KeyButtonContainer>}
+                    selectedMarker={<KeyButtonContainer className="absolute top-0 right-1 my-1 font-semibold text-[0.625rem] bg-gray-50">Tab</KeyButtonContainer>}
                     />
             </div>
         )
@@ -130,7 +131,7 @@ export function propertyCompletions(object: Object) {
     return (
         Object.entries({
             ...(
-                EXCLUDED_PROTOTYPE_COMPLETIONS.has(proto) ? {}
+                proto === null || EXCLUDED_PROTOTYPE_COMPLETIONS.has(proto) ? {}
                 : Object.getOwnPropertyDescriptors(proto)
             ),
             ...Object.getOwnPropertyDescriptors(object),
@@ -175,6 +176,9 @@ function findCompletions(expr: babel.Expression, env: block.Environment): Comple
         if (expr.type === 'NewExpression' && expr.callee.type !== 'V8IntrinsicIdentifier') {
             return findCompletions(expr.callee, env)
         }
+        if (expr.type === 'BinaryExpression') {
+            return findCompletions(expr.right, env)
+        }
     }
     catch (e) {}
 
@@ -203,7 +207,7 @@ export const Completions = React.forwardRef(function Completions(
     ].join('\n')
     const parsed = looseParseCode(allBefore)
     const search = (parsed && findCompletions(parsed.ast, env)) ?? noCompletionOptions
-    const offset = search.end === undefined ? 0 : parsed.str.length - search.end
+    const offset = parsed === undefined || search.end === undefined ? 0 : parsed.str.length - search.end
     return (
         <RenderCompletions
             ref={ref}
@@ -248,18 +252,39 @@ function looseParseCode(code: string) {
     }
 }
 
+const RANDOM_CHARS_SELECTION = "abcdefghijklmnopqrstuvwxyzABCDEFJGHIjKLMNOPQRSTUVWXYZ0123456789"
+const RANDOM_SUFFIX = (
+    Array(30).fill(0)
+        .map(() =>
+            RANDOM_CHARS_SELECTION[
+                Math.floor(Math.random() * RANDOM_CHARS_SELECTION.length)
+            ]
+        )
+        .join('')
+)
+const EMPTY_IDENTIFIER_PLACEHOLDER = '$EMPTY_IDENTIFIER_PLACEHOLDER_' + RANDOM_SUFFIX
+
 function parseCurrentExpression(code: string): babel.Expression {
     if (code.trim() === '') {
         return babel.identifier('')
     }
     // looks like an incomplete member access?
     else if (code.slice(-1) === '.') {
-        const objExpr = parseJSExpr(code.slice(0, -1))
-        return {
-            ...babel.memberExpression(objExpr, babel.identifier('')),
-            start: objExpr.start,
-            end: objExpr.end + 1,
-        }
+        const objExpr = parseJSExpr(code + EMPTY_IDENTIFIER_PLACEHOLDER)
+        const program = babel.program([babel.expressionStatement(objExpr)])
+        babelTraverse(program, {
+            MemberExpression(path) {
+                if (
+                    babel.isIdentifier(path.node.property) &&
+                    path.node.property.name === EMPTY_IDENTIFIER_PLACEHOLDER
+                ) {
+                    path.node.property.name = ''
+                    path.node.property.end = path.node.property.start
+                    path.node.end = path.node.property.start
+                }
+            },
+        })
+        return (program.body[0] as babel.ExpressionStatement).expression
     }
     else {
         return parseJSExpr(code)
