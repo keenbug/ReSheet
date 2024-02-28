@@ -5,6 +5,9 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { interpolate } from '../utils'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
+import { save } from '@tauri-apps/api/dialog';
+import { documentDir } from '@tauri-apps/api/path';
+import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
 
 // Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent
 interface KeyboardEvent {
@@ -222,6 +225,10 @@ export const IconForButton: React.FC<{ icon: IconDefinition }> = ({ icon }) => (
 )
 
 
+// `true` is the WebApp is run as an desktop app. `false` if in the browser
+export const isDesktop = window["__TAURI__"] !== undefined;
+
+
 export function selectFile(): Promise<File> {
     return new Promise(resolve => {
         const fileInput = document.createElement('input')
@@ -273,13 +280,25 @@ export const SaveFileButton: React.FC<any> = ({ mimeType, textContent, filename,
     )
 }
 
-export function saveFile(filename: string, mimeType: string, textContent: string) {
-    const blob = new Blob([textContent], { type: mimeType })
-    const downloadButton = document.createElement('a')
-    downloadButton.href = URL.createObjectURL(blob)
-    downloadButton.download = filename
-    downloadButton.click()
-    downloadButton.remove()
+export async function saveFile(filename: string, mimeType: string, textContent: string) {
+    if (isDesktop) {
+        const filePath = await save({
+            filters: [{
+                name: filename,
+                extensions: ['tbls.json'],
+            }],
+            defaultPath: await documentDir()
+        })
+        if (filePath == null) return
+        await writeTextFile(filePath, textContent)
+    } else {
+        const blob = new Blob([textContent], { type: mimeType })
+        const downloadButton = document.createElement('a')
+        downloadButton.href = URL.createObjectURL(blob)
+        downloadButton.download = filename
+        downloadButton.click()
+        downloadButton.remove()
+    }
 }
 
 

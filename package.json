@@ -1,5 +1,7 @@
 {
-  "name": "tables",
+  "name": "tbls",
+  "version": "0.0.0",
+  "type": "module",
   "description": "spreadsheets for programmers",
   "author": "Daniel Krüger",
   "license": "MIT",
@@ -9,23 +11,13 @@
     "start": "parcel",
     "build": "parcel build --public-url ./",
     "check": "tsc --noEmit --skipLibCheck",
-    "update-introduction": "echo 'export default ' >src/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/resources/introduction.js"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.41.2",
-    "@types/babel__code-frame": "^7.0.3",
-    "@types/babel__core": "^7.1.19",
-    "@types/react": "^18.0.25",
-    "@types/react-inspector": "^4.0.2",
-    "@types/throttle-debounce": "^5.0.2",
-    "assert": "^2.0.0",
-    "buffer": "^6.0.3",
-    "parcel": "^2.7.0",
-    "path-browserify": "^1.0.1",
-    "process": "^0.11.10",
-    "typescript": "^5.3.3"
+    "update-introduction": "echo 'export default ' >src/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/resources/introduction.js",
+    "tauri": "tauri"
   },
   "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@tauri-apps/api": "^1",
     "@babel/code-frame": "^7.23.2",
     "@babel/core": "^7.23.2",
     "@babel/generator": "^7.23.2",
@@ -48,5 +40,23 @@
     "styled-components": "^6.1.1",
     "throttle-debounce": "^5.0.0",
     "virtua": "^0.24.0"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.0",
+    "@tauri-apps/cli": "^1",
+    "@playwright/test": "^1.41.2",
+    "@types/babel__code-frame": "^7.0.3",
+    "@types/babel__core": "^7.1.19",
+    "@types/react": "^18.0.25",
+    "@types/react-inspector": "^4.0.2",
+    "@types/throttle-debounce": "^5.0.2",
+    "assert": "^2.0.0",
+    "buffer": "^6.0.3",
+    "parcel": "^2.7.0",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "typescript": "^5.3.3"
   }
 }
