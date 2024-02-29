@@ -5,7 +5,7 @@ import { ValidationError, Validator, ValidatorObj, validate } from '@tables/util
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
 
-export const BlockTag = Symbol('block')
+const BlockTag = Symbol('block')
 export const isBlock = (obj): obj is Block<unknown> => obj?.[BlockTag] === BlockTag
 
 export interface BlockRef {
@@ -30,7 +30,7 @@ export interface BlockDesc<State> {
     recompute(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
-    toJSON(state: State): {}
+    toJSON(state: State): any
 }
 
 export type BlockViewer<State> =
@@ -59,26 +59,36 @@ export interface Block<State> {
     recompute(state: State, update: BlockUpdater<State>, env: Environment): State
     getResult(state: State): any
     fromJSON(json: any, update: BlockUpdater<State>, env: Environment): State
-    toJSON(state: State): {}
+    toJSON(state: State): any
 }
 
 export function create<State>(description: BlockDesc<State>): Block<State> {
     const forwardRefView = React.forwardRef(description.view)
     return {
-        ...description,
         [BlockTag]: BlockTag,
+        init: description.init,
         view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) {
             return React.createElement(forwardRefView, props)
         },
         fromJSON(json: any, update: BlockUpdater<State>, env: Environment) {
-            try { return description.fromJSON(json, update, env) }
+            function safeUpdate(action: (state: State) => State) {
+                update(state => {
+                    try {
+                        return action(state)
+                    }
+                    catch (e) {
+                        console.warn("Could not update after fromJSON:", e, e?.stack)
+                        return state
+                    }
+                })
+            }
+            try { return description.fromJSON(json, safeUpdate, env) }
             catch (e) {
                 if (e instanceof ValidationError) {
                     console.warn("Could not load JSON\n" + e.toString(), e.stack, '\nJSON:', json)
                 }
                 else {
-
-                    console.warn("Could not load JSON:", e, e.stack, '\nJSON:', json)
+                    console.warn("Could not load JSON:", e, e?.stack, '\nJSON:', json)
                 }
                 return description.init
             }
@@ -86,10 +96,35 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
         toJSON(state: State) {
             try { return description.toJSON(state) }
             catch (e) {
-                console.warn("Could not convert to JSON:", e, e.stack, '\nState:', state)
+                console.warn("Could not convert to JSON:", e, e?.stack, '\nState:', state)
                 return null
             }
-        }
+        },
+        getResult(state) {
+            try { return description.getResult(state) }
+            catch (e) {
+                console.warn("Could not get block result:", e, e?.stack)
+                return e
+            }
+        },
+        recompute(state, update, env) {
+            function safeUpdate(action: (state: State) => State) {
+                update(state => {
+                    try {
+                        return action(state)
+                    }
+                    catch (e) {
+                        console.warn("Could not update after recompute:", e, e?.stack)
+                        return state
+                    }
+                })
+            }
+            try { return description.recompute(state, safeUpdate, env) }
+            catch (e) {
+                console.warn("Could not recompute block:", e, e?.stack)
+                return state
+            }
+        },
     }
 }
 
