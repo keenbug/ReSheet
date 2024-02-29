@@ -35,3 +35,29 @@ Running Tables locally should be easy. Make sure you have a `node` environment a
       ... starts development server (parcel) ...
 
 and Tables should be up and running on http://localhost:1234/.
+
+
+## Architecture
+
+```mermaid
+graph TD;
+
+  web["`**src/web/**
+*the web app*`"];
+
+  blocks["`**src/blocks/**
+*library of blocks*`"];
+
+  core["`**src/core/**
+*core definition of a block*`"];
+
+  code["`**src/code/**
+*edit and run javascript*`"]
+
+  docs["`**src/docs/**
+*provide documentation*`"]
+
+  web --> core & blocks;
+  blocks --> core & code; 
+  blocks & web --> docs;
+```
