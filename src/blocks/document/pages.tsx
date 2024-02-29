@@ -4,11 +4,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, BlockUpdater, Environment, mapWithEnv } from '../../block'
-import * as Multiple from '../../block/multiple'
+import { Block, BlockUpdater, Environment, mapWithEnv } from '@tables/core'
+import * as Multiple from '@tables/core/multiple'
+import { arrayEquals, arrayStartsWith, clampTo } from '@tables/util'
 
-import { arrayEquals, arrayStartsWith, clampTo } from '../../utils'
-import { getFullKey } from '../../ui/utils'
+import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'
 
 

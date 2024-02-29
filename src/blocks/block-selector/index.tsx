@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import * as block from '../../block'
-import { Block, BlockUpdater, Environment } from '../../block'
+import * as block from '@tables/core'
+import { Block, Environment } from '@tables/core'
 
 import * as Model from './model'
 import * as UI from './ui'

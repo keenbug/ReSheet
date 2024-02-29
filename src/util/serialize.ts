@@ -1,5 +1,5 @@
-import { Validator, assertValid } from "./validate"
 import { stringify } from "."
+import { Validator, assertValid } from "./validate"
 
 export type Parser<Result> = (input: any) => Result
 

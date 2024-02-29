@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { throttle } from 'throttle-debounce'
-import { isPromise } from '../logic/result';
-import { Environment } from '../block';
+
+import { isPromise } from '.'
 
 export interface ThrottleOptions {
     noTrailing?: boolean
@@ -141,26 +141,10 @@ export function useEffectfulUpdate<State>(
     }, [update, queueEffect])
 }
 
-export function useEffectfulState<State>(init?: State | (() => State)): [State, EffectfulUpdater<State>] {
-    const [state, setState] = React.useState(init)
+export function useEffectfulState<State>(init: State | (() => State)): [State, EffectfulUpdater<State>] {
+    const [state, setState] = React.useState<State>(init)
     const effectfulUpdate = useEffectfulUpdate(setState)
     return [state, effectfulUpdate]
-}
-
-// Effectful action with Env
-export type EAction<State> = (state: State, env: Environment) => Effectful<State>
-
-// Effectful updater with Env
-export type EUpdater<State> = (action: EAction<State>) => void
-
-export function useEUpdate<State>(
-    update: (action: (state: State) => State) => void,
-    env: Environment,
-) {
-    const updateFX = useEffectfulUpdate(update)
-    return React.useCallback(function eupdate(eaction: EAction<State>) {
-        updateFX(state => eaction(state, env))
-    }, [updateFX, env])
 }
 
 
@@ -232,14 +216,15 @@ export function useSelectionRect() {
     const rectRef = useSyncRef(rect)
 
     function updateSelectionRect() {
-        if (!document.getSelection() || document.getSelection().rangeCount <= 0) {
+        const selection = document.getSelection()
+        if (!selection || selection.rangeCount <= 0) {
             if (rectRef.current !== null) {
                 setRect(null)
             }
             return
         }
 
-        const newRect = document.getSelection().getRangeAt(0).getBoundingClientRect()
+        const newRect = selection.getRangeAt(0).getBoundingClientRect()
         if (
             rectRef.current?.x === newRect.x
             && rectRef.current?.y === newRect.y

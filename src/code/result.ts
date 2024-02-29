@@ -1,3 +1,5 @@
+import { isPromise } from "@tables/util"
+
 export type Result =
     | { type: 'immediate', value: any }
     | { type: 'promise', cancel(): void } & PromiseResult
@@ -74,9 +76,4 @@ export function resultFrom(value: any, resultUpdateCallback: (result: Result) =>
     else {
         return ImmediateResult(value)
     }
-}
-
-
-export function isPromise(value: any) {
-    return typeof value?.then === 'function'
 }

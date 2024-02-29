@@ -1,6 +1,6 @@
-import { Result } from "../../logic/result"
-import { addRevision, addValidator } from "../../utils/serialize"
-import { string } from "../../utils/validate"
+import { addRevision, addValidator } from "@tables/util/serialize"
+import { string } from "@tables/util/validate"
+import { Result } from "@tables/code/result"
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {

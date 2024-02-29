@@ -1,13 +1,13 @@
 import * as React from 'react'
 
-import * as block from '../../../block'
-import { Block, Environment } from '../../../block'
-import * as Multiple from '../../../block/multiple'
+import * as block from '@tables/core'
+import { Block, Environment } from '@tables/core'
+import * as Multiple from '@tables/core/multiple'
 
-import { clampTo } from '../../../utils'
+import { clampTo } from '@tables/util'
 
-import { EUpdater } from '../../../ui/hooks'
-import { findScrollableAncestor } from '../../../ui/utils'
+import { EUpdater } from '../../utils/hooks'
+import { findScrollableAncestor } from '../../utils/ui'
 
 import * as Model from '../model'
 import { SheetBlockState } from '../versioned'

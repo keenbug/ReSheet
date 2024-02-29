@@ -3,19 +3,21 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '../../block'
-import { Block, BlockRef, Environment } from '../../block'
-import { computeExpr } from '../../logic/compute'
+import * as block from '@tables/core'
+import { Block, BlockRef, Environment } from '@tables/core'
 
-import { ErrorBoundary, ValueInspector } from '../../ui/value'
-import { EffectfulUpdater, useEffectfulUpdate } from '../../ui/hooks'
-import { useShortcuts } from '../../ui/shortcuts'
+import { CodeView, CodeEditor, CodeEditorHandle } from '@tables/code/editor'
+import { useCompletionsOverlay } from '@tables/code/completions'
 
-import { CodeView, CodeEditor, CodeEditorHandle } from '../../code-editor'
-import { useCompletionsOverlay } from '../../code-editor/completions'
+import { EffectfulUpdater, useEffectfulUpdate } from '@tables/util/hooks'
+import { computeExpr } from '@tables/code/compute'
+
+import { ErrorBoundary, ValueInspector } from '../../code/value'
+import { useShortcuts } from '../../util/shortcuts'
 
 import * as Model from './model'
 import { BlockSelectorState } from './versioned'
+import { Block as BlockView } from '../component'
 
 
 function ACTIONS(
@@ -198,9 +200,13 @@ export const BlockSelectorUI = React.forwardRef(
                                 {state.expr}
                             </button>
                         </div>
-                        <ErrorBoundary title={"There was an error in: " + state.expr}>
-                            {state.innerBlock.view({ ref: innerBlockRef, state: state.innerBlockState, update: actions.subupdate, env }) }
-                        </ErrorBoundary>
+                        <BlockView
+                            blockRef={innerBlockRef}
+                            block={state.innerBlock}
+                            state={state.innerBlockState}
+                            update={actions.subupdate}
+                            env={env}
+                            />
                     </div>
                 )
 
@@ -237,11 +243,14 @@ export interface BlockPreviewProps {
 
 export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
     function BlockCmdResultView() {
-        return block.view({
-            state: block.init,
-            update() {},
-            env,
-        })
+        return (
+            <BlockView
+                block={block}
+                state={block.init}
+                update={() => {}}
+                env={env}
+                />
+        )
     }
 
     return (

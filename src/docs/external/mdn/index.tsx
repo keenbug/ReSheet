@@ -1,9 +1,11 @@
-import mdnContent from "./js-global-objects"
-import { DocsMap } from "../.."
-
 import { MarkdownToJSX, RuleType } from 'markdown-to-jsx'
-import { DocMarkdown } from "../../ui"
-import { CodeView } from "../../../code-editor"
+
+import { DocsMap } from "@tables/docs"
+import { DocMarkdown } from "@tables/docs/ui"
+
+import { CodeView } from "@tables/code/editor"
+
+import mdnContent from "./js-global-objects"
 
 const MATCH_KUMASCRIPT = /{{(\w+)(\((?:\s*(?:"[^"]*"|\d+)\s*,?\s*)*\))?}}/
 const MATCH_ARG = /"([^"]*|\d+)"/g

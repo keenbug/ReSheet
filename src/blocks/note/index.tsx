@@ -1,18 +1,17 @@
 import * as React from 'react'
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import { BlockRef } from '@tables/core'
+import * as block from '@tables/core'
 
-import { BlockRef } from '../../block'
-import * as block from '../../block'
-import { getResultValue } from '../../logic/result'
+import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '@tables/code/editor'
+import { useCompletionsOverlay } from '@tables/code/completions'
 
-import { Keybindings, useShortcuts } from '../../ui/shortcuts'
-import { EUpdater, useEUpdate, useEffectfulState } from '../../ui/hooks'
-import { getFullKey } from '../../ui/utils'
+import { getResultValue } from '@tables/code/result'
 
-import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '../../code-editor'
-import { useCompletionsOverlay } from '../../code-editor/completions'
+import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
+
+import { EUpdater, useEUpdate } from '../utils/hooks'
+import { getFullKey } from '../utils/ui'
 
 import { ViewBlockInstantiated, ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
 import { NoteModel, NoteType } from './versioned'

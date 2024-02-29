@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ErrorBoundary } from '../ui/value'
-import { ValidationError, Validator, ValidatorObj, validate } from '../utils/validate'
+
+import { ValidationError, Validator, ValidatorObj, validate } from '@tables/util/validate'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -68,11 +68,7 @@ export function create<State>(description: BlockDesc<State>): Block<State> {
         ...description,
         [BlockTag]: BlockTag,
         view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) {
-            return (
-                <ErrorBoundary title="There was an error in this block">
-                    {React.createElement(forwardRefView, props)}
-                </ErrorBoundary>
-            )
+            return React.createElement(forwardRefView, props)
         },
         fromJSON(json: any, update: BlockUpdater<State>, env: Environment) {
             try { return description.fromJSON(json, update, env) }

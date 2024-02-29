@@ -1,12 +1,14 @@
 import * as React from 'react'
 
-import * as block from '../../block'
-import { Block, Environment } from '../../block'
+import * as block from '@tables/core'
+import { Block, Environment } from '@tables/core'
+
+import { CollectKeymap, GatherShortcuts } from '@tables/util/shortcuts'
+
 import * as Model from './model'
 import * as UI from './ui'
 import * as History from './history'
 import { HistoryWrapper, HistoryView } from './history'
-import { CollectKeymap, GatherShortcuts } from '../../ui/shortcuts'
 import { Document } from './versioned'
 import { KeymapCollector } from './key-collector'
 

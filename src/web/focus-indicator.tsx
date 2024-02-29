@@ -1,5 +1,6 @@
 import React from "react"
-import { useSyncRef } from "./hooks"
+
+import { useSyncRef } from "@tables/util/hooks"
 
 const MOVE_ANIMATION_MS = 300
 const POSITION_TRANSITION = `${MOVE_ANIMATION_MS}ms ease-out`

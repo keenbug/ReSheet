@@ -1,6 +1,7 @@
+import { Validator, ValidatorObj, number, string } from "@tables/util/validate"
+
 import { Block, Environment } from "."
 import * as block from "."
-import { Validator, ValidatorObj, number, string } from "../utils/validate"
 
 export interface BlockEntry<InnerBlockState> {
     readonly id: number

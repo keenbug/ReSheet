@@ -1,18 +1,20 @@
 import * as React from 'react'
 
-import { BlockRef } from '../../block'
-import * as block from '../../block'
-import { computeScript } from '../../logic/compute'
-import { Pending, resultFrom } from '../../logic/result'
+import { BlockRef } from '@tables/core'
+import * as block from '@tables/core'
 
-import { ViewResult } from '../../ui/value'
-import { useShortcuts } from '../../ui/shortcuts'
+import { DocMarkdown } from '@tables/docs/ui'
+import { DocsMap } from '@tables/docs'
 
-import { CodeEditor, CodeEditorHandle } from '../../code-editor'
-import { useCompletionsOverlay } from '../../code-editor/completions'
-import { DocMarkdown } from '../../docs/ui'
-import { Block } from '../../block/component'
-import { DocsMap } from '../../docs'
+import { CodeEditor, CodeEditorHandle } from '@tables/code/editor'
+import { useCompletionsOverlay } from '@tables/code/completions'
+import { Block } from '@tables/blocks/component'
+
+import { computeScript } from '@tables/code/compute'
+import { Pending, resultFrom } from '@tables/code/result'
+import { ViewResult } from '@tables/code/value'
+
+import { useShortcuts } from '@tables/util/shortcuts'
 
 import { JSExprModel } from './versioned'
 import * as versioned from './versioned'

@@ -1,8 +1,9 @@
 import * as React from 'react'
 
-import { ErrorBoundary, ErrorInspector } from '../ui/value'
-import { ErrorView } from '../ui/utils'
-import { Block as BlockModel, BlockRef, Environment } from '.'
+import { Block as BlockModel, BlockRef, Environment } from '@tables/core'
+import { ErrorBoundary, ErrorInspector } from '@tables/code/value'
+
+import { ErrorView } from './utils/ui'
 
 export interface BlockProps<State> {
     state: State

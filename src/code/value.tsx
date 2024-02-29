@@ -8,9 +8,10 @@ import * as babelParser from '@babel/parser'
 import babelGenerator from '@babel/generator'
 import * as babelAst from '@babel/types'
 
-import { CodeView } from '../code-editor'
-import { ErrorView } from './utils'
-import { Pending, PromiseResult, Result } from '../logic/result'
+import { CodeView } from '@tables/code/editor'
+import { Pending, PromiseResult, Result } from '@tables/code/result'
+
+import { ErrorView } from './ui'
 
 
 export function ViewResult({ result }: { result: Result }) {

@@ -1,10 +1,10 @@
 import * as React from 'react'
 
-import { intersperse } from '../../utils'
-import { KeyComposition, Keybindings, ShortcutSuggestions, useKeybindingsHandler, KeyButtonContainer, KeyButton } from '../../ui/shortcuts'
+import { intersperse } from '@tables/util'
+import { useEffectQueue } from '@tables/util/hooks'
 
-import { useEffectQueue } from '../../ui/hooks'
-import { renderMatch, useSearchResults } from '../../ui/search'
+import { KeyComposition, Keybindings, ShortcutSuggestions, useKeybindingsHandler, KeyButtonContainer, KeyButton } from '@tables/util/shortcuts'
+import { renderMatch, useSearchResults } from '@tables/util/search'
 
 
 export function CommandSearch({ bindings, close }: { bindings: Keybindings, close(): void }) {

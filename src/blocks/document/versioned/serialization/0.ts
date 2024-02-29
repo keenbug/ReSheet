@@ -1,8 +1,8 @@
-import * as block from '../../../../block'
-import { Block, Environment } from '../../../../block'
+import * as block from '@tables/core'
+import { Block, Environment } from '@tables/core'
 
-import { addRevision, addValidator } from '../../../../utils/serialize'
-import { boolean, array, number, any, string, lazy } from '../../../../utils/validate'
+import { addRevision, addValidator } from '@tables/util/serialize'
+import { boolean, array, number, any, string, lazy } from '@tables/util/validate'
 
 import { typed } from '.'
 import { PageId, PageState, Document, getName } from '../types/0'

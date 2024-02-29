@@ -1,6 +1,6 @@
-import * as block from '../../block'
-import { Block, BlockUpdater, Environment } from '../../block'
-import * as Multiple from '../../block/multiple'
+import * as block from '@tables/core'
+import { Block, BlockUpdater, Environment } from '@tables/core'
+import * as Multiple from '@tables/core/multiple'
 
 import * as Pages from './pages'
 import { Document, PageId, PageState } from './versioned'

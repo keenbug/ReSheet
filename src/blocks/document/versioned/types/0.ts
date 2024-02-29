@@ -1,4 +1,4 @@
-import { BlockEntry } from '../../../../block/multiple'
+import { BlockEntry } from '@tables/core/multiple'
 
 export type PageId = number
 

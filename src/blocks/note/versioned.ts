@@ -1,9 +1,9 @@
-import * as block from '../../block'
-import { Result, resultFrom } from '../../logic/result'
-import { computeExpr } from '../../logic/compute'
+import * as block from '@tables/core'
+import { any, boolean, defined, number, string, validatorSwitch } from '@tables/util/validate'
+import { addRevision, addValidator } from '@tables/util/serialize'
 
-import { any, boolean, defined, number, string, validatorSwitch } from '../../utils/validate'
-import { addRevision, addValidator } from '../../utils/serialize'
+import { Result, resultFrom } from '@tables/code/result'
+import { computeExpr } from '@tables/code/compute'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj) {

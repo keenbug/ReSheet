@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { focusWithKeyboard } from '../../../ui/utils'
+import { focusWithKeyboard } from '../../utils/ui'
 
 import { SheetLineRef, findFocused, findLineRefContaining } from './actions'
 

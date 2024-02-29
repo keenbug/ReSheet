@@ -20,33 +20,33 @@ import * as babel_types from '@babel/types'
 
 // --- Internal ---
 // block
-import * as block from '../block'
-import * as multiple from '../block/multiple'
-import * as block_component from '../block/component'
+import * as core from '@tables/core'
+import * as core_multiple from '@tables/core/multiple'
 // blocks
-import * as blocks from '../blocks'
-import * as blocks_blockSelector from '../blocks/block-selector'
-import * as blocks_jsexpr from '../blocks/js'
-import * as blocks_note from '../blocks/note'
-import * as blocks_note_note from '../blocks/note/note'
-import * as blocks_sheet from '../blocks/sheet'
-import * as blocks_document from '../blocks/document'
-// logic
-import * as logic_compute from '../logic/compute'
-// ui
-import * as ui_utils from '../ui/utils'
-import * as ui_value from '../ui/value'
-import * as ui_shortcuts from '../ui/shortcuts'
+import * as blocks from '@tables/blocks'
+import * as blocks_component from '@tables/blocks/component'
+import * as blocks_blockSelector from '@tables/blocks/block-selector'
+import * as blocks_jsexpr from '@tables/blocks/js'
+import * as blocks_note from '@tables/blocks/note'
+import * as blocks_note_note from '@tables/blocks/note/note'
+import * as blocks_sheet from '@tables/blocks/sheet'
+import * as blocks_document from '@tables/blocks/document'
+import * as blocks_logic_compute from '@tables/code/compute'
+// blocks utils
+import * as blocks_utils_ui from '@tables/blocks/utils/ui'
+import * as blocks_utils_value from '@tables/code/value'
+import * as blocks_utils_shortcuts from '@tables/util/shortcuts'
 // code-editor
-import * as codeEditor from '../code-editor'
-import * as codeEditor_useEditable from '../code-editor/useEditable'
+import * as blocks_codeEditor from '@tables/code/editor'
+import * as blocks_codeEditor_useEditable from '@tables/code/useEditable'
 // utils
-import * as utils from '.'
+import * as util from '@tables/util'
 // docs
-import * as docs from '../docs'
-import * as docs_external from '../docs/external'
-import * as docs_external_mdn from '../docs/external/mdn'
-import docs_external_mdn_jsGlobalObjects from '../docs/external/mdn/js-global-objects'
+import docs from '@tables/docs'
+import * as docs_external from '@tables/docs/external'
+import * as docs_external_mdn from '@tables/docs/external/mdn'
+import docs_external_mdn_jsGlobalObjects from '@tables/docs/external/mdn/js-global-objects'
+import * as blocks_docs from '@tables/blocks/docs'
 
 export const library = {
     $library() { return library },
@@ -59,7 +59,7 @@ export const library = {
     faRegular,
     styled,
     headlessui,
-    useEditable: codeEditor_useEditable,
+    useEditable: blocks_codeEditor_useEditable,
     prismReactRenderer,
     reactInspector,
 
@@ -77,18 +77,16 @@ export const library = {
     blocks,
 
     tables: {
-        block,
-        multiple,
-        blockComponent: block_component,
-        ui: {
-            utils: ui_utils,
-            value: ui_value,
-            shortcuts: ui_shortcuts,
+        block: core,
+
+        core: {
+            index: core,
+            multiple: core_multiple,
         },
-        codeEditor,
         blocks: {
+            component: blocks_component,
             blockSelector: blocks_blockSelector,
-            compute: logic_compute,
+            compute: blocks_logic_compute,
             sheet: blocks_sheet,
             document: blocks_document,
             jsexpr: blocks_jsexpr,
@@ -96,10 +94,16 @@ export const library = {
                 index: blocks_note,
                 note: blocks_note_note,
             },
-        },
-        logic: {
-            block,
-            compute: logic_compute,
+            logic: {
+                compute: blocks_logic_compute,
+            },
+            codeEditor: blocks_codeEditor,
+            utils: {
+                utils: blocks_utils_ui,
+                value: blocks_utils_value,
+                shortcuts: blocks_utils_shortcuts,
+            },
+            docs: blocks_docs,
         },
         docs: {
             index: docs,
@@ -111,6 +115,6 @@ export const library = {
                 },
             },
         },
-        utils,
+        util: util,
     }
 }

@@ -1,12 +1,12 @@
 import React from 'react'
 
-import { DocMarkdown } from '../../docs/ui'
-import { DocsMap } from '../../docs'
+import { DocMarkdown } from '@tables/docs/ui'
+import { DocsMap } from '@tables/docs'
 
-import { Block } from '../../block/component'
+import { Block } from '@tables/blocks/component'
 
 import { JSExpr } from '../js'
-import { Note, recompute } from '../note'
+import { Note, recompute } from '.'
 
 
 export function NoteDoc() {

@@ -1,11 +1,11 @@
-import * as block from '../../block'
-import { BlockUpdater } from "../../block"
+import * as block from '@tables/core'
+import { BlockUpdater } from "@tables/core"
 
-import * as Multiple from '../../block/multiple'
-import { BlockEntry } from "../../block/multiple"
+import * as Multiple from '@tables/core/multiple'
+import { BlockEntry } from "@tables/core/multiple"
 
-import { any, array, oneOf, strict } from "../../utils/validate"
-import { addRevision, addValidator } from "../../utils/serialize"
+import { any, array, oneOf, strict } from "@tables/util/validate"
+import { addRevision, addValidator } from "@tables/util/serialize"
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {

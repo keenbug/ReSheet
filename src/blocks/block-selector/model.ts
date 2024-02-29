@@ -1,6 +1,6 @@
-import * as block from '../../block'
-import { Block, Environment } from '../../block'
-import { computeExpr } from '../../logic/compute'
+import * as block from '@tables/core'
+import { Block, Environment } from '@tables/core'
+import { computeExpr } from '@tables/code/compute'
 import { BlockSelectorState } from './versioned'
 
 

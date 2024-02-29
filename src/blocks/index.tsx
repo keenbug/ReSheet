@@ -1,13 +1,17 @@
 import * as React from 'react'
-import { classed, LoadFileButton } from '../ui/utils'
-import * as Block from '../block'
+
+import * as Block from '@tables/core'
+
+import { any, is, number, string, validatorSwitch } from '@tables/util/validate'
+import { base64ToUint8Array, uint8ArrayToBase64 } from '@tables/util'
+
+import { classed, LoadFileButton } from './utils/ui'
+
 import { SheetOf } from './sheet'
 import { BlockSelector } from './block-selector'
 import { JSExpr } from './js'
 import { DocumentOf } from './document'
 import { Note } from './note'
-import { any, is, number, string, validatorSwitch } from '../utils/validate'
-import { base64ToUint8Array, uint8ArrayToBase64 } from '../utils'
 
 export { JSExpr, BlockSelector, SheetOf, DocumentOf, Note }
 

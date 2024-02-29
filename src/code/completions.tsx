@@ -6,16 +6,17 @@ import babelGenerator from '@babel/generator'
 import babelTraverse from '@babel/traverse'
 import * as babel from '@babel/types'
 
-import * as block from '../block'
-import { computeExprUNSAFE, parseJSExpr } from '../logic/compute'
-import docs from '../docs'
+import * as block from '@tables/core'
+import docs from '@tables/docs'
 
-import { KeyButtonContainer, Keybinding, Keybindings } from '../ui/shortcuts'
-import { ValueInspector } from '../ui/value'
-import { SearchResult, matchSearch, renderMatch, useSearchResults } from '../ui/search'
-import { useSelectionRect } from '../ui/hooks'
+import { useSelectionRect } from '@tables/util/hooks'
+import { KeyButtonContainer, Keybinding, Keybindings } from '@tables/util/shortcuts'
+import { SearchResult, matchSearch, renderMatch, useSearchResults } from '@tables/util/search'
 
-import { CodeEditorHandle } from '.'
+import { computeExprUNSAFE, parseJSExpr } from './compute'
+import { ValueInspector } from './value'
+
+import { CodeEditorHandle } from './editor'
 import { SplitText, splitByPosition } from './useEditable'
 
 

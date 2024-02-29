@@ -3,19 +3,22 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { library } from './utils/std-library'
-import { DocumentOf, DocumentState } from './blocks/document'
-import { BlockSelector, BlockSelectorState } from './blocks/block-selector'
-import { Block } from './block/component'
-import { getFullKey } from './ui/shortcuts'
-import { BlockRef } from './block'
+import { BlockRef } from '@tables/core'
+
+import { DocumentOf, DocumentState } from '@tables/blocks/document'
+import { BlockSelector, BlockSelectorState } from '@tables/blocks/block-selector'
+import { Block } from '@tables/blocks/component'
+
+import { PendingState, useThrottlePending } from '@tables/util/hooks'
+import { getFullKey } from '@tables/util/shortcuts'
+
+import { library } from './std-library'
 import { storeBackup, db, removeOldBackups } from './backup'
-import { PendingState, useThrottlePending } from './ui/hooks'
+import { FocusIndicator } from './focus-indicator'
 
 import TablesIntroduction from './resources/introduction.js'
-import docs from './docs'
-import gatherDocs from './docs/all'
-import { FocusIndicator } from './ui/focus-indicator'
+import docs from '@tables/docs'
+import gatherDocs from './docs'
 
 const blocks = library.blocks
 

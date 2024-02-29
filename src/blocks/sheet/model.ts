@@ -1,7 +1,8 @@
-import * as block from '../../block'
-import { Block } from '../../block'
-import * as Multiple from '../../block/multiple'
-import { clampTo, nextElem } from '../../utils'
+import * as block from '@tables/core'
+import { Block } from '@tables/core'
+import * as Multiple from '@tables/core/multiple'
+
+import { clampTo, nextElem } from '@tables/util'
 
 import { LineVisibility, SheetBlockLine, SheetBlockState, VISIBILITY_STATES } from './versioned'
 

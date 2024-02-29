@@ -5,9 +5,16 @@
         "target": "ES6",
         "lib": ["ES2019", "DOM"],
         "moduleResolution": "node",
+
+        "allowSyntheticDefaultImports": true,
+        "isolatedModules": true,
+
         "removeComments": false,
         "jsx": "preserve",
-        "allowSyntheticDefaultImports": true,
-        "isolatedModules": true
+
+        "baseUrl": "./src",
+        "paths": {
+            "@tables/*": ["*"]
+        }
     }
 }

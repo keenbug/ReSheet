@@ -1,11 +1,12 @@
 import React from 'react'
 
-import { DocsMap } from '../../docs'
-import { DocMarkdown } from '../../docs/ui'
+import { CodeView } from '@tables/code/editor'
+import { computeExpr } from '@tables/code/compute'
 
-import { Block as BlockComponent } from '../../block/component'
-import { computeExpr } from '../../logic/compute'
-import { CodeView } from '../../code-editor'
+import { DocsMap } from '@tables/docs'
+import { DocMarkdown } from '@tables/docs/ui'
+
+import { Block as BlockComponent } from '../component'
 
 import { JSExpr } from '../js'
 

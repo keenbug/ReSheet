@@ -1,6 +1,7 @@
 import * as React from 'react'
 
-import * as block from '../../block'
+import * as block from '@tables/core'
+
 import * as Model from './model'
 import * as UI from './ui'
 import * as versioned from './versioned'

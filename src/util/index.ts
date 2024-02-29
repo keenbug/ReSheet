@@ -163,3 +163,7 @@ export function base64ToUint8Array(base64String: string) {
     }
     return uint8Array
 }
+
+export function isPromise(value: any) {
+    return typeof value?.then === 'function'
+}

@@ -4,13 +4,16 @@ import { useInView } from 'react-intersection-observer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '../../../block'
-import { Block, BlockUpdater, BlockRef, Environment } from '../../../block'
+import * as block from '@tables/core'
+import { Block, BlockUpdater, BlockRef, Environment } from '@tables/core'
+import { useRefMap, renderConditionally, WithSkipRender } from '@tables/util/hooks'
 
-import { ErrorBoundary, ValueInspector } from '../../../ui/value'
-import { useRefMap, renderConditionally, WithSkipRender, useEUpdate } from '../../../ui/hooks'
-import { Keybindings, useShortcuts } from '../../../ui/shortcuts'
-import { TextInput, focusWithKeyboard } from '../../../ui/utils'
+import { ValueInspector } from '@tables/code/value'
+import { useEUpdate } from '@tables/blocks/utils/hooks'
+import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
+
+import { TextInput, focusWithKeyboard } from '@tables/blocks/utils/ui'
+import { Block as BlockView } from '@tables/blocks/component'
 
 import * as Model from '../model'
 import { SheetBlockState, SheetBlockLine } from '../versioned'
@@ -379,9 +382,14 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
 
             <div ref={innerContainerRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
                 {line.visibility === 'block' &&
-                    <ErrorBoundary key="block" title="There was an error in the subblock">
-                        {block.view({ ref: innerBlockRef, state: line.state, update: subupdate, env })}
-                    </ErrorBoundary>
+                    <BlockView
+                        key="block"
+                        blockRef={innerBlockRef}
+                        block={block}
+                        state={line.state}
+                        update={subupdate}
+                        env={env}
+                        />
                 }
                 {line.visibility === 'result' &&
                     <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />

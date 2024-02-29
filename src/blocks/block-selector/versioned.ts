@@ -1,9 +1,8 @@
-import * as block from '../../block'
-import { Block, BlockUpdater, Environment } from '../../block'
-import { computeExpr } from '../../logic/compute'
-
-import { any, oneOf, string } from '../../utils/validate'
-import { addRevision, addValidator } from '../../utils/serialize'
+import * as block from '@tables/core'
+import { Block, BlockUpdater, Environment } from '@tables/core'
+import { addRevision, addValidator } from '@tables/util/serialize'
+import { any, oneOf, string } from '@tables/util/validate'
+import { computeExpr } from '@tables/code/compute'
 
 
 function typed<Obj extends object>(version: number, obj: Obj): Obj {

@@ -1,10 +1,12 @@
 import * as React from 'react'
 
-import { getFullKey } from '../ui/utils'
 import { Highlight } from 'prism-react-renderer'
+
+import { clampBetween } from '@tables/util'
+import { getFullKey } from '@tables/util/shortcuts'
+
 import theme from './theme'
 import { Editable, changeLinesContainingSelection, splitByPosition, useEditable } from './useEditable'
-import { clampBetween } from '../utils'
 
 
 // FIXME: I think the type is not 100% correct, theoretically it should reject container="div"

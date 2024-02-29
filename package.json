@@ -4,12 +4,12 @@
   "author": "Daniel Krüger",
   "license": "MIT",
   "private": true,
-  "source": "src/index.html",
+  "source": "src/web/index.html",
   "scripts": {
     "start": "parcel",
     "build": "parcel build --public-url ./",
     "check": "tsc --noEmit --skipLibCheck",
-    "update-introduction": "echo 'export default ' >src/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/resources/introduction.js"
+    "update-introduction": "echo 'export default ' >src/web/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/web/resources/introduction.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.41.2",

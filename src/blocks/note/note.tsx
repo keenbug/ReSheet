@@ -5,13 +5,14 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
-import * as block from '../../block'
-import { resultFrom } from '../../logic/result'
-import { computeExpr, parseJSExpr } from '../../logic/compute'
+import * as block from '@tables/core'
 
-import { ErrorBoundary, ViewResult } from '../../ui/value'
+import { resultFrom } from '@tables/code/result'
+import { computeExpr, parseJSExpr } from '@tables/code/compute'
+import { ViewResult } from '@tables/code/value'
 
 import { NoteType } from './versioned'
+import { Block } from '../component'
 
 
 export function getCode(note: NoteType) {
@@ -259,13 +260,12 @@ const ViewBlock = React.memo(
         return (
             <div className="flex flex-col item-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
                 <div className="bg-white flex flex-col justify-center items-stretch min-h-14 overflow-x-auto relative">
-                    <ErrorBoundary title="Could not show block">
-                        {innerBlock.view({
-                            state,
-                            update() {},
-                            env,
-                        })}
-                    </ErrorBoundary>
+                    <Block
+                        block={innerBlock}
+                        state={state}
+                        update={() => {}}
+                        env={env}
+                        />
                     <button
                         className="absolute inset-0 w-full z-10 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-sky-300"
                         onClick={instantiateBlock}
@@ -340,12 +340,13 @@ export const ViewBlockInstantiated = React.memo(
                         </button>
                     </div>
                     <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto">
-                        {note.block.view({
-                            state: note.state,
-                            update: updateBlock,
-                            env,
-                            ref,
-                        })}
+                        <Block
+                            blockRef={ref}
+                            block={note.block}
+                            state={note.state}
+                            update={updateBlock}
+                            env={env}
+                            />
                     </div>
                 </div>
             )

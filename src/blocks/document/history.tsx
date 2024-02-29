@@ -1,8 +1,9 @@
 import * as React from "react"
 
-import { BlockUpdater, Environment } from "../../block"
-import { getFullKey } from "../../ui/utils"
-import { clampTo } from "../../utils"
+import { BlockUpdater, Environment } from "@tables/core"
+import { clampTo } from "@tables/util"
+
+import { getFullKey } from "../utils/ui"
 
 
 export type HistoryMode =
