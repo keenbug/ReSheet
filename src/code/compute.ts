@@ -131,7 +131,7 @@ export function runExprAstUNSAFE(exprAst: babel.types.Expression, exprSource: st
 
 
 
-export const computeExpr = (code: string | null, env: Environment) => {
+export const computeExpr = (code: string | null, env: Environment): unknown => {
     if (!code?.trim()) { return }
     try {
         const ast = parseJSExpr(code)
@@ -148,7 +148,7 @@ export const computeExpr = (code: string | null, env: Environment) => {
     }
 }
 
-export const computeExprUNSAFE = (code: string | null, env: Environment) => {
+export const computeExprUNSAFE = (code: string | null, env: Environment): unknown => {
     if (!code?.trim()) { return }
     const ast = parseJSExpr(code)
     return runExprAstUNSAFE(ast, code, env)

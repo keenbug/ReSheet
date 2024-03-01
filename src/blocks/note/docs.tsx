@@ -3,10 +3,10 @@ import React from 'react'
 import { DocMarkdown } from '@tables/docs/ui'
 import { DocsMap } from '@tables/docs'
 
-import { Block } from '@tables/blocks/component'
+import { safeBlock } from '@tables/blocks/component'
 
 import { JSExpr } from '../js'
-import { Note, recompute } from '.'
+import { Note } from '.'
 
 
 export function NoteDoc() {
@@ -46,17 +46,18 @@ export const exampleEnv = { JSExpr }
 
 export function Example({ input }: { input: string }) {
     const initWithInput = { ...Note.init, input }
+    const safeNote = safeBlock(Note)
     const [state, setState] = React.useState(null)
 
     React.useEffect(() => {
-        setState(recompute(initWithInput, setState, exampleEnv))
+        setState(safeNote.recompute(initWithInput, setState, exampleEnv))
     }, [])
 
     if (state === null) { return null }
 
     return (
         <div className="border rounded border-gray-100 my-4">
-            <Block block={Note} state={state} update={setState} env={exampleEnv} />
+            <safeNote.Component state={state} update={setState} env={exampleEnv} />
         </div>
     )
 }

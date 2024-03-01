@@ -11,21 +11,24 @@ import * as History from './history'
 import { HistoryWrapper, HistoryView } from './history'
 import { Document } from './versioned'
 import { KeymapCollector } from './key-collector'
+import { safeBlock } from '../component'
 
 export { Model, UI }
 
 export type DocumentState<State> = HistoryWrapper<Document<State>>
 
 export function DocumentOf<State>(innerBlock: Block<State>) {
+    const safeInnerBlock = safeBlock(innerBlock)
+
     return block.create<DocumentState<State>>({
-        init: History.initHistory(Model.init(innerBlock.init)),
+        init: History.initHistory(Model.init(safeInnerBlock.init)),
         view({ state, update, env }, ref) {
             const fromJSON = React.useCallback(
                 function fromJSON(json: any, env: Environment) {
                     const updateInner = History.innerUpdater(update, env, fromJSON)
-                    return Model.fromJSON(json, updateInner, env, innerBlock)
+                    return Model.fromJSON(json, updateInner, env, safeInnerBlock)
                 },
-                [innerBlock],
+                [safeInnerBlock],
             )
             return (
                 <GatherShortcuts>
@@ -37,7 +40,7 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
                                     update={update}
                                     updateHistory={updateHistory}
                                     env={env}
-                                    innerBlock={innerBlock}
+                                    innerBlock={safeInnerBlock}
                                     blockRef={ref}
                                     />
                             )}
@@ -48,12 +51,12 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
         },
         recompute(state, update, env) {
             function fromJSON(json: any, env: Environment) {
-                return Model.fromJSON(json, updateInner, env, innerBlock)
+                return Model.fromJSON(json, updateInner, env, safeInnerBlock)
             }
             const updateInner = History.innerUpdater(update, env, fromJSON)
             return History.updateHistoryCurrent(
                 state,
-                inner => Model.recompute(inner, updateInner, env, innerBlock),
+                inner => Model.recompute(inner, updateInner, env, safeInnerBlock),
                 env,
                 fromJSON,
             )
@@ -62,17 +65,17 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
             // FIXME: Return the result of the current historic posiition
             // Problem: Needs env and fromJSON (-> update) to load a not yet
             //          deserialized state from the history
-            return Model.getResult(state.inner, innerBlock)
+            return Model.getResult(state.inner, safeInnerBlock)
         },
         fromJSON(json, update, env) {
             function fromJSON(json: any, env: Environment) {
-                return Model.fromJSON(json, updateInner, env, innerBlock)
+                return Model.fromJSON(json, updateInner, env, safeInnerBlock)
             }
             const updateInner = History.innerUpdater(update, env, fromJSON)
-            return History.historyFromJSON(json, env, (json, env) => Model.fromJSON(json, updateInner, env, innerBlock))
+            return History.historyFromJSON(json, env, (json, env) => Model.fromJSON(json, updateInner, env, safeInnerBlock))
         },
         toJSON(state) {
-            return History.historyToJSON(state, inner => Model.toJSON(inner, innerBlock))
+            return History.historyToJSON(state, inner => Model.toJSON(inner, safeInnerBlock))
         }
     })
 }

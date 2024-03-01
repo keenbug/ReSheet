@@ -1,12 +1,13 @@
 import React from 'react'
 
+import { Block } from '@tables/core'
 import { CodeView } from '@tables/code/editor'
 import { computeExpr } from '@tables/code/compute'
 
 import { DocsMap } from '@tables/docs'
 import { DocMarkdown } from '@tables/docs/ui'
 
-import { Block as BlockComponent } from '../component'
+import { safeBlock } from '../component'
 
 import { JSExpr } from '../js'
 
@@ -53,14 +54,14 @@ export default function gatherDocs(docs: DocsMap) {
 
 
 export function Example({ code }: { code: string }) {
-    const block = React.useMemo(() => computeExpr(code, { BlockSelector, JSExpr }), [])
+    const block = React.useMemo(() => safeBlock(computeExpr(code, { BlockSelector, JSExpr }) as Block<unknown>), [])
     const [state, setState] = React.useState(block.init)
 
     return (
         <div className="border rounded border-gray-100 p-1 my-4">
             <CodeView className="block rounded bg-gray-100 px-1" code={code} />
             <div className="border-t-2 border-slate-200 mt-1 pt-1">
-                <BlockComponent block={block} state={state} update={setState} env={{ BlockSelector, JSExpr }} />
+                <block.Component state={state} update={setState} env={{ BlockSelector, JSExpr }} />
             </div>
         </div>
     )

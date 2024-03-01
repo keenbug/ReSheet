@@ -1,8 +1,10 @@
 import * as block from '@tables/core'
-import { Block, BlockUpdater, Environment } from '@tables/core'
+import { BlockUpdater, Environment } from '@tables/core'
 import { addRevision, addValidator } from '@tables/util/serialize'
 import { any, oneOf, string } from '@tables/util/validate'
 import { computeExpr } from '@tables/code/compute'
+
+import { SafeBlock, safeBlock } from '../component'
 
 
 function typed<Obj extends object>(version: number, obj: Obj): Obj {
@@ -20,13 +22,13 @@ type BlockSelectorStateV0 =
     | {
         mode: 'run'
         expr: string
-        innerBlock: Block<unknown>
+        innerBlock: SafeBlock<unknown>
         innerBlockState: unknown
     }
     | {
         mode: 'choose'
         expr: string
-        innerBlock?: Block<unknown>
+        innerBlock?: SafeBlock<unknown>
         innerBlockState?: unknown
     }
     | {
@@ -61,11 +63,18 @@ function parseV0({ mode, inner, expr}, update: BlockUpdater<BlockSelectorStateV0
         update(state => updateBlock(state, action))
     }
 
-    const innerBlock = computeExpr(expr, { ...blockLibrary, ...env })
+    const value = computeExpr(expr, { ...blockLibrary, ...env })
 
-    if (mode === 'run' && !block.isBlock(innerBlock)) {
-        return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
+    if (!block.isBlock(value)) {
+        if (mode === 'run') {
+            return { mode: 'loading', modeAfter: mode, expr, jsonToLoad: inner }
+        }
+        else {
+            return { mode: 'choose', expr }
+        }
     }
+
+    const innerBlock = safeBlock(value)
 
     const innerBlockState = innerBlock.fromJSON(inner, updateInner, env)
     return { mode, expr, innerBlock, innerBlockState }

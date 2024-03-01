@@ -4,6 +4,7 @@ import { addRevision, addValidator } from '@tables/util/serialize'
 
 import { Result, resultFrom } from '@tables/code/result'
 import { computeExpr } from '@tables/code/compute'
+import { SafeBlock, safeBlock } from '../component'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj) {
@@ -26,7 +27,7 @@ interface NoteModelV0 {
 type NoteTypeV0 =
     | { type: 'expr', code: string, result: Result }
     | { type: 'block', isInstantiated: false, code: string, result: Result, lastState?: any }
-    | { type: 'block', isInstantiated: true, code: string, block: block.Block<unknown>, state: unknown }
+    | { type: 'block', isInstantiated: true, code: string, block: SafeBlock<unknown>, state: unknown }
     | { type: 'text', tag: string, text: string }
     | { type: 'checkbox', checked: boolean, text: string }
 
@@ -47,12 +48,12 @@ export function noteFromJSONV0(json: any, update: block.BlockUpdater<NoteTypeV0>
                 update(() => {
                     if (result.type === 'immediate' && block.isBlock(result.value)) {
                         const state = result.value.fromJSON(stateJson, updateBlockResult, env)
-                        return { type: 'block', isInstantiated: true, code, block: result.value, state }
+                        return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
                     }
 
                     if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
                         const state = result.value.fromJSON(stateJson, updateBlockResult, env)
-                        return { type: 'block', isInstantiated: true, code, block: result.value, state }
+                        return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
                     }
 
                     return { type: 'block', isInstantiated: false, code, result }
@@ -62,7 +63,7 @@ export function noteFromJSONV0(json: any, update: block.BlockUpdater<NoteTypeV0>
             const result = resultFrom(computeExpr(code, env), setBlockFromResult)
             if (result.type === 'immediate' && block.isBlock(result.value)) {
                 const state = result.value.fromJSON(stateJson, updateBlockState, env)
-                return { type: 'block', isInstantiated: true, code, block: result.value, state }
+                return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
             }
             else {
                 return { type: 'block', isInstantiated: false, code, result }

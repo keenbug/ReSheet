@@ -13,6 +13,8 @@ import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
 import { EUpdater, useEUpdate } from '../utils/hooks'
 import { getFullKey } from '../utils/ui'
 
+import { safeBlock } from '../component'
+
 import { ViewBlockInstantiated, ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
 import { NoteModel, NoteType } from './versioned'
 import * as versioned from './versioned'
@@ -255,7 +257,7 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>, eupdate: EUpdater<NoteMo
                             type: 'block',
                             isInstantiated: true,
                             code: state.note.code,
-                            block: state.note.result.value,
+                            block: safeBlock(state.note.result.value),
                             state: innerState,
                         },
                     },

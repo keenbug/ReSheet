@@ -6,27 +6,30 @@ import * as Model from './model'
 import * as UI from './ui'
 import * as versioned from './versioned'
 import { SheetBlockState } from './versioned'
+import { safeBlock } from '../component'
 
 
 export type { SheetBlockState }
 
 export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
+    const safeInnerBlock = safeBlock(innerBlock)
+
     return block.create<SheetBlockState<State>>({
         init: Model.init,
         view({ state, update, env }, ref) {
-            return <UI.Sheet ref={ref} state={state} update={update} innerBlock={innerBlock} env={env} />
+            return <UI.Sheet ref={ref} state={state} update={update} innerBlock={safeInnerBlock} env={env} />
         },
         recompute(state, update, env) {
-            return Model.recompute(state, update, env, innerBlock)
+            return Model.recompute(state, update, env, safeInnerBlock)
         },
         getResult(state) {
-            return Model.getResult(state, innerBlock)
+            return Model.getResult(state, safeInnerBlock)
         },
         fromJSON(json: any[], update, env) {
-            return versioned.fromJSON(json)(update, env, innerBlock)
+            return versioned.fromJSON(json)(update, env, safeInnerBlock)
         },
         toJSON(state) {
-            return versioned.toJSON(state, innerBlock)
+            return versioned.toJSON(state, safeInnerBlock)
         },
     })
 }

@@ -13,7 +13,7 @@ import { useEUpdate } from '@tables/blocks/utils/hooks'
 import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
 
 import { TextInput, focusWithKeyboard } from '@tables/blocks/utils/ui'
-import { Block as BlockView } from '@tables/blocks/component'
+import { SafeBlock } from '@tables/blocks/component'
 
 import * as Model from '../model'
 import { SheetBlockState, SheetBlockLine } from '../versioned'
@@ -25,7 +25,7 @@ import { useSelection } from './useSelection'
 export interface SheetProps<InnerState> {
     state: SheetBlockState<InnerState>
     update: BlockUpdater<SheetBlockState<InnerState>>
-    innerBlock: Block<InnerState>
+    innerBlock: SafeBlock<InnerState>
     env: Environment
 }
 
@@ -188,7 +188,7 @@ export interface SheetLinesProps<InnerState> {
     setLineRef: (id: number) => React.Ref<SheetLineRef>
     lines: SheetBlockLine<InnerState>[]
     actions: Actions<InnerState>
-    block: Block<InnerState>
+    block: SafeBlock<InnerState>
     env: Environment
     selection: [number, number] | null
 }
@@ -257,7 +257,7 @@ const SheetLinesEnvHelper = renderConditionally(SheetLinesEnvHelperComponent, 'n
 export interface SheetLineProps<InnerState> {
     line: SheetBlockLine<InnerState>
     actions: Actions<InnerState>
-    block: Block<InnerState>
+    block: SafeBlock<InnerState>
     env: Environment
     isSelected: boolean
     setLineRef(id: number): React.Ref<SheetLineRef>
@@ -382,10 +382,9 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
 
             <div ref={innerContainerRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
                 {line.visibility === 'block' &&
-                    <BlockView
+                    <block.Component
                         key="block"
-                        blockRef={innerBlockRef}
-                        block={block}
+                        ref={innerBlockRef}
                         state={line.state}
                         update={subupdate}
                         env={env}

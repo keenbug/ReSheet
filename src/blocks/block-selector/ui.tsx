@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '@tables/core'
-import { Block, BlockRef, Environment } from '@tables/core'
+import { BlockRef, Environment } from '@tables/core'
 
 import { CodeView, CodeEditor, CodeEditorHandle } from '@tables/code/editor'
 import { useCompletionsOverlay } from '@tables/code/completions'
@@ -15,9 +15,10 @@ import { computeExpr } from '@tables/code/compute'
 import { ErrorBoundary, ValueInspector } from '../../code/value'
 import { useShortcuts } from '../../util/shortcuts'
 
+import { SafeBlock, safeBlock } from '../component'
+
 import * as Model from './model'
 import { BlockSelectorState } from './versioned'
-import { Block as BlockView } from '../component'
 
 
 function ACTIONS(
@@ -200,9 +201,8 @@ export const BlockSelectorUI = React.forwardRef(
                                 {state.expr}
                             </button>
                         </div>
-                        <BlockView
-                            blockRef={innerBlockRef}
-                            block={state.innerBlock}
+                        <state.innerBlock.Component
+                            ref={innerBlockRef}
                             state={state.innerBlockState}
                             update={actions.subupdate}
                             env={env}
@@ -222,7 +222,7 @@ export const BlockSelectorUI = React.forwardRef(
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
                                 env={env}
-                                block={blockCmdResult}
+                                block={safeBlock(blockCmdResult)}
                                 onChooseBlock={() => actions.chooseBlock(blockExpr, blockEnv)}
                                 />
                         :
@@ -237,15 +237,14 @@ export const BlockSelectorUI = React.forwardRef(
 
 export interface BlockPreviewProps {
     env: Environment
-    block: Block<unknown>
+    block: SafeBlock<unknown>
     onChooseBlock: () => void
 }
 
 export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
     function BlockCmdResultView() {
         return (
-            <BlockView
-                block={block}
+            <block.Component
                 state={block.init}
                 update={() => {}}
                 env={env}

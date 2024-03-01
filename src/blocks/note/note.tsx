@@ -12,7 +12,7 @@ import { computeExpr, parseJSExpr } from '@tables/code/compute'
 import { ViewResult } from '@tables/code/value'
 
 import { NoteType } from './versioned'
-import { Block } from '../component'
+import { safeBlock } from '../component'
 
 
 export function getCode(note: NoteType) {
@@ -89,15 +89,16 @@ export function recomputeNote(input: string, note: NoteType, update: block.Block
         const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
 
         const newBlock = computeExpr(note.code, env)
-        if (block.isBlock(newBlock) && newBlock !== note.block) {
+        if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
             try {
                 const jsonState = note.block.toJSON(note.state)
-                const newState = newBlock.fromJSON(jsonState, updateBlockState, env)
+                const newSafeBlock = safeBlock(newBlock)
+                const newState = newSafeBlock.fromJSON(jsonState, updateBlockState, env)
                 return {
                     type: 'block',
                     isInstantiated: true,
                     code: note.code,
-                    block: newBlock,
+                    block: newSafeBlock,
                     state: newState,
                 }
             }
@@ -248,7 +249,7 @@ const ViewBlock = React.memo(
             )
         }
 
-        const innerBlock = note.result.value
+        const innerBlock = safeBlock(note.result.value)
         let state = innerBlock.init
         try {
             if (note.lastState !== undefined) {
@@ -260,8 +261,7 @@ const ViewBlock = React.memo(
         return (
             <div className="flex flex-col item-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
                 <div className="bg-white flex flex-col justify-center items-stretch min-h-14 overflow-x-auto relative">
-                    <Block
-                        block={innerBlock}
+                    <innerBlock.Component
                         state={state}
                         update={() => {}}
                         env={env}
@@ -340,9 +340,8 @@ export const ViewBlockInstantiated = React.memo(
                         </button>
                     </div>
                     <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto">
-                        <Block
-                            blockRef={ref}
-                            block={note.block}
+                        <note.block.Component
+                            ref={ref}
                             state={note.state}
                             update={updateBlock}
                             env={env}

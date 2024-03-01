@@ -8,7 +8,7 @@ import { DocsMap } from '@tables/docs'
 
 import { CodeEditor, CodeEditorHandle } from '@tables/code/editor'
 import { useCompletionsOverlay } from '@tables/code/completions'
-import { Block } from '@tables/blocks/component'
+import { safeBlock } from '@tables/blocks/component'
 
 import { computeScript } from '@tables/code/compute'
 import { Pending, resultFrom } from '@tables/code/result'
@@ -174,6 +174,7 @@ export function Example(code: string, env: block.Environment) {
     const initWithCode = { ...versioned.init, code }
 
     return function Example() {
+        const safeJSExpr = React.useMemo(() => safeBlock(JSExpr), [])
         const [state, setState] = React.useState(null)
 
         React.useEffect(() => {
@@ -184,7 +185,7 @@ export function Example(code: string, env: block.Environment) {
 
         return (
             <div className="border rounded border-gray-100 my-4">
-                <Block block={JSExpr} state={state} update={setState} env={env} />
+                <safeJSExpr.Component state={state} update={setState} env={env} />
             </div>
         )
     }

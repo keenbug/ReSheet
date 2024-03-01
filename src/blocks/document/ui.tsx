@@ -7,9 +7,11 @@ import { Menu, Transition } from '@headlessui/react'
 import { Block, BlockRef, BlockUpdater, Environment } from '@tables/core'
 import * as block from '@tables/core'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@tables/util'
+import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@tables/util/shortcuts'
 
 import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
-import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '../../util/shortcuts'
+
+import { SafeBlock } from '../component'
 
 import * as Model from './model'
 import * as Pages from './pages'
@@ -18,7 +20,6 @@ import { HistoryWrapper } from './history'
 import * as History from './history'
 import { Document, PageId, PageState } from './versioned'
 import * as versioned from './versioned'
-import { Block as BlockView } from '../component'
 
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
@@ -416,7 +417,7 @@ export interface DocumentUiProps<State> {
     update: BlockUpdater<Document<State>>
     updateHistory: BlockUpdater<HistoryWrapper<Document<State>>>
     env: Environment
-    innerBlock: Block<State>
+    innerBlock: SafeBlock<State>
     blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
 }
 
@@ -572,7 +573,7 @@ interface MainViewProps<State> {
     innerRef: React.Ref<BlockRef>
     actions: Actions<State>
     state: Document<State>
-    innerBlock: Block<State>
+    innerBlock: SafeBlock<State>
     env: Environment
     sidebarVisible: boolean
 }
@@ -628,9 +629,8 @@ function MainView<State>({
     return (
         <div className={`mb-[80cqh] bg-white relative ${sidebarVisible ? "px-1" : "px-10"}`}>
             <Breadcrumbs openPage={state.viewState.openPage} pages={state.pages} onOpenPage={actions.openPage} />
-            <BlockView
-                blockRef={innerRef}
-                block={innerBlock}
+            <innerBlock.Component
+                ref={innerRef}
                 state={openPage.state}
                 update={actions.updateOpenPageInner}
                 env={pageEnv}

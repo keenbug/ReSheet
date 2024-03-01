@@ -7,7 +7,7 @@ import { BlockRef } from '@tables/core'
 
 import { DocumentOf, DocumentState } from '@tables/blocks/document'
 import { BlockSelector, BlockSelectorState } from '@tables/blocks/block-selector'
-import { Block } from '@tables/blocks/component'
+import { safeBlock } from '@tables/blocks/component'
 
 import { PendingState, useThrottlePending } from '@tables/util/hooks'
 import { getFullKey } from '@tables/util/shortcuts'
@@ -23,7 +23,7 @@ import gatherDocs from './docs'
 const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
-const ToplevelBlock = DocumentOf(BlockSelector('', null, blocks))
+const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('', null, blocks)))
 
 
 interface AppProps {
@@ -111,12 +111,11 @@ function App({ backupId, initJson=TablesIntroduction }: AppProps) {
 
     return (
         <>
-            <Block
+            <ToplevelBlock.Component
+                ref={toplevelBlockRef}
                 state={toplevelState}
                 update={setToplevelState}
-                block={ToplevelBlock}
                 env={library}
-                blockRef={toplevelBlockRef}
                 />
             <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />
             <FocusIndicator />

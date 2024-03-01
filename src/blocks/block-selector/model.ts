@@ -2,6 +2,7 @@ import * as block from '@tables/core'
 import { Block, Environment } from '@tables/core'
 import { computeExpr } from '@tables/code/compute'
 import { BlockSelectorState } from './versioned'
+import { safeBlock } from '../component'
 
 
 export function init(
@@ -11,7 +12,7 @@ export function init(
     return {
         expr,
         mode: innerBlock ? 'run' : 'choose',
-        innerBlock: innerBlock,
+        innerBlock: safeBlock(innerBlock),
         innerBlockState: innerBlock?.init,
     }
 }
@@ -28,7 +29,7 @@ export function chooseBlock(
             ...state,
             expr,
             mode: 'run',
-            innerBlock: blockCmdResult,
+            innerBlock: safeBlock(blockCmdResult),
             innerBlockState: blockCmdResult.init,
         }
     }
@@ -63,14 +64,14 @@ export function recompute(
         return {
             mode: state.modeAfter,
             expr: state.expr,
-            innerBlock,
+            innerBlock: safeBlock(innerBlock),
             innerBlockState: innerBlock.fromJSON(state.jsonToLoad, updateInner, env),
         }
     }
         
     return {
         ...state,
-        innerBlock,
+        innerBlock: safeBlock(innerBlock),
         innerBlockState: innerBlock.recompute(state.innerBlockState, updateInner, env)
     }
 }
