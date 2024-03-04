@@ -81,16 +81,22 @@ export function getSiblingsOf<State>(
     return [siblingsBefore, siblingsAfter]
 }
 
-export function getNextDependentPath<State>(
+export function getNextPath<State>(
     path: PageId[],
     pages: PageState<State>[],
 ) {
-    const parentPath = path.slice(-1)
-    const [_siblingsBefore, siblingsAfter] = getSiblingsOf(path, pages)
-    if (siblingsAfter.length === 0) {
+    const parentPath = path.slice(0, -1)
+    const [siblingsBefore, siblingsAfter] = getSiblingsOf(path, pages)
+
+    if (siblingsAfter.length > 0) {
+        return [ ...parentPath, siblingsAfter[0].id ]
+    }
+    else if (siblingsBefore.length > 0) {
+        return [ ...parentPath, siblingsBefore.slice(-1)[0].id ]
+    }
+    else {
         return parentPath
     }
-    return [ ...parentPath, siblingsAfter[0].id ]
 }
 
 export function getSiblingsEnv<State>(siblings: PageState<State>[], env: Environment, innerBlock: Block<State>) {

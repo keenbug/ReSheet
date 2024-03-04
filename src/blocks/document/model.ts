@@ -106,7 +106,7 @@ export function deletePageAt<Inner>(
     const parentPath = path.slice(0, -1)
     const childIdToRemove = path.slice(-1)[0]
 
-    const nextDependentPath = Pages.getNextDependentPath(path, state.pages)
+    const nextPath = Pages.getNextPath(path, state.pages)
 
     const newPages = Pages.updatePageSiblingsAt(
         parentPath,
@@ -116,7 +116,7 @@ export function deletePageAt<Inner>(
     return {
         ...state,
         pages: Pages.recomputePagesFrom(
-            nextDependentPath,
+            nextPath,
             newPages,
             env,
             innerBlock,
@@ -124,7 +124,7 @@ export function deletePageAt<Inner>(
         ),
         viewState: {
             ...state.viewState,
-            openPage: nextDependentPath,
+            openPage: nextPath,
         }
     }
 }
