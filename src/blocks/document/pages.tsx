@@ -454,7 +454,7 @@ export interface PageEntryProps<State> {
 
 const pageStyle = {
     paddingX: 0.5,
-    indentDepth: 0.5,
+    indentDepth: 1,
     indentClass(depth: number) {
         const paddingLeft = pageStyle.paddingX + depth * pageStyle.indentDepth
         return `pl-[${paddingLeft}rem] pr-[${pageStyle.paddingX}rem]`
@@ -512,7 +512,7 @@ export function PageEntry<State>({
                     ${arrayEquals(pathHere, openPage) && "bg-gray-300 group-focus/document-ui:bg-blue-300"}
                 `}
                 onClick={() => actions.openPage(pathHere)}
-                >
+            >
                 {page.children.length > 0 ?
                     <button onClick={() => actions.toggleCollapsed(pathHere)}>
                         <FontAwesomeIcon
@@ -521,7 +521,9 @@ export function PageEntry<State>({
                             />
                     </button>
                 :
-                    <div className="w-4" />
+                    <div className="text-gray-400/50 w-4 text-center">
+                        {"•"}
+                    </div>
                 }
 
                 {isNameEditing && arrayEquals(pathHere, openPage) ? (
