@@ -1,7 +1,7 @@
 import { Validator, ValidatorObj, number, string } from "@tables/util/validate"
 
-import { Block, Environment } from "."
-import * as block from "."
+import { Block, Environment } from "./block"
+import * as block from "./block"
 
 export interface BlockEntry<InnerBlockState> {
     readonly id: number
@@ -117,8 +117,8 @@ export function entryEnv(env: Environment) {
 
 export function updateEntries<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
-    updateEntry: (entry: Entry, localEnv: Environment, localUpdate: block.BlockUpdater<State>) => Entry,
-    update: block.BlockUpdater<Entry[]>,
+    updateEntry: (entry: Entry, localEnv: Environment, localDispatch: block.BlockDispatcher<State>) => Entry,
+    dispatch: block.BlockDispatcher<Entry[]>,
     innerBlock: Block<State>,
     getLocalEnv: (siblingsEnv: Environment) => Environment,
 ): Entry[] {
@@ -126,11 +126,20 @@ export function updateEntries<State, Entry extends BlockEntry<State>>(
         entries,
         (entry, siblingEnv) => {
             const localEnv = getLocalEnv(siblingEnv)
-            function localUpdate(localAction: (state: State) => State) {
-                update(entries => updateEntryState(entries, entry.id, localAction, localEnv, innerBlock, update))
+            function localDispatch(localAction: block.BlockAction<State>) {
+                dispatch(entries => ({
+                    state: updateEntryState(
+                        entries,
+                        entry.id,
+                        entryState => localAction(entryState).state,
+                        localEnv,
+                        innerBlock,
+                        dispatch,
+                    )
+                }))
             }
 
-            const newEntry = updateEntry(entry, localEnv, localUpdate)
+            const newEntry = updateEntry(entry, localEnv, localDispatch)
             return {
                 out: newEntry,
                 env: entryToEnv(newEntry, innerBlock),
@@ -141,11 +150,11 @@ export function updateEntries<State, Entry extends BlockEntry<State>>(
 
 export function recompute<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
-    update: block.BlockUpdater<Entry[]>,
+    dispatch: block.BlockDispatcher<Entry[]>,
     env: Environment,
     innerBlock: Block<State>,
 ): Entry[] {
-    return recomputeFrom(entries, undefined, env, innerBlock, update)
+    return recomputeFrom(entries, undefined, env, innerBlock, dispatch)
 }
 
 
@@ -154,7 +163,7 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
     id: number | undefined,
     env: Environment,
     innerBlock: Block<State>,
-    update: block.BlockUpdater<Entry[]>,
+    dispatch: block.BlockDispatcher<Entry[]>,
     offset: number = 0,
 ): Entry[] {
     const index = id === undefined ? 0 : entries.findIndex(entry => entry.id === id)
@@ -167,11 +176,11 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
 
     const recomputedEntries = updateEntries(
         entriesAfter,
-        (entry, localEnv, localUpdate) => ({
+        (entry, localEnv, localDispatch) => ({
             ...entry,
-            state: innerBlock.recompute(entry.state, localUpdate, localEnv),
+            state: innerBlock.recompute(entry.state, localDispatch, localEnv),
         }),
-        update,
+        dispatch,
         innerBlock,
         (siblingsEnv: Environment) => ({
             ...env,
@@ -191,7 +200,7 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
     action: (state: State) => State,
     env: Environment,
     innerBlock: Block<State>,
-    update: block.BlockUpdater<Entry[]>,
+    dispatch: block.BlockDispatcher<Entry[]>,
 ): Entry[] {
     const index = entries.findIndex(entry => entry.id === id)
     if (index < 0) { return entries }
@@ -203,16 +212,16 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
 
     const recomputedEntries = updateEntries(
         entriesFromId,
-        (entry, localEnv, localUpdate) => ({
+        (entry, localEnv, localDispatch) => ({
             ...entry,
             state: (
                 entry.id === id ?
                     action(entry.state)
                 :
-                    innerBlock.recompute(entry.state, localUpdate, localEnv)
+                    innerBlock.recompute(entry.state, localDispatch, localEnv)
             ),
         }),
-        update,
+        dispatch,
         innerBlock,
         (siblingsEnv: Environment) => ({
             ...env,
@@ -236,7 +245,7 @@ export function entryJSONV(inner: Validator, rest: ValidatorObj) {
 
 export function fromJSON<State, Entry extends BlockEntry<State>>(
     json: any[],
-    update: block.BlockUpdater<Entry[]>,
+    dispatch: block.BlockDispatcher<Entry[]>,
     env: Environment,
     innerBlock: Block<State>,
     parseEntryRest: (entry: BlockEntry<State>, json: any, localEnv: Environment) => Entry,
@@ -246,12 +255,21 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
         (jsonEntry, siblingEnv) => {
             const localEnv = { ...env, ...siblingEnv, $before: siblingEnv }
 
-            function localUpdate(localAction: (state: State) => State) {
-                update(entries => updateEntryState(entries, entry.id, localAction, env, innerBlock, update))
+            function localDispatch(localAction: block.BlockAction<State>) {
+                dispatch(entries => ({
+                    state: updateEntryState(
+                        entries,
+                        entry.id,
+                        entryState => localAction(entryState).state,
+                        env,
+                        innerBlock,
+                        dispatch,
+                    )
+                }))
             }
 
             const { id, name, state, ...jsonRest } = jsonEntry
-            const loadedState = innerBlock.fromJSON(state, localUpdate, localEnv)
+            const loadedState = innerBlock.fromJSON(state, localDispatch, localEnv)
             const entry: BlockEntry<State> = {
                 id,
                 name,

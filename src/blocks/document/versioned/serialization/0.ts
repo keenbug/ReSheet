@@ -1,5 +1,5 @@
-import * as block from '@tables/core'
-import { Block, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { Block, Environment } from '@tables/core/block'
 
 import { addRevision, addValidator } from '@tables/util/serialize'
 import { boolean, array, number, any, string, lazy } from '@tables/util/validate'
@@ -77,13 +77,13 @@ function parsePage<Inner>(
     const { id, name, state, children, isCollapsed } = json
 
     const pathHere = [...path, id]
-    function localUpdate(action: (state: Inner) => Inner) {
-        updatePageStateAt(pathHere, action)
+    function localDispatch(action: block.BlockAction<Inner>) {
+        updatePageStateAt(pathHere, page => action(page).state)
     }
 
     const loadedChildren = parseSiblingPages(children, updatePageStateAt, env, innerBlock, pathHere)
     const pageEnv = getSiblingsEnv(children, env)
-    const loadedState = innerBlock.fromJSON(state, localUpdate, pageEnv)
+    const loadedState = innerBlock.fromJSON(state, localDispatch, pageEnv)
     const page: PageState<Inner> = {
         id,
         name,

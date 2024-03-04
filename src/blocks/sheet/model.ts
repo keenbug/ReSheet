@@ -1,10 +1,11 @@
-import * as block from '@tables/core'
-import { Block } from '@tables/core'
+import * as block from '@tables/core/block'
+import { Block } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 
 import { clampTo, nextElem } from '@tables/util'
 
 import { LineVisibility, SheetBlockLine, SheetBlockState, VISIBILITY_STATES } from './versioned'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 
 export function nextLineVisibility(visibility: LineVisibility) {
@@ -39,7 +40,7 @@ export function updateLineWithId<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     action: (line: SheetBlockLine<Inner>) => SheetBlockLine<Inner>,
-    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ) {
@@ -51,7 +52,7 @@ export function updateLineWithId<Inner>(
                 id,
                 env,
                 innerBlock,
-                block.fieldUpdater('lines', update),
+                fieldDispatcher('lines', dispatch),
                 1,
             )
         )
@@ -62,7 +63,7 @@ export function insertLineBefore<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
-    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ) {
@@ -74,7 +75,7 @@ export function insertLineBefore<Inner>(
                 id,
                 env,
                 innerBlock,
-                block.fieldUpdater('lines', update),
+                fieldDispatcher('lines', dispatch),
             )
         ),
     }
@@ -84,7 +85,7 @@ export function insertLineAfter<Inner>(
     state: SheetBlockState<Inner>,
     id: number,
     newLine: SheetBlockLine<Inner>,
-    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ) {
@@ -96,7 +97,7 @@ export function insertLineAfter<Inner>(
                 newLine.id,
                 env,
                 innerBlock,
-                block.fieldUpdater('lines', update),
+                fieldDispatcher('lines', dispatch),
             )
         ),
     }
@@ -105,7 +106,7 @@ export function insertLineAfter<Inner>(
 export function insertLineEnd<Inner>(
     state: SheetBlockState<Inner>,
     newLine: SheetBlockLine<Inner>,
-    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ) {
@@ -117,7 +118,7 @@ export function insertLineEnd<Inner>(
                 newLine.id,
                 env,
                 innerBlock,
-                block.fieldUpdater('lines', update),
+                fieldDispatcher('lines', dispatch),
             )
         ),
     }
@@ -126,7 +127,7 @@ export function insertLineEnd<Inner>(
 export function deleteLines<Inner>(
     state: SheetBlockState<Inner>,
     ids: number[],
-    update: block.BlockUpdater<SheetBlockState<Inner>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<Inner>>,
     env: block.Environment,
     innerBlock: Block<Inner>,
 ): [number, SheetBlockState<Inner>] {
@@ -144,23 +145,18 @@ export function deleteLines<Inner>(
                 undefined,
                 env,
                 innerBlock,
-                block.fieldUpdater('lines', update),
+                fieldDispatcher('lines', dispatch),
                 index,
             ),
         },
     ]
 }
 
-export function recompute<State>(state: SheetBlockState<State>, update: block.BlockUpdater<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
-    function updateLines(action: (lines: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
-        update(state => ({
-            ...state,
-            lines: action(state.lines),
-        }))
-    }
+export function recompute<State>(state: SheetBlockState<State>, dispatch: block.BlockDispatcher<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
+    const dispatchLines = fieldDispatcher('lines', dispatch)
     return {
         ...state,
-        lines: Multiple.recompute(state.lines, updateLines, env, innerBlock)
+        lines: Multiple.recompute(state.lines, dispatchLines, env, innerBlock)
     }
 }
 
@@ -179,14 +175,9 @@ export function updateLineBlock<State>(
     action: (state: State) => State,
     innerBlock: Block<State>,
     env: block.Environment,
-    update: block.BlockUpdater<SheetBlockState<State>>,
+    dispatch: block.BlockDispatcher<SheetBlockState<State>>,
 ): SheetBlockState<State> {
-    function updateLines(action: (lines: SheetBlockLine<State>[]) => SheetBlockLine<State>[]) {
-        update(state => ({
-            ...state,
-            lines: action(state.lines),
-        }))
-    }
+    const dispatchLines = fieldDispatcher('lines', dispatch)
     return {
         ...state,
         lines: (
@@ -196,7 +187,7 @@ export function updateLineBlock<State>(
                 action,
                 env,
                 innerBlock,
-                updateLines,
+                dispatchLines,
             )
         ),
     }

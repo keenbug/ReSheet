@@ -1,11 +1,11 @@
 import * as React from 'react'
 
-import { Block, BlockRef, BlockUpdater, BlockViewerProps, Environment } from '@tables/core'
+import { Block, BlockHandle, BlockDispatcher, ViewerProps, Environment, BlockAction } from '@tables/core/block'
 import { ErrorBoundary, ErrorInspector } from '@tables/code/value'
 
 import { ErrorView } from './utils/ui'
 
-export type BlockComponent<State> = React.FC<BlockViewerProps<State> & React.RefAttributes<BlockRef>>
+export type BlockComponent<State> = React.FC<ViewerProps<State> & React.RefAttributes<BlockHandle>>
 
 const SafeBlockTag = Symbol("SafeBlock")
 
@@ -52,8 +52,8 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
         })
     }
 
-    const Component = React.forwardRef<BlockRef, BlockViewerProps<State>>(
-        function Component({ state, update, env}, ref) {
+    const Component = React.forwardRef<BlockHandle, ViewerProps<State>>(
+        function Component({ state, dispatch, env}, ref) {
             const [lastError, setLastError] = React.useState<null | BlockError>(null)
 
             React.useEffect(() => {
@@ -68,17 +68,17 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                 }
             }, [])
 
-            const safeUpdate = React.useCallback(action => {
-                update(state => {
+            const safeDispatch = React.useCallback((action: BlockAction<State>) => {
+                dispatch(state => {
                     try {
                         return action(state)
                     }
                     catch (error) {
                         reportError("Block: Last action failed", error)
-                        return state
+                        return { state }
                     }
                 })
-            }, [update, setLastError])
+            }, [dispatch, setLastError])
 
             return (
                 <React.Fragment>
@@ -93,7 +93,7 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                         {block.view({
                             ref,
                             state,
-                            update: safeUpdate,
+                            dispatch: safeDispatch,
                             env,
                         })}
                     </ErrorBoundary>
@@ -106,22 +106,22 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
         [SafeBlockTag]: SafeBlockTag,
         $$UNSAFE_BLOCK: block,
         Component,
-        view(props: BlockViewerProps<State> & { ref?: React.Ref<BlockRef>, key?: React.Key }) {
+        view(props: ViewerProps<State> & { ref?: React.Ref<BlockHandle>, key?: React.Key }) {
             return <Component {...props} />
         },
-        fromJSON(json: any, update: BlockUpdater<State>, env: Environment) {
-            function safeUpdate(action: (state: State) => State) {
-                update(state => {
+        fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment) {
+            function safeDispatch(action: BlockAction<State>) {
+                dispatch(state => {
                     try {
                         return action(state)
                     }
                     catch (e) {
                         reportError("Block: Could not update after fromJSON", e)
-                        return state
+                        return { state }
                     }
                 })
             }
-            try { return block.fromJSON(json, safeUpdate, env) }
+            try { return block.fromJSON(json, safeDispatch, env) }
             catch (e) {
                 // TODO: show more error details: `e instanceof ValidationError && { details: e.toString(), json }`
                 reportError("Block: Could not load JSON", e)
@@ -143,19 +143,19 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                 return e
             }
         },
-        recompute(state, update, env) {
-            function safeUpdate(action: (state: State) => State) {
-                update(state => {
+        recompute(state, dispatch, env) {
+            function safeDispatch(action: BlockAction<State>) {
+                dispatch(state => {
                     try {
                         return action(state)
                     }
                     catch (e) {
                         reportError("Block: Could not update after recompute", e)
-                        return state
+                        return { state }
                     }
                 })
             }
-            try { return block.recompute(state, safeUpdate, env) }
+            try { return block.recompute(state, safeDispatch, env) }
             catch (e) {
                 reportError("Block: Could not recompute block", e)
                 return state

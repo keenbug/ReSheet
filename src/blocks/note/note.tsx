@@ -5,7 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
-import * as block from '@tables/core'
+import * as block from '@tables/core/block'
 
 import { resultFrom } from '@tables/code/result'
 import { computeExpr, parseJSExpr } from '@tables/code/compute'
@@ -38,21 +38,21 @@ export function getPrefix(note: NoteType) {
 export const EXPR_PREFIX = '='
 export const BLOCK_PREFIX = '/'
 
-export function evaluateNote(input: string, env: block.Environment, updateNote: block.BlockUpdater<NoteType>, lastNote?: NoteType): NoteType {
-    const updateExprResult = block.updateCaseField({ type: 'expr' }, 'result', updateNote)
-    const updateBlockResult = block.updateCaseField({ type: 'block', isInstantiated: false}, 'result', updateNote)
+export function evaluateNote(input: string, env: block.Environment, dispatchNote: block.BlockDispatcher<NoteType>, lastNote?: NoteType): NoteType {
+    const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatchNote)
+    const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatchNote)
 
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
         const value = computeExpr(expr, env)
-        const result = resultFrom(value, block.updaterToSetter(updateExprResult))
+        const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
         return { type: 'expr', code: expr, result }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
         const value = computeExpr(expr, env)
-        const result = resultFrom(value, block.updaterToSetter(updateBlockResult))
+        const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
         const lastState = (lastNote as any)?.lastState
         return { type: 'block', isInstantiated: false, code: expr, result, lastState }
     }
@@ -77,7 +77,7 @@ export function evaluateNote(input: string, env: block.Environment, updateNote: 
 }
 
 
-export function recomputeNote(input: string, note: NoteType, update: block.BlockUpdater<NoteType>, env: block.Environment): NoteType {
+export function recomputeNote(input: string, note: NoteType, dispatch: block.BlockDispatcher<NoteType>, env: block.Environment): NoteType {
     if (note.type === 'expr' && note.result.type === 'promise') {
         note.result.cancel()
     }
@@ -86,14 +86,14 @@ export function recomputeNote(input: string, note: NoteType, update: block.Block
     }
 
     if (note.type === 'block' && note.isInstantiated === true) {
-        const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+        const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
         const newBlock = computeExpr(note.code, env)
         if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
             try {
                 const jsonState = note.block.toJSON(note.state)
                 const newSafeBlock = safeBlock(newBlock)
-                const newState = newSafeBlock.fromJSON(jsonState, updateBlockState, env)
+                const newState = newSafeBlock.fromJSON(jsonState, dispatchBlockState, env)
                 return {
                     type: 'block',
                     isInstantiated: true,
@@ -107,11 +107,11 @@ export function recomputeNote(input: string, note: NoteType, update: block.Block
 
         return {
             ...note,
-            state: note.block.recompute(note.state, updateBlockState, env),
+            state: note.block.recompute(note.state, dispatchBlockState, env),
         }
     }
 
-    return evaluateNote(input, env, update, note)
+    return evaluateNote(input, env, dispatch, note)
 }
 
 
@@ -263,7 +263,7 @@ const ViewBlock = React.memo(
                 <div className="bg-white flex flex-col justify-center items-stretch min-h-14 overflow-x-auto relative">
                     <innerBlock.Component
                         state={state}
-                        update={() => {}}
+                        dispatch={() => {}}
                         env={env}
                         />
                     <button
@@ -304,26 +304,28 @@ const ViewBlock = React.memo(
 
 interface ViewBlockInstantiatedProps {
     note: Extract<NoteType, { type: 'block', isInstantiated: true }>
-    update: block.BlockUpdater<NoteType>
+    dispatch: block.BlockDispatcher<NoteType>
     env: block.Environment
 }
 
 export const ViewBlockInstantiated = React.memo(
-    React.forwardRef<block.BlockRef, ViewBlockInstantiatedProps>(
-        function ViewBlockInstantiated({ note, update, env }, ref) {
-            const updateBlock = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+    React.forwardRef<block.BlockHandle, ViewBlockInstantiatedProps>(
+        function ViewBlockInstantiated({ note, dispatch, env }, ref) {
+            const dispatchBlock = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
             function onChangeBlockType() {
-                update(state => {
+                dispatch(state => {
                     if (state.type !== 'block' || !state.isInstantiated) {
-                        return state
+                        return { state }
                     }
                     return {
-                        type: 'block',
-                        isInstantiated: false,
-                        code: state.code,
-                        result: { type: 'immediate', value: state.block },
-                        lastState: state.block.toJSON(state.state),
+                        state: {
+                            type: 'block',
+                            isInstantiated: false,
+                            code: state.code,
+                            result: { type: 'immediate', value: state.block },
+                            lastState: state.block.toJSON(state.state),
+                        }
                     }
                 })
             }
@@ -343,7 +345,7 @@ export const ViewBlockInstantiated = React.memo(
                         <note.block.Component
                             ref={ref}
                             state={note.state}
-                            update={updateBlock}
+                            dispatch={dispatchBlock}
                             env={env}
                             />
                     </div>
@@ -352,7 +354,7 @@ export const ViewBlockInstantiated = React.memo(
         }
     ),
     (before, after) => {
-        if (before.env !== after.env || before.update !== after.update) {
+        if (before.env !== after.env || before.dispatch !== after.dispatch) {
             return false
         }
 

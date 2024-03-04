@@ -1,6 +1,7 @@
-import * as block from '@tables/core'
-import { Block, BlockUpdater, Environment } from '@tables/core'
+import { Block, BlockDispatcher, Environment } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
+
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 import * as Pages from './pages'
 import { Document, PageId, PageState } from './versioned'
@@ -18,10 +19,10 @@ export function init<Inner>(initInner: Inner): Document<Inner> {
     }
 }
 
-export function fromJSON<Inner>(json, update: block.BlockUpdater<Document<Inner>>, env: block.Environment, innerBlock: block.Block<Inner>) {
-    const updatePages = block.fieldUpdater('pages', update)
+export function fromJSON<Inner>(json: any, dispatch: BlockDispatcher<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
+    const dispatchPages = fieldDispatcher('pages', dispatch)
     function updatePageStateAt(path: PageId[], action: (state: Inner) => Inner) {
-        Pages.updatePageStateAt(path, updatePages, action, env, innerBlock)
+        Pages.updatePageStateAt(path, dispatchPages, action, env, innerBlock)
     }
 
     return versioned.fromJSON(json)({ updatePageStateAt, env, innerBlock })
@@ -33,8 +34,8 @@ export function getResult<Inner>(state: Document<Inner>, innerBlock: Block<Inner
     return Multiple.getResultEnv(state.pages, innerBlock)
 }
 
-export function recompute<Inner>(state: Document<Inner>, update: BlockUpdater<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
-    const updatePages = block.fieldUpdater('pages', update)
+export function recompute<Inner>(state: Document<Inner>, dispatch: BlockDispatcher<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
+    const dispatchPages = fieldDispatcher('pages', dispatch)
     return {
         ...state,
         pages: Pages.recomputePagesFrom(
@@ -42,7 +43,7 @@ export function recompute<Inner>(state: Document<Inner>, update: BlockUpdater<Do
             state.pages,
             env,
             innerBlock,
-            updatePages,
+            dispatchPages,
         ),
     }
 }
@@ -71,8 +72,9 @@ export function changeOpenPage<Inner>(
     state: Document<Inner>,
     env: Environment,
     innerBlock: Block<Inner>,
-    updateInner: BlockUpdater<Document<Inner>>,
+    dispatchInner: BlockDispatcher<Document<Inner>>,
 ): Document<Inner> {
+    const dispatchPages = fieldDispatcher('pages', dispatchInner)
     return {
         ...state,
         pages: Pages.recomputePagesFrom(
@@ -80,7 +82,7 @@ export function changeOpenPage<Inner>(
             state.pages,
             env,
             innerBlock,
-            action => updateInner(inner => ({ ...inner, pages: action(inner.pages) })),
+            dispatchPages,
         ),
         viewState: {
             ...state.viewState,
@@ -95,9 +97,12 @@ export function deletePageAt<Inner>(
     state: Document<Inner>,
     innerBlock: Block<Inner>,
     env: Environment,
-    updateInner: BlockUpdater<Document<Inner>>,
+    dispatchInner: BlockDispatcher<Document<Inner>>,
 ): Document<Inner> {
     if (path.length === 0) { return state }
+
+    const dispatchPages = fieldDispatcher('pages', dispatchInner)
+
     const parentPath = path.slice(0, -1)
     const childIdToRemove = path.slice(-1)[0]
 
@@ -115,7 +120,7 @@ export function deletePageAt<Inner>(
             newPages,
             env,
             innerBlock,
-            action => updateInner(state => ({ ...state, pages: action(state.pages) })),
+            dispatchPages,
         ),
         viewState: {
             ...state.viewState,
@@ -172,9 +177,7 @@ export function updateOpenPage<Inner>(
     state: Document<Inner>,
     action: (state: Inner) => Inner,
     innerBlock: Block<Inner>,
-    env: Environment,
 ): Document<Inner> {
-    const openPageEnv = getOpenPageEnv(state, env, innerBlock)
     return {
         ...state,
         pages: (

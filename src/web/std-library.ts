@@ -20,7 +20,7 @@ import * as babel_types from '@babel/types'
 
 // --- Internal ---
 // block
-import * as core from '@tables/core'
+import * as core_block from '@tables/core/block'
 import * as core_multiple from '@tables/core/multiple'
 // blocks
 import * as blocks from '@tables/blocks'
@@ -77,10 +77,8 @@ export const library = {
     blocks,
 
     tables: {
-        block: core,
-
         core: {
-            index: core,
+            block: core_block,
             multiple: core_multiple,
         },
         blocks: {

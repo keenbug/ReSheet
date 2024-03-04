@@ -1,5 +1,5 @@
-import * as block from '@tables/core'
-import { BlockUpdater, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { Environment } from '@tables/core/block'
 import { addRevision, addValidator } from '@tables/util/serialize'
 import { any, oneOf, string } from '@tables/util/validate'
 import { computeExpr } from '@tables/code/compute'
@@ -45,22 +45,23 @@ const vPre = addValidator(
         expr: string,
         inner: any,
     },
-    json => ({ update, env, blockLibrary }) => {
-        return parseV0(json, update, env, blockLibrary)
+    json => ({ dispatch, env, blockLibrary }) => {
+        return parseV0(json, dispatch, env, blockLibrary)
     },
 )
 
-function parseV0({ mode, inner, expr}, update: BlockUpdater<BlockSelectorStateV0>, env: Environment, blockLibrary: Environment): BlockSelectorStateV0 {
-    function updateBlock(state: BlockSelectorStateV0, action: (state: unknown) => unknown): BlockSelectorStateV0 {
-        if (state.mode === 'loading') { return state }
-        return {
-            ...state,
-            innerBlockState: action(state.innerBlockState),
-        }
-    }
+function parseV0({ mode, inner, expr}, dispatch: block.BlockDispatcher<BlockSelectorStateV0>, env: Environment, blockLibrary: Environment): BlockSelectorStateV0 {
+    function dispatchBlock(action: block.BlockAction<unknown>) {
+        dispatch(state => {
+            if (state.mode === 'loading') { return { state } }
 
-    function updateInner(action: (inner: unknown) => unknown) {
-        update(state => updateBlock(state, action))
+            return {
+                state: {
+                    ...state,
+                    innerBlockState: action(state.innerBlockState).state,
+                }
+            }
+        })
     }
 
     const value = computeExpr(expr, { ...blockLibrary, ...env })
@@ -76,7 +77,7 @@ function parseV0({ mode, inner, expr}, update: BlockUpdater<BlockSelectorStateV0
 
     const innerBlock = safeBlock(value)
 
-    const innerBlockState = innerBlock.fromJSON(inner, updateInner, env)
+    const innerBlockState = innerBlock.fromJSON(inner, dispatchBlock, env)
     return { mode, expr, innerBlock, innerBlockState }
 }
 
@@ -86,8 +87,8 @@ const v0 = addRevision(vPre, {
         expr: string,
         inner: any,
     }),
-    parse: json => ({ update, env, blockLibrary }) => {
-        return parseV0(json, update, env, blockLibrary)
+    parse: json => ({ dispatch, env, blockLibrary }) => {
+        return parseV0(json, dispatch, env, blockLibrary)
     },
     upgrade: before => before,
 })

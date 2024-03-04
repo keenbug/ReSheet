@@ -4,10 +4,10 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
-import { Block, BlockRef, BlockUpdater, Environment } from '@tables/core'
-import * as block from '@tables/core'
+import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment } from '@tables/core/block'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@tables/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@tables/util/shortcuts'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
 
@@ -29,42 +29,42 @@ interface ActionProps<State> {
 }
 
 function ACTIONS<State extends unknown>(
-    update: BlockUpdater<Document<State>>,
-    updateHistory: BlockUpdater<HistoryWrapper<Document<State>>>,
+    dispatch: BlockDispatcher<Document<State>>,
+    dispatchHistory: BlockDispatcher<HistoryWrapper<Document<State>>>,
     innerBlock: Block<State>,
     env: Environment,
 ) {
-    const updatePages = block.fieldUpdater('pages', update)
+    const dispatchPages = fieldDispatcher('pages', dispatch)
 
     return {
-        updateOpenPageInner(action: (state: State) => State) {
-            update(inner =>
-                Model.updateOpenPage(inner, action, innerBlock, env)
-            )
+        dispatchOpenPage(action: BlockAction<State>) {
+            dispatch(doc => ({
+                state: Model.updateOpenPage(doc, page => action(page).state, innerBlock)
+            }))
         },
 
 
         reset() {
-            update(() => Model.init(innerBlock.init))
+            dispatch(() => ({ state: Model.init(innerBlock.init) }))
         },
 
         save() {
-            updateHistory(state => {
-                const content = JSON.stringify(History.historyToJSON(state, inner => Model.toJSON(inner, innerBlock)))
+            dispatchHistory(state => {
+                const content = JSON.stringify(History.historyToJSON(state, doc => Model.toJSON(doc, innerBlock)))
                 saveFile(
                     'tables.json',
                     'application/json',
                     content,
                 )
-                return state
+                return { state }
             })
         },
 
         async loadLocalFile(file: File) {
             const content = JSON.parse(await file.text())
             try {
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, update, env, innerBlock))
-                updateHistory(() => newState)
+                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                dispatchHistory(() => ({ state: newState }))
             }
             catch (e) {
                 window.alert(`Could not load file: ${e}`)
@@ -78,8 +78,8 @@ function ACTIONS<State extends unknown>(
             try {
                 const response = await fetch(url)
                 const content = await response.json()
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, update, env, innerBlock))
-                updateHistory(() => newState)
+                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                dispatchHistory(() => ({ state: newState }))
             }
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
@@ -87,137 +87,149 @@ function ACTIONS<State extends unknown>(
         },
 
         useAsTempate(path: PageId[]) {
-            update(inner => ({
-                ...inner,
-                template: Pages.getPageAt(path, inner.pages) ?? inner.template,
+            dispatch(doc => ({
+                state: {
+                    ...doc,
+                    template: Pages.getPageAt(path, doc.pages) ?? doc.template,
+                }
             }))
         },
 
         addPage(path: PageId[]) {
-            update(inner =>
-                Model.addPageAt(path, inner)
-            )
+            dispatch(doc => ({
+                state: Model.addPageAt(path, doc)
+            }))
         },
 
         deletePage(path: PageId[]) {
-            update(inner =>
-                Model.deletePageAt(path, inner, innerBlock, env, update)
-            )
+            dispatch(doc => ({
+                state: Model.deletePageAt(path, doc, innerBlock, env, dispatch)
+            }))
         },
 
         setPageName(path: PageId[], name: string) {
-            update(innerState => {
+            dispatch(doc => {
                 return {
-                    ...innerState,
-                    pages: Pages.updatePageAt(
-                        path,
-                        innerState.pages,
-                        page => ({ ...page, name }),
-                    ),
+                    state: {
+                        ...doc,
+                        pages: Pages.updatePageAt(
+                            path,
+                            doc.pages,
+                            page => ({ ...page, name }),
+                        ),
+                    }
                 }
             })
         },
 
         nestPage(path: PageId[]) {
-            update(innerState => {
-                const [newPath, pages] = Pages.nestPage(path, innerState.pages, env, innerBlock, updatePages)
+            dispatch(doc => {
+                const [newPath, pages] = Pages.nestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
-                    ...innerState,
-                    pages,
-                    viewState: {
-                        ...innerState.viewState,
-                        openPage: newPath,
+                    state: {
+                        ...doc,
+                        pages,
+                        viewState: {
+                            ...doc.viewState,
+                            openPage: newPath,
+                        }
                     }
                 }
             })
         },
 
         unnestPage(path: PageId[]) {
-            update(innerState => {
-                const [newPath, pages] = Pages.unnestPage(path, innerState.pages, env, innerBlock, updatePages)
+            dispatch(doc => {
+                const [newPath, pages] = Pages.unnestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
-                    ...innerState,
-                    pages,
-                    viewState: {
-                        ...innerState.viewState,
-                        openPage: newPath,
+                    state: {
+                        ...doc,
+                        pages,
+                        viewState: {
+                            ...doc.viewState,
+                            openPage: newPath,
+                        }
                     }
                 }
             })
         },
 
         movePage(delta: number, path: PageId[]) {
-            update(innerState => {
+            dispatch(doc => {
                 return {
-                    ...innerState,
-                    pages: Pages.movePage(delta, path, innerState.pages, innerBlock, env, updatePages),
+                    state: {
+                        ...doc,
+                        pages: Pages.movePage(delta, path, doc.pages, innerBlock, env, dispatchPages),
+                    },
                 }
             })
         },
 
         openPage(path: PageId[]) {
-            update(inner =>
-                Model.changeOpenPage(path, inner, env, innerBlock, update)
-            )
+            dispatch(doc => ({
+                state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch)
+            }))
         },
 
         openFirstChild(currentPath: PageId[]) {
-            update(inner => {
-                const parent = Pages.getPageAt(currentPath, inner.pages)
-                if (parent === null || parent.children.length === 0) { return inner }
+            dispatch(doc => {
+                const parent = Pages.getPageAt(currentPath, doc.pages)
+                if (parent === null || parent.children.length === 0) { return { state: doc } }
 
                 const path = [...currentPath, parent.children[0].id]
-                return Model.changeOpenPage(path, inner, env, innerBlock, update)
+                return { state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch) }
             })
         },
 
         openParent(currentPath: PageId[]) {
             if (currentPath.length > 1) {
-                update(inner =>
-                    Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, update)
-                )
+                dispatch(inner => ({
+                    state: Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, dispatch)
+                }))
             }
         },
 
         openNextPage(currentPath: PageId[]) {
-            update(state => {
+            dispatch(state => {
                 const allPaths = Pages.getExpandedPaths(state.pages, currentPath)
                 const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
                 const nextPageIndex = clampTo(0, allPaths.length, openPageIndex + 1)
 
                 const newPath = allPaths[nextPageIndex]
-                return Model.changeOpenPage(newPath, state, env, innerBlock, update)
+                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
             })
         },
 
         openPrevPage(currentPath: PageId[]) {
-            update(state => {
+            dispatch(state => {
                 const allPaths = Pages.getExpandedPaths(state.pages, currentPath)
                 const openPageIndex = allPaths.findIndex(somePath => arrayEquals(somePath, currentPath))
                 const prevPageIndex = clampTo(0, allPaths.length, openPageIndex - 1)
 
                 const newPath = allPaths[prevPageIndex]
-                return Model.changeOpenPage(newPath, state, env, innerBlock, update)
+                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
             })
         },
 
         toggleCollapsed(path: PageId[]) {
-            update(state => {
+            dispatch(state => {
                 return {
-                    ...state,
-                    pages: Pages.updatePageAt(
-                        path,
-                        state.pages,
-                        page => ({ ...page, isCollapsed: !page.isCollapsed }),
-                    ),
+                    state: {
+                        ...state,
+                        pages: Pages.updatePageAt(
+                            path,
+                            state.pages,
+                            page => ({ ...page, isCollapsed: !page.isCollapsed }),
+                        ),
+                    }
                 }
             })
         },
 
         toggleSidebar() {
-            update(state =>
-                $update(open => !open, state,'viewState','sidebarOpen')
-            )
+            dispatch(state => ({
+                state: $update(open => !open, state,'viewState','sidebarOpen')
+            }))
         },
 
     }
@@ -241,7 +253,7 @@ function DocumentKeyBindings<State>(
     state: Document<State>,
     actions: Actions<State>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
-    innerRef: React.MutableRefObject<BlockRef>,
+    innerRef: React.MutableRefObject<BlockHandle>,
     localActions: LocalActions,
 ): Keybindings {
     return [
@@ -414,20 +426,20 @@ function DocumentKeyBindings<State>(
 
 export interface DocumentUiProps<State> {
     state: Document<State>
-    update: BlockUpdater<Document<State>>
-    updateHistory: BlockUpdater<HistoryWrapper<Document<State>>>
+    dispatch: BlockDispatcher<Document<State>>
+    dispatchHistory: BlockDispatcher<HistoryWrapper<Document<State>>>
     env: Environment
     innerBlock: SafeBlock<State>
-    blockRef?: React.Ref<BlockRef> // not using ref because the <State> generic breaks with React.forwardRef
+    blockRef?: React.Ref<BlockHandle> // not using ref because the <State> generic breaks with React.forwardRef
 }
 
 type ShortcutsViewMode = 'hidden' | 'flat' | 'full'
 const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
 
-export function DocumentUi<State>({ state, update, env, updateHistory, innerBlock, blockRef }: DocumentUiProps<State>) {
+export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, innerBlock, blockRef }: DocumentUiProps<State>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const mainScrollRef = React.useRef<HTMLDivElement>()
-    const innerRef = React.useRef<BlockRef>()
+    const innerRef = React.useRef<BlockHandle>()
     React.useImperativeHandle(
         blockRef,
         () => ({
@@ -461,8 +473,8 @@ export function DocumentUi<State>({ state, update, env, updateHistory, innerBloc
     }), [])
 
     const actions = React.useMemo(
-        () => ACTIONS(update, updateHistory, innerBlock, env),
-        [update, updateHistory, innerBlock, env],
+        () => ACTIONS(dispatch, dispatchHistory, innerBlock, env),
+        [dispatch, dispatchHistory, innerBlock, env],
     )
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
@@ -570,7 +582,7 @@ export function DocumentUi<State>({ state, update, env, updateHistory, innerBloc
 }
 
 interface MainViewProps<State> {
-    innerRef: React.Ref<BlockRef>
+    innerRef: React.Ref<BlockHandle>
     actions: Actions<State>
     state: Document<State>
     innerBlock: SafeBlock<State>
@@ -632,7 +644,7 @@ function MainView<State>({
             <innerBlock.Component
                 ref={innerRef}
                 state={openPage.state}
-                update={actions.updateOpenPageInner}
+                dispatch={actions.dispatchOpenPage}
                 env={pageEnv}
                 />
         </div>

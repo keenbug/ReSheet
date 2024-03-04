@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import { BlockRef } from '@tables/core'
-import * as block from '@tables/core'
+import { BlockHandle } from '@tables/core/block'
+import * as block from '@tables/core/block'
 
 import { DocMarkdown } from '@tables/docs/ui'
 import { DocsMap } from '@tables/docs'
@@ -11,22 +11,23 @@ import { useCompletionsOverlay } from '@tables/code/completions'
 import { safeBlock } from '@tables/blocks/component'
 
 import { computeScript } from '@tables/code/compute'
-import { Pending, resultFrom } from '@tables/code/result'
+import { Pending, Result, resultFrom } from '@tables/code/result'
 import { ViewResult } from '@tables/code/value'
 
 import { useShortcuts } from '@tables/util/shortcuts'
 
 import { JSExprModel } from './versioned'
 import * as versioned from './versioned'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 
 export const JSExpr = block.create<JSExprModel>({
     init: versioned.init,
-    view({ env, state, update }, ref) {
-        return <JSExprUi ref={ref} state={state} update={update} env={env} />
+    view({ env, state, dispatch }, ref) {
+        return <JSExprUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
-    recompute(state, update, env) {
-        return updateResult(state, update, env)
+    recompute(state, dispatch, env) {
+        return updateResult(state, dispatch, env)
     },
     getResult(state) {
         switch (state.result.type) {
@@ -46,8 +47,8 @@ export const JSExpr = block.create<JSExprModel>({
                 }
         }
     },
-    fromJSON(json, update, env) {
-        return updateResult(versioned.fromJSON(json), update, env)
+    fromJSON(json, dispatch, env) {
+        return updateResult(versioned.fromJSON(json), dispatch, env)
     },
     toJSON(state) {
         return state.code
@@ -58,14 +59,14 @@ export const JSExpr = block.create<JSExprModel>({
 
 interface JSExprUiProps {
     state: JSExprModel
-    update: block.BlockUpdater<JSExprModel>
+    dispatch: block.BlockDispatcher<JSExprModel>
     env: block.Environment
 }
 
 export const JSExprUi = React.forwardRef(
     function JSExprUi(
-        { state, update, env }: JSExprUiProps,
-        ref: React.Ref<BlockRef>
+        { state, dispatch, env }: JSExprUiProps,
+        ref: React.Ref<BlockHandle>
     ) {
         const codeEditor = React.useRef<CodeEditorHandle>()
         const completions = useCompletionsOverlay(codeEditor, state.code, env)
@@ -79,9 +80,9 @@ export const JSExprUi = React.forwardRef(
         )
 
         function onUpdateCode(code: string) {
-            update(state =>
-                updateResult({ ...state, code }, update, env)
-            )
+            dispatch(state => ({
+                state: updateResult({ ...state, code }, dispatch, env)
+            }))
         }
 
         const shortcutProps = useShortcuts([
@@ -89,7 +90,7 @@ export const JSExprUi = React.forwardRef(
             {
                 description: "jsexpr",
                 bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation',  () => { update(state => updateResult(state, update, env)) }],
+                    [["Alt-Enter"], 'none', 'rerun computation',  () => { dispatch(state => ({ state: updateResult(state, dispatch, env) })) }],
                 ]
             },
         ])
@@ -113,8 +114,11 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
-function updateResult(state: JSExprModel, update: block.BlockUpdater<JSExprModel>, env: block.Environment): JSExprModel {
-    const setResult = block.updaterToSetter(block.fieldUpdater('result', update))
+function updateResult(state: JSExprModel, dispatch: block.BlockDispatcher<JSExprModel>, env: block.Environment): JSExprModel {
+    const dispatchResult = fieldDispatcher('result', dispatch)
+    function setResult(result: Result) {
+        dispatchResult(() => ({ state: result }))
+    }
 
     if (state.result.type === 'promise') {
         state.result.cancel()
@@ -175,17 +179,17 @@ export function Example(code: string, env: block.Environment) {
 
     return function Example() {
         const safeJSExpr = React.useMemo(() => safeBlock(JSExpr), [])
-        const [state, setState] = React.useState(null)
+        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null)
 
         React.useEffect(() => {
-            setState(updateResult(initWithCode, setState, env))
+            dispatch(() => ({ state: updateResult(initWithCode, dispatch, env) }))
         }, [])
 
         if (state === null) { return null }
 
         return (
             <div className="border rounded border-gray-100 my-4">
-                <safeJSExpr.Component state={state} update={setState} env={env} />
+                <safeJSExpr.Component state={state} dispatch={dispatch} env={env} />
             </div>
         )
     }

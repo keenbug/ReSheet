@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { BlockUpdater, Environment } from "@tables/core"
+import { BlockAction, BlockDispatcher, Environment } from "@tables/core/block"
 import { clampTo } from "@tables/util"
 
 import { getFullKey } from "../utils/ui"
@@ -50,13 +50,20 @@ export function initHistory<State>(initState: State): HistoryWrapper<State> {
     }
 }
 
-export function innerUpdater<State>(
-    update: BlockUpdater<HistoryWrapper<State>>,
+export function innerDispatcher<State>(
+    dispatch: BlockDispatcher<HistoryWrapper<State>>,
     env: Environment,
     fromJSON: (json: any, env: Environment) => State,
-): BlockUpdater<State> {
-    return function updateInner(action: (state: State) => State) {
-        update(state => updateHistoryCurrent(state, action, env, fromJSON))
+): BlockDispatcher<State> {
+    return function dispatchInner(action: BlockAction<State>) {
+        dispatch(state => ({
+            state: updateHistoryCurrent(
+                state,
+                inner => action(inner).state,
+                env,
+                fromJSON,
+            )
+        }))
     }
 }
 
@@ -270,25 +277,25 @@ export function reduceHistory<State>(history: Array<HistoryEntry<State>>): Array
 
 export interface HistoryViewProps<Inner> {
     state: HistoryWrapper<Inner>
-    update: BlockUpdater<HistoryWrapper<Inner>>
-    children: (props: { state: Inner, update: BlockUpdater<Inner>, updateHistory: BlockUpdater<HistoryWrapper<Inner>> }) => React.ReactNode
+    dispatch: BlockDispatcher<HistoryWrapper<Inner>>
+    children: (props: { state: Inner, dispatch: BlockDispatcher<Inner>, dispatchHistory: BlockDispatcher<HistoryWrapper<Inner>> }) => React.ReactNode
     env: Environment
     fromJSON: (json: any, env: Environment) => Inner
 }
 
-export function HistoryView<Inner>({ state, update, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
+export function HistoryView<Inner>({ state, dispatch, children: viewInner, env, fromJSON }: HistoryViewProps<Inner>) {
     // capture undo/redo, so no other component starts its own undo/redo logic
     function onKeyDownHistory(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             case "C-Z":
-                update(state => moveInHistory(-1, state))
+                dispatch(state => ({ state: moveInHistory(-1, state) }))
                 event.stopPropagation()
                 event.preventDefault()
                 return
 
             case "C-Shift-Z":
             case "C-Y":
-                update(state => moveInHistory(1, state))
+                dispatch(state => ({ state: moveInHistory(1, state) }))
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -298,19 +305,15 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
     function onKeyDownCurrent(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             case "C-Z":
-                update(openHistory)
+                dispatch(state => ({ state: openHistory(state) }))
                 event.stopPropagation()
                 event.preventDefault()
                 return
         }
     }
 
-    const updateInner = React.useCallback(
-        (action: (state: Inner) => Inner) => (
-            update(state => (
-                updateHistoryCurrent(state, action, env, fromJSON)
-            ))
-        ),
+    const dispatchInner = React.useMemo(
+        () => innerDispatcher(dispatch, env, fromJSON),
         [env, fromJSON],
     )
 
@@ -318,7 +321,7 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
         case 'current':
             return (
                 <div className="h-full w-full" onKeyDownCapture={onKeyDownCurrent}>
-                    {viewInner({ state: state.inner, update: updateInner, updateHistory: update })}
+                    {viewInner({ state: state.inner, dispatch: dispatchInner, dispatchHistory: dispatch })}
                 </div>
             )
         
@@ -329,7 +332,7 @@ export function HistoryView<Inner>({ state, update, children: viewInner, env, fr
             const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
             return (
                 <div className="h-full w-full" onKeyDownCapture={onKeyDownHistory}>
-                    {viewInner({ state: stateInHistory, update: updateInner, updateHistory: update })}
+                    {viewInner({ state: stateInHistory, dispatch: dispatchInner, dispatchHistory: dispatch })}
                 </div>
             )
     }

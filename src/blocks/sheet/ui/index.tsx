@@ -4,12 +4,12 @@ import { useInView } from 'react-intersection-observer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '@tables/core'
-import { Block, BlockUpdater, BlockRef, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { BlockDispatcher, BlockHandle, Environment } from '@tables/core/block'
 import { useRefMap, renderConditionally, WithSkipRender } from '@tables/util/hooks'
 
 import { ValueInspector } from '@tables/code/value'
-import { useEUpdate } from '@tables/blocks/utils/hooks'
+import { useEnvDispatcher } from '@tables/blocks/utils/hooks'
 import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
 
 import { TextInput, focusWithKeyboard } from '@tables/blocks/utils/ui'
@@ -24,20 +24,20 @@ import { useSelection } from './useSelection'
 
 export interface SheetProps<InnerState> {
     state: SheetBlockState<InnerState>
-    update: BlockUpdater<SheetBlockState<InnerState>>
+    dispatch: BlockDispatcher<SheetBlockState<InnerState>>
     innerBlock: SafeBlock<InnerState>
     env: Environment
 }
 
 export const Sheet = React.forwardRef(
     function Sheet<InnerState>(
-        { state, update, innerBlock, env }: SheetProps<InnerState>,
-        ref: React.Ref<BlockRef>
+        { state, dispatch, innerBlock, env }: SheetProps<InnerState>,
+        ref: React.Ref<BlockHandle>
     ) {
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
-        const eupdate = useEUpdate(update, env)
+        const envDispatch = useEnvDispatcher(dispatch, env)
 
         React.useImperativeHandle(
             ref,
@@ -66,8 +66,8 @@ export const Sheet = React.forwardRef(
         const selectedIds = selectionAnchorIds && lineIds.slice(selectionAnchorIndices[0], selectionAnchorIndices[1] + 1)
 
         const actions = React.useMemo(
-            () => ACTIONS(eupdate, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
-            [eupdate, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
+            () => ACTIONS(envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
+            [envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
         )
 
         const shortcutProps = useShortcuts([
@@ -268,7 +268,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
     const containerRef = React.useRef<HTMLDivElement>()
     const varInputRef = React.useRef<HTMLElement>()
     const innerContainerRef = React.useRef<HTMLDivElement>()
-    const innerBlockRef = React.useRef<BlockRef>()
+    const innerBlockRef = React.useRef<BlockHandle>()
     const resultRef = React.useRef<HTMLElement>()
     const lineRef = React.useMemo(() => setLineRef(line.id), [setLineRef, line.id])
 
@@ -328,8 +328,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
 
     const bindingsProps = useShortcuts(bindings)
 
-    const subupdate = React.useCallback(function subupdate(action: (inner: Inner) => Inner) {
-        actions.updateInner(line.id, action, block, env)
+    const subdispatch = React.useCallback(function subdispatch(action: block.BlockAction<Inner>) {
+        actions.dispatchInner(line.id, action, block, env)
     }, [block, env])
 
     const varInputBindings: Keybindings = React.useMemo(
@@ -386,7 +386,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                         key="block"
                         ref={innerBlockRef}
                         state={line.state}
-                        update={subupdate}
+                        dispatch={subdispatch}
                         env={env}
                         />
                 }
@@ -407,7 +407,7 @@ function sheetLineBindings<Inner>(
     line: SheetBlockLine<Inner>,
     block: block.Block<Inner>,
     containerRef: React.MutableRefObject<HTMLDivElement>,
-    innerBlockRef: React.MutableRefObject<block.BlockRef>,
+    innerBlockRef: React.MutableRefObject<block.BlockHandle>,
     resultRef: React.MutableRefObject<HTMLElement>,
 ): Keybindings {
     function insertBelowByEnter(event?: React.KeyboardEvent) {
@@ -510,7 +510,7 @@ function sheetLineBindings<Inner>(
 
 function assignmentLineBindings<Inner>(
     line: SheetBlockLine<Inner>,
-    innerBlockRef: React.MutableRefObject<block.BlockRef>,
+    innerBlockRef: React.MutableRefObject<block.BlockHandle>,
     actions: Actions<Inner>,
 ): Keybindings {
     return [

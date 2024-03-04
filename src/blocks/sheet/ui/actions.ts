@@ -1,17 +1,17 @@
 import * as React from 'react'
 
-import * as block from '@tables/core'
-import { Block, Environment } from '@tables/core'
+import { Block, BlockAction, Environment } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 
 import { clampTo } from '@tables/util'
 
-import { EUpdater } from '../../utils/hooks'
+import { EnvDispatcher } from '../../utils/hooks'
 import { findScrollableAncestor } from '../../utils/ui'
 
 import * as Model from '../model'
 import { SheetBlockState } from '../versioned'
 import * as versioned from '../versioned'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 
 export interface SheetLineRef {
@@ -79,17 +79,13 @@ function focusLineRefSameOr(refMap: Map<number, SheetLineRef>, ref: SheetLineRef
 export type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 export function ACTIONS<Inner extends unknown>(
-    eupdate: EUpdater<SheetBlockState<Inner>>,
+    dispatch: EnvDispatcher<SheetBlockState<Inner>>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>,
     selectedIds: null | number[],
     setSelectionAnchorIds: React.Dispatch<React.SetStateAction<{ start: number, end: number } | null>>,
 ) {
-    function update(action: (state: SheetBlockState<Inner>) => SheetBlockState<Inner>) {
-        eupdate(state => ({ state: action(state) }))
-    }
-
     function insertBeforeCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
         const newId = Model.nextFreeId(state);
         return {
@@ -102,7 +98,7 @@ export function ACTIONS<Inner extends unknown>(
                     visibility: versioned.VISIBILITY_STATES[0],
                     state: innerBlock.init,
                 },
-                update,
+                dispatch,
                 env,
                 innerBlock,
             ),
@@ -122,7 +118,7 @@ export function ACTIONS<Inner extends unknown>(
                     visibility: versioned.VISIBILITY_STATES[0],
                     state: innerBlock.init,
                 },
-                update,
+                dispatch,
                 env,
                 innerBlock,
             ),
@@ -141,7 +137,7 @@ export function ACTIONS<Inner extends unknown>(
                     visibility: versioned.VISIBILITY_STATES[0],
                     state: innerBlock.init,
                 },
-                update,
+                dispatch,
                 env,
                 innerBlock,
             ),
@@ -149,27 +145,28 @@ export function ACTIONS<Inner extends unknown>(
         }
     }
 
-    function scroll(amount: number) {
-        return {
-            effect() {
-                const scrollableContainer = findScrollableAncestor(container.current)
-                if (scrollableContainer) {
-                    scrollableContainer.scrollBy({
-                        top: amount * scrollableContainer.clientHeight,
-                        behavior: 'smooth',
-                    })
-                }
-            },
-        }
-    }
-
 
     return {
-        scroll(amount: number) { eupdate(() => scroll(amount)) },
+        scroll(amount: number) {
+            dispatch(state => ({
+                state,
+                effect() {
+                    const scrollableContainer = findScrollableAncestor(container.current)
+                    if (scrollableContainer) {
+                        scrollableContainer.scrollBy({
+                            top: amount * scrollableContainer.clientHeight,
+                            behavior: 'smooth',
+                        })
+                    }
+                },
+            }))
+        },
+
 
         focusUp() {
             setSelectionAnchorIds(null)
-            eupdate((state: SheetBlockState<Inner>) => ({
+            dispatch((state: SheetBlockState<Inner>) => ({
+                state,
                 effect() {
                     const focused = findFocused(refMap)
                     if (focused === undefined) {
@@ -188,7 +185,8 @@ export function ACTIONS<Inner extends unknown>(
 
         focusDown() {
             setSelectionAnchorIds(null)
-            eupdate((state: SheetBlockState<Inner>) => ({
+            dispatch((state: SheetBlockState<Inner>) => ({
+                state,
                 effect() {
                     const focused = findFocused(refMap)
                     if (focused === undefined) {
@@ -208,7 +206,8 @@ export function ACTIONS<Inner extends unknown>(
 
 
         selectUp() {
-            eupdate(state => ({
+            dispatch(state => ({
+                state,
                 effect() {
                     const focused = findFocused(refMap)
                     if (focused === undefined) {
@@ -227,7 +226,8 @@ export function ACTIONS<Inner extends unknown>(
         },
 
         selectDown() {
-            eupdate(state => ({
+            dispatch(state => ({
+                state,
                 effect() {
                     const focused = findFocused(refMap)
                     if (focused === undefined) {
@@ -247,7 +247,8 @@ export function ACTIONS<Inner extends unknown>(
 
         focusFirst() {
             setSelectionAnchorIds(null)
-            eupdate(state => ({
+            dispatch(state => ({
+                state,
                 effect() {
                     const firstId = state.lines[0].id
                     refMap.get(firstId)?.focus()
@@ -257,7 +258,8 @@ export function ACTIONS<Inner extends unknown>(
 
         focusLast() {
             setSelectionAnchorIds(null)
-            eupdate(state => ({
+            dispatch(state => ({
+                state,
                 effect() {
                     const lastId = state.lines.slice(-1)[0].id
                     refMap.get(lastId)?.focus()
@@ -267,7 +269,8 @@ export function ACTIONS<Inner extends unknown>(
 
         rename(id: number) {
             setSelectionAnchorIds(null)
-            eupdate(() => ({
+            dispatch(state => ({
+                state,
                 effect() {
                     refMap.get(id)?.focusVar()
                 },
@@ -275,13 +278,13 @@ export function ACTIONS<Inner extends unknown>(
         },
 
         setName(id: number, name: string) {
-            eupdate((state, env) => ({
-                state: Model.updateLineWithId(state, id, line => ({ ...line, name }), update, env, innerBlock),
+            dispatch((state, env) => ({
+                state: Model.updateLineWithId(state, id, line => ({ ...line, name }), dispatch, env, innerBlock),
             }));
         },
 
         switchCollapse(id: number) {
-            eupdate(state => ({
+            dispatch(state => ({
                 state: Model.updateLineUiWithId(state, id, line => ({
                     ...line,
                     visibility: Model.nextLineVisibility(line.visibility),
@@ -295,15 +298,15 @@ export function ACTIONS<Inner extends unknown>(
             }))
         },
 
-        updateInner(
+        dispatchInner(
             id: number,
-            action: (state: Inner) => Inner,
+            action: BlockAction<Inner>,
             innerBlock: Block<Inner>,
             env: Environment
         ) {
-            update(state =>
-                Model.updateLineBlock(state, id, action, innerBlock, env, update)
-            )
+            dispatch(state => ({
+                state: Model.updateLineBlock(state, id, inner => action(inner).state, innerBlock, env, dispatch)
+            }))
         },
 
         copy(state: SheetBlockState<Inner>, innerBlock: Block<Inner>, putIntoClipboard: (type: string, content: string) => void) {
@@ -332,10 +335,10 @@ export function ACTIONS<Inner extends unknown>(
         },
 
         paste(json: any, innerBlock: Block<Inner>) {
-            const updateLines = block.fieldUpdater('lines', update)
-            eupdate((state, env) => {
+            const dispatchLines = fieldDispatcher('lines', dispatch)
+            dispatch((state, env) => {
                 if (state.lines.length === 0) {
-                    const newState = versioned.fromJSON(json)(update, env, innerBlock)
+                    const newState = versioned.fromJSON(json)(dispatch, env, innerBlock)
                     return {
                         state: newState,
                         effect() {
@@ -373,7 +376,7 @@ export function ACTIONS<Inner extends unknown>(
                                 lineId,
                                 env,
                                 innerBlock,
-                                updateLines,
+                                dispatchLines,
                                 1,
                             )
                         )
@@ -393,37 +396,38 @@ export function ACTIONS<Inner extends unknown>(
                     }
                 }
                 catch (e) {
-                    return {}
+                    return { state }
                 }
             })
         },
 
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
+            dispatch((state, env) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
         },
 
         insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
+            dispatch((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
         },
 
         insertEnd(innerBlock: Block<Inner>, focusTarget: FocusTarget = 'inner') {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => insertEnd(state, env, innerBlock, focusTarget))
+            dispatch((state, env) => insertEnd(state, env, innerBlock, focusTarget))
         },
 
         focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => {
+            dispatch((state, env) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
-                if (currentIndex < 0) { return {} }
+                if (currentIndex < 0) { return { state } }
                 if (currentIndex === 0) {
                     return insertBeforeCode(state, id, env, innerBlock, 'inner')
                 }
 
                 const prevLine = state.lines[currentIndex - 1]
                 return {
+                    state,
                     effect() {
                         refMap.get(prevLine.id)?.focusInner()
                     }
@@ -433,15 +437,16 @@ export function ACTIONS<Inner extends unknown>(
 
         focusOrCreateNext(id: number, innerBlock: Block<Inner>) {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => {
+            dispatch((state, env) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
-                if (currentIndex < 0) { return {} }
+                if (currentIndex < 0) { return { state } }
                 if (currentIndex === state.lines.length - 1) {
                     return insertAfterCode(state, id, env, innerBlock, 'inner')
                 }
 
                 const nextLine = state.lines[currentIndex + 1]
                 return {
+                    state,
                     effect() {
                         refMap.get(nextLine.id)?.focusInner()
                     }
@@ -451,9 +456,9 @@ export function ACTIONS<Inner extends unknown>(
 
         deleteCode(id: number, focusAfter: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            eupdate((state, env) => {
+            dispatch((state, env) => {
                 const idsToDelete = selectedIds ?? [id]
-                const [prevId, newState] = Model.deleteLines(state, idsToDelete, update, env, innerBlock)
+                const [prevId, newState] = Model.deleteLines(state, idsToDelete, dispatch, env, innerBlock)
                 return {
                     state: newState,
                     effect() {

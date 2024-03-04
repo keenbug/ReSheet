@@ -1,19 +1,22 @@
 import * as React from 'react'
-import { Environment } from '@tables/core'
-import { Effectful, useEffectfulUpdate } from '@tables/util/hooks'
+import { BlockDispatcher, Environment } from '@tables/core/block'
+import { EffectfulAction, EffectfulDispatcher, useEffectfulDispatch } from '@tables/util/hooks'
 
 // Effectful action with Env
-export type EAction<State> = (state: State, env: Environment) => Effectful<State>
+export type EnvAction<State> = EffectfulAction<State, [Environment]>
 
-// Effectful updater with Env
-export type EUpdater<State> = (action: EAction<State>) => void
+// Effectful dispatcher with Env
+export type EnvDispatcher<State> = EffectfulDispatcher<State, [Environment]>
 
-export function useEUpdate<State>(
-    update: (action: (state: State) => State) => void,
+export function useEnvDispatcher<State>(
+    dispatch: BlockDispatcher<State>,
     env: Environment,
 ) {
-    const updateFX = useEffectfulUpdate(update)
-    return React.useCallback(function eupdate(eaction: EAction<State>) {
-        updateFX(state => eaction(state, env))
-    }, [updateFX, env])
+    const dispatchFX = useEffectfulDispatch(dispatch)
+    return React.useCallback(
+        function envDispatch(envAction: EnvAction<State>) {
+            dispatchFX(state => envAction(state, env))
+        },
+        [dispatchFX, env],
+    )
 }

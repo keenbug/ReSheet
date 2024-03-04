@@ -3,13 +3,13 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '@tables/core'
-import { BlockRef, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { BlockHandle, Environment } from '@tables/core/block'
 
 import { CodeView, CodeEditor, CodeEditorHandle } from '@tables/code/editor'
 import { useCompletionsOverlay } from '@tables/code/completions'
 
-import { EffectfulUpdater, useEffectfulUpdate } from '@tables/util/hooks'
+import { EffectfulDispatcher, useEffectfulDispatch } from '@tables/util/hooks'
 import { computeExpr } from '@tables/code/compute'
 
 import { ErrorBoundary, ValueInspector } from '../../code/value'
@@ -22,21 +22,21 @@ import { BlockSelectorState } from './versioned'
 
 
 function ACTIONS(
-    update: EffectfulUpdater<BlockSelectorState>,
+    dispatch: EffectfulDispatcher<BlockSelectorState>,
     codeEditor: React.RefObject<CodeEditorHandle>,
-    innerBlockRef: React.RefObject<BlockRef>,
+    innerBlockRef: React.RefObject<BlockHandle>,
     blockLibrary: Environment
 ) {
     return {
-        updateExpr(expr: string) {
-            update(state => ({
+        setExpr(expr: string) {
+            dispatch(state => ({
                 state: { ...state, expr },
             }))
         },
     
         setChooseMode() {
-            update(state => {
-                if (state.mode === 'loading') { return {} }
+            dispatch(state => {
+                if (state.mode === 'loading') { return { state } }
     
                 return {
                     state: {
@@ -51,7 +51,7 @@ function ACTIONS(
         },
     
         cancelChoose() {
-            update(state => {
+            dispatch(state => {
                 if (state.mode === 'loading' || !block.isBlock(state.innerBlock)) {
                     return { state }
                 }
@@ -69,30 +69,27 @@ function ACTIONS(
         },
     
         cancelLoading() {
-            update(state => ({
+            dispatch(state => ({
                 state: Model.init(state.expr),
                 effect() { codeEditor.current?.element?.focus() },
             }))
         },
     
         chooseBlock(expr: string, blockEnv: Environment) {
-            update((state: BlockSelectorState) => ({
+            dispatch((state: BlockSelectorState) => ({
                 state: Model.chooseBlock(expr, state, blockEnv),
                 effect() { innerBlockRef.current?.focus() },
             }))
         },
     
-        subupdate(action: (state: unknown) => unknown) {
-            update((state: BlockSelectorState) => ({
-                state: Model.updateBlock(state, action),
-            }))
-        },
+        dispatchBlock: Model.blockDispatcher(dispatch),
+
     }
 }
 
 export interface BlockSelectorUIProps {
     state: BlockSelectorState
-    update: (action: (state: BlockSelectorState) => BlockSelectorState) => void
+    dispatch: block.BlockDispatcher<BlockSelectorState>
     env: Environment
     blockLibrary: Environment
 }
@@ -100,22 +97,22 @@ export interface BlockSelectorUIProps {
 export const BlockSelectorUI = React.forwardRef(
     function BlockSelectorUI(
         props: BlockSelectorUIProps,
-        ref: React.Ref<BlockRef>
+        ref: React.Ref<BlockHandle>
     ) {
-        const { state, update, env } = props
+        const { state, dispatch, env } = props
         const { blockLibrary } = props
 
-        const updateWithEffect = useEffectfulUpdate(update)
+        const dispatchWithEffect = useEffectfulDispatch(dispatch)
         const codeEditor = React.useRef<CodeEditorHandle>()
-        const innerBlockRef = React.useRef<BlockRef>()
+        const innerBlockRef = React.useRef<BlockHandle>()
 
         const [blockExpr, setBlockExpr] = React.useState<string>(state.expr)
         const blockEnv = { ...blockLibrary, ...env }
         const completions = useCompletionsOverlay(codeEditor, blockExpr, blockEnv)
 
         const actions = React.useMemo(
-            () => ACTIONS(updateWithEffect, codeEditor, innerBlockRef, blockLibrary),
-            [updateWithEffect, codeEditor, innerBlockRef, blockLibrary],
+            () => ACTIONS(dispatchWithEffect, codeEditor, innerBlockRef, blockLibrary),
+            [dispatchWithEffect, codeEditor, innerBlockRef, blockLibrary],
         )
 
         React.useImperativeHandle(
@@ -204,7 +201,7 @@ export const BlockSelectorUI = React.forwardRef(
                         <state.innerBlock.Component
                             ref={innerBlockRef}
                             state={state.innerBlockState}
-                            update={actions.subupdate}
+                            dispatch={actions.dispatchBlock}
                             env={env}
                             />
                     </div>
@@ -246,7 +243,7 @@ export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
         return (
             <block.Component
                 state={block.init}
-                update={() => {}}
+                dispatch={() => {}}
                 env={env}
                 />
         )

@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, BlockUpdater, Environment, mapWithEnv } from '@tables/core'
+import { Block, BlockAction, BlockDispatcher, Environment, mapWithEnv } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 import { arrayEquals, arrayStartsWith, clampTo } from '@tables/util'
 
@@ -123,7 +123,7 @@ export function unnestPage<State>(
     pages: PageState<State>[],
     env: Environment,
     innerBlock: Block<State>,
-    updatePagesState: BlockUpdater<PageState<State>[]>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ): [PageId[], PageState<State>[]] {
     if (path.length <= 1) { return [path, pages] }
 
@@ -177,7 +177,7 @@ export function unnestPage<State>(
             newPages,
             env,
             innerBlock,
-            updatePagesState,
+            dispatchPagesState,
         ),
     ]
 }
@@ -187,7 +187,7 @@ export function nestPage<State>(
     pages: PageState<State>[],
     env: Environment,
     innerBlock: Block<State>,
-    updatePagesState: BlockUpdater<PageState<State>[]>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ): [PageId[], PageState<State>[]] {
     if (path.length === 0) { return [path, pages] }
 
@@ -230,7 +230,7 @@ export function nestPage<State>(
             newPages,
             env,
             innerBlock,
-            updatePagesState,
+            dispatchPagesState,
         ),
     ]
 }
@@ -241,7 +241,7 @@ export function movePage<State>(
     pages: PageState<State>[],
     innerBlock: Block<State>,
     env: Environment,
-    updatePagesState: BlockUpdater<PageState<State>[]>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ) {
     if (path.length === 0) { return pages }
 
@@ -284,7 +284,7 @@ export function movePage<State>(
         ),
         env,
         innerBlock,
-        updatePagesState,
+        dispatchPagesState,
     )
 }
 
@@ -321,7 +321,7 @@ export function updatePages<State>(
     pages: Array<PageState<State>>,
     update: (path: PageId[], page: PageState<State>) => PageState<State>,
     currentPath: PageId[] = [],
-) {
+): PageState<State>[] {
     return pages.map(
         page => {
             const pathHere = [...currentPath, page.id]
@@ -333,20 +333,20 @@ export function updatePages<State>(
 
 export function updatePageStateAt<State>(
     path: PageId[],
-    updatePagesState: BlockUpdater<PageState<State>[]>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     action: (state: State) => State,
     env: Environment,
     innerBlock: Block<State>,
 ) {
-    updatePagesState(pages =>
-        recomputePagesFrom(
+    dispatchPagesState(pages => ({
+        state: recomputePagesFrom(
             path,
             updatePageAt(path, pages, page => ({ ...page, state: action(page.state) })),
             env,
             innerBlock,
-            updatePagesState,
+            dispatchPagesState,
         )
-    )
+    }))
 }
 
 export function recomputePagesFrom<State>(
@@ -354,9 +354,9 @@ export function recomputePagesFrom<State>(
     pages: PageState<State>[],
     env: Environment,
     innerBlock: Block<State>,
-    updatePagesState: BlockUpdater<PageState<State>[]>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     currentPath: PageId[] = [],
-) {
+): PageState<State>[] {
     const recomputeStartIndex = (
         pathWithChanges === null ?
             0
@@ -378,8 +378,8 @@ export function recomputePagesFrom<State>(
     const updatedPages = mapWithEnv(
         affectedPages,
         (page, localEnv) => {
-            function localUpdate(action: (state: State) => State) {
-                updatePageStateAt(pathHere, updatePagesState, action, env, innerBlock)
+            function localDispatch(action: BlockAction<State>) {
+                updatePageStateAt(pathHere, dispatchPagesState, state => action(state).state, env, innerBlock)
             }
 
             const pathHere = [...currentPath, page.id]
@@ -388,13 +388,13 @@ export function recomputePagesFrom<State>(
                 page.children,
                 localEnv,
                 innerBlock,
-                updatePagesState,
+                dispatchPagesState,
                 pathHere,
             )
             const localEnvWithChildren = getSiblingsEnv(children, localEnv, innerBlock)
-            const state = innerBlock.recompute(page.state, localUpdate, localEnvWithChildren)
+            const state = innerBlock.recompute(page.state, localDispatch, localEnvWithChildren)
 
-            const newPage = {
+            const newPage: PageState<State> = {
                 ...page,
                 children,
                 state,

@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { useBlockDispatcher } from '@tables/core/block'
+
 import { DocMarkdown } from '@tables/docs/ui'
 import { DocsMap } from '@tables/docs'
 
@@ -47,17 +49,17 @@ export const exampleEnv = { JSExpr }
 export function Example({ input }: { input: string }) {
     const initWithInput = { ...Note.init, input }
     const safeNote = safeBlock(Note)
-    const [state, setState] = React.useState(null)
+    const [state, dispatch] = useBlockDispatcher(null)
 
     React.useEffect(() => {
-        setState(safeNote.recompute(initWithInput, setState, exampleEnv))
+        dispatch(() => ({ state: safeNote.recompute(initWithInput, dispatch, exampleEnv) }))
     }, [])
 
     if (state === null) { return null }
 
     return (
         <div className="border rounded border-gray-100 my-4">
-            <safeNote.Component state={state} update={setState} env={exampleEnv} />
+            <safeNote.Component state={state} dispatch={dispatch} env={exampleEnv} />
         </div>
     )
 }

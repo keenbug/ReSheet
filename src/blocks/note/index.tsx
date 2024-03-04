@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import { BlockRef } from '@tables/core'
-import * as block from '@tables/core'
+import { BlockHandle } from '@tables/core/block'
+import * as block from '@tables/core/block'
 
 import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '@tables/code/editor'
 import { useCompletionsOverlay } from '@tables/code/completions'
@@ -10,7 +10,7 @@ import { getResultValue } from '@tables/code/result'
 
 import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
 
-import { EUpdater, useEUpdate } from '../utils/hooks'
+import { EnvDispatcher, useEnvDispatcher } from '../utils/hooks'
 import { getFullKey } from '../utils/ui'
 
 import { safeBlock } from '../component'
@@ -18,6 +18,7 @@ import { safeBlock } from '../component'
 import { ViewBlockInstantiated, ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
 import { NoteModel, NoteType } from './versioned'
 import * as versioned from './versioned'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 
 const init: NoteModel = {
@@ -28,11 +29,11 @@ const init: NoteModel = {
 
 export const Note = block.create<NoteModel>({
     init,
-    view({ env, state, update }, ref) {
-        return <NoteUi ref={ref} state={state} update={update} env={env} />
+    view({ env, state, dispatch }, ref) {
+        return <NoteUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
-    recompute(state, update, env) {
-        return recompute(state, update, env)
+    recompute(state, dispatch, env) {
+        return recompute(state, dispatch, env)
     },
     getResult(state) {
         switch (state.note.type) {
@@ -51,14 +52,14 @@ export const Note = block.create<NoteModel>({
                 return state.note
         }
     },
-    fromJSON(json, update, env) {
+    fromJSON(json, dispatch, env) {
         return versioned.fromJSON(json)({
-            update,
+            dispatch,
             env,
             modelFromInput(level, input) {
-                const updateNote = block.fieldUpdater('note', update)
-                const note = evaluateNote(input, env, updateNote)
-                return recompute({ level, input, note }, update, env)
+                const dispatchNote = fieldDispatcher('note', dispatch)
+                const note = evaluateNote(input, env, dispatchNote)
+                return recompute({ level, input, note }, dispatch, env)
             },
         })
     },
@@ -71,18 +72,18 @@ export const Note = block.create<NoteModel>({
 
 interface NoteUiProps {
     state: NoteModel
-    update: block.BlockUpdater<NoteModel>
+    dispatch: block.BlockDispatcher<NoteModel>
     env: block.Environment
 }
 
 export const NoteUi = React.forwardRef(
     function NoteUi(
-        { state, update, env }: NoteUiProps,
-        ref: React.Ref<BlockRef>
+        { state, dispatch, env }: NoteUiProps,
+        ref: React.Ref<BlockHandle>
     ) {
         const editorRef = React.useRef<CodeEditorHandle>()
-        const blockRef = React.useRef<BlockRef>()
-        const eupdate = useEUpdate(update, env)
+        const blockRef = React.useRef<BlockHandle>()
+        const envDispatch = useEnvDispatcher(dispatch, env)
         const [isFocused, setFocused] = React.useState(false)
         const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
 
@@ -106,23 +107,23 @@ export const NoteUi = React.forwardRef(
             })
         )
 
-        const updateNote = React.useMemo(() => block.fieldUpdater('note', update), [update])
+        const dispatchNote = React.useMemo(() => fieldDispatcher('note', dispatch), [dispatch])
 
         const isCode = (
             state.note.type === 'expr'
             || (state.note.type === 'block' && !state.note.isInstantiated)
         )
 
-        const actions = React.useMemo(() => ACTIONS(update, eupdate, blockRef), [update, eupdate, blockRef])
+        const actions = React.useMemo(() => ACTIONS(dispatch, envDispatch, blockRef), [dispatch, envDispatch, blockRef])
         const shortcutProps = useShortcuts([
             ...isCode ? completions.shortcuts : [],
             ...keybindings(state, actions),
         ])
 
         function onUpdateCode(input: string){
-            update(state =>
-                recompute({ ...state, input }, update, env)
-            )
+            dispatch(state => ({
+                state: recompute({ ...state, input }, dispatch, env)
+            }))
         }
 
         const preventEnter = React.useCallback(function preventEnter(event: React.KeyboardEvent) {
@@ -133,7 +134,7 @@ export const NoteUi = React.forwardRef(
         }, [shortcutProps])
 
         if (state.note.type === 'block' && state.note.isInstantiated === true) {
-            return <ViewBlockInstantiated ref={blockRef} note={state.note} update={updateNote} env={env} />
+            return <ViewBlockInstantiated ref={blockRef} note={state.note} dispatch={dispatchNote} env={env} />
         }
         
         return (
@@ -214,39 +215,41 @@ function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Key
     ]
 }
 
-function ACTIONS(update: block.BlockUpdater<NoteModel>, eupdate: EUpdater<NoteModel>, blockRef: React.RefObject<BlockRef>) {
+function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDispatcher<NoteModel>, blockRef: React.RefObject<BlockHandle>) {
     return {
         toggleCheckbox() {
-            update(state => {
+            dispatch(state => {
                 if (state.note.type === 'checkbox') {
                     return {
-                        ...state,
-                        input: state.input.replace(
-                            /^\[[ xX]?\] /,
-                            state.note.checked ? "[ ] " : "[x] "
-                        ),
-                        note: {
-                            ...state.note,
-                            checked: !state.note.checked,
+                        state: {
+                            ...state,
+                            input: state.input.replace(
+                                /^\[[ xX]?\] /,
+                                state.note.checked ? "[ ] " : "[x] "
+                            ),
+                            note: {
+                                ...state.note,
+                                checked: !state.note.checked,
+                            }
                         }
                     }
                 }
-                return state
+                return { state }
             })
         },
 
         instantiateBlock() {
-            eupdate((state, env) => {
-                if (state.note.type !== 'block') { return {} }
-                if (state.note.isInstantiated === true) { return {} }
-                if (state.note.result.type !== 'immediate') { return {} }
-                if (!block.isBlock(state.note.result.value)) { return {} }
+            envDispatch((state, env) => {
+                if (state.note.type !== 'block') { return { state } }
+                if (state.note.isInstantiated === true) { return { state } }
+                if (state.note.result.type !== 'immediate') { return { state } }
+                if (!block.isBlock(state.note.result.value)) { return { state } }
 
-                const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+                const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
                 let innerState = state.note.result.value.init
                 try {
-                    innerState = state.note.result.value.fromJSON(state.note.lastState, updateBlockState, env)
+                    innerState = state.note.result.value.fromJSON(state.note.lastState, dispatchBlockState, env)
                 }
                 catch (e) { /* do nothing */ }
 
@@ -269,16 +272,20 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>, eupdate: EUpdater<NoteMo
         },
 
         indent() {
-            update(state => ({
-                ...state,
-                level: state.level + 1,
+            dispatch(state => ({
+                state: {
+                    ...state,
+                    level: state.level + 1,
+                }
             }))
         },
 
         outdent() {
-            update(state => ({
-                ...state,
-                level: Math.max(0, state.level - 1),
+            dispatch(state => ({
+                state: {
+                    ...state,
+                    level: Math.max(0, state.level - 1),
+                }
             }))
         },
     }
@@ -286,10 +293,10 @@ function ACTIONS(update: block.BlockUpdater<NoteModel>, eupdate: EUpdater<NoteMo
 
 
 
-export function recompute(state: NoteModel, update: block.BlockUpdater<NoteModel>, env: block.Environment): NoteModel {
+export function recompute(state: NoteModel, dispatch: block.BlockDispatcher<NoteModel>, env: block.Environment): NoteModel {
     return {
         ...state,
-        note: recomputeNote(state.input, state.note, block.fieldUpdater('note', update), env),
+        note: recomputeNote(state.input, state.note, fieldDispatcher('note', dispatch), env),
     }
 }
 

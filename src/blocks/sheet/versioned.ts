@@ -1,11 +1,12 @@
-import * as block from '@tables/core'
-import { BlockUpdater } from "@tables/core"
+import * as block from '@tables/core/block'
+import { BlockDispatcher } from "@tables/core/block"
 
 import * as Multiple from '@tables/core/multiple'
 import { BlockEntry } from "@tables/core/multiple"
 
 import { any, array, oneOf, strict } from "@tables/util/validate"
 import { addRevision, addValidator } from "@tables/util/serialize"
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {
@@ -47,14 +48,14 @@ const sheetSchemaV0 = array(sheetLineSchemaV0)
 const vPre = addValidator(sheetSchemaV0, parseV0)
 
 function parseV0(json: any) {
-    return <State>(update: BlockUpdater<SheetBlockStateV0<State>>, env: block.Environment, innerBlock: block.Block<State>): SheetBlockStateV0<State> => {
-        const updateLines = block.fieldUpdater('lines', update)
+    return <State>(dispatch: BlockDispatcher<SheetBlockStateV0<State>>, env: block.Environment, innerBlock: block.Block<State>): SheetBlockStateV0<State> => {
+        const dispatchLines = fieldDispatcher('lines', dispatch)
 
         return {
             lines: (
                 Multiple.fromJSON(
                     json,
-                    updateLines,
+                    dispatchLines,
                     env,
                     innerBlock,
                     (entry, { visibility }) => ({

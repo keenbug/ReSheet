@@ -1,9 +1,11 @@
-import * as block from '@tables/core'
+import * as block from '@tables/core/block'
 import { any, boolean, defined, number, string, validatorSwitch } from '@tables/util/validate'
 import { addRevision, addValidator } from '@tables/util/serialize'
+import { fieldDispatcher } from '@tables/util/dispatch'
 
 import { Result, resultFrom } from '@tables/code/result'
 import { computeExpr } from '@tables/code/compute'
+
 import { SafeBlock, safeBlock } from '../component'
 
 
@@ -32,37 +34,43 @@ type NoteTypeV0 =
     | { type: 'checkbox', checked: boolean, text: string }
 
 
-export function noteFromJSONV0(json: any, update: block.BlockUpdater<NoteTypeV0>, env: block.Environment): NoteTypeV0 {
-    const updateExprResult = block.updateCaseField({ type: 'expr' }, 'result', update)
-    const updateBlockResult = block.updateCaseField({ type: 'block', isInstantiated: false }, 'result', update)
-    const updateBlockState = block.updateCaseField({ type: 'block', isInstantiated: true }, 'state', update)
+export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTypeV0>, env: block.Environment): NoteTypeV0 {
+    const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatch)
+    const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false }, 'result', dispatch)
+    const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
     return validatorSwitch<NoteTypeV0>(json,
         [{ type: 'expr', code: string }, ({ code }) => {
-            const result = resultFrom(computeExpr(code, env), block.updaterToSetter(updateExprResult))
+            const result = resultFrom(computeExpr(code, env), block.dispatcherToSetter(dispatchExprResult))
             return { type: 'expr', code, result }
         }],
 
         [{ type: 'block', isInstantiated: true, code: string, state: any }, ({ code, state: stateJson }) => {
             function setBlockFromResult(result: Result) {
-                update(() => {
+                dispatch(() => {
                     if (result.type === 'immediate' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, updateBlockResult, env)
-                        return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
+                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        return {
+                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                        }
                     }
 
                     if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, updateBlockResult, env)
-                        return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
+                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        return {
+                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                        }
                     }
 
-                    return { type: 'block', isInstantiated: false, code, result }
+                    return {
+                        state: { type: 'block', isInstantiated: false, code, result },
+                    }
                 })
             }
 
             const result = resultFrom(computeExpr(code, env), setBlockFromResult)
             if (result.type === 'immediate' && block.isBlock(result.value)) {
-                const state = result.value.fromJSON(stateJson, updateBlockState, env)
+                const state = result.value.fromJSON(stateJson, dispatchBlockState, env)
                 return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
             }
             else {
@@ -71,7 +79,7 @@ export function noteFromJSONV0(json: any, update: block.BlockUpdater<NoteTypeV0>
         }],
 
         [{ type: 'block', isInstantiated: false, code: string }, ({ code }) => {
-            const result = resultFrom(computeExpr(code, env), block.updaterToSetter(updateBlockResult))
+            const result = resultFrom(computeExpr(code, env), block.dispatcherToSetter(dispatchBlockResult))
             return { type: 'block', isInstantiated: false, code, result }
         }],
 
@@ -114,15 +122,15 @@ const vPre0 = addValidator<VPre0Parse>(
 
 type VPre1Parse = (args: {
     modelFromInput(level: number, input: string): NoteModelV0,
-    update: block.BlockUpdater<NoteModelV0>,
+    dispatch: block.BlockDispatcher<NoteModelV0>,
     env: block.Environment,
 }) => NoteModelV0
 
 const vPre1 = addRevision<VPre1Parse, VPre0Parse>(vPre0, {
     schema: { level: number, input: string, interpreted: defined },
-    parse: ({ level, input, interpreted }) => ({ update, env }) => {
-        const updateNote = block.fieldUpdater('note', update)
-        const note = noteFromJSONV0(interpreted, updateNote, env)
+    parse: ({ level, input, interpreted }) => ({ dispatch, env }) => {
+        const dispatchNote = fieldDispatcher('note', dispatch)
+        const note = noteFromJSONV0(interpreted, dispatchNote, env)
         return { level, input, note }
     },
     upgrade: (before: VPre0Parse) => ({ modelFromInput }) => {
@@ -135,9 +143,9 @@ type VPre2Parse = VPre1Parse
 
 const vPre2 = addRevision<VPre2Parse, VPre1Parse>(vPre1, {
     schema: { v: 0, level: number, input: string, note: defined },
-    parse: ({ level, input, note: noteJson }) => ({ update, env }) => {
-        const updateNote = block.fieldUpdater('note', update)
-        const note = noteFromJSONV0(noteJson, updateNote, env)
+    parse: ({ level, input, note: noteJson }) => ({ dispatch, env }) => {
+        const dispatchNote = fieldDispatcher('note', dispatch)
+        const note = noteFromJSONV0(noteJson, dispatchNote, env)
         return { level, input, note }
     },
     upgrade: before => before,
@@ -148,9 +156,9 @@ type V0Parse = VPre2Parse
 
 const v0 = addRevision<V0Parse, VPre1Parse>(vPre2, {
     schema: typed(0, { level: number, input: string, note: defined }),
-    parse: ({ level, input, note: noteJson }) => ({ update, env }) => {
-        const updateNote = block.fieldUpdater('note', update)
-        const note = noteFromJSONV0(noteJson, updateNote, env)
+    parse: ({ level, input, note: noteJson }) => ({ dispatch, env }) => {
+        const dispatchNote = fieldDispatcher('note', dispatch)
+        const note = noteFromJSONV0(noteJson, dispatchNote, env)
         return { level, input, note }
     },
     upgrade: before => before,

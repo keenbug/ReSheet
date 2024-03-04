@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import * as Block from '@tables/core'
+import * as Block from '@tables/core/block'
 
 import { any, is, number, string, validatorSwitch } from '@tables/util/validate'
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@tables/util'
@@ -18,7 +18,7 @@ export { JSExpr, BlockSelector, SheetOf, DocumentOf, Note }
 export const Selector = blocks => BlockSelector('JSExpr', JSExpr, blocks)
 export const Sheet = blocks => SheetOf(Selector(blocks))
 
-export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Block.create<State>({
+export const Inspect = <State extends any>(block: Block.BlockDef<State>) => Block.create<State>({
     init: block.init,
     view: block.view,
     fromJSON: block.fromJSON,
@@ -37,7 +37,7 @@ export const Inspect = <State extends any>(block: Block.BlockDesc<State>) => Blo
 export function Input(parser = str => str) {
     return Block.create<string>({
         init: "",
-        view({ state, update }, ref) {
+        view({ state, dispatch }, ref) {
             const inputRef = React.useRef<HTMLInputElement>()
             React.useImperativeHandle(
                 ref,
@@ -47,14 +47,14 @@ export function Input(parser = str => str) {
                 [inputRef],
             )
             function onChange(ev) {
-                update(() => ev.target.value)
+                dispatch(() => ({ state: ev.target.value }))
             }
             return <input ref={inputRef} type="text" value={state} onChange={onChange} />
         },
         getResult(state) {
             return parser(state)
         },
-        recompute(state, update, env) {
+        recompute(state, dispatch, env) {
             return state
         },
         fromJSON(json) {
@@ -90,14 +90,14 @@ export type LoadFileState =
 
 export const LoadFile = Block.create<LoadFileState>({
     init: { state: 'init' },
-    view({ state, update }) {
+    view({ state, dispatch }) {
         async function loadFile(file: File) {
             const buffer = await file.arrayBuffer()
-            update(() => ({ state: 'loaded', file, buffer }))
+            dispatch(() => ({ state: { state: 'loaded', file, buffer } }))
         }
 
         function clear() {
-            update(() => ({ state: 'init' }))
+            dispatch(() => ({ state: { state: 'init' } }))
         }
 
         switch (state.state) {
@@ -118,7 +118,7 @@ export const LoadFile = Block.create<LoadFileState>({
                 )
         }
     },
-    recompute(state, update, env) {
+    recompute(state, dispatch, env) {
         return state
     },
     getResult(state) {

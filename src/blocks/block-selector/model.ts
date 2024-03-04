@@ -1,8 +1,10 @@
-import * as block from '@tables/core'
-import { Block, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { Block, Environment } from '@tables/core/block'
 import { computeExpr } from '@tables/code/compute'
-import { BlockSelectorState } from './versioned'
+
 import { safeBlock } from '../component'
+
+import { BlockSelectorState } from './versioned'
 
 
 export function init(
@@ -36,23 +38,28 @@ export function chooseBlock(
     return state
 }
 
-export function updateBlock(state: BlockSelectorState, action: (state: unknown) => unknown): BlockSelectorState {
-    if (state.mode === 'loading') { return state }
-    return {
-        ...state,
-        innerBlockState: action(state.innerBlockState),
+export function blockDispatcher(dispatch: block.BlockDispatcher<BlockSelectorState>): block.BlockDispatcher<unknown> {
+    return function dispatchBlock(action) {
+        dispatch(state => {
+            if (state.mode === 'loading') { return { state } }
+
+            return {
+                state: {
+                    ...state,
+                    innerBlockState: action(state.innerBlockState).state,
+                }
+            }
+        })
     }
 }
 
 export function recompute(
     state: BlockSelectorState,
-    update: block.BlockUpdater<BlockSelectorState>,
+    dispatch: block.BlockDispatcher<BlockSelectorState>,
     env: Environment,
     blockLibrary: Environment,
 ): BlockSelectorState {
-    function updateInner(action: (inner: unknown) => unknown) {
-        update(state => updateBlock(state, action))
-    }
+    const dispatchBlock = blockDispatcher(dispatch)
 
     const innerBlock = computeExpr(state.expr, { ...blockLibrary, ...env })
 
@@ -65,13 +72,13 @@ export function recompute(
             mode: state.modeAfter,
             expr: state.expr,
             innerBlock: safeBlock(innerBlock),
-            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, updateInner, env),
+            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
         }
     }
         
     return {
         ...state,
         innerBlock: safeBlock(innerBlock),
-        innerBlockState: innerBlock.recompute(state.innerBlockState, updateInner, env)
+        innerBlockState: innerBlock.recompute(state.innerBlockState, dispatchBlock, env)
     }
 }

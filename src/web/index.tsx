@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { BlockRef } from '@tables/core'
+import { BlockHandle, useBlockDispatcher } from '@tables/core/block'
 
 import { DocumentOf, DocumentState } from '@tables/blocks/document'
 import { BlockSelector, BlockSelectorState } from '@tables/blocks/block-selector'
@@ -32,15 +32,17 @@ interface AppProps {
 }
 
 function App({ backupId, initJson=TablesIntroduction }: AppProps) {
-    const [toplevelState, setToplevelState] = React.useState<ToplevelBlockState>(ToplevelBlock.init)
-    const toplevelBlockRef = React.useRef<BlockRef>()
+    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init)
+    const toplevelBlockRef = React.useRef<BlockHandle>()
 
     const [backupPendingState, throttledBackup] = useThrottlePending(3000, storeBackup)
-    
+
     // Load initial state
     React.useEffect(() => {
         if (initJson !== undefined) {
-            setToplevelState(ToplevelBlock.fromJSON(initJson, setToplevelState, library))
+            dispatch(() => ({
+                state: ToplevelBlock.fromJSON(initJson, dispatch, library)
+            }))
         }
     }, [initJson])
 
@@ -114,7 +116,7 @@ function App({ backupId, initJson=TablesIntroduction }: AppProps) {
             <ToplevelBlock.Component
                 ref={toplevelBlockRef}
                 state={toplevelState}
-                update={setToplevelState}
+                dispatch={dispatch}
                 env={library}
                 />
             <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />

@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import * as block from '@tables/core'
+import * as block from '@tables/core/block'
 
 import * as Model from './model'
 import * as UI from './ui'
@@ -16,17 +16,17 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
 
     return block.create<SheetBlockState<State>>({
         init: Model.init,
-        view({ state, update, env }, ref) {
-            return <UI.Sheet ref={ref} state={state} update={update} innerBlock={safeInnerBlock} env={env} />
+        view({ state, dispatch, env }, ref) {
+            return <UI.Sheet ref={ref} state={state} dispatch={dispatch} innerBlock={safeInnerBlock} env={env} />
         },
-        recompute(state, update, env) {
-            return Model.recompute(state, update, env, safeInnerBlock)
+        recompute(state, dispatch, env) {
+            return Model.recompute(state, dispatch, env, safeInnerBlock)
         },
         getResult(state) {
             return Model.getResult(state, safeInnerBlock)
         },
-        fromJSON(json: any[], update, env) {
-            return versioned.fromJSON(json)(update, env, safeInnerBlock)
+        fromJSON(json: any[], dispatch, env) {
+            return versioned.fromJSON(json)(dispatch, env, safeInnerBlock)
         },
         toJSON(state) {
             return versioned.toJSON(state, safeInnerBlock)

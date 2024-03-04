@@ -6,7 +6,7 @@ import babelGenerator from '@babel/generator'
 import babelTraverse from '@babel/traverse'
 import * as babel from '@babel/types'
 
-import * as block from '@tables/core'
+import * as block from '@tables/core/block'
 import docs from '@tables/docs'
 
 import { useSelectionRect } from '@tables/util/hooks'

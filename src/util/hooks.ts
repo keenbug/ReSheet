@@ -2,6 +2,7 @@ import * as React from 'react'
 import { throttle } from 'throttle-debounce'
 
 import { isPromise } from '.'
+import { Action, Dispatcher } from './dispatch'
 
 export interface ThrottleOptions {
     noTrailing?: boolean
@@ -113,38 +114,40 @@ export function manyEffects(...effects: Array<() => void>): () => void {
     }
 }
 
-export interface Effectful<State> {
-    state?: State
-    effect?: () => void
+export type EffectfulOutput = {
+    effect?(): void
 }
-export type EffectfulAction<State> = (state: State) => Effectful<State>
-export type EffectfulUpdater<State> = (action: EffectfulAction<State>) => void
 
-export function useEffectfulUpdate<State>(
-    update: (action: (state: State) => State) => void
-): EffectfulUpdater<State> {
+export type EffectfulAction<State, Input extends any[] = [], Output extends object = {}> =
+    Action<State, Input, EffectfulOutput & Output>
+
+export type EffectfulDispatcher<State, Input extends any[] = [], Output extends object = {}> =
+    Dispatcher<State, Input, EffectfulOutput & Output>
+
+
+export function useEffectfulDispatch<State, Input extends any[] = [], Output extends object = {}>(
+    dispatch: Dispatcher<State, Input, Output>
+): EffectfulDispatcher<State, Input, Output> {
     const queueEffect = useEffectQueue()
 
-    return React.useCallback((effectfulAction: EffectfulAction<State>) => {
-        update(state => {
+    return React.useCallback((action: EffectfulAction<State, Input, Output>) => {
+        dispatch((state, ...args) => {
             const {
                 state: newState = state,
                 effect,
-            } = effectfulAction(state)
+                ...output
+            } = action(state, ...args)
 
             if (effect !== undefined) {
                 queueEffect(effect)
             }
 
-            return newState
+            return {
+                state: newState,
+                ...output as Output,
+            }
         })
-    }, [update, queueEffect])
-}
-
-export function useEffectfulState<State>(init: State | (() => State)): [State, EffectfulUpdater<State>] {
-    const [state, setState] = React.useState<State>(init)
-    const effectfulUpdate = useEffectfulUpdate(setState)
-    return [state, effectfulUpdate]
+    }, [dispatch, queueEffect])
 }
 
 

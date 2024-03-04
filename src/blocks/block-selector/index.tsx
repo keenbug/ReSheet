@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import * as block from '@tables/core'
-import { Block, Environment } from '@tables/core'
+import * as block from '@tables/core/block'
+import { Block, Environment } from '@tables/core/block'
 
 import * as Model from './model'
 import * as UI from './ui'
@@ -18,20 +18,20 @@ export function BlockSelector(
     return block.create<BlockSelectorState>({
         init: Model.init(expr, innerBlockInit),
 
-        view({ state, update, env }, ref) {
+        view({ state, dispatch, env }, ref) {
             return (
                 <UI.BlockSelectorUI
                     ref={ref}
                     state={state}
-                    update={update}
+                    dispatch={dispatch}
                     env={env}
                     blockLibrary={blockLibrary}
                     />
             )
         },
 
-        recompute(state, update, env) {
-            return Model.recompute(state, update, env, blockLibrary)
+        recompute(state, dispatch, env) {
+            return Model.recompute(state, dispatch, env, blockLibrary)
         },
 
         getResult(state) {
@@ -40,8 +40,8 @@ export function BlockSelector(
             return state.innerBlock?.getResult(state.innerBlockState)
         },
 
-        fromJSON(json, update, env) {
-            return versioned.fromJSON(json)({ update, env, blockLibrary })
+        fromJSON(json, dispatch, env) {
+            return versioned.fromJSON(json)({ dispatch, env, blockLibrary })
         },
 
         toJSON(state) {
