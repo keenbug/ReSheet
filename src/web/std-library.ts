@@ -19,9 +19,18 @@ import babel_traverse from '@babel/traverse'
 import * as babel_types from '@babel/types'
 
 // --- Internal ---
-// block
+// core
 import * as core_block from '@tables/core/block'
 import * as core_multiple from '@tables/core/multiple'
+// code
+import * as code_completions from '@tables/code/completions'
+import * as code_compute from '@tables/code/compute'
+import * as code_editor from '@tables/code/editor'
+import * as code_result from '@tables/code/result'
+import * as code_theme from '@tables/code/theme'
+import * as code_ui from '@tables/code/ui'
+import * as code_useEditable from '@tables/code/useEditable'
+import * as code_value from '@tables/code/value'
 // blocks
 import * as blocks from '@tables/blocks'
 import * as blocks_component from '@tables/blocks/component'
@@ -80,6 +89,16 @@ export const library = {
         core: {
             block: core_block,
             multiple: core_multiple,
+        },
+        code: {
+            completions: code_completions,
+            compute: code_compute,
+            editor: code_editor,
+            result: code_result,
+            theme: code_theme,
+            ui: code_ui,
+            useEditable: code_useEditable,
+            value: code_value,
         },
         blocks: {
             component: blocks_component,
