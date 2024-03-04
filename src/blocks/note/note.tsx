@@ -267,11 +267,17 @@ const ViewBlock = React.memo(
                         env={env}
                         />
                     <button
-                        className="absolute inset-0 w-full z-10 bg-gray-100 opacity-60 flex flex-col justify-center items-center text-gray-400 hover:text-sky-300"
+                        className={`
+                            absolute inset-0 w-full z-10
+                            flex flex-col justify-center items-center
+                            bg-gray-100/60 text-gray-400/60
+                            hover:text-sky-400 hover:backdrop-blur-sm
+                            transition-[backdrop-filter,color] duration-75
+                        `}
                         onClick={instantiateBlock}
                         >
                         <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
-                        <div className="text-xs font-thin">Click to instantiate</div>
+                        <div className="text-xs">Click to instantiate</div>
                     </button>
                 </div>
             </div>
