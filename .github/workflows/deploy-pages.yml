@@ -38,7 +38,9 @@ jobs:
       - name: Install dependencies
         run: yarn --frozen-lockfile
       - name: Add Legal Notice
-        run: echo "$LEGAL_NOTICE_HTML" >dist/legal_notice.html
+        run: |
+          mkdir -p dist
+          echo "$LEGAL_NOTICE_HTML" >dist/legal_notice.html
         env:
           LEGAL_NOTICE_HTML: ${{ vars.LEGAL_NOTICE_HTML }}
       - name: Build
