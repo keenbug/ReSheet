@@ -37,8 +37,14 @@ jobs:
           cache: 'yarn'
       - name: Install dependencies
         run: yarn --frozen-lockfile
+      - name: Add Legal Notice
+        run: echo "$LEGAL_NOTICE_HTML" >dist/legal_notice.html
+        env:
+          LEGAL_NOTICE_HTML: ${{ vars.LEGAL_NOTICE_HTML }}
       - name: Build
         run: yarn build
+        env:
+          LEGAL_NOTICE: "/legal_notice.html"
       - name: Upload dist
         uses: actions/upload-pages-artifact@v3
         with:

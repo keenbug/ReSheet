@@ -2,6 +2,7 @@ import * as React from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment } from '@tables/core/block'
@@ -792,13 +793,36 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
         >
             <button
                 className={`
-                    px-2 py-0.5 self-end text-gray-400
+                    absolute top-0 right-0
+                    px-2 py-0.5 text-gray-400
                     hover:text-gray-800 hover:bg-gray-200
                 `}
                 onClick={actions.toggleSidebar}
-                >
+            >
                 <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
             </button>
+
+            <div className="pl-2">
+                <span className="text-xl font-bold text-gray-500">
+                    Tables
+                </span>
+                <a
+                    className="ml-2 text-gray-400 hover:text-blue-600"
+                    href="https://github.com/keenbug/tables"
+                    target="_blank"
+                >
+                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="Tables on GitHub"/>
+                </a>
+                <a
+                    className="ml-1 text-gray-400 hover:text-blue-600"
+                    href="https://discord.gg/TQePmKJNQP"
+                    target="_blank"
+                >
+                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="Tables on Discord"/>
+                </a>
+            </div>
+
+            <div className="h-1" />
 
             <CommandSearchButton />
 
@@ -821,12 +845,38 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
             <button
                 className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
                 onClick={() => actions.addPage([])}
-                >
+            >
                 <span className="inline-block px-0.5 w-6">
                     <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
                 </span>
                 Add Page
             </button>
+
+            <div className="flex-1" />
+
+            <div className="flex flex-col items-center py-1">
+                {process.env.GITHUB_SHA &&
+                    <a
+                        className="font-mono text-xs text-gray-400 hover:text-blue-600"
+                        href={
+                            process.env.GITHUB_RUN_ID ? `https://github.com/keenbug/tables/actions/runs/${process.env.GITHUB_RUN_ID}`
+                            : `https://github.com/keenbug/tables/commit/${process.env.GITHUB_SHA}`
+                        }
+                        target="_blank"
+                    >
+                        build {process.env.GITHUB_SHA.slice(0, 6)}
+                    </a>
+                }
+                {process.env.LEGAL_NOTICE &&
+                    <a
+                        className="font-mono text-xs text-gray-400 hover:text-blue-600"
+                        href={process.env.LEGAL_NOTICE}
+                        target="_blank"
+                    >
+                        LEGAL NOTICE
+                    </a>
+                }
+            </div>
         </Transition>
     )
 }

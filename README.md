@@ -6,8 +6,16 @@
 
 A notes-spreadsheet-hybrid for programmers. Write notes, store data and process
 it. Harness the power of JavaScript, React and their ecosystems with the ease of
-use of a spreadsheet. Even extending Tables with your custom Blocks for your
-use-case is possible.
+use of a spreadsheet. Even extending Tables with your custom Blocks (the
+equivalent of cells in a spreadsheet) for your use-case is possible.
+
+
+## Discord
+
+For Questions, Feedback, or showing what you did in Tables (I'm always
+interested, please share!) join the Tables Discord Server:
+
+[Join Tables on Discord](https://discord.gg/TQePmKJNQP)
 
 
 ## Background
