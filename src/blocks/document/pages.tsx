@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, BlockAction, BlockDispatcher, Environment, mapWithEnv } from '@tables/core/block'
+import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 import { arrayEquals, arrayStartsWith, clampTo } from '@tables/util'
 
@@ -340,19 +340,19 @@ export function updatePages<State>(
 export function updatePageStateAt<State>(
     path: PageId[],
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
-    action: (state: State) => State,
+    action: BlockAction<State>,
     env: Environment,
     innerBlock: Block<State>,
 ) {
-    dispatchPagesState(pages => ({
-        state: recomputePagesFrom(
+    dispatchPagesState(pages => extractActionDescription(action, pureAction =>
+        recomputePagesFrom(
             path,
-            updatePageAt(path, pages, page => ({ ...page, state: action(page.state) })),
+            updatePageAt(path, pages, page => ({ ...page, state: pureAction(page.state) })),
             env,
             innerBlock,
             dispatchPagesState,
         )
-    }))
+    ))
 }
 
 export function recomputePagesFrom<State>(
@@ -385,7 +385,7 @@ export function recomputePagesFrom<State>(
         affectedPages,
         (page, localEnv) => {
             function localDispatch(action: BlockAction<State>) {
-                updatePageStateAt(pathHere, dispatchPagesState, state => action(state).state, env, innerBlock)
+                updatePageStateAt(pathHere, dispatchPagesState, action, env, innerBlock)
             }
 
             const pathHere = [...currentPath, page.id]

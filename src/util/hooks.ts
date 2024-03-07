@@ -119,15 +119,15 @@ export type EffectfulOutput = {
 }
 
 export type EffectfulAction<State, Input extends any[] = [], Output extends object = {}> =
-    Action<State, Input, EffectfulOutput & Output>
+    Action<State, Input, EffectfulOutput & Omit<Output, 'state' | 'effect'>>
 
 export type EffectfulDispatcher<State, Input extends any[] = [], Output extends object = {}> =
-    Dispatcher<State, Input, EffectfulOutput & Output>
+    Dispatcher<State, Input, EffectfulOutput & Omit<Output, 'state' | 'effect'>>
 
 
 export function useEffectfulDispatch<State, Input extends any[] = [], Output extends object = {}>(
-    dispatch: Dispatcher<State, Input, Output>
-): EffectfulDispatcher<State, Input, Output> {
+    dispatch: Dispatcher<State, Input, Omit<Output, 'effect'>>
+): EffectfulDispatcher<State, Input, Omit<Output, 'effect'>> {
     const queueEffect = useEffectQueue()
 
     return React.useCallback((action: EffectfulAction<State, Input, Output>) => {
@@ -144,7 +144,7 @@ export function useEffectfulDispatch<State, Input extends any[] = [], Output ext
 
             return {
                 state: newState,
-                ...output as Output,
+                ...output as Omit<Output, 'effect'>,
             }
         })
     }, [dispatch, queueEffect])

@@ -93,11 +93,17 @@ export const LoadFile = Block.create<LoadFileState>({
     view({ state, dispatch }) {
         async function loadFile(file: File) {
             const buffer = await file.arrayBuffer()
-            dispatch(() => ({ state: { state: 'loaded', file, buffer } }))
+            dispatch(() => ({
+                state: { state: 'loaded', file, buffer },
+                description: "loaded file into block",
+            }))
         }
 
         function clear() {
-            dispatch(() => ({ state: { state: 'init' } }))
+            dispatch(() => ({
+                state: { state: 'init' },
+                description: "cleared file block",
+            }))
         }
 
         switch (state.state) {

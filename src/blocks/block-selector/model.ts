@@ -43,11 +43,14 @@ export function blockDispatcher(dispatch: block.BlockDispatcher<BlockSelectorSta
         dispatch(state => {
             if (state.mode === 'loading') { return { state } }
 
+            const result = action(state.innerBlockState)
+
             return {
                 state: {
                     ...state,
-                    innerBlockState: action(state.innerBlockState).state,
-                }
+                    innerBlockState: result.state,
+                },
+                description: result.description,
             }
         })
     }

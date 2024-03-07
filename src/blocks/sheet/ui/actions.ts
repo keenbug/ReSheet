@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { Block, BlockAction, Environment } from '@tables/core/block'
+import { Block, BlockAction, Environment, extractActionDescription } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 
 import { clampTo } from '@tables/util'
@@ -304,9 +304,9 @@ export function ACTIONS<Inner extends unknown>(
             innerBlock: Block<Inner>,
             env: Environment
         ) {
-            dispatch(state => ({
-                state: Model.updateLineBlock(state, id, inner => action(inner).state, innerBlock, env, dispatch)
-            }))
+            dispatch(state => extractActionDescription(action, pureAction =>
+                Model.updateLineBlock(state, id, pureAction, innerBlock, env, dispatch)
+            ))
         },
 
         copy(state: SheetBlockState<Inner>, innerBlock: Block<Inner>, putIntoClipboard: (type: string, content: string) => void) {

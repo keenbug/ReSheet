@@ -29,7 +29,7 @@ const documentSchema = {
 // Parsing previous to typing and versioning
 
 type VPreParse = <Inner>(args: {
-    updatePageStateAt(path: PageId[], action: (state: Inner) => Inner): void
+    updatePageStateAt(path: PageId[], action: block.BlockAction<Inner>): void
     env: Environment
     innerBlock: Block<Inner>
 }) => Document<Inner>
@@ -47,7 +47,7 @@ const vPre = addValidator<VPreParse>(
 
 function parse<Inner>(
     json: any,
-    updatePageStateAt: (path: PageId[], action: (state: Inner) => Inner) => void,
+    updatePageStateAt: (path: PageId[], action: block.BlockAction<Inner>) => void,
     env: Environment,
     innerBlock: Block<Inner>,
 ): Document<Inner> {
@@ -69,7 +69,7 @@ function parse<Inner>(
 
 function parsePage<Inner>(
     json: any,
-    updatePageStateAt: (path: PageId[], action: (state: Inner) => Inner) => void,
+    updatePageStateAt: (path: PageId[], action: block.BlockAction<Inner>) => void,
     env: Environment,
     innerBlock: Block<Inner>,
     path: PageId[]
@@ -78,7 +78,7 @@ function parsePage<Inner>(
 
     const pathHere = [...path, id]
     function localDispatch(action: block.BlockAction<Inner>) {
-        updatePageStateAt(pathHere, page => action(page).state)
+        updatePageStateAt(pathHere, action)
     }
 
     const loadedChildren = parseSiblingPages(children, updatePageStateAt, env, innerBlock, pathHere)
@@ -107,7 +107,7 @@ function parsePage<Inner>(
 
 function parseSiblingPages<Inner>(
     json: any[],
-    updatePageStateAt: (path: PageId[], action: (state: Inner) => Inner) => void,
+    updatePageStateAt: (path: PageId[], action: block.BlockAction<Inner>) => void,
     env: Environment,
     innerBlock: Block<Inner>,
     path: PageId[]

@@ -1,4 +1,4 @@
-import { Block, BlockDispatcher, Environment } from '@tables/core/block'
+import { Block, BlockAction, BlockDispatcher, Environment } from '@tables/core/block'
 import * as Multiple from '@tables/core/multiple'
 
 import { fieldDispatcher } from '@tables/util/dispatch'
@@ -21,7 +21,7 @@ export function init<Inner>(initInner: Inner): Document<Inner> {
 
 export function fromJSON<Inner>(json: any, dispatch: BlockDispatcher<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
-    function updatePageStateAt(path: PageId[], action: (state: Inner) => Inner) {
+    function updatePageStateAt(path: PageId[], action: BlockAction<Inner>) {
         Pages.updatePageStateAt(path, dispatchPages, action, env, innerBlock)
     }
 

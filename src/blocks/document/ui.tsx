@@ -5,7 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
-import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment } from '@tables/core/block'
+import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@tables/core/block'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@tables/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@tables/util/shortcuts'
 import { fieldDispatcher } from '@tables/util/dispatch'
@@ -39,14 +39,18 @@ function ACTIONS<State extends unknown>(
 
     return {
         dispatchOpenPage(action: BlockAction<State>) {
-            dispatch(doc => ({
-                state: Model.updateOpenPage(doc, page => action(page).state, innerBlock)
-            }))
+            dispatch(doc => extractActionDescription(action, pureAction =>
+                Model.updateOpenPage(
+                    doc,
+                    pureAction,
+                    innerBlock,
+                )
+            ))
         },
 
 
         reset() {
-            dispatch(() => ({ state: Model.init(innerBlock.init) }))
+            dispatch(() => ({ state: Model.init(innerBlock.init), description: "cleared file" }))
         },
 
         save() {
@@ -57,7 +61,7 @@ function ACTIONS<State extends unknown>(
                     'application/json',
                     content,
                 )
-                return { state }
+                return { state, description: "saved file" }
             })
         },
 
@@ -65,7 +69,7 @@ function ACTIONS<State extends unknown>(
             const content = JSON.parse(await file.text())
             try {
                 const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState }))
+                dispatchHistory(() => ({ state: newState, description: `loaded document from local file "${file.name}"` }))
             }
             catch (e) {
                 window.alert(`Could not load file: ${e}`)
@@ -80,7 +84,7 @@ function ACTIONS<State extends unknown>(
                 const response = await fetch(url)
                 const content = await response.json()
                 const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState }))
+                dispatchHistory(() => ({ state: newState, description: `loaded document from url "${url}"` }))
             }
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
@@ -92,19 +96,22 @@ function ACTIONS<State extends unknown>(
                 state: {
                     ...doc,
                     template: Pages.getPageAt(path, doc.pages) ?? doc.template,
-                }
+                },
+                description: "saved current page as template",
             }))
         },
 
         addPage(path: PageId[]) {
             dispatch(doc => ({
-                state: Model.addPageAt(path, doc)
+                state: Model.addPageAt(path, doc),
+                description: "added new page",
             }))
         },
 
         deletePage(path: PageId[]) {
             dispatch(doc => ({
-                state: Model.deletePageAt(path, doc, innerBlock, env, dispatch)
+                state: Model.deletePageAt(path, doc, innerBlock, env, dispatch),
+                description: "deleted page",
             }))
         },
 

@@ -55,11 +55,14 @@ function parseV0({ mode, inner, expr}, dispatch: block.BlockDispatcher<BlockSele
         dispatch(state => {
             if (state.mode === 'loading') { return { state } }
 
+            const result = action(state.innerBlockState)
+
             return {
                 state: {
                     ...state,
-                    innerBlockState: action(state.innerBlockState).state,
-                }
+                    innerBlockState: result.state,
+                },
+                description: result.description,
             }
         })
     }

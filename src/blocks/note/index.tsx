@@ -231,7 +231,8 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
                                 ...state.note,
                                 checked: !state.note.checked,
                             }
-                        }
+                        },
+                        description: "toggled checkbox",
                     }
                 }
                 return { state }
@@ -276,7 +277,8 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
                 state: {
                     ...state,
                     level: state.level + 1,
-                }
+                },
+                description: "indented note",
             }))
         },
 
@@ -285,7 +287,8 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
                 state: {
                     ...state,
                     level: Math.max(0, state.level - 1),
-                }
+                },
+                description: "outdented note", // I know, "outdent" isn't a word
             }))
         },
     }

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { BlockHandle, useBlockDispatcher } from '@tables/core/block'
+import { BlockActionOutput, BlockHandle, useBlockDispatcher } from '@tables/core/block'
 
 import { DocumentOf, DocumentState } from '@tables/blocks/document'
 import { BlockSelector, BlockSelectorState } from '@tables/blocks/block-selector'
@@ -15,6 +15,7 @@ import { getFullKey } from '@tables/util/shortcuts'
 import { library } from './std-library'
 import { storeBackup, db, removeOldBackups } from './backup'
 import { FocusIndicator } from './focus-indicator'
+import { useActionToast } from './action-toast'
 
 import TablesIntroduction from './resources/introduction.js'
 import docs from '@tables/docs'
@@ -32,7 +33,20 @@ interface AppProps {
 }
 
 function App({ backupId, initJson=TablesIntroduction }: AppProps) {
-    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init)
+    const handleDispatchOutput = React.useCallback(function handleDispatchOutput(output: BlockActionOutput, oldState: ToplevelBlockState) {
+        if (output.description) {
+            addActionToast(output.description, oldState)
+        }
+    }, [])
+    const undoState = React.useCallback(function undoState(beforeState: ToplevelBlockState, description: string) {
+        dispatch(() => ({
+            state: beforeState,
+            description: `undo: ${description}`,
+        }))
+    }, [])
+    const [actionToastUi, addActionToast] = useActionToast<ToplevelBlockState>(undoState)
+
+    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, handleDispatchOutput)
     const toplevelBlockRef = React.useRef<BlockHandle>()
 
     const [backupPendingState, throttledBackup] = useThrottlePending(3000, storeBackup)
@@ -121,6 +135,7 @@ function App({ backupId, initJson=TablesIntroduction }: AppProps) {
                 />
             <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />
             <FocusIndicator />
+            {actionToastUi}
         </>
     )
 }

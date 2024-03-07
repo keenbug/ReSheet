@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { BlockAction, BlockDispatcher, Environment } from "@tables/core/block"
+import { BlockAction, BlockDispatcher, Environment, extractActionDescription } from "@tables/core/block"
 import { clampTo } from "@tables/util"
 
 import { getFullKey } from "../utils/ui"
@@ -56,14 +56,14 @@ export function innerDispatcher<State>(
     fromJSON: (json: any, env: Environment) => State,
 ): BlockDispatcher<State> {
     return function dispatchInner(action: BlockAction<State>) {
-        dispatch(state => ({
-            state: updateHistoryCurrent(
+        dispatch(state => extractActionDescription(action, pureAction =>
+            updateHistoryCurrent(
                 state,
-                inner => action(inner).state,
+                pureAction,
                 env,
                 fromJSON,
             )
-        }))
+        ))
     }
 }
 
@@ -288,14 +288,14 @@ export function HistoryView<Inner>({ state, dispatch, children: viewInner, env, 
     function onKeyDownHistory(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             case "C-Z":
-                dispatch(state => ({ state: moveInHistory(-1, state) }))
+                dispatch(state => ({ state: moveInHistory(-1, state), description: "undo" }))
                 event.stopPropagation()
                 event.preventDefault()
                 return
 
             case "C-Shift-Z":
             case "C-Y":
-                dispatch(state => ({ state: moveInHistory(1, state) }))
+                dispatch(state => ({ state: moveInHistory(1, state), description: "redo" }))
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -305,7 +305,7 @@ export function HistoryView<Inner>({ state, dispatch, children: viewInner, env, 
     function onKeyDownCurrent(event: React.KeyboardEvent) {
         switch (getFullKey(event)) {
             case "C-Z":
-                dispatch(state => ({ state: openHistory(state) }))
+                dispatch(state => ({ state: openHistory(state), description: "undo" }))
                 event.stopPropagation()
                 event.preventDefault()
                 return

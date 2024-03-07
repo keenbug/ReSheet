@@ -127,16 +127,16 @@ export function updateEntries<State, Entry extends BlockEntry<State>>(
         (entry, siblingEnv) => {
             const localEnv = getLocalEnv(siblingEnv)
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => ({
-                    state: updateEntryState(
+                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                    updateEntryState(
                         entries,
                         entry.id,
-                        entryState => localAction(entryState).state,
+                        pureAction,
                         localEnv,
                         innerBlock,
                         dispatch,
                     )
-                }))
+                ))
             }
 
             const newEntry = updateEntry(entry, localEnv, localDispatch)
@@ -256,16 +256,16 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
             const localEnv = { ...env, ...siblingEnv, $before: siblingEnv }
 
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => ({
-                    state: updateEntryState(
+                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                    updateEntryState(
                         entries,
                         entry.id,
-                        entryState => localAction(entryState).state,
+                        pureAction,
                         env,
                         innerBlock,
                         dispatch,
                     )
-                }))
+                ))
             }
 
             const { id, name, state, ...jsonRest } = jsonEntry

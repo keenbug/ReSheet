@@ -1,7 +1,7 @@
 import React from 'react'
 
 export type Action<State, Input extends any[] = [], Output extends object = {}> =
-    (state: State, ...args: Input) => { state: State } & Output
+    (state: State, ...args: Input) => { state: State } & Omit<Output, 'state'>
 
 export type Dispatcher<State, Input extends any[] = [], Output extends object = {}> =
     React.Dispatch<Action<State, Input, Output>>
@@ -19,16 +19,44 @@ export function debugDispatcher<State, Input extends any[] = [], Output extends 
     }
 }
 
-
-export function updateToDispatch<State>(update: React.Dispatch<(state: State) => State>): Dispatcher<State> {
-    return function dispatch(action) {
-        update(state => action(state).state)
+export function logDispatcher<State, Input extends any[] = [], Output extends object = {}>(
+    dispatch: Dispatcher<State, Input, Output>,
+): Dispatcher<State, Input, Output> {
+    return function dispatchLog(action) {
+        return dispatch((state, ...input) => {
+            console.log('dispatch incoming', { state, input })
+            const result = action(state, ...input)
+            console.log('dispatch outgoing', result)
+            return result
+        })
     }
 }
 
-export function useDispatcher<State>(init: State): [State, Dispatcher<State>] {
+
+export function updateToDispatch<State, Input extends any[] = [], Output extends object = {}>(
+    update: React.Dispatch<(state: State) => State>,
+    input: Input,
+    handleOutput: (output: Omit<Output, 'state'>, oldState: State, newState: State) => void,
+): Dispatcher<State, Input, Output> {
+    return function dispatch(action) {
+        update(state => {
+            const { state: newState, ...output } = action(state, ...input)
+            handleOutput(output as Omit<Output, 'state'>, state, newState)
+            return newState
+        })
+    }
+}
+
+export function useDispatcher<State, Input extends any[] = [], Output extends object = {}>(
+    init: State,
+    input: Input,
+    handleOutput: (output: Omit<Output, 'state'>, oldState: State, newState: State) => void,
+): [State, Dispatcher<State, Input, Output>] {
     const [state, setState] = React.useState(init)
-    const dispatch = React.useMemo(() => updateToDispatch(setState), [setState])
+    const dispatch = React.useMemo(
+        () => updateToDispatch(setState, input, handleOutput),
+        [setState, input, handleOutput],
+    )
     return [state, dispatch]
 }
 
@@ -44,16 +72,16 @@ export function mapDispatcher<StateBefore, StateAfter, Input extends any[] = [],
             const { state, ...output } = action(mapIncoming(stateBefore), ...input)
             return {
                 state: mapOutgoing(state, stateBefore),
-                ...output as Output,
+                ...output as Omit<Output, 'state'>,
             }
         })
     }
 }
 
-export function fieldDispatcher<State extends object, Field extends keyof State>(
+export function fieldDispatcher<State extends object, Field extends keyof State, Input extends any[] = [], Output extends object = {}>(
     fieldName: Field,
-    dispatch: Dispatcher<State>,
-): Dispatcher<State[Field]> {
+    dispatch: Dispatcher<State, Input, Output>,
+): Dispatcher<State[Field], Input, Output> {
     return mapDispatcher(
         state => state[fieldName],
         (newState, oldState) => ({ ...oldState, [fieldName]: newState }),

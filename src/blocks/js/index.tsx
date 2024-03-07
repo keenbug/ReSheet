@@ -90,7 +90,7 @@ export const JSExprUi = React.forwardRef(
             {
                 description: "jsexpr",
                 bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation',  () => { dispatch(state => ({ state: updateResult(state, dispatch, env) })) }],
+                    [["Alt-Enter"], 'none', 'rerun computation',  () => { dispatch(state => ({ state: updateResult(state, dispatch, env), description: "reran computation" })) }],
                 ]
             },
         ])

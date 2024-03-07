@@ -13,11 +13,23 @@ export interface BlockHandle {
     focus(options?: FocusOptions): void
 }
 
-export type BlockAction<State> = Action<State, [], {}>
+export interface BlockActionOutput {
+    description?: string
+}
 
-export type BlockDispatcher<State> = Dispatcher<State, [], {}>
+export type BlockAction<State> = Action<State, [], BlockActionOutput>
 
-export const useBlockDispatcher = useDispatcher
+export type BlockDispatcher<State> = Dispatcher<State, [], BlockActionOutput>
+
+const DISPATCHER_INPUT = []
+const DUMMY_OUTPUT_HANDLER = () => {}
+
+export function useBlockDispatcher<State>(
+    init: State,
+    handleOutput: (output: BlockActionOutput, oldState: State, newState: State) => void = DUMMY_OUTPUT_HANDLER,
+) {
+    return useDispatcher(init, DISPATCHER_INPUT, handleOutput)
+}
 
 export interface ViewerProps<State> {
     env: Environment
@@ -96,7 +108,7 @@ export function mapWithEnv<Item, Out>(
 
 
 export function dispatcherToSetter<State>(
-    dispatch: Dispatcher<State>,
+    dispatch: BlockDispatcher<State>,
 ): (newState: State) => void {
     return function setState(newState: State) {
         dispatch(() => ({ state: newState }))
@@ -105,9 +117,9 @@ export function dispatcherToSetter<State>(
 
 export function dispatchWhenMatch(
     schema: Validator,
-    dispatch: Dispatcher<any>,
-): Dispatcher<any> {
-    return function dispatchMatch(action: (state: any) => any) {
+    dispatch: BlockDispatcher<any>,
+): BlockDispatcher<any> {
+    return function dispatchMatch(action: BlockAction<any>) {
         dispatch(state => {
             if (validate(schema, state)) {
                 return action(state)
@@ -124,10 +136,25 @@ export function dispatchCaseField<
 >(
     discriminator: Discriminator,
     fieldName: Field,
-    dispatch: Dispatcher<State>,
-): Dispatcher<Extract<State, Discriminator>[Field]> {
+    dispatch: BlockDispatcher<State>,
+): BlockDispatcher<Extract<State, Discriminator>[Field]> {
     return fieldDispatcher<Extract<State, Discriminator>, Field>(
         fieldName,
         dispatchWhenMatch(discriminator, dispatch),
     )
+}
+
+
+export function extractActionDescription<InnerState, OuterState>(
+    action: BlockAction<InnerState>,
+    fn: (stateAction: (innerState: InnerState) => InnerState) => OuterState,
+): { state: OuterState, description?: string } {
+    // Not pretty, but it works
+    let description = undefined
+    const outerState = fn(innerState => {
+        const result = action(innerState)
+        description = result.description
+        return result.state
+    })
+    return { state: outerState, description }
 }
