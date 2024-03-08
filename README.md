@@ -1,4 +1,4 @@
-# Tables
+![tables](assets/images/Logo%20Type.svg)
 
 *working title*
 
@@ -6,16 +6,16 @@
 
 A notes-spreadsheet-hybrid for programmers. Write notes, store data and process
 it. Harness the power of JavaScript, React and their ecosystems with the ease of
-use of a spreadsheet. Even extending Tables with your custom Blocks (the
+use of a spreadsheet. Even extending tables with your custom Blocks (the
 equivalent of cells in a spreadsheet) for your use-case is possible.
 
 
 ## Discord
 
-For Questions, Feedback, or showing what you did in Tables (I'm always
-interested, please share!) join the Tables Discord Server:
+For Questions, Feedback, or showing what you did in tables (I'm always
+interested, please share!) join the tables Discord Server:
 
-[Join Tables on Discord](https://discord.gg/TQePmKJNQP)
+[Join tables on Discord](https://discord.gg/TQePmKJNQP)
 
 
 ## Background
@@ -33,7 +33,7 @@ of as a cell in Excel or a line/page/database in Notion.
 
 ## Development
 
-Running Tables locally should be easy. Make sure you have a `node` environment and
+Running tables locally should be easy. Make sure you have a `node` environment and
 `yarn` (classic/v1) installed. Then:
 
     $ yarn
@@ -42,7 +42,7 @@ Running Tables locally should be easy. Make sure you have a `node` environment a
     $ yarn start
       ... starts development server (parcel) ...
 
-and Tables should be up and running on http://localhost:1234/.
+and tables should be up and running on http://localhost:1234/.
 
 
 ## Architecture

@@ -86,6 +86,11 @@ export const library = {
     blocks,
 
     tables: {
+        assets: {
+            logoTypeSvg: new URL('../../assets/images/Logo Type.svg', import.meta.url),
+            logoSvg: new URL('../../assets/images/Logo.svg', import.meta.url),
+            logoPng: new URL('../../assets/images/Logo@2x.png', import.meta.url),
+        },
         core: {
             block: core_block,
             multiple: core_multiple,

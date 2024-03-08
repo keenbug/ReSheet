@@ -1,4 +1,4 @@
-// Strip the history from a saved Tables document
+// Strip the history from a saved tables document
 const fs = require('fs').promises
 
 async function readFileAndParseJson(filePath) {

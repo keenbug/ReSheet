@@ -21,6 +21,8 @@ import TablesIntroduction from './resources/introduction.js'
 import docs from '@tables/docs'
 import gatherDocs from './docs'
 
+const logoTypeSrc = new URL("../../assets/images/Logo Type.svg", import.meta.url)
+
 const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
@@ -200,8 +202,11 @@ function BackupIndicator({ pendingState, className }: { pendingState: PendingSta
 function LoadingScreen() {
     return (
         <div className="w-screen h-screen flex flex-col justify-center items-center space-y-2">
-            <FontAwesomeIcon icon={solidIcons.faSpinner} spinPulse size="2xl" />
-            <div>Tables is loading...</div>
+            <img className="h-24 w-auto" src={logoTypeSrc.toString()} />
+            <div>
+                <FontAwesomeIcon icon={solidIcons.faSpinner} spinPulse size="sm" />
+                {} loading...
+            </div>
         </div>
     )
 }

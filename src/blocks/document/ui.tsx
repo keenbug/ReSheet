@@ -811,25 +811,25 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 
             <div className="pl-2">
                 <span className="text-xl font-bold text-gray-500">
-                    Tables
+                    tables
                 </span>
                 <a
                     className="ml-2 text-gray-400 hover:text-blue-600"
                     href="https://github.com/keenbug/tables"
                     target="_blank"
                 >
-                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="Tables on GitHub"/>
+                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="tables on GitHub"/>
                 </a>
                 <a
-                    className="ml-1 text-gray-400 hover:text-blue-600"
+                    className="ml-1.5 text-gray-400 hover:text-blue-600"
                     href="https://discord.gg/TQePmKJNQP"
                     target="_blank"
                 >
-                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="Tables on Discord"/>
+                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="tables on Discord"/>
                 </a>
             </div>
 
-            <div className="h-1" />
+            <div className="h-2" />
 
             <CommandSearchButton />
 
