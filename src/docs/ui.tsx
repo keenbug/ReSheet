@@ -67,7 +67,7 @@ export const DocMarkdown = styled(Markdown)`
     }
 
 
-    /* Tables */
+    /* ReSheet */
 
     & table {
         margin: 1rem 0;

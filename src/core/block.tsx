@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import { Validator, ValidatorObj, validate } from '@tables/util/validate'
-import { Action, Dispatcher, fieldDispatcher, useDispatcher } from '@tables/util/dispatch'
+import { Validator, ValidatorObj, validate } from '@resheet/util/validate'
+import { Action, Dispatcher, fieldDispatcher, useDispatcher } from '@resheet/util/dispatch'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)

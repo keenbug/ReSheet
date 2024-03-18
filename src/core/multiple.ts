@@ -1,4 +1,4 @@
-import { Validator, ValidatorObj, number, string } from "@tables/util/validate"
+import { Validator, ValidatorObj, number, string } from "@resheet/util/validate"
 
 import { Block, Environment } from "./block"
 import * as block from "./block"

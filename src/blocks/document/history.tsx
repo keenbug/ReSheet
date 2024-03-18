@@ -1,7 +1,7 @@
 import * as React from "react"
 
-import { BlockAction, BlockDispatcher, Environment, extractActionDescription } from "@tables/core/block"
-import { clampTo } from "@tables/util"
+import { BlockAction, BlockDispatcher, Environment, extractActionDescription } from "@resheet/core/block"
+import { clampTo } from "@resheet/util"
 
 import { getFullKey } from "../utils/ui"
 

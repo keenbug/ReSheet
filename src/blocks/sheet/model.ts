@@ -1,11 +1,11 @@
-import * as block from '@tables/core/block'
-import { Block } from '@tables/core/block'
-import * as Multiple from '@tables/core/multiple'
+import * as block from '@resheet/core/block'
+import { Block } from '@resheet/core/block'
+import * as Multiple from '@resheet/core/multiple'
 
-import { clampTo, nextElem } from '@tables/util'
+import { clampTo, nextElem } from '@resheet/util'
 
 import { LineVisibility, SheetBlockLine, SheetBlockState, VISIBILITY_STATES } from './versioned'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export function nextLineVisibility(visibility: LineVisibility) {

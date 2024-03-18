@@ -8,8 +8,8 @@ import * as babelParser from '@babel/parser'
 import babelGenerator from '@babel/generator'
 import * as babelAst from '@babel/types'
 
-import { CodeView } from '@tables/code/editor'
-import { Pending, PromiseResult, Result } from '@tables/code/result'
+import { CodeView } from '@resheet/code/editor'
+import { Pending, PromiseResult, Result } from '@resheet/code/result'
 
 import { ErrorView } from './ui'
 

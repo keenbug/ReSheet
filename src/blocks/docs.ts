@@ -1,4 +1,4 @@
-import { DocsMap } from "@tables/docs"
+import { DocsMap } from "@resheet/docs"
 
 import { gatherDocs as jsexprDocs } from "./js"
 import selectorDocs from "./block-selector/docs"

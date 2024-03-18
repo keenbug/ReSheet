@@ -25,8 +25,8 @@
 // Extracted from: https://github.com/FormidableLabs/use-editable
 
 import { useState, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
-import { useSyncRef } from '@tables/util/hooks'
-import { clampTo } from '@tables/util'
+import { useSyncRef } from '@resheet/util/hooks'
+import { clampTo } from '@resheet/util'
 
 export interface SelRange<Pos> {
     start: Pos

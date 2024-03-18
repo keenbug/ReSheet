@@ -4,7 +4,7 @@ import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import { interpolate } from '@tables/util'
+import { interpolate } from '@resheet/util'
 
 
 // Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent

@@ -4,16 +4,16 @@ import { useInView } from 'react-intersection-observer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '@tables/core/block'
-import { BlockDispatcher, BlockHandle, Environment } from '@tables/core/block'
-import { useRefMap, renderConditionally, WithSkipRender } from '@tables/util/hooks'
+import * as block from '@resheet/core/block'
+import { BlockDispatcher, BlockHandle, Environment } from '@resheet/core/block'
+import { useRefMap, renderConditionally, WithSkipRender } from '@resheet/util/hooks'
 
-import { ValueInspector } from '@tables/code/value'
-import { useEnvDispatcher } from '@tables/blocks/utils/hooks'
-import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
+import { ValueInspector } from '@resheet/code/value'
+import { useEnvDispatcher } from '@resheet/blocks/utils/hooks'
+import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 
-import { TextInput, focusWithKeyboard } from '@tables/blocks/utils/ui'
-import { SafeBlock } from '@tables/blocks/component'
+import { TextInput, focusWithKeyboard } from '@resheet/blocks/utils/ui'
+import { SafeBlock } from '@resheet/blocks/component'
 
 import * as Model from '../model'
 import { SheetBlockState, SheetBlockLine } from '../versioned'
@@ -103,8 +103,8 @@ export const Sheet = React.forwardRef(
         }
 
         function onPaste(ev: React.ClipboardEvent) {
-            if (ev.clipboardData.types.includes('application/x.tables-block')) {
-                const json = JSON.parse(ev.clipboardData.getData('application/x.tables-block'))
+            if (ev.clipboardData.types.includes('application/x.resheet-block')) {
+                const json = JSON.parse(ev.clipboardData.getData('application/x.resheet-block'))
                 actions.paste(json, innerBlock)
                 ev.stopPropagation()
                 ev.preventDefault()

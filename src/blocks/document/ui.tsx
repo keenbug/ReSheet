@@ -5,10 +5,10 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
-import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@tables/core/block'
-import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@tables/util'
-import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@tables/util/shortcuts'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
+import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@resheet/util'
+import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@resheet/util/shortcuts'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
 
@@ -57,7 +57,7 @@ function ACTIONS<State extends unknown>(
             dispatchHistory(state => {
                 const content = JSON.stringify(History.historyToJSON(state, doc => Model.toJSON(doc, innerBlock)))
                 saveFile(
-                    'tables.json',
+                    'ReSheet.json',
                     'application/json',
                     content,
                 )
@@ -811,21 +811,21 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 
             <div className="pl-2">
                 <span className="text-xl font-bold text-gray-500">
-                    tables
+                    ReSheet
                 </span>
                 <a
                     className="ml-2 text-gray-400 hover:text-blue-600"
-                    href="https://github.com/keenbug/tables"
+                    href="https://github.com/keenbug/ReSheet"
                     target="_blank"
                 >
-                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="tables on GitHub"/>
+                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="ReSheet on GitHub"/>
                 </a>
                 <a
                     className="ml-1.5 text-gray-400 hover:text-blue-600"
                     href="https://discord.gg/TQePmKJNQP"
                     target="_blank"
                 >
-                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="tables on Discord"/>
+                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="ReSheet on Discord"/>
                 </a>
             </div>
 
@@ -866,8 +866,8 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                     <a
                         className="font-mono text-xs text-gray-400 hover:text-blue-600"
                         href={
-                            process.env.GITHUB_RUN_ID ? `https://github.com/keenbug/tables/actions/runs/${process.env.GITHUB_RUN_ID}`
-                            : `https://github.com/keenbug/tables/commit/${process.env.GITHUB_SHA}`
+                            process.env.GITHUB_RUN_ID ? `https://github.com/keenbug/ReSheet/actions/runs/${process.env.GITHUB_RUN_ID}`
+                            : `https://github.com/keenbug/ReSheet/commit/${process.env.GITHUB_SHA}`
                         }
                         target="_blank"
                     >

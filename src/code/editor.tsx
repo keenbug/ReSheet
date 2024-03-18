@@ -2,8 +2,8 @@ import * as React from 'react'
 
 import { Highlight } from 'prism-react-renderer'
 
-import { clampBetween } from '@tables/util'
-import { getFullKey } from '@tables/util/shortcuts'
+import { clampBetween } from '@resheet/util'
+import { getFullKey } from '@resheet/util/shortcuts'
 
 import theme from './theme'
 import { Editable, changeLinesContainingSelection, splitByPosition, useEditable } from './useEditable'

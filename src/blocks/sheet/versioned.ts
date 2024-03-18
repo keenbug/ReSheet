@@ -1,15 +1,23 @@
-import * as block from '@tables/core/block'
-import { BlockDispatcher } from "@tables/core/block"
+import * as block from '@resheet/core/block'
+import { BlockDispatcher } from "@resheet/core/block"
 
-import * as Multiple from '@tables/core/multiple'
-import { BlockEntry } from "@tables/core/multiple"
+import * as Multiple from '@resheet/core/multiple'
+import { BlockEntry } from "@resheet/core/multiple"
 
-import { any, array, oneOf, strict } from "@tables/util/validate"
-import { addRevision, addValidator } from "@tables/util/serialize"
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { any, array, oneOf, strict } from "@resheet/util/validate"
+import { addRevision, addValidator } from "@resheet/util/serialize"
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {
+    return {
+        t: 'resheet.sheet',
+        v: revision,
+        ...obj,
+    }
+}
+
+function typedTables<Obj extends object>(revision: number, obj: Obj): Obj {
     return {
         t: 'tables.sheet',
         v: revision,
@@ -69,7 +77,17 @@ function parseV0(json: any) {
 }
 
 const v0 = addRevision(vPre, {
-    schema: typed(0, { lines: sheetSchemaV0 }),
+    schema: typedTables(0, { lines: sheetSchemaV0 }),
+    parse({ lines }) {
+        return parseV0(lines)
+    },
+    upgrade(before) {
+        return before
+    },
+})
+
+const v1 = addRevision(v0, {
+    schema: typed(1, { lines: sheetSchemaV0 }),
     parse({ lines }) {
         return parseV0(lines)
     },
@@ -88,11 +106,11 @@ export type {
 }
 export {
     VISIBILITY_STATES_V0 as VISIBILITY_STATES,
-    v0 as fromJSON,
+    v1 as fromJSON,
 }
 
 export function toJSON<Inner>(state: SheetBlockStateV0<Inner>, innerBlock: block.Block<Inner>) {
-    return typed(0, {
+    return typed(1, {
         lines: state.lines.map(
             ({ id, name, visibility, state }) => (
                 {

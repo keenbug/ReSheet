@@ -1,7 +1,7 @@
 import * as React from 'react'
 
-import { Block, BlockHandle, BlockDispatcher, ViewerProps, Environment, BlockAction } from '@tables/core/block'
-import { ErrorBoundary, ErrorInspector } from '@tables/code/value'
+import { Block, BlockHandle, BlockDispatcher, ViewerProps, Environment, BlockAction } from '@resheet/core/block'
+import { ErrorBoundary, ErrorInspector } from '@resheet/code/value'
 
 import { ErrorView } from './utils/ui'
 

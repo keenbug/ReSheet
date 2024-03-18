@@ -3,25 +3,25 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { BlockActionOutput, BlockHandle, useBlockDispatcher } from '@tables/core/block'
+import { BlockActionOutput, BlockHandle, useBlockDispatcher } from '@resheet/core/block'
 
-import { DocumentOf, DocumentState } from '@tables/blocks/document'
-import { BlockSelector, BlockSelectorState } from '@tables/blocks/block-selector'
-import { safeBlock } from '@tables/blocks/component'
+import { DocumentOf, DocumentState } from '@resheet/blocks/document'
+import { BlockSelector, BlockSelectorState } from '@resheet/blocks/block-selector'
+import { safeBlock } from '@resheet/blocks/component'
 
-import { PendingState, useThrottlePending } from '@tables/util/hooks'
-import { getFullKey } from '@tables/util/shortcuts'
+import { PendingState, useThrottlePending } from '@resheet/util/hooks'
+import { getFullKey } from '@resheet/util/shortcuts'
 
 import { library } from './std-library'
 import { storeBackup, db, removeOldBackups } from './backup'
 import { FocusIndicator } from './focus-indicator'
 import { useActionToast } from './action-toast'
 
-import TablesIntroduction from './resources/introduction.js'
-import docs from '@tables/docs'
+import ReSheetIntroduction from './resources/introduction.js'
+import docs from '@resheet/docs'
 import gatherDocs from './docs'
 
-const logoTypeSrc = new URL("../../assets/images/Logo Type.svg", import.meta.url)
+const logoTypeSrc = new URL("../../assets/images/logotype.svg", import.meta.url)
 
 const blocks = library.blocks
 
@@ -34,7 +34,7 @@ interface AppProps {
     initJson: any | undefined
 }
 
-function App({ backupId, initJson=TablesIntroduction }: AppProps) {
+function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     const handleDispatchOutput = React.useCallback(function handleDispatchOutput(output: BlockActionOutput, oldState: ToplevelBlockState) {
         if (output.description) {
             addActionToast(output.description, oldState)

@@ -1,24 +1,24 @@
 import * as React from 'react'
 
-import { BlockHandle } from '@tables/core/block'
-import * as block from '@tables/core/block'
+import { BlockHandle } from '@resheet/core/block'
+import * as block from '@resheet/core/block'
 
-import { DocMarkdown } from '@tables/docs/ui'
-import { DocsMap } from '@tables/docs'
+import { DocMarkdown } from '@resheet/docs/ui'
+import { DocsMap } from '@resheet/docs'
 
-import { CodeEditor, CodeEditorHandle } from '@tables/code/editor'
-import { useCompletionsOverlay } from '@tables/code/completions'
-import { safeBlock } from '@tables/blocks/component'
+import { CodeEditor, CodeEditorHandle } from '@resheet/code/editor'
+import { useCompletionsOverlay } from '@resheet/code/completions'
+import { safeBlock } from '@resheet/blocks/component'
 
-import { computeScript } from '@tables/code/compute'
-import { Pending, Result, resultFrom } from '@tables/code/result'
-import { ViewResult } from '@tables/code/value'
+import { computeScript } from '@resheet/code/compute'
+import { Pending, Result, resultFrom } from '@resheet/code/result'
+import { ViewResult } from '@resheet/code/value'
 
-import { useShortcuts } from '@tables/util/shortcuts'
+import { useShortcuts } from '@resheet/util/shortcuts'
 
 import { JSExprModel } from './versioned'
 import * as versioned from './versioned'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export const JSExpr = block.create<JSExprModel>({

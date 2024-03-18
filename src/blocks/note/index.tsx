@@ -1,14 +1,14 @@
 import * as React from 'react'
 
-import { BlockHandle } from '@tables/core/block'
-import * as block from '@tables/core/block'
+import { BlockHandle } from '@resheet/core/block'
+import * as block from '@resheet/core/block'
 
-import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '@tables/code/editor'
-import { useCompletionsOverlay } from '@tables/code/completions'
+import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '@resheet/code/editor'
+import { useCompletionsOverlay } from '@resheet/code/completions'
 
-import { getResultValue } from '@tables/code/result'
+import { getResultValue } from '@resheet/code/result'
 
-import { Keybindings, useShortcuts } from '@tables/util/shortcuts'
+import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 
 import { EnvDispatcher, useEnvDispatcher } from '../utils/hooks'
 import { getFullKey } from '../utils/ui'
@@ -18,7 +18,7 @@ import { safeBlock } from '../component'
 import { ViewBlockInstantiated, ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
 import { NoteModel, NoteType } from './versioned'
 import * as versioned from './versioned'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 const init: NoteModel = {

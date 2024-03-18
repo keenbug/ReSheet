@@ -1,15 +1,23 @@
-import * as block from '@tables/core/block'
-import { any, boolean, defined, number, string, validatorSwitch } from '@tables/util/validate'
-import { addRevision, addValidator } from '@tables/util/serialize'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import * as block from '@resheet/core/block'
+import { any, boolean, defined, number, string, validatorSwitch } from '@resheet/util/validate'
+import { addRevision, addValidator } from '@resheet/util/serialize'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
-import { Result, resultFrom } from '@tables/code/result'
-import { computeExpr } from '@tables/code/compute'
+import { Result, resultFrom } from '@resheet/code/result'
+import { computeExpr } from '@resheet/code/compute'
 
 import { SafeBlock, safeBlock } from '../component'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj) {
+    return {
+        t: 'resheet.note',
+        v: revision,
+        ...obj,
+    }
+}
+
+function typedTables<Obj extends object>(revision: number, obj: Obj) {
     return {
         t: 'tables.note',
         v: revision,
@@ -155,7 +163,23 @@ const vPre2 = addRevision<VPre2Parse, VPre1Parse>(vPre1, {
 type V0Parse = VPre2Parse
 
 const v0 = addRevision<V0Parse, VPre1Parse>(vPre2, {
-    schema: typed(0, { level: number, input: string, note: defined }),
+    schema: typedTables(0, { level: number, input: string, note: defined }),
+    parse: ({ level, input, note: noteJson }) => ({ dispatch, env }) => {
+        const dispatchNote = fieldDispatcher('note', dispatch)
+        const note = noteFromJSONV0(noteJson, dispatchNote, env)
+        return { level, input, note }
+    },
+    upgrade: before => before,
+})
+
+
+type V1Parse = V0Parse
+
+type NoteModelV1 = NoteModelV0
+type NoteTypeV1 = NoteTypeV0
+
+const v1 = addRevision<V1Parse, V0Parse>(v0, {
+    schema: typed(1, { level: number, input: string, note: defined }),
     parse: ({ level, input, note: noteJson }) => ({ dispatch, env }) => {
         const dispatchNote = fieldDispatcher('note', dispatch)
         const note = noteFromJSONV0(noteJson, dispatchNote, env)
@@ -168,16 +192,16 @@ const v0 = addRevision<V0Parse, VPre1Parse>(vPre2, {
 // Export current Revision
 
 export type {
-    NoteModelV0 as NoteModel,
-    NoteTypeV0 as NoteType,
+    NoteModelV1 as NoteModel,
+    NoteTypeV1 as NoteType,
 }
 
 export {
-    v0 as fromJSON,
+    v1 as fromJSON,
 }
 
-export function toJSON(state: NoteModelV0) {
-    function noteToJSON(note: NoteTypeV0) {
+export function toJSON(state: NoteModelV1) {
+    function noteToJSON(note: NoteTypeV1) {
         switch (note.type) {
             case 'expr':
                 return { type: 'expr', code: note.code }
@@ -201,7 +225,7 @@ export function toJSON(state: NoteModelV0) {
         }
     }
 
-    return typed(0, {
+    return typed(1, {
         level: state.level,
         input: state.input,
         note: noteToJSON(state.note),

@@ -1,4 +1,4 @@
-import { BlockEntry } from '@tables/core/multiple'
+import { BlockEntry } from '@resheet/core/multiple'
 
 export type PageId = number
 

@@ -1,7 +1,7 @@
-import { Block, BlockAction, BlockDispatcher, Environment } from '@tables/core/block'
-import * as Multiple from '@tables/core/multiple'
+import { Block, BlockAction, BlockDispatcher, Environment } from '@resheet/core/block'
+import * as Multiple from '@resheet/core/multiple'
 
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 import * as Pages from './pages'
 import { Document, PageId, PageState } from './versioned'

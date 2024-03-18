@@ -5,11 +5,11 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
-import * as block from '@tables/core/block'
+import * as block from '@resheet/core/block'
 
-import { resultFrom } from '@tables/code/result'
-import { computeExpr, parseJSExpr } from '@tables/code/compute'
-import { ViewResult } from '@tables/code/value'
+import { resultFrom } from '@resheet/code/result'
+import { computeExpr, parseJSExpr } from '@resheet/code/compute'
+import { ViewResult } from '@resheet/code/value'
 
 import { NoteType } from './versioned'
 import { safeBlock } from '../component'

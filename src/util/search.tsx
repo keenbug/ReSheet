@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { useRefMap, useSyncRef } from '@tables/util/hooks'
+import { useRefMap, useSyncRef } from '@resheet/util/hooks'
 
 
 export type Match = { prefix: string, match: string }[]

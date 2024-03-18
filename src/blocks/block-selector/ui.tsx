@@ -3,14 +3,14 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
-import * as block from '@tables/core/block'
-import { BlockHandle, Environment } from '@tables/core/block'
+import * as block from '@resheet/core/block'
+import { BlockHandle, Environment } from '@resheet/core/block'
 
-import { CodeView, CodeEditor, CodeEditorHandle } from '@tables/code/editor'
-import { useCompletionsOverlay } from '@tables/code/completions'
+import { CodeView, CodeEditor, CodeEditorHandle } from '@resheet/code/editor'
+import { useCompletionsOverlay } from '@resheet/code/completions'
 
-import { EffectfulDispatcher, useEffectfulDispatch } from '@tables/util/hooks'
-import { computeExpr } from '@tables/code/compute'
+import { EffectfulDispatcher, useEffectfulDispatch } from '@resheet/util/hooks'
+import { computeExpr } from '@resheet/code/compute'
 
 import { ErrorBoundary, ValueInspector } from '../../code/value'
 import { useShortcuts } from '../../util/shortcuts'

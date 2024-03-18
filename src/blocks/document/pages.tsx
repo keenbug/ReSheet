@@ -4,9 +4,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@tables/core/block'
-import * as Multiple from '@tables/core/multiple'
-import { arrayEquals, arrayStartsWith, clampTo } from '@tables/util'
+import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
+import * as Multiple from '@resheet/core/multiple'
+import { arrayEquals, arrayStartsWith, clampTo } from '@resheet/util'
 
 import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'

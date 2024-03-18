@@ -1,13 +1,22 @@
-import * as block from '@tables/core/block'
-import { Environment } from '@tables/core/block'
-import { addRevision, addValidator } from '@tables/util/serialize'
-import { any, oneOf, string } from '@tables/util/validate'
-import { computeExpr } from '@tables/code/compute'
+import * as block from '@resheet/core/block'
+import { Environment } from '@resheet/core/block'
+import { addRevision, addValidator } from '@resheet/util/serialize'
+import { any, oneOf, string } from '@resheet/util/validate'
+import { computeExpr } from '@resheet/code/compute'
 
 import { SafeBlock, safeBlock } from '../component'
 
 
 function typed<Obj extends object>(version: number, obj: Obj): Obj {
+    return {
+        t: 'resheet.selector',
+        v: version,
+        ...obj,
+    }
+}
+
+
+function typedTables<Obj extends object>(version: number, obj: Obj): Obj {
     return {
         t: 'tables.selector',
         v: version,
@@ -85,7 +94,19 @@ function parseV0({ mode, inner, expr}, dispatch: block.BlockDispatcher<BlockSele
 }
 
 const v0 = addRevision(vPre, {
-    schema: typed(0, {
+    schema: typedTables(0, {
+        mode: oneOf('run', 'choose'),
+        expr: string,
+        inner: any,
+    }),
+    parse: json => ({ dispatch, env, blockLibrary }) => {
+        return parseV0(json, dispatch, env, blockLibrary)
+    },
+    upgrade: before => before,
+})
+
+const v1 = addRevision(v0, {
+    schema: typed(1, {
         mode: oneOf('run', 'choose'),
         expr: string,
         inner: any,

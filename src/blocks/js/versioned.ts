@@ -1,9 +1,17 @@
-import { addRevision, addValidator } from "@tables/util/serialize"
-import { string } from "@tables/util/validate"
-import { Result } from "@tables/code/result"
+import { addRevision, addValidator } from "@resheet/util/serialize"
+import { string } from "@resheet/util/validate"
+import { Result } from "@resheet/code/result"
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {
+    return {
+        t: 'resheet.jsexpr',
+        v: revision,
+        ...obj,
+    }
+}
+
+function typedTables<Obj extends object>(revision: number, obj: Obj): Obj {
     return {
         t: 'tables.jsexpr',
         v: revision,
@@ -27,7 +35,20 @@ const vPre = addValidator<JSExprModelV0>(
 )
 
 const v0 = addRevision(vPre, {
-    schema: typed(0, { code: string }),
+    schema: typedTables(0, { code: string }),
+    parse({ code }): JSExprModelV0 {
+        return {
+            code,
+            result: { type: 'immediate', value: undefined },
+        }
+    },
+    upgrade(before) {
+        return before
+    },
+})
+
+const v1 = addRevision(v0, {
+    schema: typed(1, { code: string }),
     parse({ code }): JSExprModelV0 {
         return {
             code,
@@ -51,10 +72,10 @@ export const init: JSExprModelV0 = {
     result: { type: 'immediate', value: undefined },
 }
 
-export { v0 as fromJSON }
+export { v1 as fromJSON }
 
 export function toJSON(state: JSExprModelV0) {
-    return typed(0, {
+    return typed(1, {
         code: state.code,
     })
 }

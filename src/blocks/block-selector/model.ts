@@ -1,6 +1,6 @@
-import * as block from '@tables/core/block'
-import { Block, Environment } from '@tables/core/block'
-import { computeExpr } from '@tables/code/compute'
+import * as block from '@resheet/core/block'
+import { Block, Environment } from '@resheet/core/block'
+import { computeExpr } from '@resheet/code/compute'
 
 import { safeBlock } from '../component'
 

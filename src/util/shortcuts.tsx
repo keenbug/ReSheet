@@ -5,7 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { Map, OrderedMap, List, Set } from 'immutable'
 import { debounce } from 'throttle-debounce'
 
-import { intersperse } from '@tables/util'
+import { intersperse } from '@resheet/util'
 
 // Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent
 interface KeyboardEvent {

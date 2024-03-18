@@ -1,9 +1,9 @@
 import { MarkdownToJSX, RuleType } from 'markdown-to-jsx'
 
-import { DocsMap } from "@tables/docs"
-import { DocMarkdown } from "@tables/docs/ui"
+import { DocsMap } from "@resheet/docs"
+import { DocMarkdown } from "@resheet/docs/ui"
 
-import { CodeView } from "@tables/code/editor"
+import { CodeView } from "@resheet/code/editor"
 
 import mdnContent from "./js-global-objects"
 

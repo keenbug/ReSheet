@@ -6,7 +6,7 @@ import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
 import { Set } from 'immutable'
 
-import { CollectorUiProps, KeyButton, KeyMap } from '@tables/util/shortcuts'
+import { CollectorUiProps, KeyButton, KeyMap } from '@resheet/util/shortcuts'
 
 
 type CollectorUiState = 'hidden' | 'bar' | 'dialog'

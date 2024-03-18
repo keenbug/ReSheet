@@ -1,9 +1,9 @@
 import * as React from 'react'
 
-import * as block from '@tables/core/block'
-import { Block, Environment } from '@tables/core/block'
+import * as block from '@resheet/core/block'
+import { Block, Environment } from '@resheet/core/block'
 
-import { CollectKeymap, GatherShortcuts } from '@tables/util/shortcuts'
+import { CollectKeymap, GatherShortcuts } from '@resheet/util/shortcuts'
 
 import * as Model from './model'
 import * as UI from './ui'

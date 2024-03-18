@@ -1,4 +1,4 @@
-// Strip the history from a saved tables document
+// Strip the history from a saved ReSheet document
 const fs = require('fs').promises
 
 async function readFileAndParseJson(filePath) {
@@ -16,7 +16,7 @@ async function readFileAndParseJson(filePath) {
 const filePath = process.argv[2]
 
 if (!filePath) {
-  console.error('Usage: node strip-history.js tables-document.json [ > stripped-document.json ]')
+  console.error('Usage: node strip-history.js ReSheet-document.json [ > stripped-document.json ]')
 }
 else {
   readFileAndParseJson(filePath)

@@ -1,9 +1,9 @@
 import * as React from 'react'
 
-import { Block, BlockAction, Environment, extractActionDescription } from '@tables/core/block'
-import * as Multiple from '@tables/core/multiple'
+import { Block, BlockAction, Environment, extractActionDescription } from '@resheet/core/block'
+import * as Multiple from '@resheet/core/multiple'
 
-import { clampTo } from '@tables/util'
+import { clampTo } from '@resheet/util'
 
 import { EnvDispatcher } from '../../utils/hooks'
 import { findScrollableAncestor } from '../../utils/ui'
@@ -11,7 +11,7 @@ import { findScrollableAncestor } from '../../utils/ui'
 import * as Model from '../model'
 import { SheetBlockState } from '../versioned'
 import * as versioned from '../versioned'
-import { fieldDispatcher } from '@tables/util/dispatch'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export interface SheetLineRef {
@@ -323,7 +323,7 @@ export function ACTIONS<Inner extends unknown>(
             }
             if (selectedLines) {
                 putIntoClipboard(
-                    'application/x.tables-block',
+                    'application/x.resheet-block',
                     JSON.stringify(
                         versioned.toJSON(
                             { lines: selectedLines },

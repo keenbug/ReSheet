@@ -1,4 +1,4 @@
-import { isPromise } from "@tables/util"
+import { isPromise } from "@resheet/util"
 
 export type Result =
     | { type: 'immediate', value: any }

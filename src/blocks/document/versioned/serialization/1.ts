@@ -4,8 +4,9 @@ import { Block, Environment } from '@resheet/core/block'
 import { addRevision, addValidator } from '@resheet/util/serialize'
 import { boolean, array, number, any, string, lazy } from '@resheet/util/validate'
 
-import { typedTables } from '.'
+import { typed, typedTables } from '.'
 import { PageId, PageState, Document, getName } from '../types/0'
+import * as v0 from './0'
 
 
 const pageSchema = {
@@ -26,24 +27,13 @@ const documentSchema = {
 }
 
 
-// Parsing previous to typing and versioning
-
-type VPreParse = <Inner>(args: {
+type Parse = <Inner>(args: {
     updatePageStateAt(path: PageId[], action: block.BlockAction<Inner>): void
     env: Environment
     innerBlock: Block<Inner>
 }) => Document<Inner>
 
-const vPre = addValidator<VPreParse>(
-    documentSchema,
-    json => ({ updatePageStateAt, env, innerBlock }) => {
-        return parse(json, updatePageStateAt, env, innerBlock)
-    }
-)
 
-
-
-// First parser with typing and versioning
 
 function parse<Inner>(
     json: any,
@@ -126,10 +116,8 @@ function parseSiblingPages<Inner>(
 }
 
 
-export type Parse = VPreParse
-
-export const fromJSON = addRevision<Parse, VPreParse>(vPre, {
-    schema: typedTables(0, documentSchema),
+export const fromJSON = addRevision<v0.Parse, Parse>(v0.fromJSON, {
+    schema: typed(1, documentSchema),
     parse: json => ({ updatePageStateAt, env, innerBlock }) => {
         return parse(json, updatePageStateAt, env, innerBlock)
     },
@@ -140,7 +128,7 @@ export function toJSON<Inner>(state: Document<Inner>, innerBlock: Block<Inner>) 
     const { viewState } = state
     const template = pageToJSON(state.template, innerBlock)
     const pages = pagesToJSON(state.pages, innerBlock)
-    return { pages, viewState, template }
+    return typed(1, { pages, viewState, template })
 }
 
 function pagesToJSON<Inner>(pages: PageState<Inner>[], innerBlock: Block<Inner>) {

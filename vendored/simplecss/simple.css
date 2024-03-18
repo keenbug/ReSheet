@@ -22,7 +22,7 @@
 }
 
 /* Dark theme */
-/* Commented out, because it clashes with the light theme of tables. Dark theme not implemented yet. */
+/* Commented out, because it clashes with the light theme of ReSheet. Dark theme not implemented yet. */
 /* @media (prefers-color-scheme: dark) {
   :root,
   ::backdrop {
@@ -422,7 +422,7 @@
   margin-bottom: 0;
 }
 
-/* Format tables */
+/* Format ReSheet */
 .simplecss table {
   border-collapse: collapse;
   margin: 1.5rem 0;

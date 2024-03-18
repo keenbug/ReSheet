@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { Environment } from '@tables/core/block'
-import { EffectfulAction, EffectfulDispatcher, useEffectfulDispatch } from '@tables/util/hooks'
-import { Dispatcher } from '@tables/util/dispatch'
+import { Environment } from '@resheet/core/block'
+import { EffectfulAction, EffectfulDispatcher, useEffectfulDispatch } from '@resheet/util/hooks'
+import { Dispatcher } from '@resheet/util/dispatch'
 
 // Effectful action with Env
 export type EnvAction<State, Input extends any[] = [], Output extends object = {}> = EffectfulAction<State, [Environment, ...Input], Output>

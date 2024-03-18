@@ -1,11 +1,11 @@
 import React from 'react'
 
-import { Block, useBlockDispatcher } from '@tables/core/block'
-import { CodeView } from '@tables/code/editor'
-import { computeExpr } from '@tables/code/compute'
+import { Block, useBlockDispatcher } from '@resheet/core/block'
+import { CodeView } from '@resheet/code/editor'
+import { computeExpr } from '@resheet/code/compute'
 
-import { DocsMap } from '@tables/docs'
-import { DocMarkdown } from '@tables/docs/ui'
+import { DocsMap } from '@resheet/docs'
+import { DocMarkdown } from '@resheet/docs/ui'
 
 import { safeBlock } from '../component'
 

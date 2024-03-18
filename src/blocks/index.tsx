@@ -1,9 +1,9 @@
 import * as React from 'react'
 
-import * as Block from '@tables/core/block'
+import * as Block from '@resheet/core/block'
 
-import { any, is, number, string, validatorSwitch } from '@tables/util/validate'
-import { base64ToUint8Array, uint8ArrayToBase64 } from '@tables/util'
+import { any, is, number, string, validatorSwitch } from '@resheet/util/validate'
+import { base64ToUint8Array, uint8ArrayToBase64 } from '@resheet/util'
 
 import { classed, LoadFileButton } from './utils/ui'
 

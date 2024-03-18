@@ -6,12 +6,12 @@ import babelGenerator from '@babel/generator'
 import babelTraverse from '@babel/traverse'
 import * as babel from '@babel/types'
 
-import * as block from '@tables/core/block'
-import docs from '@tables/docs'
+import * as block from '@resheet/core/block'
+import docs from '@resheet/docs'
 
-import { useSelectionRect } from '@tables/util/hooks'
-import { KeyButtonContainer, Keybinding, Keybindings } from '@tables/util/shortcuts'
-import { SearchResult, matchSearch, renderMatch, useSearchResults } from '@tables/util/search'
+import { useSelectionRect } from '@resheet/util/hooks'
+import { KeyButtonContainer, Keybinding, Keybindings } from '@resheet/util/shortcuts'
+import { SearchResult, matchSearch, renderMatch, useSearchResults } from '@resheet/util/search'
 
 import { computeExprUNSAFE, parseJSExpr } from './compute'
 import { ValueInspector } from './value'
