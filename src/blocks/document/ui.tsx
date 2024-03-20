@@ -207,6 +207,7 @@ function ACTIONS<State extends unknown>(
                 const nextPageIndex = clampTo(0, allPaths.length, openPageIndex + 1)
 
                 const newPath = allPaths[nextPageIndex]
+                if (!newPath) { return { state } }
                 return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
             })
         },
@@ -218,6 +219,7 @@ function ACTIONS<State extends unknown>(
                 const prevPageIndex = clampTo(0, allPaths.length, openPageIndex - 1)
 
                 const newPath = allPaths[prevPageIndex]
+                if (!newPath) { return { state } }
                 return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
             })
         },
