@@ -20,13 +20,14 @@ import { useActionToast } from './action-toast'
 import ReSheetIntroduction from './resources/introduction.js'
 import docs from '@resheet/docs'
 import gatherDocs from './docs'
+import { Note, SheetOf } from '@resheet/blocks'
 
 const logoTypeSrc = new URL("../../assets/images/logotype.svg", import.meta.url)
 
 const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
-const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('', null, blocks)))
+const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('SheetOf(Note)', SheetOf(Note), blocks)))
 
 
 interface AppProps {
