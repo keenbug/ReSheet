@@ -22,6 +22,9 @@ import * as History from './history'
 import { Document, PageId, PageState } from './versioned'
 import * as versioned from './versioned'
 
+const logoSmallSvg = new URL("../../../assets/images/logo-small.svg", import.meta.url)
+
+
 type Actions<State> = ReturnType<typeof ACTIONS<State>>
 
 interface ActionProps<State> {
@@ -809,9 +812,10 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                 <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
             </button>
 
-            <div className="pl-2">
+            <div className="group/sidebar-header pl-2 flex items-baseline">
+                <img src={logoSmallSvg.toString()} alt="ReSheet Logo" className="inline h-4 mr-1.5 saturate-0 group-hover/sidebar-header:saturate-100"/>
                 <span className="text-xl font-bold text-gray-500">
-                    ReSheet
+                    ReSheet <span className="text-xs font-normal">alpha</span>
                 </span>
                 <a
                     className="ml-2 text-gray-400 hover:text-blue-600"

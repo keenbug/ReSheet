@@ -1,6 +1,10 @@
-<img src="assets/images/logotype.svg" alt="ReSheet" style="max-height: 4rem" >
+<h1>
+  <img src="assets/images/logo.svg" alt="ReSheet" height="28">
+  ReSheet
+  <sub>alpha</sub>
+</h1>
 
-[Try it](https://tbls.dev/)
+[Try it](https://resheet.dev/)
 
 A notes-spreadsheet-hybrid for programmers. Write notes, store data and process
 it. Harness the power of JavaScript, React and their ecosystems with the ease of
@@ -18,9 +22,20 @@ interested, please share!) join the ReSheet Discord Server:
 
 ## Roadmap
 
-### Improvements
+ReSheet is currently in alpha stage. This means I'm currently testing it with
+users and changing it according to their feedback. There still are open issues
+and missing features I'm actively working on. There may occur some bigger
+changes, but I'll try to make them as unobtrusive as possible.
 
-- [ ] React interop: External libs depending on react may break
+Once known limitations and missing features are adressed I'll transition it into
+beta, where I'll try to squash any remaining bugs.
+
+After that ReSheet will be ready for the first stable release.
+
+### Limitations
+
+- [ ] React interop: External libs depending on react may not work under some
+      circumstances
 - [ ] Inspector: Improve perfomance and design; make it customizable
 - [ ] Performance: Don't block UI by computations
 
@@ -35,29 +50,15 @@ interested, please share!) join the ReSheet Discord Server:
 
 In the last months I have put all my available time into developing ReSheet. I'd
 love for it to become a stable and mature tool for developers seeking a powerful
-spreadsheet, that gives them the power of a popular programming language with
-its vast ecosystem and the UX of a spreadsheet. Therefore everything I develop
-is going to be open source.
+notebook/spreadsheet hybrid. Therefore everything I develop is going to be open
+source.
 
 My favourite option to continue developing this is (unsurprisingly) to make it
 into my full-time job. For that I thought about developing some extra (premium)
-Blocks, that don't get bundled with ReSheet. They should still be open source and
+Blocks, that don't get bundled with ReSheet. They will still be open source and
 on GitHub, but not openly packaged anywhere (npm). If you'd like to support the
 development of ReSheet, you can then pay to get access to the packaged Blocks
 hosted by me. I hope this sounds fair.
-
-
-## Background
-
-This is still a prototype. The code is neither documented nor has it many tests.
-This made it easier for me to experiment with different ideas and discard them.
-Despite efforts to make it stable, it can crash because of errors in the code a
-user writes in it. Also, I'm sure ReSheet itself still has enough bugs. ;)
-
-One of my goals was to keep the codebase as simple while still as versatile and
-powerful as possible. I'm currently very pleased with the state in this regard.
-In `src/index.tsx` you can see the hard-coded root "Block", which can be thought
-of as a cell in Excel or a line/page/database in Notion.
 
 
 ## Development
@@ -75,6 +76,17 @@ and ReSheet should be up and running on http://localhost:1234/.
 
 
 ## Architecture
+
+One of my goals was to keep the codebase as simple while still as versatile and
+powerful as possible. I'm currently very pleased with the state in this regard.
+ReSheet revolves around the definition of a Block, something similar to a cell
+in a spreadsheet. In `src/core/block.tsx` you can see its interface definition.
+In `src/web/index.tsx` you can see the hard-coded top-level Block for the web
+app. I tried to write ReSheet in a way, that it can be used as a toolbox for
+building similar tools by combining and writing custom Blocks.
+
+Unfortunately the code itself is still 99.9% undocumented. (This codebase
+evolved from a prototype.)
 
 ```mermaid
 graph TD;
@@ -112,7 +124,7 @@ and some helper functions specific for Blocks.
 In `blocks` lie all Block implementations. Among them:
 - `JSExpr`: A multiline JavaScript Block
 - `block-selector`: Dynamically select any available Block (using JavaScript)
-- `sheet`: A sheet of Blocks. Consists of lines, that can be named and can
+- `sheet`: A sheet of Blocks. Consists of lines that can be named and can
   reference prior lines.
 - `note`: A versatile Block to just write some text with markdown, embed a
   JavaScript expression or embed another Block.
