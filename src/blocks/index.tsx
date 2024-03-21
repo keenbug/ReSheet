@@ -5,7 +5,7 @@ import * as Block from '@resheet/core/block'
 import { any, is, number, string, validatorSwitch } from '@resheet/util/validate'
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@resheet/util'
 
-import { classed, LoadFileButton } from './utils/ui'
+import { LoadFileButton } from './utils/ui'
 
 import { SheetOf } from './sheet'
 import { BlockSelector } from './block-selector'
@@ -118,7 +118,7 @@ export const LoadFile = Block.create<LoadFileState>({
                         <span className="text-sm text-gray-700">({state.file.size} bytes)</span> {}
                         <LoadFileButton className={loadFileButtonStyle} onLoad={loadFile}>change</LoadFileButton>
                         <button
-                            className="m-0.5 px-1 rounded border border-red-100 text-red-600 hover:bg-red-100"
+                            className="m-0.5 px-1 rounded border border-red-100 text-red-700 hover:bg-red-100"
                             onClick={clear}
                         >
                             clear
