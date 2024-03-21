@@ -14,7 +14,7 @@ export const transformReactOpts = { presets: [ babelReact ] }
 
 
 export const parseJSExpr = (sourcecode: string) =>
-    babelParser.parseExpression(sourcecode, parseReactOpts)
+    babelParser.parseExpression(sourcecode, { ...parseReactOpts, allowAwaitOutsideFunction: true })
 
 
 export const transformJSAst = (programAst: babel.types.Program, code: string) =>
