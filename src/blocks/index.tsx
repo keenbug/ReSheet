@@ -71,19 +71,6 @@ export function Input(parser = str => str) {
     })
 }
 
-const loadFileButtonStyle = `
-    cursor-pointer
-    m-0.5
-    px-1
-    border
-    border-gray-200
-    rounded
-    font-gray-700
-    bg-gray-100
-    hover:bg-gray-200
-`
-export const LoadFileButtonStyled = classed<any>(LoadFileButton)`${loadFileButtonStyle}`
-
 export type LoadFileState =
     | { state: 'init' }
     | { state: 'loaded', file: File, buffer: ArrayBuffer }
@@ -91,6 +78,13 @@ export type LoadFileState =
 export const LoadFile = Block.create<LoadFileState>({
     init: { state: 'init' },
     view({ state, dispatch }) {
+        const loadFileButtonStyle = `
+            m-0.5 px-1
+            rounded border border-gray-200
+            text-gray-700
+            bg-gray-100 hover:bg-gray-200
+        `
+
         async function loadFile(file: File) {
             const buffer = await file.arrayBuffer()
             dispatch(() => ({
@@ -109,9 +103,12 @@ export const LoadFile = Block.create<LoadFileState>({
         switch (state.state) {
             case 'init':
                 return (
-                    <LoadFileButtonStyled onLoad={loadFile}>
+                    <LoadFileButton
+                        className={loadFileButtonStyle}
+                        onLoad={loadFile}
+                    >
                         Load File
-                    </LoadFileButtonStyled>
+                    </LoadFileButton>
                 )
 
             case 'loaded':
@@ -119,7 +116,13 @@ export const LoadFile = Block.create<LoadFileState>({
                     <div>
                         File <code className="px-1 bg-gray-100 rounded-sm">{state.file.name}</code> loaded {}
                         <span className="text-sm text-gray-700">({state.file.size} bytes)</span> {}
-                        <button className={loadFileButtonStyle} onClick={clear}>clear</button>
+                        <LoadFileButton className={loadFileButtonStyle} onLoad={loadFile}>change</LoadFileButton>
+                        <button
+                            className="m-0.5 px-1 rounded border border-red-100 text-red-600 hover:bg-red-100"
+                            onClick={clear}
+                        >
+                            clear
+                        </button>
                     </div>
                 )
         }
@@ -133,7 +136,7 @@ export const LoadFile = Block.create<LoadFileState>({
             case 'loaded': return state.file
         }
     },
-    fromJSON(json, env) {
+    fromJSON(json, dispatch, env) {
         return validatorSwitch<LoadFileState>(json,
             [is(null), () => ({ state: 'init' })],
             [string, content => {
@@ -153,20 +156,38 @@ export const LoadFile = Block.create<LoadFileState>({
                     buffer: uint8Array.buffer,
                 }
             }],
-            [{ state: 'loaded', file: { content: string, name: string, options: { type: string, lastModified: number } } }, ({ file: { content, name, options: { type, lastModified } } }) => {
-                const uint8Array = base64ToUint8Array(content)
-                return {
+            [
+                {
                     state: 'loaded',
-                    file: new File([uint8Array], name, { type, lastModified }),
-                    buffer: uint8Array.buffer,
-                }
-            }],
+                    file: {
+                        content: string,
+                        name: string,
+                        options: { type: string, lastModified: number },
+                    },
+                },
+                ({
+                    file: {
+                        content,
+                        name,
+                        options: { type, lastModified },
+                    }
+                }) => {
+                    const uint8Array = base64ToUint8Array(content)
+                    return {
+                        state: 'loaded',
+                        file: new File([uint8Array], name, { type, lastModified }),
+                        buffer: uint8Array.buffer,
+                    }
+                },
+            ],
             [any, () => ({ state: 'init' })],
         )
     },
     toJSON(state) {
         switch (state.state) {
-            case 'init': return { state: 'init' }
+            case 'init':
+                return { state: 'init' }
+
             case 'loaded':
                 return {
                     state: 'loaded',
@@ -176,7 +197,7 @@ export const LoadFile = Block.create<LoadFileState>({
                         options: {
                             type: state.file.type,
                             lastModified: state.file.lastModified,
-                        }
+                        },
                     }
                 }
         }
