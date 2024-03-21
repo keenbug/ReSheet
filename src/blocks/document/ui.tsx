@@ -768,7 +768,7 @@ interface SidebarProps<State> extends ActionProps<State> {
 function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     function CommandSearchButton() {
         return (
-            <div
+            <button
                 className={`
                     rounded-full mx-2 px-3 py-0.5
                     flex flex-row items-baseline space-x-2
@@ -778,7 +778,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                     transition
                     group
                 `}
-                onClick={() => commandBinding[3]()}
+                onPointerDown={ev => { ev.preventDefault(); commandBinding[3]() }} // Not onClick so it fires before the focus changes
             >
                 <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
                 <span>Commands</span>
@@ -788,7 +788,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                         commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
                     )}
                 </div>
-            </div>
+            </button>
         )
     }
 
