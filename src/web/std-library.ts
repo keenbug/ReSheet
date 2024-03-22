@@ -62,6 +62,7 @@ const resheet = {
         logoTypeSvg: new URL('../../assets/images/logotype.svg', import.meta.url),
         logoSvg: new URL('../../assets/images/logo.svg', import.meta.url),
         logoPng: new URL('../../assets/images/logo.png', import.meta.url),
+        demoGif: new URL('../../assets/video/demo.gif', import.meta.url),
     },
     core: {
         block: core_block,

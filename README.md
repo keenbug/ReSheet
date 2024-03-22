@@ -1,5 +1,5 @@
 <h1>
-  <img src="assets/images/logo.svg" alt="ReSheet" height="28">
+  <img src="assets/images/logo.svg" alt="ReSheet logo" height="28">
   ReSheet
   <sub>alpha</sub>
 </h1>
@@ -10,6 +10,8 @@ A notes-spreadsheet-hybrid for programmers. Write notes, store data and process
 it. Harness the power of JavaScript, React and their ecosystems with the ease of
 use of a spreadsheet. Even extending ReSheet with your custom Blocks (the
 equivalent of cells in a spreadsheet) for your use-case is possible.
+
+![ReSheet demo animation](assets/video/demo.gif)
 
 
 ## Discord
