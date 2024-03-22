@@ -22,6 +22,8 @@ import docs from '@resheet/docs'
 import gatherDocs from './docs'
 import { Note, SheetOf } from '@resheet/blocks'
 
+import './hoist-react'
+
 const logoTypeSrc = new URL("../../assets/images/logotype.svg", import.meta.url)
 
 const blocks = library.blocks

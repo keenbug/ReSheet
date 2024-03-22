@@ -15,6 +15,13 @@
             window.addEventListener('error', ev => { ev.stopImmediatePropagation() })
         </script>
         <script type="module" src="index.tsx"></script>
+        <script type="importmap">
+            {
+                "imports": {
+                    "react": "/$ReSheet$React.mjs"
+                }
+            }
+        </script>
     </head>
     <body>
         <div id="app" class="relative overflow-scroll h-screen"></div>
