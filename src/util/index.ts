@@ -145,7 +145,8 @@ export function stringifyFields(obj: object) {
         .join(', ')
 }
 
-export function uint8ArrayToBase64(uint8Array: Uint8Array, chunkSize: number = 1024 * 1024) {
+export function uint8ArrayToBase64(uint8Array: Uint8Array) {
+    const chunkSize = 6 * 1024 // must be a multiple of 6, so btoa doesn't add padding to a chunk
     const chunks = []
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
         const chunk = uint8Array.subarray(i, i + chunkSize)
