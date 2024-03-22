@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
+    <!-- Ugly workaround, so parcel doesn't put the compiled js before the importmap -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "/$ReSheet$React.mjs"
+            }
+        }
+    </script>
+
     <head>
         <title>ReSheet</title>
-
-        <script type="importmap">
-            {
-                "imports": {
-                    "react": "/$ReSheet$React.mjs"
-                }
-            }
-        </script>
-
 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
