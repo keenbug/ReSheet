@@ -36,7 +36,7 @@ After that ReSheet will be ready for the first stable release.
 
 ### Limitations
 
-- [ ] React interop: External libs depending on react may not work under some
+- [x] React interop: External libs depending on react may not work under some
       circumstances
 - [ ] Inspector: Improve perfomance and design; make it customizable
 - [ ] Performance: Don't block UI by computations
