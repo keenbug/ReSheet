@@ -38,7 +38,7 @@ function KeymapCollectorBar({ hidden, onChangeUi }: { hidden: boolean, onChangeU
     return (
         <div className="absolute left-0 top-0 right-0 z-10 py-1 px-4 shadow bg-amber-200/75 hover:bg-amber-200 backdrop-blur-sm text-amber-950 text-center">
             <button onClick={() => onChangeUi('dialog')}>
-                For shortcuts to work properly, please make a quick callibration here.
+                For shortcuts to work properly, please make a quick calibration here.
             </button>
             <button className="float-right hover:text-amber-600" onClick={() => onChangeUi('hidden')}>
                 <FontAwesomeIcon icon={solidIcons.faXmark} />
