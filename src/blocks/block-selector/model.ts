@@ -5,6 +5,7 @@ import { computeExpr } from '@resheet/code/compute'
 import { safeBlock } from '../component'
 
 import { BlockSelectorState } from './versioned'
+import { Pending } from '@resheet/code/result'
 
 
 export function init(
@@ -62,6 +63,8 @@ export function recompute(
     env: Environment,
     blockLibrary: Environment,
 ): BlockSelectorState {
+    if (Object.values(env).includes(Pending)) { return state }
+
     const dispatchBlock = blockDispatcher(dispatch)
 
     const innerBlock = computeExpr(state.expr, { ...blockLibrary, ...env })

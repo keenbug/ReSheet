@@ -115,6 +115,8 @@ export const JSExprUi = React.forwardRef(
 )
 
 function updateResult(state: JSExprModel, dispatch: block.BlockDispatcher<JSExprModel>, env: block.Environment): JSExprModel {
+    if (Object.values(env).includes(Pending)) { return state }
+
     const dispatchResult = fieldDispatcher('result', dispatch)
     function setResult(result: Result) {
         dispatchResult(() => ({ state: result }))

@@ -7,7 +7,7 @@ import Markdown from 'markdown-to-jsx'
 
 import * as block from '@resheet/core/block'
 
-import { resultFrom } from '@resheet/code/result'
+import { Pending, resultFrom } from '@resheet/code/result'
 import { computeExpr, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
@@ -78,6 +78,8 @@ export function evaluateNote(input: string, env: block.Environment, dispatchNote
 
 
 export function recomputeNote(input: string, note: NoteType, dispatch: block.BlockDispatcher<NoteType>, env: block.Environment): NoteType {
+    if (Object.values(env).includes(Pending)) { return note }
+
     if (note.type === 'expr' && note.result.type === 'promise') {
         note.result.cancel()
     }
