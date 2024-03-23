@@ -54,7 +54,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, handleDispatchOutput)
     const toplevelBlockRef = React.useRef<BlockHandle>()
 
-    const [backupPendingState, throttledBackup] = useThrottlePending(3000, storeBackup)
+    const [backupPendingState, throttledBackup] = useThrottlePending(3000, execBackup)
 
     // Load initial state
     React.useEffect(() => {
@@ -70,7 +70,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     React.useEffect(() => {
         // On first render: don't overwrite a backup before it was loaded
         if (toplevelState !== ToplevelBlock.init) {
-            throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
+            throttledBackup(backupId, () => ToplevelBlock.toJSON(toplevelState))
         }
     }, [backupId, toplevelState])
 
@@ -214,6 +214,27 @@ function LoadingScreen() {
     )
 }
 
+
+const backupWorker = new Worker(
+    new URL('backup-worker.ts', import.meta.url),
+    { type: 'module' },
+)
+
+function execBackup(id: string, thunk: () => any) {
+    return new Promise<void>(resolve => {
+        const ref = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+
+        backupWorker.addEventListener('message', waitForCompletion)
+        backupWorker.postMessage({ id, ref, document: thunk() })
+
+        function waitForCompletion(event: MessageEvent<{ done: number }>) {
+            if (event.data.done === ref) {
+                backupWorker.removeEventListener('message', waitForCompletion)
+                resolve()
+            }
+        }
+    })
+}
 
 async function loadBackup(id: string) {
     try {
