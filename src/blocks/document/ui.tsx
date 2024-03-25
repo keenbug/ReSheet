@@ -5,6 +5,8 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
+import _ from 'lodash'
+
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
 import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@resheet/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@resheet/util/shortcuts'
@@ -241,9 +243,15 @@ function ACTIONS<State extends unknown>(
 
         toggleSidebar() {
             dispatch(state => ({
-                state: $update(open => !open, state,'viewState','sidebarOpen')
+                state: _.update(state, ['viewState', 'sidebarOpen'], open => !open)
             }))
         },
+
+        setSidebarOpen(open: boolean) {
+            dispatch(state => ({
+                state: _.set(state, ['viewState', 'sidebarOpen'], open)
+            }))
+        }
 
     }
 }
@@ -412,7 +420,7 @@ function DocumentKeyBindings<State>(
                     ["Escape"],
                     "!selfFocused",
                     "focus sidebar",
-                    () => { containerRef.current?.focus() },
+                    () => { actions.setSidebarOpen(true); containerRef.current?.focus() },
                 ],
                 [
                     ["Enter"],
@@ -462,7 +470,6 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         })
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
-    const [isSelfFocused, setIsSelfFocused] = React.useState(false)
     const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
     const [search, setSearch] = React.useState<Keybindings>()
 
@@ -492,35 +499,18 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
 
-    const onFocus = React.useCallback((ev: React.FocusEvent) => {
-        if (ev.target === ev.currentTarget) {
-            setIsSelfFocused(true)
-        }
-        bindingProps.onFocus(ev)
-    }, [bindingProps.onFocus])
-
-    const onBlur = React.useCallback((ev: React.FocusEvent) => {
-        if (ev.target === ev.currentTarget) {
-            setIsSelfFocused(false)
-        }
-        bindingProps.onBlur(ev)
-    }, [bindingProps.onBlur])
-
-
     React.useEffect(() => {
         mainScrollRef.current && mainScrollRef.current.scroll({ top: 0, behavior: 'instant' })
     }, [state.viewState.openPage])
 
 
-    const sidebarVisible = isSelfFocused || state.viewState.sidebarOpen || isNameEditing
+    const sidebarVisible = state.viewState.sidebarOpen || isNameEditing
 
     return (
         <div
             ref={containerRef}
             tabIndex={-1}
             {...bindingProps}
-            onFocus={onFocus}
-            onBlur={onBlur}
             className="group/document-ui relative h-full w-full overflow-hidden outline-none"
             >
             <Sidebar

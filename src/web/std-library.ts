@@ -10,6 +10,7 @@ import * as reactInspector from 'react-inspector'
 import * as prismReactRenderer from 'prism-react-renderer'
 
 import * as immutable from 'immutable'
+import lodash from 'lodash'
 
 import * as babel_core from '@babel/core'
 import babel_react from '@babel/preset-react'
@@ -129,6 +130,7 @@ export const library = {
     reactInspector,
 
     immutable,
+    lodash,
 
     babel: {
         core: babel_core,
