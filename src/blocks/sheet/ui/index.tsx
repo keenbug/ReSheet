@@ -193,12 +193,12 @@ export interface SheetLinesProps<InnerState> {
     selection: [number, number] | null
 }
 
-export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
+export const SheetLinesEnv = React.memo(function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
     if (lines.length === 0) {
         return null
     }
     return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={block.emptyEnv} aboveViewport={true} {...props} />
-}
+})
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     index: number
