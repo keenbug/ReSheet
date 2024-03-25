@@ -16,14 +16,15 @@ export interface HistoryWrapper<State> {
     inner: State
 }
 
-export interface HistoryWrapperJSON<StateJSON> {
-    inner: StateJSON
-}
-
 export type HistoryEntry<State> = {
     time: Date
     state: State
     prev?: Date
+}
+
+export interface HistoryWrapperJSON<StateJSON> {
+    history: unknown[] // for backwards compatibility
+    inner: StateJSON
 }
 
 
@@ -170,6 +171,7 @@ export function historyToJSON<State>(
     toJSON: (state: State) => unknown,
 ): HistoryWrapperJSON<unknown> {
     return {
+        history: [],
         inner: toJSON(historyWrapper.inner),
     }
 }
