@@ -214,7 +214,7 @@ export function renderConditionally<Props>(Component: React.FC<Props>, comparePr
 }
 
 
-export function useSelectionRect() {
+export function useSelectionRect(active: boolean = true) {
     const [rect, setRect] = React.useState<DOMRect | null>(null)
     const rectRef = useSyncRef(rect)
 
@@ -240,13 +240,16 @@ export function useSelectionRect() {
     }
 
     React.useEffect(() => {
+        if (!active) { return }
+
+        updateSelectionRect()
         document.addEventListener('selectionchange', updateSelectionRect)
         return () => {
             document.removeEventListener('selectionchange', updateSelectionRect)
         }
-    }, [])
+    }, [active])
 
     React.useEffect(updateSelectionRect)
 
-    return rect
+    return active ? rect : null
 }

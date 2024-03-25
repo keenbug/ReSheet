@@ -47,7 +47,7 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
         }
     ]
 
-    const selectionRect = useSelectionRect()
+    const selectionRect = useSelectionRect(completionVisibilty !== null)
     const relativeRect = containerRef.current?.offsetParent && containerRef.current.offsetParent.getBoundingClientRect()
     const caretRect = selectionRect && relativeRect && (
         new DOMRect(
