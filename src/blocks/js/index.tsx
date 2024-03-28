@@ -10,8 +10,8 @@ import { CodeEditor, CodeEditorHandle } from '@resheet/code/editor'
 import { useCompletionsOverlay } from '@resheet/code/completions'
 import { safeBlock } from '@resheet/blocks/component'
 
-import { computeScript } from '@resheet/code/compute'
-import { Pending, Result, resultFrom } from '@resheet/code/result'
+import { computeScript, freeVarsScript } from '@resheet/code/compute'
+import { Result, getResultValue, resultFrom } from '@resheet/code/result'
 import { ViewResult } from '@resheet/code/value'
 
 import { useShortcuts } from '@resheet/util/shortcuts'
@@ -26,26 +26,19 @@ export const JSExpr = block.create<JSExprModel>({
     view({ env, state, dispatch }, ref) {
         return <JSExprUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
-    recompute(state, dispatch, env) {
-        return updateResult(state, dispatch, env)
+    recompute(state, dispatch, env, changedVars) {
+        const usedVars = freeVarsScript(state.code)
+        if (changedVars.intersect(usedVars).isEmpty()) {
+            return { state, invalidated: false }
+        }
+
+        return {
+            state: updateResult(state, dispatch, env),
+            invalidated: true,
+        }
     },
     getResult(state) {
-        switch (state.result.type) {
-            case 'immediate':
-                return state.result.value
-
-            case 'promise':
-                switch (state.result.state) {
-                    case 'pending':
-                        return Pending
-                    
-                    case 'failed':
-                        return state.result.error
-                    
-                    case 'finished':
-                        return state.result.value
-                }
-        }
+        return getResultValue(state.result)
     },
     fromJSON(json, dispatch, env) {
         return updateResult(versioned.fromJSON(json), dispatch, env)
@@ -114,9 +107,11 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
-function updateResult(state: JSExprModel, dispatch: block.BlockDispatcher<JSExprModel>, env: block.Environment): JSExprModel {
-    if (Object.values(env).includes(Pending)) { return state }
-
+function updateResult(
+    state: JSExprModel,
+    dispatch: block.BlockDispatcher<JSExprModel>,
+    env: block.Environment,
+): JSExprModel {
     const dispatchResult = fieldDispatcher('result', dispatch)
     function setResult(result: Result) {
         dispatchResult(() => ({ state: result }))

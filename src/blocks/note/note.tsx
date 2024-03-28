@@ -5,10 +5,12 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import Markdown from 'markdown-to-jsx'
 
+import { Set as ISet } from 'immutable'
+
 import * as block from '@resheet/core/block'
 
-import { Pending, resultFrom } from '@resheet/code/result'
-import { computeExpr, parseJSExpr } from '@resheet/code/compute'
+import { resultFrom } from '@resheet/code/result'
+import { computeExpr, freeVarsExpr, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
 import { NoteType } from './versioned'
@@ -38,23 +40,52 @@ export function getPrefix(note: NoteType) {
 export const EXPR_PREFIX = '='
 export const BLOCK_PREFIX = '/'
 
-export function evaluateNote(input: string, env: block.Environment, dispatchNote: block.BlockDispatcher<NoteType>, lastNote?: NoteType): NoteType {
+export function evaluateNote(
+    input: string,
+    env: block.Environment,
+    dispatchNote: block.BlockDispatcher<NoteType>,
+    lastNote?: NoteType,
+): NoteType {
     const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatchNote)
     const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatchNote)
 
+    const parsed = parseNote(input)
+    switch (parsed.type) {
+        case 'expr': {
+            const value = computeExpr(parsed.code, env)
+            const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
+            return { type: 'expr', code: parsed.code, result }
+        }
+
+        case 'block': {
+            const value = computeExpr(parsed.code, env)
+            const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
+            const lastState = (lastNote as any)?.lastState
+            return { type: 'block', isInstantiated: false, code: parsed.code, result, lastState }
+        }
+
+        case 'checkbox':
+        case 'text':
+            return parsed
+    }
+}
+
+
+type ParsedNote =
+    | { type: 'expr', code: string }
+    | { type: 'block', code: string }
+    | { type: 'checkbox', checked: boolean, text: string }
+    | { type: 'text', tag: string, text: string }
+
+export function parseNote(input: string): ParsedNote {
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
-        const value = computeExpr(expr, env)
-        const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
-        return { type: 'expr', code: expr, result }
+        return { type: 'expr', code: expr }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
-        const value = computeExpr(expr, env)
-        const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
-        const lastState = (lastNote as any)?.lastState
-        return { type: 'block', isInstantiated: false, code: expr, result, lastState }
+        return { type: 'block', code: expr }
     }
 
     const header = input.match(/^(#{1,6})\s*/)
@@ -77,8 +108,67 @@ export function evaluateNote(input: string, env: block.Environment, dispatchNote
 }
 
 
-export function recomputeNote(input: string, note: NoteType, dispatch: block.BlockDispatcher<NoteType>, env: block.Environment): NoteType {
-    if (Object.values(env).includes(Pending)) { return note }
+export function freeVarsNote(note: NoteType) {
+    switch (note.type) {
+        case 'expr':
+        case 'block':
+            return freeVarsExpr(note.code)
+
+        default:
+            return new Set<string>()
+    }
+}
+
+
+export function recomputeNote(
+    input: string,
+    note: NoteType,
+    dispatch: block.BlockDispatcher<NoteType>,
+    env: block.Environment,
+    changedVars: ISet<string>,
+): {
+    state: NoteType,
+    invalidated: boolean,
+} {
+    if (note.type === 'block' && note.isInstantiated === true) {
+        const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
+
+        const usedVarsBlock = freeVarsExpr(note.code)
+        const changedUsedVars = changedVars.intersect(usedVarsBlock)
+        if (!changedUsedVars.isEmpty()) {
+            const newBlock = computeExpr(note.code, env)
+            if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
+                try {
+                    const jsonState = note.block.toJSON(note.state)
+                    const newSafeBlock = safeBlock(newBlock)
+                    const newState = newSafeBlock.fromJSON(jsonState, dispatchBlockState, env)
+                    return {
+                        state: {
+                            type: 'block',
+                            isInstantiated: true,
+                            code: note.code,
+                            block: newSafeBlock,
+                            state: newState,
+                        },
+                        invalidated: true,
+                    }
+                }
+                catch (e) { /* do nothing */ }
+            }
+        }
+
+        const { state, invalidated } = note.block.recompute(note.state, dispatchBlockState, env, changedVars)
+
+        return {
+            state: { ...note, state },
+            invalidated,
+        }
+    }
+
+    const usedVars = freeVarsNote(note)
+    if (changedVars && changedVars.intersect(usedVars).isEmpty()) {
+        return { state: note, invalidated: false }
+    }
 
     if (note.type === 'expr' && note.result.type === 'promise') {
         note.result.cancel()
@@ -87,33 +177,10 @@ export function recomputeNote(input: string, note: NoteType, dispatch: block.Blo
         note.result.cancel()
     }
 
-    if (note.type === 'block' && note.isInstantiated === true) {
-        const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
-
-        const newBlock = computeExpr(note.code, env)
-        if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
-            try {
-                const jsonState = note.block.toJSON(note.state)
-                const newSafeBlock = safeBlock(newBlock)
-                const newState = newSafeBlock.fromJSON(jsonState, dispatchBlockState, env)
-                return {
-                    type: 'block',
-                    isInstantiated: true,
-                    code: note.code,
-                    block: newSafeBlock,
-                    state: newState,
-                }
-            }
-            catch (e) { /* do nothing */ }
-        }
-
-        return {
-            ...note,
-            state: note.block.recompute(note.state, dispatchBlockState, env),
-        }
+    return {
+        state: evaluateNote(input, env, dispatch, note),
+        invalidated: true,
     }
-
-    return evaluateNote(input, env, dispatch, note)
 }
 
 

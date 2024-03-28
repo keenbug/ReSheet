@@ -143,7 +143,7 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                 return e
             }
         },
-        recompute(state, dispatch, env) {
+        recompute(state, dispatch, env, changedVars) {
             function safeDispatch(action: BlockAction<State>) {
                 dispatch(state => {
                     try {
@@ -155,10 +155,10 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                     }
                 })
             }
-            try { return block.recompute(state, safeDispatch, env) }
+            try { return block.recompute(state, safeDispatch, env, changedVars) }
             catch (e) {
                 reportError("Block: Could not recompute block", e)
-                return state
+                return { state, invalidated: false }
             }
         },
     }

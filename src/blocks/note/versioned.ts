@@ -57,16 +57,18 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
             function setBlockFromResult(result: Result) {
                 dispatch(() => {
                     if (result.type === 'immediate' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        const loadedBlock = safeBlock(result.value)
+                        const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
                         return {
-                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                            state: { type: 'block', isInstantiated: true, code, block: loadedBlock, state },
                         }
                     }
 
                     if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        const loadedBlock = safeBlock(result.value)
+                        const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
                         return {
-                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                            state: { type: 'block', isInstantiated: true, code, block: loadedBlock, state },
                         }
                     }
 
@@ -78,8 +80,9 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
 
             const result = resultFrom(computeExpr(code, env), setBlockFromResult)
             if (result.type === 'immediate' && block.isBlock(result.value)) {
-                const state = result.value.fromJSON(stateJson, dispatchBlockState, env)
-                return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
+                const loadedBlock = safeBlock(result.value)
+                const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
+                return { type: 'block', isInstantiated: true, code, block: loadedBlock, state }
             }
             else {
                 return { type: 'block', isInstantiated: false, code, result }

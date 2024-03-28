@@ -52,7 +52,7 @@ export function Example({ input }: { input: string }) {
     const [state, dispatch] = useBlockDispatcher(null)
 
     React.useEffect(() => {
-        dispatch(() => ({ state: safeNote.recompute(initWithInput, dispatch, exampleEnv) }))
+        dispatch(() => ({ state: safeNote.recompute(initWithInput, dispatch, exampleEnv, null) }))
     }, [])
 
     if (state === null) { return null }

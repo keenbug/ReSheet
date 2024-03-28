@@ -5,12 +5,13 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
-import _ from 'lodash'
+import { setIn, updateIn } from 'immutable'
 
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
-import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@resheet/util'
+import { arrayEquals, arrayStartsWith, clampTo, intersperse, isEqualDepth, nextElem } from '@resheet/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@resheet/util/shortcuts'
 import { fieldDispatcher } from '@resheet/util/dispatch'
+import { useStable } from '@resheet/util/hooks'
 
 import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
 
@@ -43,12 +44,15 @@ function ACTIONS<State extends unknown>(
     const dispatchPages = fieldDispatcher('pages', dispatch)
 
     return {
-        dispatchOpenPage(action: BlockAction<State>) {
+        dispatchPage(path: PageId[], action: BlockAction<State>) {
             dispatch(doc => extractActionDescription(action, pureAction =>
-                Model.updateOpenPage(
+                Model.updatePageAt(
+                    path,
                     doc,
                     pureAction,
+                    env,
                     innerBlock,
+                    dispatch,
                 )
             ))
         },
@@ -129,6 +133,9 @@ function ACTIONS<State extends unknown>(
                             path,
                             doc.pages,
                             page => ({ ...page, name }),
+                            env,
+                            innerBlock,
+                            dispatchPages,
                         ),
                     }
                 }
@@ -180,7 +187,7 @@ function ACTIONS<State extends unknown>(
 
         openPage(path: PageId[]) {
             dispatch(doc => ({
-                state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch)
+                state: Model.changeOpenPage(path, doc)
             }))
         },
 
@@ -190,14 +197,14 @@ function ACTIONS<State extends unknown>(
                 if (parent === null || parent.children.length === 0) { return { state: doc } }
 
                 const path = [...currentPath, parent.children[0].id]
-                return { state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(path, doc) }
             })
         },
 
         openParent(currentPath: PageId[]) {
             if (currentPath.length > 1) {
                 dispatch(inner => ({
-                    state: Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, dispatch)
+                    state: Model.changeOpenPage(currentPath.slice(0, -1), inner)
                 }))
             }
         },
@@ -210,7 +217,7 @@ function ACTIONS<State extends unknown>(
 
                 const newPath = allPaths[nextPageIndex]
                 if (!newPath) { return { state } }
-                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(newPath, state) }
             })
         },
 
@@ -222,7 +229,7 @@ function ACTIONS<State extends unknown>(
 
                 const newPath = allPaths[prevPageIndex]
                 if (!newPath) { return { state } }
-                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(newPath, state) }
             })
         },
 
@@ -235,6 +242,9 @@ function ACTIONS<State extends unknown>(
                             path,
                             state.pages,
                             page => ({ ...page, isCollapsed: !page.isCollapsed }),
+                            env,
+                            innerBlock,
+                            dispatchPages,
                         ),
                     }
                 }
@@ -243,13 +253,13 @@ function ACTIONS<State extends unknown>(
 
         toggleSidebar() {
             dispatch(state => ({
-                state: _.update(state, ['viewState', 'sidebarOpen'], open => !open)
+                state: updateIn(state, ['viewState', 'sidebarOpen'], open => !open)
             }))
         },
 
         setSidebarOpen(open: boolean) {
             dispatch(state => ({
-                state: _.set(state, ['viewState', 'sidebarOpen'], open)
+                state: setIn(state, ['viewState', 'sidebarOpen'], open)
             }))
         }
 
@@ -602,23 +612,17 @@ function MainView<State>({
     sidebarVisible,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(state)
-    const noOpenPage = openPage === null
-    // don't include `state` as a dependency, because:
-    //   - `Model.getOpenPageEnv` only needs `state` for Pages before the current `openPage`
-    //   - only the current `openPage` can change (and following pages as they depend on it, but they are irrelevant for this case)
-    //   - so the real dependency, the Pages before `openPage`, can only change if one of them becomes the `openPage`
-    //   - so `innerState.viewState.openPage` suffices as dependency
-    //   - otherwise `pageEnv` would change every time something in `openPage` changes
-    //      => which leads to everything in `openPage` being reevaluated, even though just some subset could suffice
-    // This could be better solved, if I could break innerState up into the pages before and only feed them as argument and dependency.
-    // But currently it looks like this would harm seperation of concerns. It seems that the inner workings of `Model.getOpenPageEnv`
-    // therefore would have to spill into here.
+    const pageDeps = useStable(Model.getOpenPageDeps(state), (l, r) => isEqualDepth(l, r, 1))
     const pageEnv = React.useMemo(
-        () => noOpenPage ? null : Model.getOpenPageEnv(state, env, innerBlock),
-        [state.viewState.openPage, noOpenPage, env, innerBlock],
+        () => Model.pageDepsToEnv(pageDeps, env, innerBlock),
+        [pageDeps, env, innerBlock],
+    )
+    const dispatchOpenPage = React.useCallback(
+        (action: BlockAction<State>) => actions.dispatchPage(state.viewState.openPage, action),
+        [state.viewState.openPage],
     )
 
-    if (!pageEnv) {
+    if (!openPage) {
         function Link({ onClick, children }) {
             return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
         }
@@ -647,7 +651,7 @@ function MainView<State>({
             <innerBlock.Component
                 ref={innerRef}
                 state={openPage.state}
-                dispatch={actions.dispatchOpenPage}
+                dispatch={dispatchOpenPage}
                 env={pageEnv}
                 />
         </div>

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { throttle } from 'throttle-debounce'
+import _ from 'lodash'
 
 import { isPromise } from '.'
 import { Action, Dispatcher } from './dispatch'
@@ -252,4 +253,12 @@ export function useSelectionRect(active: boolean = true) {
     React.useEffect(updateSelectionRect)
 
     return active ? rect : null
+}
+
+export function useStable<T>(value: T, equal: (l: T, r: T) => boolean = _.isEqual) {
+    const prevRef = React.useRef(value)
+    const prevValue = prevRef.current
+    const stableValue = equal(prevValue, value) ? prevValue : value
+    prevRef.current = stableValue
+    return stableValue
 }

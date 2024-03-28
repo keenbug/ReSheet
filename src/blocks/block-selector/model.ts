@@ -1,3 +1,5 @@
+import { Set } from 'immutable'
+
 import * as block from '@resheet/core/block'
 import { Block, Environment } from '@resheet/core/block'
 import { computeExpr } from '@resheet/code/compute'
@@ -5,7 +7,6 @@ import { computeExpr } from '@resheet/code/compute'
 import { safeBlock } from '../component'
 
 import { BlockSelectorState } from './versioned'
-import { Pending } from '@resheet/code/result'
 
 
 export function init(
@@ -61,30 +62,40 @@ export function recompute(
     state: BlockSelectorState,
     dispatch: block.BlockDispatcher<BlockSelectorState>,
     env: Environment,
+    changedVars: Set<string>,
     blockLibrary: Environment,
-): BlockSelectorState {
-    if (Object.values(env).includes(Pending)) { return state }
-
+): {
+    state: BlockSelectorState,
+    invalidated: boolean,
+ } {
     const dispatchBlock = blockDispatcher(dispatch)
 
     const innerBlock = computeExpr(state.expr, { ...blockLibrary, ...env })
 
     if (!block.isBlock(innerBlock)) {
-        return state
+        return { state, invalidated: false }
     }
 
     if (state.mode === 'loading') {
         return {
-            mode: state.modeAfter,
-            expr: state.expr,
-            innerBlock: safeBlock(innerBlock),
-            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
+            state: {
+                mode: state.modeAfter,
+                expr: state.expr,
+                innerBlock: safeBlock(innerBlock),
+                innerBlockState: innerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
+            },
+            invalidated: true,
         }
     }
+
+    const { state: innerBlockState, invalidated } = innerBlock.recompute(state.innerBlockState, dispatchBlock, env, changedVars)
         
     return {
-        ...state,
-        innerBlock: safeBlock(innerBlock),
-        innerBlockState: innerBlock.recompute(state.innerBlockState, dispatchBlock, env)
+        state: {
+            ...state,
+            innerBlock: safeBlock(innerBlock),
+            innerBlockState,
+        },
+        invalidated,
     }
 }

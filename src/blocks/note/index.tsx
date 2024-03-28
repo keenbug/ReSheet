@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+import { Set } from 'immutable'
+
 import { BlockHandle } from '@resheet/core/block'
 import * as block from '@resheet/core/block'
 
@@ -32,8 +34,8 @@ export const Note = block.create<NoteModel>({
     view({ env, state, dispatch }, ref) {
         return <NoteUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
-    recompute(state, dispatch, env) {
-        return recompute(state, dispatch, env)
+    recompute(state, dispatch, env, changedVars) {
+        return recompute(state, dispatch, env, changedVars)
     },
     getResult(state) {
         switch (state.note.type) {
@@ -59,7 +61,7 @@ export const Note = block.create<NoteModel>({
             modelFromInput(level, input) {
                 const dispatchNote = fieldDispatcher('note', dispatch)
                 const note = evaluateNote(input, env, dispatchNote)
-                return recompute({ level, input, note }, dispatch, env)
+                return recompute({ level, input, note }, dispatch, env, null).state
             },
         })
     },
@@ -122,7 +124,7 @@ export const NoteUi = React.forwardRef(
 
         function onUpdateCode(input: string){
             dispatch(state => ({
-                state: recompute({ ...state, input }, dispatch, env)
+                state: recompute({ ...state, input }, dispatch, env, null).state,
             }))
         }
 
@@ -296,10 +298,19 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
 
 
 
-export function recompute(state: NoteModel, dispatch: block.BlockDispatcher<NoteModel>, env: block.Environment): NoteModel {
+export function recompute(
+    state: NoteModel,
+    dispatch: block.BlockDispatcher<NoteModel>,
+    env: block.Environment,
+    changedVars: Set<string>,
+): {
+    state: NoteModel,
+    invalidated: boolean,
+} {
+    const { state: note, invalidated } = recomputeNote(state.input, state.note, fieldDispatcher('note', dispatch), env, changedVars)
     return {
-        ...state,
-        note: recomputeNote(state.input, state.note, fieldDispatcher('note', dispatch), env),
+        state: { ...state, note },
+        invalidated,
     }
 }
 

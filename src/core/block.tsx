@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+import { Set } from 'immutable'
+
 import { Validator, ValidatorObj, validate } from '@resheet/util/validate'
 import { Action, Dispatcher, fieldDispatcher, useDispatcher } from '@resheet/util/dispatch'
 
@@ -42,10 +44,27 @@ export type ViewerDesc<State> =
 
 export interface BlockDef<State> {
     init: State
+
     view: ViewerDesc<State>
-    recompute(state: State, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    recompute(
+        state: State,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+        changed: Set<string>,
+    ): {
+        state: State,
+        invalidated: boolean,
+    }
+
     getResult(state: State): any
-    fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    fromJSON(
+        json: any,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+    ): State
+
     toJSON(state: State): any
 }
 
@@ -70,11 +89,29 @@ export type Viewer<State> =
 // (That's incidentally the reason why `fromJSON` also needs the Environment.)
 export interface Block<State> {
     [BlockTag]: typeof BlockTag
+
     init: State
+
     view: Viewer<State>
-    recompute(state: State, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    recompute(
+        state: State,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+        changed: Set<string>
+    ): {
+        state: State,
+        invalidated: boolean,
+    }
+
     getResult(state: State): any
-    fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    fromJSON(
+        json: any,
+        dispatch: BlockDispatcher<State>,
+        env: Environment
+    ): State
+
     toJSON(state: State): any
 }
 

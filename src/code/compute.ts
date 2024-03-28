@@ -5,6 +5,8 @@ import babelTraverse from '@babel/traverse'
 import * as babelAst from '@babel/types'
 import { codeFrameColumns } from '@babel/code-frame'
 
+import _ from "lodash"
+
 
 export type Environment = { [varName: string]: any }
 
@@ -29,6 +31,13 @@ export function programReturnExprAst(exprAst: babel.types.Expression) {
     )
 }
 
+export function fileExprAst(exprAst: babel.types.Expression) {
+    // I don't know how else to create a traversable file/program:
+    const file = babelParser.parse('')
+    file.program.body.push(babelAst.expressionStatement(exprAst))
+    return file
+}
+
 
 export const transformJSExpr = (sourcecode: string) =>
     transformJSAst(
@@ -39,7 +48,7 @@ export const transformJSExpr = (sourcecode: string) =>
     )
 
 
-export const RESERVED_JS_KEYWORDS = [
+export const RESERVED_JS_KEYWORDS = new Set([
     "abstract",
     "arguments",
     "await",
@@ -104,12 +113,12 @@ export const RESERVED_JS_KEYWORDS = [
     "while",
     "with",
     "yield",
-]
+])
 
 export function cleanupEnv(env: Environment) {
     const cleanEntries = (
         Object.entries(env).filter(([name]) =>
-            name.match(/^[a-zA-Z_$][\w\$]*$/) && !RESERVED_JS_KEYWORDS.includes(name)
+            name.match(/^[a-zA-Z_$][\w\$]*$/) && !RESERVED_JS_KEYWORDS.has(name)
         )
     )
     function $([name]) { return env[name] }
@@ -154,15 +163,34 @@ export const computeExprUNSAFE = (code: string | null, env: Environment): unknow
     return runExprAstUNSAFE(ast, code, env)
 }
 
+export function freeVarsExpr(code: string) {
+    if (!code?.trim()) { return new Set<string>() }
+    try {
+        return freeVars(fileExprAst(parseJSExpr(code)))
+    }
+    catch (e) {
+        if (e instanceof SyntaxError) {
+            return new Set<string>()
+        }
+        else {
+            throw e
+        }
+    }
+}
 
 
-export function transformJSScript(sourcecode) {
+
+export function parseJSScript(sourcecode: string) {
     const parserOpts: babelParser.ParserOptions = {
         ...parseReactOpts,
         allowReturnOutsideFunction: true,
         allowAwaitOutsideFunction: true,
     }
-    const ast = babelParser.parse(sourcecode, parserOpts)
+    return babelParser.parse(sourcecode, parserOpts)
+}
+
+export function transformJSScript(sourcecode: string) {
+    const ast = parseJSScript(sourcecode)
     const statements = ast.program.body
     const astWithReturn = babelAst.program([
         ...statements.slice(0, -1),
@@ -180,6 +208,7 @@ export function transformJSScript(sourcecode) {
     return {
         transformedCode: babel.transformFromAstSync(astWithReturn, sourcecode, transformReactOpts).code,
         isAsync: containsToplevelAsync(ast),
+        ast,
     }
 }
 
@@ -213,6 +242,21 @@ export function computeScript(code: string | null, env: Environment) {
     }
 }
 
+export function freeVarsScript(code: string) {
+    if (!code?.trim()) { return new Set<string>() }
+    try {
+        return freeVars(parseJSScript(code))
+    }
+    catch (e) {
+        if (e instanceof SyntaxError) {
+            return new Set<string>()
+        }
+        else {
+            throw e
+        }
+    }
+}
+
 
 export function containsToplevelAsync(ast: babel.types.File) {
     let hasToplevelAwait = false
@@ -226,6 +270,19 @@ export function containsToplevelAsync(ast: babel.types.File) {
     })
 
     return hasToplevelAwait
+}
+
+export function freeVars(ast: babel.types.Node) {
+    const freeVars = new Set<string>()
+    babelTraverse(ast, {
+        ReferencedIdentifier(path) {
+            const identifier = path.node.name
+            if (!path.scope || !path.scope.hasBinding(identifier, true)) {
+                freeVars.add(identifier)
+            }
+        }
+    })
+    return freeVars
 }
 
 export function annotateCodeFrame(e: Error, source: string) {

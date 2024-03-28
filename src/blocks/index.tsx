@@ -55,7 +55,7 @@ export function Input(parser = str => str) {
             return parser(state)
         },
         recompute(state, dispatch, env) {
-            return state
+            return { state, invalidated: false }
         },
         fromJSON(json) {
             if (typeof json === 'string') {
@@ -129,7 +129,7 @@ export const LoadFile = Block.create<LoadFileState>({
         }
     },
     recompute(state, dispatch, env) {
-        return state
+        return { state, invalidated: false }
     },
     getResult(state) {
         switch (state.state) {

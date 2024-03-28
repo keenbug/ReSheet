@@ -1,10 +1,10 @@
 import * as block from '@resheet/core/block'
 import { Block, Environment } from '@resheet/core/block'
 
-import { addRevision, addValidator } from '@resheet/util/serialize'
+import { addRevision } from '@resheet/util/serialize'
 import { boolean, array, number, any, string, lazy } from '@resheet/util/validate'
 
-import { typed, typedTables } from '.'
+import { typed } from '.'
 import { PageId, PageState, Document, getName } from '../types/0'
 import * as v0 from './0'
 
@@ -72,7 +72,7 @@ function parsePage<Inner>(
     }
 
     const loadedChildren = parseSiblingPages(children, updatePageStateAt, env, innerBlock, pathHere)
-    const pageEnv = getSiblingsEnv(children, env)
+    const pageEnv = { ...env, ...pagesToEnv(loadedChildren, innerBlock) }
     const loadedState = innerBlock.fromJSON(state, localDispatch, pageEnv)
     const page: PageState<Inner> = {
         id,
@@ -82,16 +82,6 @@ function parsePage<Inner>(
         children: loadedChildren,
     }
     return page
-
-    function getSiblingsEnv(siblings: PageState<Inner>[], env: Environment) {
-        return Object.assign(
-            {},
-            env,
-            ...siblings.map(sibling => ({
-                [getName(sibling)]: innerBlock.getResult(sibling.state)
-            }))
-        )
-    }
 }
 
 
@@ -102,16 +92,31 @@ function parseSiblingPages<Inner>(
     innerBlock: Block<Inner>,
     path: PageId[]
 ): PageState<Inner>[] {
-    return block.mapWithEnv(
-        json,
-        (jsonEntry, localEnv) => {
+    const { pages } = json.reduce(
+        ({ pages, localEnv }, jsonEntry) => {
             const page = parsePage(jsonEntry, updatePageStateAt, localEnv, innerBlock, path)
             return {
-                out: page,
-                env: { [getName(page)]: innerBlock.getResult(page.state) },
+                pages: [...pages, page],
+                localEnv: {
+                    ...localEnv,
+                    [getName(page)]: innerBlock.getResult(page.state),
+                },
             }
         },
-        env,
+        {
+            pages: [],
+            localEnv: env,
+        }
+    )
+    return pages
+}
+
+function pagesToEnv<Inner>(siblings: PageState<Inner>[], innerBlock: Block<Inner>) {
+    return Object.assign(
+        {},
+        ...siblings.map(sibling => ({
+            [getName(sibling)]: innerBlock.getResult(sibling.state)
+        }))
     )
 }
 

@@ -1,3 +1,5 @@
+import { Set } from 'immutable'
+
 import { Block, BlockAction, BlockDispatcher, Environment } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 
@@ -34,17 +36,27 @@ export function getResult<Inner>(state: Document<Inner>, innerBlock: Block<Inner
     return Multiple.getResultEnv(state.pages, innerBlock)
 }
 
-export function recompute<Inner>(state: Document<Inner>, dispatch: BlockDispatcher<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
+export function recompute<Inner>(
+    state: Document<Inner>,
+    dispatch: BlockDispatcher<Document<Inner>>,
+    env: Environment,
+    changedVars: Set<string>,
+    innerBlock: Block<Inner>,
+) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
-    return {
-        ...state,
-        pages: Pages.recomputePagesFrom(
+    const { state: pages, changedPages } = (
+        Pages.recomputePagesFrom(
             null,
             state.pages,
             env,
+            changedVars,
             innerBlock,
             dispatchPages,
-        ),
+        )
+    )
+    return {
+        state: { ...state, pages },
+        invalidated: !changedPages.isEmpty(),
     }
 }
 
@@ -58,32 +70,33 @@ export function getOpenPage<Inner>(state: Document<Inner>): PageState<Inner> | n
     return Pages.getPageAt(state.viewState.openPage, state.pages)
 }
 
-export function getOpenPageEnv<Inner>(
+export function getOpenPageDeps<Inner>(
     state: Document<Inner>,
-    env: Environment,
-    innerBlock: Block<Inner>
 ) {
-    return Pages.getPageEnvAt(state.viewState.openPage, state.pages, env, innerBlock)
+    return Pages.getPageDepsAt(state.viewState.openPage, state.pages)
+}
+
+export function pageDepsToEnv<Inner>(
+    pageDeps: PageState<Inner>[],
+    env: Environment,
+    innerBlock: Block<Inner>,
+) {
+    return Object.assign(
+        {},
+        env,
+        ...pageDeps.map(page =>
+            Pages.toEnv(page, innerBlock)
+        ),
+    )
 }
 
 
 export function changeOpenPage<Inner>(
     path: PageId[],
     state: Document<Inner>,
-    env: Environment,
-    innerBlock: Block<Inner>,
-    dispatchInner: BlockDispatcher<Document<Inner>>,
 ): Document<Inner> {
-    const dispatchPages = fieldDispatcher('pages', dispatchInner)
     return {
         ...state,
-        pages: Pages.recomputePagesFrom(
-            state.viewState.openPage,
-            state.pages,
-            env,
-            innerBlock,
-            dispatchPages,
-        ),
         viewState: {
             ...state.viewState,
             openPage: path,
@@ -106,7 +119,9 @@ export function deletePageAt<Inner>(
     const parentPath = path.slice(0, -1)
     const childIdToRemove = path.slice(-1)[0]
 
-    const nextPath = Pages.getNextPath(path, state.pages)
+    const nextPath = Pages.getNextOrPrevPath(path, state.pages)
+
+    const pageToRemove = Pages.getPageAt(path, state.pages)
 
     const newPages = Pages.updatePageSiblingsAt(
         parentPath,
@@ -119,9 +134,11 @@ export function deletePageAt<Inner>(
             nextPath,
             newPages,
             env,
+            Set([ versioned.getName(pageToRemove) ]),
             innerBlock,
             dispatchPages,
-        ),
+        )
+            .state,
         viewState: {
             ...state.viewState,
             openPage: nextPath,
@@ -173,16 +190,20 @@ export function addPageAt<Inner>(
     }
 }
 
-export function updateOpenPage<Inner>(
+export function updatePageAt<Inner>(
+    path: PageId[],
     state: Document<Inner>,
     action: (state: Inner) => Inner,
+    env: Environment,
     innerBlock: Block<Inner>,
+    dispatch: BlockDispatcher<Document<Inner>>,
 ): Document<Inner> {
+    const dispatchPages = fieldDispatcher('pages', dispatch)
     return {
         ...state,
         pages: (
             Pages.updatePageAt(
-                state.viewState.openPage,
+                path,
                 state.pages,
                 page => {
                     const state = action(page.state)
@@ -193,6 +214,9 @@ export function updateOpenPage<Inner>(
                         result,
                     }
                 },
+                env,
+                innerBlock,
+                dispatchPages,
             )
         ),
     }

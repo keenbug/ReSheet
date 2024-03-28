@@ -1,5 +1,7 @@
 import * as React from 'react'
 
+import { Set } from 'immutable'
+
 import { Block, BlockAction, Environment, extractActionDescription } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 
@@ -375,10 +377,12 @@ export function ACTIONS<Inner extends unknown>(
                                 Multiple.insertEntryAfter(state.lines, lineId, ...remappedLines),
                                 lineId,
                                 env,
+                                Set(),
                                 innerBlock,
                                 dispatchLines,
                                 1,
                             )
+                                .state
                         )
                     }
                     return {
