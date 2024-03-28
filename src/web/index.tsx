@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { BlockActionOutput, BlockHandle, useBlockDispatcher } from '@resheet/core/block'
+import { BlockActionContext, BlockActionOutput, BlockHandle, useBlockDispatcher } from '@resheet/core/block'
 
 import { DocumentOf, DocumentState } from '@resheet/blocks/document'
 import { BlockSelector, BlockSelectorState } from '@resheet/blocks/block-selector'
@@ -31,7 +31,7 @@ const blocks = library.blocks
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('SheetOf(Note)', SheetOf(Note), blocks)))
 
-const ToplevelContext = { env: library }
+const ToplevelInput: [BlockActionContext] = [{ env: library }]
 
 
 interface AppProps {
@@ -53,7 +53,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     }, [])
     const [actionToastUi, addActionToast] = useActionToast<ToplevelBlockState>(undoState)
 
-    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, ToplevelContext, handleDispatchOutput)
+    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, ToplevelInput, handleDispatchOutput)
     const toplevelBlockRef = React.useRef<BlockHandle>()
 
     const [backupPendingState, throttledBackup] = useThrottlePending(3000, execBackup)

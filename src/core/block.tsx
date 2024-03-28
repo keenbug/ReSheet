@@ -4,6 +4,8 @@ import { Set } from 'immutable'
 
 import { Validator, ValidatorObj, validate } from '@resheet/util/validate'
 import { Action, Dispatcher, fieldDispatcher, useDispatcher } from '@resheet/util/dispatch'
+import { isEqualDepth } from '@resheet/util'
+import { useStable } from '@resheet/util/hooks'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -31,10 +33,10 @@ const DUMMY_OUTPUT_HANDLER = () => {}
 
 export function useBlockDispatcher<State>(
     init: State,
-    context: BlockActionContext,
+    input: [BlockActionContext],
     handleOutput: (output: BlockActionOutput, oldState: State, newState: State) => void = DUMMY_OUTPUT_HANDLER,
 ) {
-    return useDispatcher(init, [context], handleOutput)
+    return useDispatcher(init, input, handleOutput)
 }
 
 export interface ViewerProps<State> {
