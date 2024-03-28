@@ -6,7 +6,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '@resheet/core/block'
 import { BlockDispatcher, BlockHandle, Environment } from '@resheet/core/block'
-import { useRefMap, renderConditionally, WithSkipRender } from '@resheet/util/hooks'
+import { useRefMap, renderConditionally, WithSkipRender, useEffectfulDispatch } from '@resheet/util/hooks'
 
 import { ValueInspector } from '@resheet/code/value'
 import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
@@ -36,6 +36,7 @@ export const Sheet = React.forwardRef(
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
+        const dispatchFX = useEffectfulDispatch(dispatch)
 
         React.useImperativeHandle(
             ref,
@@ -64,8 +65,8 @@ export const Sheet = React.forwardRef(
         const selectedIds = selectionAnchorIds && lineIds.slice(selectionAnchorIndices[0], selectionAnchorIndices[1] + 1)
 
         const actions = React.useMemo(
-            () => ACTIONS(dispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
-            [dispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
+            () => ACTIONS(dispatchFX, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
+            [dispatchFX, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
         )
 
         const shortcutProps = useShortcuts([

@@ -1,18 +1,17 @@
 import * as React from 'react'
 
-import { Set } from 'immutable'
-
-import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
+import { Block, BlockAction, BlockActionContext, BlockActionOutput, Environment, extractActionDescription } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 
 import { clampTo } from '@resheet/util'
+import { fieldDispatcher } from '@resheet/util/dispatch'
+import { EffectfulDispatcher } from '@resheet/util/hooks'
 
 import { findScrollableAncestor } from '../../utils/ui'
 
 import * as Model from '../model'
 import { SheetBlockState } from '../versioned'
 import * as versioned from '../versioned'
-import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export interface SheetLineRef {
@@ -80,7 +79,7 @@ function focusLineRefSameOr(refMap: Map<number, SheetLineRef>, ref: SheetLineRef
 export type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 export function ACTIONS<Inner extends unknown>(
-    dispatch: BlockDispatcher<SheetBlockState<Inner>>,
+    dispatch: EffectfulDispatcher<SheetBlockState<Inner>, [BlockActionContext], BlockActionOutput>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>,
