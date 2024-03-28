@@ -488,8 +488,8 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     React.useImperativeHandle(
         blockRef,
         () => ({
-            focus() {
-                containerRef.current?.focus()
+            focus(options) {
+                containerRef.current?.focus(options)
             }
         })
     )
