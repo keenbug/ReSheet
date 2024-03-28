@@ -73,7 +73,7 @@ export const JSExprUi = React.forwardRef(
         )
 
         function onUpdateCode(code: string) {
-            dispatch(state => ({
+            dispatch((state, { env }) => ({
                 state: updateResult({ ...state, code }, dispatch, env)
             }))
         }
@@ -83,7 +83,12 @@ export const JSExprUi = React.forwardRef(
             {
                 description: "jsexpr",
                 bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation',  () => { dispatch(state => ({ state: updateResult(state, dispatch, env), description: "reran computation" })) }],
+                    [["Alt-Enter"], 'none', 'rerun computation',  () => {
+                        dispatch((state, { env }) => ({
+                            state: updateResult(state, dispatch, env),
+                            description: "reran computation",
+                        }))
+                    }],
                 ]
             },
         ])
@@ -176,7 +181,7 @@ export function Example(code: string, env: block.Environment) {
 
     return function Example() {
         const safeJSExpr = React.useMemo(() => safeBlock(JSExpr), [])
-        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null)
+        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null, { env })
 
         React.useEffect(() => {
             dispatch(() => ({ state: updateResult(initWithCode, dispatch, env) }))

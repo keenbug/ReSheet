@@ -78,7 +78,12 @@ export function mapDispatcher<StateBefore, StateAfter, Input extends any[] = [],
     }
 }
 
-export function fieldDispatcher<State extends object, Field extends keyof State, Input extends any[] = [], Output extends object = {}>(
+export function fieldDispatcher<
+    State extends object,
+    Field extends keyof State,
+    Input extends any[] = [],
+    Output extends object = {},
+>(
     fieldName: Field,
     dispatch: Dispatcher<State, Input, Output>,
 ): Dispatcher<State[Field], Input, Output> {

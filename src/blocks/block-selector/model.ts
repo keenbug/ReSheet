@@ -42,10 +42,10 @@ export function chooseBlock(
 
 export function blockDispatcher(dispatch: block.BlockDispatcher<BlockSelectorState>): block.BlockDispatcher<unknown> {
     return function dispatchBlock(action) {
-        dispatch(state => {
+        dispatch((state, context) => {
             if (state.mode === 'loading') { return { state } }
 
-            const result = action(state.innerBlockState)
+            const result = action(state.innerBlockState, context)
 
             return {
                 state: {

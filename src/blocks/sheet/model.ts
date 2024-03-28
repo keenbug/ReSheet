@@ -205,7 +205,7 @@ export function getLineResult<State>(line: SheetBlockLine<State>, innerBlock: Bl
 export function updateLineBlock<State>(
     state: SheetBlockState<State>,
     id: number,
-    action: (state: State) => State,
+    action: (state: State, context: block.BlockActionContext) => State,
     innerBlock: Block<State>,
     env: block.Environment,
     dispatch: block.BlockDispatcher<SheetBlockState<State>>,

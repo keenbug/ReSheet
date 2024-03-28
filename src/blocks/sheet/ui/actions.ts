@@ -2,12 +2,11 @@ import * as React from 'react'
 
 import { Set } from 'immutable'
 
-import { Block, BlockAction, Environment, extractActionDescription } from '@resheet/core/block'
+import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 
 import { clampTo } from '@resheet/util'
 
-import { EnvDispatcher } from '../../utils/hooks'
 import { findScrollableAncestor } from '../../utils/ui'
 
 import * as Model from '../model'
@@ -81,7 +80,7 @@ function focusLineRefSameOr(refMap: Map<number, SheetLineRef>, ref: SheetLineRef
 export type Actions<Inner> = ReturnType<typeof ACTIONS<Inner>>
 
 export function ACTIONS<Inner extends unknown>(
-    dispatch: EnvDispatcher<SheetBlockState<Inner>>,
+    dispatch: BlockDispatcher<SheetBlockState<Inner>>,
     container: React.MutableRefObject<HTMLElement>,
     refMap: Map<number, SheetLineRef>,
     innerBlock: Block<Inner>,
@@ -280,7 +279,7 @@ export function ACTIONS<Inner extends unknown>(
         },
 
         setName(id: number, name: string) {
-            dispatch((state, env) => ({
+            dispatch((state, { env }) => ({
                 state: Model.updateLineWithId(state, id, line => ({ ...line, name }), dispatch, env, innerBlock),
             }));
         },
@@ -304,10 +303,9 @@ export function ACTIONS<Inner extends unknown>(
             id: number,
             action: BlockAction<Inner>,
             innerBlock: Block<Inner>,
-            env: Environment
         ) {
-            dispatch(state => extractActionDescription(action, pureAction =>
-                Model.updateLineBlock(state, id, pureAction, innerBlock, env, dispatch)
+            dispatch((state, context) => extractActionDescription(action, pureAction =>
+                Model.updateLineBlock(state, id, pureAction, innerBlock, context.env, dispatch)
             ))
         },
 
@@ -407,22 +405,22 @@ export function ACTIONS<Inner extends unknown>(
 
         insertBeforeCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
+            dispatch((state, { env }) => insertBeforeCode(state, id, env, innerBlock, focusTarget))
         },
 
         insertAfterCode(id: number, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => insertAfterCode(state, id, env, innerBlock, focusTarget))
+            dispatch((state, { env }) => insertAfterCode(state, id, env, innerBlock, focusTarget))
         },
 
         insertEnd(innerBlock: Block<Inner>, focusTarget: FocusTarget = 'inner') {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => insertEnd(state, env, innerBlock, focusTarget))
+            dispatch((state, { env }) => insertEnd(state, env, innerBlock, focusTarget))
         },
 
         focusOrCreatePrev(id: number, innerBlock: Block<Inner>) {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => {
+            dispatch((state, { env }) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
                 if (currentIndex < 0) { return { state } }
                 if (currentIndex === 0) {
@@ -441,7 +439,7 @@ export function ACTIONS<Inner extends unknown>(
 
         focusOrCreateNext(id: number, innerBlock: Block<Inner>) {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => {
+            dispatch((state, { env }) => {
                 const currentIndex = state.lines.findIndex(line => line.id === id)
                 if (currentIndex < 0) { return { state } }
                 if (currentIndex === state.lines.length - 1) {
@@ -460,7 +458,7 @@ export function ACTIONS<Inner extends unknown>(
 
         deleteCode(id: number, focusAfter: FocusTarget = 'line') {
             setSelectionAnchorIds(null)
-            dispatch((state, env) => {
+            dispatch((state, { env }) => {
                 const idsToDelete = selectedIds ?? [id]
                 const [prevId, newState] = Model.deleteLines(state, idsToDelete, dispatch, env, innerBlock)
                 return {

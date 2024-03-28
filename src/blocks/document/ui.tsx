@@ -39,18 +39,17 @@ function ACTIONS<State extends unknown>(
     dispatch: BlockDispatcher<Document<State>>,
     dispatchHistory: BlockDispatcher<HistoryWrapper<Document<State>>>,
     innerBlock: Block<State>,
-    env: Environment,
 ) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
 
     return {
         dispatchPage(path: PageId[], action: BlockAction<State>) {
-            dispatch(doc => extractActionDescription(action, pureAction =>
+            dispatch((doc, context) => extractActionDescription(action, pureAction =>
                 Model.updatePageAt(
                     path,
                     doc,
                     pureAction,
-                    env,
+                    context.env,
                     innerBlock,
                     dispatch,
                 )
@@ -76,13 +75,18 @@ function ACTIONS<State extends unknown>(
 
         async loadLocalFile(file: File) {
             const content = JSON.parse(await file.text())
-            try {
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState, description: `loaded document from local file "${file.name}"` }))
-            }
-            catch (e) {
-                window.alert(`Could not load file: ${e}`)
-            }
+            dispatchHistory((_state, { env }) => {
+                try {
+                    const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                    return {
+                        state: newState,
+                        description: `loaded document from local file "${file.name}"`,
+                    }
+                }
+                catch (e) {
+                    window.alert(`Could not load file: ${e}`)
+                }
+            })
         },
 
         async loadRemoteFile() {
@@ -92,8 +96,18 @@ function ACTIONS<State extends unknown>(
             try {
                 const response = await fetch(url)
                 const content = await response.json()
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState, description: `loaded document from url "${url}"` }))
+                dispatchHistory((_state, { env }) => {
+                    try {
+                        const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                        return {
+                            state: newState,
+                            description: `loaded document from url "${url}"`,
+                        }
+                    }
+                    catch (e) {
+                        window.alert(`Could not parse file from URL: ${e}`)
+                    }
+                })
             }
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
@@ -118,14 +132,14 @@ function ACTIONS<State extends unknown>(
         },
 
         deletePage(path: PageId[]) {
-            dispatch(doc => ({
+            dispatch((doc, { env }) => ({
                 state: Model.deletePageAt(path, doc, innerBlock, env, dispatch),
                 description: "deleted page",
             }))
         },
 
         setPageName(path: PageId[], name: string) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 return {
                     state: {
                         ...doc,
@@ -143,7 +157,7 @@ function ACTIONS<State extends unknown>(
         },
 
         nestPage(path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 const [newPath, pages] = Pages.nestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
                     state: {
@@ -159,7 +173,7 @@ function ACTIONS<State extends unknown>(
         },
 
         unnestPage(path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 const [newPath, pages] = Pages.unnestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
                     state: {
@@ -175,7 +189,7 @@ function ACTIONS<State extends unknown>(
         },
 
         movePage(delta: number, path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 return {
                     state: {
                         ...doc,
@@ -234,7 +248,7 @@ function ACTIONS<State extends unknown>(
         },
 
         toggleCollapsed(path: PageId[]) {
-            dispatch(state => {
+            dispatch((state, { env }) => {
                 return {
                     state: {
                         ...state,
@@ -503,8 +517,8 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     }), [])
 
     const actions = React.useMemo(
-        () => ACTIONS(dispatch, dispatchHistory, innerBlock, env),
-        [dispatch, dispatchHistory, innerBlock, env],
+        () => ACTIONS(dispatch, dispatchHistory, innerBlock),
+        [dispatch, dispatchHistory, innerBlock],
     )
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)

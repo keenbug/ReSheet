@@ -53,7 +53,7 @@ export function entryToEnv<State>(entry: BlockEntry<State>, innerBlock: Block<St
     }
 }
 
-export function getSiblingEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
+export function entriesToEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     return Object.assign(
         {},
         ...entries.map(entry => entryToEnv(entry, innerBlock)),
@@ -129,12 +129,12 @@ export function updateEntries<State, Entry extends BlockEntry<State>>(
         (entry, siblingEnv) => {
             const localEnv = getLocalEnv(siblingEnv)
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
                     updateEntryState(
                         entries,
                         entry.id,
                         pureAction,
-                        localEnv,
+                        context.env,
                         innerBlock,
                         dispatch,
                     )
@@ -184,7 +184,7 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
     const entriesUntilId = entries.slice(0, Math.max(0, index + offset))
     const entriesAfter = entries.slice(Math.max(0, index + offset))
 
-    const siblingsBeforeEnv = getSiblingEnv(entriesUntilId, innerBlock)
+    const siblingsBeforeEnv = entriesToEnv(entriesUntilId, innerBlock)
 
     const {
         entries: recomputedEntries,
@@ -194,12 +194,12 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
             const localEnv = { ...env, ...siblingsEnv, $before: siblingsEnv }
 
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
                     updateEntryState(
                         entries,
                         entry.id,
                         pureAction,
-                        localEnv,
+                        context.env,
                         innerBlock,
                         dispatch,
                     )
@@ -236,7 +236,7 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
 export function updateEntryState<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number,
-    action: (state: State) => State,
+    action: (state: State, context: block.BlockActionContext) => State,
     env: Environment,
     innerBlock: Block<State>,
     dispatch: block.BlockDispatcher<Entry[]>,
@@ -244,8 +244,18 @@ export function updateEntryState<State, Entry extends BlockEntry<State>>(
     const entryIndex = entries.findIndex(entry => entry.id === id)
     if (entryIndex < 0) { return entries }
 
+    const siblings = entries.slice(0, entryIndex)
+    const siblingsEnv = entriesToEnv(siblings, innerBlock)
+
     const entry = entries[entryIndex]
-    const updatedEntries = set(entries, entryIndex, update(entry, 'state', action))
+    const updatedEntries = (
+        set(entries, entryIndex, update(entry, 'state', state =>
+            action(
+                state,
+                { env: { ...env, ...siblingsEnv, $before: siblingsEnv } },
+            )
+        ))
+    )
     const changedVars = Set([ entryName(entry) ])
     const { state: recomputedEntries } = recomputeFrom(
         updatedEntries,
@@ -283,12 +293,12 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
             const localEnv = { ...env, ...siblingEnv, $before: siblingEnv }
 
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
                     updateEntryState(
                         entries,
                         entry.id,
                         pureAction,
-                        env,
+                        context.env,
                         innerBlock,
                         dispatch,
                     )

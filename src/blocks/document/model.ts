@@ -1,6 +1,6 @@
 import { Set } from 'immutable'
 
-import { Block, BlockAction, BlockDispatcher, Environment } from '@resheet/core/block'
+import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 
 import { fieldDispatcher } from '@resheet/util/dispatch'
@@ -24,7 +24,7 @@ export function init<Inner>(initInner: Inner): Document<Inner> {
 export function fromJSON<Inner>(json: any, dispatch: BlockDispatcher<Document<Inner>>, env: Environment, innerBlock: Block<Inner>) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
     function updatePageStateAt(path: PageId[], action: BlockAction<Inner>) {
-        Pages.updatePageStateAt(path, dispatchPages, action, env, innerBlock)
+        Pages.updatePageStateAt(path, dispatchPages, action, innerBlock)
     }
 
     return versioned.fromJSON(json)({ updatePageStateAt, env, innerBlock })
@@ -193,7 +193,7 @@ export function addPageAt<Inner>(
 export function updatePageAt<Inner>(
     path: PageId[],
     state: Document<Inner>,
-    action: (state: Inner) => Inner,
+    action: (state: Inner, context: BlockActionContext) => Inner,
     env: Environment,
     innerBlock: Block<Inner>,
     dispatch: BlockDispatcher<Document<Inner>>,
@@ -205,8 +205,8 @@ export function updatePageAt<Inner>(
             Pages.updatePageAt(
                 path,
                 state.pages,
-                page => {
-                    const state = action(page.state)
+                (page, context) => {
+                    const state = action(page.state, context)
                     const result = innerBlock.getResult(state)
                     return {
                         ...page,

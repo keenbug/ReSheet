@@ -13,7 +13,7 @@ import { PendingState, useThrottlePending } from '@resheet/util/hooks'
 import { getFullKey } from '@resheet/util/shortcuts'
 
 import { library } from './std-library'
-import { storeBackup, db, removeOldBackups } from './backup'
+import { db, removeOldBackups } from './backup'
 import { FocusIndicator } from './focus-indicator'
 import { useActionToast } from './action-toast'
 
@@ -30,6 +30,8 @@ const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('SheetOf(Note)', SheetOf(Note), blocks)))
+
+const ToplevelContext = { env: library }
 
 
 interface AppProps {
@@ -51,7 +53,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     }, [])
     const [actionToastUi, addActionToast] = useActionToast<ToplevelBlockState>(undoState)
 
-    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, handleDispatchOutput)
+    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, ToplevelContext, handleDispatchOutput)
     const toplevelBlockRef = React.useRef<BlockHandle>()
 
     const [backupPendingState, throttledBackup] = useThrottlePending(3000, execBackup)

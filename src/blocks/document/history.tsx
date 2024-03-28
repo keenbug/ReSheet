@@ -42,10 +42,10 @@ export function innerDispatcher<State>(
     fromJSON: (json: any, env: Environment) => State,
 ): BlockDispatcher<State> {
     return function dispatchInner(action: BlockAction<State>) {
-        dispatch(state => extractActionDescription(action, pureAction =>
+        dispatch((state, context) => extractActionDescription(action, pureAction =>
             updateHistoryCurrent(
                 state,
-                pureAction,
+                inner => pureAction(inner, context),
                 env,
                 fromJSON,
             )

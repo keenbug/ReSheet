@@ -6,12 +6,13 @@ import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
 import { Set } from 'immutable'
 
-import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
+import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
 import { arrayEquals, arrayStartsWith, clampTo } from '@resheet/util'
 
 import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'
+import { pageDepsToEnv } from './model'
 
 
 export function init<State>(id: PageId, initState: State): PageState<State> {
@@ -361,16 +362,15 @@ export function updatePageStateAt<State>(
     path: PageId[],
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     action: BlockAction<State>,
-    env: Environment,
     innerBlock: Block<State>,
 ) {
-    dispatchPagesState(pages => extractActionDescription(action, pureAction => {
+    dispatchPagesState((pages, context) => extractActionDescription(action, pureAction => {
         return (
             updatePageAt(
                 path,
                 pages,
-                page => ({ ...page, state: pureAction(page.state) }),
-                env,
+                (page, context) => ({ ...page, state: pureAction(page.state, context) }),
+                context.env,
                 innerBlock,
                 dispatchPagesState
             )
@@ -423,7 +423,7 @@ export function recomputePagesFrom<State>(
     const recomputedPages = affectedPages.reduce(
         ({ recomputed, localEnv, changedSiblings }, page) => {
             function localDispatch(action: BlockAction<State>) {
-                updatePageStateAt(pathHere, dispatchPagesState, action, env, innerBlock)
+                updatePageStateAt(pathHere, dispatchPagesState, action, innerBlock)
             }
 
             const changedVarsWithSiblings = changedVars.union(changedSiblings)
@@ -478,19 +478,21 @@ export function recomputePagesFrom<State>(
 export function updatePageAt<State>(
     path: PageId[],
     pages: PageState<State>[],
-    action: (state: PageState<State>) => PageState<State>,
+    action: (state: PageState<State>, context: BlockActionContext) => PageState<State>,
     env: Environment,
     innerBlock: Block<State>,
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ) {
     if (path.length === 0) { return pages }
 
+    const pageEnv = pageDepsToEnv(getPageDepsAt(path, pages), env, innerBlock)
+
     const updatedPages = (
         mapPages(
             pages,
             (page, currentPath) => {
                 if (arrayEquals(currentPath, path)) {
-                    return action(page)
+                    return action(page, { env: pageEnv })
                 }
                 return page
             },

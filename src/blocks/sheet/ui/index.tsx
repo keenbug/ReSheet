@@ -9,7 +9,6 @@ import { BlockDispatcher, BlockHandle, Environment } from '@resheet/core/block'
 import { useRefMap, renderConditionally, WithSkipRender } from '@resheet/util/hooks'
 
 import { ValueInspector } from '@resheet/code/value'
-import { useEnvDispatcher } from '@resheet/blocks/utils/hooks'
 import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 
 import { TextInput, focusWithKeyboard } from '@resheet/blocks/utils/ui'
@@ -37,7 +36,6 @@ export const Sheet = React.forwardRef(
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
-        const envDispatch = useEnvDispatcher(dispatch, env)
 
         React.useImperativeHandle(
             ref,
@@ -66,8 +64,8 @@ export const Sheet = React.forwardRef(
         const selectedIds = selectionAnchorIds && lineIds.slice(selectionAnchorIndices[0], selectionAnchorIndices[1] + 1)
 
         const actions = React.useMemo(
-            () => ACTIONS(envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
-            [envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
+            () => ACTIONS(dispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
+            [dispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
         )
 
         const shortcutProps = useShortcuts([
@@ -329,8 +327,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
     const bindingsProps = useShortcuts(bindings)
 
     const subdispatch = React.useCallback(function subdispatch(action: block.BlockAction<Inner>) {
-        actions.dispatchInner(line.id, action, block, env)
-    }, [block, env])
+        actions.dispatchInner(line.id, action, block)
+    }, [block])
 
     const varInputBindings: Keybindings = React.useMemo(
         () => assignmentLineBindings<Inner>(line, innerBlockRef, actions),
