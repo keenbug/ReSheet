@@ -125,7 +125,7 @@ export function recomputeNote(
     note: NoteType,
     dispatch: block.BlockDispatcher<NoteType>,
     env: block.Environment,
-    changedVars: ISet<string>,
+    changedVars: ISet<string> | null,
 ): {
     state: NoteType,
     invalidated: boolean,
@@ -134,8 +134,8 @@ export function recomputeNote(
         const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
         const usedVarsBlock = freeVarsExpr(note.code)
-        const changedUsedVars = changedVars.intersect(usedVarsBlock)
-        if (!changedUsedVars.isEmpty()) {
+        const changedUsedVars = changedVars?.intersect(usedVarsBlock)
+        if (!changedUsedVars || !changedUsedVars.isEmpty()) {
             const newBlock = computeExpr(note.code, env)
             if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
                 try {

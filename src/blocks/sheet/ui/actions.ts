@@ -375,7 +375,7 @@ export function ACTIONS<Inner extends unknown>(
                                 Multiple.insertEntryAfter(state.lines, lineId, ...remappedLines),
                                 lineId,
                                 env,
-                                Set(),
+                                null,
                                 innerBlock,
                                 dispatchLines,
                                 1,

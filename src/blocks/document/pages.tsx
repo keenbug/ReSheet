@@ -382,7 +382,7 @@ export function recomputePagesFrom<State>(
     pathWithChanges: null | PageId[],
     pages: PageState<State>[],
     env: Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     currentPath: PageId[] = [],
@@ -409,7 +409,7 @@ export function recomputePagesFrom<State>(
     }
     else if (pathWithChanges.length === 1) {
         const changedPage = pages.find(page => page.id === pathWithChanges[0])
-        changedSiblings = changedPage ? Set([getName(changedPage)]) : changedVars
+        changedSiblings = changedPage ? Set([getName(changedPage)]) : Set()
     }
     else {
         changedSiblings = Set()
@@ -426,7 +426,7 @@ export function recomputePagesFrom<State>(
                 updatePageStateAt(pathHere, dispatchPagesState, action, innerBlock)
             }
 
-            const changedVarsWithSiblings = changedVars.union(changedSiblings)
+            const changedVarsWithSiblings = changedVars?.union(changedSiblings)
             
             const pathHere = [...currentPath, page.id]
             const children = recomputePagesFrom(
@@ -440,7 +440,7 @@ export function recomputePagesFrom<State>(
             )
 
             const localEnvWithChildren = { ...localEnv, ...pagesToEnv(children.state, innerBlock) }
-            const changedVarsWithChildren = changedVarsWithSiblings.union(children.changedPages)
+            const changedVarsWithChildren = changedVarsWithSiblings?.union(children.changedPages)
             const { state, invalidated } = innerBlock.recompute(
                 page.state,
                 localDispatch,

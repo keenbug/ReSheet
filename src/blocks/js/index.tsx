@@ -28,7 +28,7 @@ export const JSExpr = block.create<JSExprModel>({
     },
     recompute(state, dispatch, env, changedVars) {
         const usedVars = freeVarsScript(state.code)
-        if (changedVars.intersect(usedVars).isEmpty()) {
+        if (changedVars && changedVars.intersect(usedVars).isEmpty()) {
             return { state, invalidated: false }
         }
 

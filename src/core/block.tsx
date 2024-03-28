@@ -55,7 +55,7 @@ export interface BlockDef<State> {
         state: State,
         dispatch: BlockDispatcher<State>,
         env: Environment,
-        changed: Set<string>,
+        changed: Set<string> | null,
     ): {
         state: State,
         invalidated: boolean,
@@ -102,7 +102,7 @@ export interface Block<State> {
         state: State,
         dispatch: BlockDispatcher<State>,
         env: Environment,
-        changed: Set<string>
+        changed: Set<string> | null,
     ): {
         state: State,
         invalidated: boolean,

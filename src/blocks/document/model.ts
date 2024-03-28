@@ -40,7 +40,7 @@ export function recompute<Inner>(
     state: Document<Inner>,
     dispatch: BlockDispatcher<Document<Inner>>,
     env: Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     innerBlock: Block<Inner>,
 ) {
     const dispatchPages = fieldDispatcher('pages', dispatch)

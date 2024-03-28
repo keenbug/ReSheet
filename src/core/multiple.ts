@@ -154,7 +154,7 @@ export function recompute<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     dispatch: block.BlockDispatcher<Entry[]>,
     env: Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
 ): {
     state: Entry[],
@@ -168,7 +168,7 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number | undefined,
     env: Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
     dispatch: block.BlockDispatcher<Entry[]>,
     offset: number = 0,
@@ -209,7 +209,7 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
             const { state, invalidated } = innerBlock.recompute(entry.state, localDispatch, localEnv, changedVars)
             const newEntry = { ...entry, state }
             const name = entryName(entry)
-            const newChangedVars = invalidated ? changedVars.add(name) : changedVars.remove(name)
+            const newChangedVars = invalidated ? changedVars?.add(name) : changedVars?.remove(name)
 
             return {
                 entries: [ ...entries, newEntry ],

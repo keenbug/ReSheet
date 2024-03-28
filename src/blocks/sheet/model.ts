@@ -177,7 +177,7 @@ export function recompute<State>(
     state: SheetBlockState<State>,
     dispatch: block.BlockDispatcher<SheetBlockState<State>>,
     env: block.Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
 ) {
     const dispatchLines = fieldDispatcher('lines', dispatch)

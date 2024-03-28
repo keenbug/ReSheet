@@ -302,7 +302,7 @@ export function recompute(
     state: NoteModel,
     dispatch: block.BlockDispatcher<NoteModel>,
     env: block.Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
 ): {
     state: NoteModel,
     invalidated: boolean,

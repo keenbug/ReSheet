@@ -62,7 +62,7 @@ export function recompute(
     state: BlockSelectorState,
     dispatch: block.BlockDispatcher<BlockSelectorState>,
     env: Environment,
-    changedVars: Set<string>,
+    changedVars: Set<string> | null,
     blockLibrary: Environment,
 ): {
     state: BlockSelectorState,
@@ -76,24 +76,26 @@ export function recompute(
         return { state, invalidated: false }
     }
 
+    const safeInnerBlock = safeBlock(innerBlock)
+
     if (state.mode === 'loading') {
         return {
             state: {
                 mode: state.modeAfter,
                 expr: state.expr,
-                innerBlock: safeBlock(innerBlock),
-                innerBlockState: innerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
+                innerBlock: safeInnerBlock,
+                innerBlockState: safeInnerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
             },
             invalidated: true,
         }
     }
 
-    const { state: innerBlockState, invalidated } = innerBlock.recompute(state.innerBlockState, dispatchBlock, env, changedVars)
+    const { state: innerBlockState, invalidated } = safeInnerBlock.recompute(state.innerBlockState, dispatchBlock, env, changedVars)
         
     return {
         state: {
             ...state,
-            innerBlock: safeBlock(innerBlock),
+            innerBlock: safeInnerBlock,
             innerBlockState,
         },
         invalidated,
