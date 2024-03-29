@@ -6,6 +6,7 @@ import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
 import { setIn, updateIn } from 'immutable'
+import _ from 'lodash'
 
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
 import { arrayEquals, arrayStartsWith, clampTo, intersperse, isEqualDepth, nextElem } from '@resheet/util'
@@ -39,21 +40,22 @@ function ACTIONS<State extends unknown>(
     dispatch: BlockDispatcher<Document<State>>,
     dispatchHistory: BlockDispatcher<HistoryWrapper<Document<State>>>,
     innerBlock: Block<State>,
+    queryRecompute: (path: PageId[]) => void,
 ) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
 
     return {
         dispatchPage(path: PageId[], action: BlockAction<State>) {
             dispatch((doc, context) => extractActionDescription(action, pureAction =>
-                Model.updatePageAt(
+                Model.updatePageAt_NO_RECOMPUTE(
                     path,
                     doc,
                     pureAction,
                     context.env,
                     innerBlock,
-                    dispatch,
                 )
             ))
+            queryRecompute(path)
         },
 
 
@@ -516,9 +518,23 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         },
     }), [])
 
+    const queryRecompute = React.useMemo(
+        () => _.debounce(
+            path => dispatch((state, { env }) => ({
+                state: Model.recomputeFrom(path, state, env, innerBlock, dispatch)
+            })),
+            5000,
+        ),
+        [dispatch, innerBlock],
+    )
+
+    React.useEffect(() => {
+        return () => queryRecompute.flush()
+    }, [queryRecompute, state.viewState.openPage])
+
     const actions = React.useMemo(
-        () => ACTIONS(dispatch, dispatchHistory, innerBlock),
-        [dispatch, dispatchHistory, innerBlock],
+        () => ACTIONS(dispatch, dispatchHistory, innerBlock, queryRecompute),
+        [dispatch, dispatchHistory, innerBlock, queryRecompute],
     )
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)

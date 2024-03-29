@@ -5,6 +5,7 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
 import { Set } from 'immutable'
+import _ from 'lodash'
 
 import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
@@ -12,7 +13,6 @@ import { arrayEquals, arrayStartsWith, clampTo } from '@resheet/util'
 
 import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'
-import { pageDepsToEnv } from './model'
 
 
 export function init<State>(id: PageId, initState: State): PageState<State> {
@@ -475,6 +475,39 @@ export function recomputePagesFrom<State>(
     }
 }
 
+export function updatePageAt_NO_RECOMPUTE<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    action: (state: PageState<State>, context: BlockActionContext) => PageState<State>,
+    env: Environment,
+    innerBlock: Block<State>,
+) {
+    if (path.length === 0) { return pages }
+
+    const [siblingsBefore, page, siblingsAfter] = getSiblingsOf(path[0], pages)
+    const siblingsEnv = pagesToEnv(siblingsBefore, innerBlock)
+
+    if (path.length === 1) {
+        const childrenEnv = pagesToEnv(page.children, innerBlock)
+
+        const newPage = action(page, { env: { ...env, ...siblingsEnv, ...childrenEnv } })
+
+        return [...siblingsBefore, newPage, ...siblingsAfter]
+    }
+    else {
+        const newChildren = updatePageAt_NO_RECOMPUTE(
+            path.slice(1),
+            page.children,
+            action,
+            { ...env, ...siblingsEnv },
+            innerBlock,
+        )
+        const newPage = { ...page, children: newChildren }
+
+        return [...siblingsBefore, newPage, ...siblingsAfter]
+    }
+}
+
 export function updatePageAt<State>(
     path: PageId[],
     pages: PageState<State>[],
@@ -485,17 +518,13 @@ export function updatePageAt<State>(
 ) {
     if (path.length === 0) { return pages }
 
-    const pageEnv = pageDepsToEnv(getPageDepsAt(path, pages), env, innerBlock)
-
     const updatedPages = (
-        mapPages(
+        updatePageAt_NO_RECOMPUTE(
+            path,
             pages,
-            (page, currentPath) => {
-                if (arrayEquals(currentPath, path)) {
-                    return action(page, { env: pageEnv })
-                }
-                return page
-            },
+            action,
+            env,
+            innerBlock,
         )
     )
 

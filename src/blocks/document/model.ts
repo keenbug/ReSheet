@@ -190,19 +190,17 @@ export function addPageAt<Inner>(
     }
 }
 
-export function updatePageAt<Inner>(
+export function updatePageAt_NO_RECOMPUTE<Inner>(
     path: PageId[],
     state: Document<Inner>,
     action: (state: Inner, context: BlockActionContext) => Inner,
     env: Environment,
     innerBlock: Block<Inner>,
-    dispatch: BlockDispatcher<Document<Inner>>,
 ): Document<Inner> {
-    const dispatchPages = fieldDispatcher('pages', dispatch)
     return {
         ...state,
         pages: (
-            Pages.updatePageAt(
+            Pages.updatePageAt_NO_RECOMPUTE(
                 path,
                 state.pages,
                 (page, context) => {
@@ -216,13 +214,34 @@ export function updatePageAt<Inner>(
                 },
                 env,
                 innerBlock,
-                dispatchPages,
             )
         ),
     }
 }
 
-
+export function recomputeFrom<Inner>(
+    path: PageId[],
+    state: Document<Inner>,
+    env: Environment,
+    innerBlock: Block<Inner>,
+    dispatch: BlockDispatcher<Document<Inner>>,
+): Document<Inner> {
+    const dispatchPages = fieldDispatcher('pages', dispatch)
+    return {
+        ...state,
+        pages: (
+            Pages.recomputePagesFrom(
+                path,
+                state.pages,
+                env,
+                Set(),
+                innerBlock,
+                dispatchPages,
+            )
+                .state
+        )
+    }
+}
 
 
 
