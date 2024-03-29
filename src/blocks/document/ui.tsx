@@ -5,10 +5,14 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as brandIcons from '@fortawesome/free-brands-svg-icons'
 import { Menu, Transition } from '@headlessui/react'
 
+import { setIn, updateIn } from 'immutable'
+import _ from 'lodash'
+
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
-import { $update, arrayEquals, arrayStartsWith, clampTo, intersperse, nextElem } from '@resheet/util'
+import { arrayEquals, arrayStartsWith, clampTo, intersperse, isEqualDepth, nextElem } from '@resheet/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@resheet/util/shortcuts'
 import { fieldDispatcher } from '@resheet/util/dispatch'
+import { useStable } from '@resheet/util/hooks'
 
 import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
 
@@ -36,19 +40,22 @@ function ACTIONS<State extends unknown>(
     dispatch: BlockDispatcher<Document<State>>,
     dispatchHistory: BlockDispatcher<HistoryWrapper<Document<State>>>,
     innerBlock: Block<State>,
-    env: Environment,
+    queryRecompute: (path: PageId[]) => void,
 ) {
     const dispatchPages = fieldDispatcher('pages', dispatch)
 
     return {
-        dispatchOpenPage(action: BlockAction<State>) {
-            dispatch(doc => extractActionDescription(action, pureAction =>
-                Model.updateOpenPage(
+        dispatchPage(path: PageId[], action: BlockAction<State>) {
+            dispatch((doc, context) => extractActionDescription(action, pureAction =>
+                Model.updatePageAt_NO_RECOMPUTE(
+                    path,
                     doc,
                     pureAction,
+                    context.env,
                     innerBlock,
                 )
             ))
+            queryRecompute(path)
         },
 
 
@@ -70,13 +77,18 @@ function ACTIONS<State extends unknown>(
 
         async loadLocalFile(file: File) {
             const content = JSON.parse(await file.text())
-            try {
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState, description: `loaded document from local file "${file.name}"` }))
-            }
-            catch (e) {
-                window.alert(`Could not load file: ${e}`)
-            }
+            dispatchHistory((_state, { env }) => {
+                try {
+                    const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                    return {
+                        state: newState,
+                        description: `loaded document from local file "${file.name}"`,
+                    }
+                }
+                catch (e) {
+                    window.alert(`Could not load file: ${e}`)
+                }
+            })
         },
 
         async loadRemoteFile() {
@@ -86,8 +98,18 @@ function ACTIONS<State extends unknown>(
             try {
                 const response = await fetch(url)
                 const content = await response.json()
-                const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
-                dispatchHistory(() => ({ state: newState, description: `loaded document from url "${url}"` }))
+                dispatchHistory((_state, { env }) => {
+                    try {
+                        const newState = History.historyFromJSON(content, env, (json, env) => Model.fromJSON(json, dispatch, env, innerBlock))
+                        return {
+                            state: newState,
+                            description: `loaded document from url "${url}"`,
+                        }
+                    }
+                    catch (e) {
+                        window.alert(`Could not parse file from URL: ${e}`)
+                    }
+                })
             }
             catch (e) {
                 window.alert(`Could not load file from URL: ${e}`)
@@ -112,14 +134,14 @@ function ACTIONS<State extends unknown>(
         },
 
         deletePage(path: PageId[]) {
-            dispatch(doc => ({
+            dispatch((doc, { env }) => ({
                 state: Model.deletePageAt(path, doc, innerBlock, env, dispatch),
                 description: "deleted page",
             }))
         },
 
         setPageName(path: PageId[], name: string) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 return {
                     state: {
                         ...doc,
@@ -127,6 +149,9 @@ function ACTIONS<State extends unknown>(
                             path,
                             doc.pages,
                             page => ({ ...page, name }),
+                            env,
+                            innerBlock,
+                            dispatchPages,
                         ),
                     }
                 }
@@ -134,7 +159,7 @@ function ACTIONS<State extends unknown>(
         },
 
         nestPage(path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 const [newPath, pages] = Pages.nestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
                     state: {
@@ -150,7 +175,7 @@ function ACTIONS<State extends unknown>(
         },
 
         unnestPage(path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 const [newPath, pages] = Pages.unnestPage(path, doc.pages, env, innerBlock, dispatchPages)
                 return {
                     state: {
@@ -166,7 +191,7 @@ function ACTIONS<State extends unknown>(
         },
 
         movePage(delta: number, path: PageId[]) {
-            dispatch(doc => {
+            dispatch((doc, { env }) => {
                 return {
                     state: {
                         ...doc,
@@ -178,7 +203,7 @@ function ACTIONS<State extends unknown>(
 
         openPage(path: PageId[]) {
             dispatch(doc => ({
-                state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch)
+                state: Model.changeOpenPage(path, doc)
             }))
         },
 
@@ -188,14 +213,14 @@ function ACTIONS<State extends unknown>(
                 if (parent === null || parent.children.length === 0) { return { state: doc } }
 
                 const path = [...currentPath, parent.children[0].id]
-                return { state: Model.changeOpenPage(path, doc, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(path, doc) }
             })
         },
 
         openParent(currentPath: PageId[]) {
             if (currentPath.length > 1) {
                 dispatch(inner => ({
-                    state: Model.changeOpenPage(currentPath.slice(0, -1), inner, env, innerBlock, dispatch)
+                    state: Model.changeOpenPage(currentPath.slice(0, -1), inner)
                 }))
             }
         },
@@ -208,7 +233,7 @@ function ACTIONS<State extends unknown>(
 
                 const newPath = allPaths[nextPageIndex]
                 if (!newPath) { return { state } }
-                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(newPath, state) }
             })
         },
 
@@ -220,12 +245,12 @@ function ACTIONS<State extends unknown>(
 
                 const newPath = allPaths[prevPageIndex]
                 if (!newPath) { return { state } }
-                return { state: Model.changeOpenPage(newPath, state, env, innerBlock, dispatch) }
+                return { state: Model.changeOpenPage(newPath, state) }
             })
         },
 
         toggleCollapsed(path: PageId[]) {
-            dispatch(state => {
+            dispatch((state, { env }) => {
                 return {
                     state: {
                         ...state,
@@ -233,6 +258,9 @@ function ACTIONS<State extends unknown>(
                             path,
                             state.pages,
                             page => ({ ...page, isCollapsed: !page.isCollapsed }),
+                            env,
+                            innerBlock,
+                            dispatchPages,
                         ),
                     }
                 }
@@ -241,9 +269,15 @@ function ACTIONS<State extends unknown>(
 
         toggleSidebar() {
             dispatch(state => ({
-                state: $update(open => !open, state,'viewState','sidebarOpen')
+                state: updateIn(state, ['viewState', 'sidebarOpen'], open => !open)
             }))
         },
+
+        setSidebarOpen(open: boolean) {
+            dispatch(state => ({
+                state: setIn(state, ['viewState', 'sidebarOpen'], open)
+            }))
+        }
 
     }
 }
@@ -412,7 +446,7 @@ function DocumentKeyBindings<State>(
                     ["Escape"],
                     "!selfFocused",
                     "focus sidebar",
-                    () => { containerRef.current?.focus() },
+                    () => { actions.setSidebarOpen(true); containerRef.current?.focus() },
                 ],
                 [
                     ["Enter"],
@@ -456,13 +490,12 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     React.useImperativeHandle(
         blockRef,
         () => ({
-            focus() {
-                containerRef.current?.focus()
+            focus(options) {
+                containerRef.current?.focus(options)
             }
         })
     )
     const [isNameEditing, setIsNameEditing] = React.useState(false)
-    const [isSelfFocused, setIsSelfFocused] = React.useState(false)
     const [shortcutsViewMode, setShortcutsViewMode] = React.useState<ShortcutsViewMode>('hidden')
     const [search, setSearch] = React.useState<Keybindings>()
 
@@ -485,42 +518,39 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         },
     }), [])
 
+    const queryRecompute = React.useMemo(
+        () => _.debounce(
+            path => dispatch((state, { env }) => ({
+                state: Model.recomputeFrom(path, state, env, innerBlock, dispatch)
+            })),
+            5000,
+        ),
+        [dispatch, innerBlock],
+    )
+
+    React.useEffect(() => {
+        return () => queryRecompute.flush()
+    }, [queryRecompute, state.viewState.openPage])
+
     const actions = React.useMemo(
-        () => ACTIONS(dispatch, dispatchHistory, innerBlock, env),
-        [dispatch, dispatchHistory, innerBlock, env],
+        () => ACTIONS(dispatch, dispatchHistory, innerBlock, queryRecompute),
+        [dispatch, dispatchHistory, innerBlock, queryRecompute],
     )
     const bindings = DocumentKeyBindings(state, actions, containerRef, innerRef, localActions)
     const bindingProps = useShortcuts(bindings)
-
-    const onFocus = React.useCallback((ev: React.FocusEvent) => {
-        if (ev.target === ev.currentTarget) {
-            setIsSelfFocused(true)
-        }
-        bindingProps.onFocus(ev)
-    }, [bindingProps.onFocus])
-
-    const onBlur = React.useCallback((ev: React.FocusEvent) => {
-        if (ev.target === ev.currentTarget) {
-            setIsSelfFocused(false)
-        }
-        bindingProps.onBlur(ev)
-    }, [bindingProps.onBlur])
-
 
     React.useEffect(() => {
         mainScrollRef.current && mainScrollRef.current.scroll({ top: 0, behavior: 'instant' })
     }, [state.viewState.openPage])
 
 
-    const sidebarVisible = isSelfFocused || state.viewState.sidebarOpen || isNameEditing
+    const sidebarVisible = state.viewState.sidebarOpen || isNameEditing
 
     return (
         <div
             ref={containerRef}
             tabIndex={-1}
             {...bindingProps}
-            onFocus={onFocus}
-            onBlur={onBlur}
             className="group/document-ui relative h-full w-full overflow-hidden outline-none"
             >
             <Sidebar
@@ -612,23 +642,17 @@ function MainView<State>({
     sidebarVisible,
 }: MainViewProps<State>) {
     const openPage = Model.getOpenPage(state)
-    const noOpenPage = openPage === null
-    // don't include `state` as a dependency, because:
-    //   - `Model.getOpenPageEnv` only needs `state` for Pages before the current `openPage`
-    //   - only the current `openPage` can change (and following pages as they depend on it, but they are irrelevant for this case)
-    //   - so the real dependency, the Pages before `openPage`, can only change if one of them becomes the `openPage`
-    //   - so `innerState.viewState.openPage` suffices as dependency
-    //   - otherwise `pageEnv` would change every time something in `openPage` changes
-    //      => which leads to everything in `openPage` being reevaluated, even though just some subset could suffice
-    // This could be better solved, if I could break innerState up into the pages before and only feed them as argument and dependency.
-    // But currently it looks like this would harm seperation of concerns. It seems that the inner workings of `Model.getOpenPageEnv`
-    // therefore would have to spill into here.
+    const pageDeps = useStable(Model.getOpenPageDeps(state), (l, r) => isEqualDepth(l, r, 1))
     const pageEnv = React.useMemo(
-        () => noOpenPage ? null : Model.getOpenPageEnv(state, env, innerBlock),
-        [state.viewState.openPage, noOpenPage, env, innerBlock],
+        () => Model.pageDepsToEnv(pageDeps, env, innerBlock),
+        [pageDeps, env, innerBlock],
+    )
+    const dispatchOpenPage = React.useCallback(
+        (action: BlockAction<State>) => actions.dispatchPage(state.viewState.openPage, action),
+        [state.viewState.openPage],
     )
 
-    if (!pageEnv) {
+    if (!openPage) {
         function Link({ onClick, children }) {
             return <a className="font-medium cursor-pointer text-blue-800 hover:text-blue-600" onClick={onClick}>{children}</a>
         }
@@ -657,7 +681,7 @@ function MainView<State>({
             <innerBlock.Component
                 ref={innerRef}
                 state={openPage.state}
-                dispatch={actions.dispatchOpenPage}
+                dispatch={dispatchOpenPage}
                 env={pageEnv}
                 />
         </div>
@@ -766,32 +790,6 @@ interface SidebarProps<State> extends ActionProps<State> {
 }
 
 function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
-    function CommandSearchButton() {
-        return (
-            <button
-                className={`
-                    rounded-full mx-2 px-3 py-0.5
-                    flex flex-row items-baseline space-x-2
-                    bg-gray-200 text-gray-400 border border-gray-300 
-                    text-sm cursor-pointer
-                    hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
-                    transition
-                    group
-                `}
-                onPointerDown={ev => { ev.preventDefault(); commandBinding[3]() }} // Not onClick so it fires before the focus changes
-            >
-                <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
-                <span>Commands</span>
-                <div className="flex-1 text-right">
-                    {intersperse<React.ReactNode>(
-                        "/",
-                        commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
-                    )}
-                </div>
-            </button>
-        )
-    }
-
     return (
         <Transition
             show={isVisible}
@@ -837,7 +835,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 
             <div className="h-2" />
 
-            <CommandSearchButton />
+            <CommandSearchButton commandBinding={commandBinding} />
 
             <div className="h-3" />
 
@@ -895,9 +893,37 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 }
 
 
+const CommandSearchButton = React.memo(function CommandSearchButton({ commandBinding }: { commandBinding: Keybinding }) {
+    return (
+        <button
+            className={`
+                rounded-full mx-2 px-3 py-0.5
+                flex flex-row items-baseline space-x-2
+                bg-gray-200 text-gray-400 border border-gray-300 
+                text-sm cursor-pointer
+                hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
+                transition
+                group
+            `}
+            onPointerDown={ev => { ev.preventDefault(); commandBinding[3]() }} // Not onClick so it fires before the focus changes
+        >
+            <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
+            <span>Commands</span>
+            <div className="flex-1 text-right">
+                {intersperse<React.ReactNode>(
+                    "/",
+                    commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
+                )}
+            </div>
+        </button>
+    )
+})
 
 
-function SidebarMenu<State>({ actions }: ActionProps<State>) {
+
+
+
+const SidebarMenu = React.memo(function SidebarMenu<State>({ actions }: ActionProps<State>) {
     type MenuItemProps<Elem extends React.ElementType> =
         React.ComponentPropsWithoutRef<Elem>
         & { as?: Elem }
@@ -952,4 +978,4 @@ function SidebarMenu<State>({ actions }: ActionProps<State>) {
             </Menu.Items>
         </Menu>
     )
-}
+})

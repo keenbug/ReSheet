@@ -30,8 +30,8 @@ export function BlockSelector(
             )
         },
 
-        recompute(state, dispatch, env) {
-            return Model.recompute(state, dispatch, env, blockLibrary)
+        recompute(state, dispatch, env, changedVars) {
+            return Model.recompute(state, dispatch, env, changedVars, blockLibrary)
         },
 
         getResult(state) {

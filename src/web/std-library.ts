@@ -10,6 +10,7 @@ import * as reactInspector from 'react-inspector'
 import * as prismReactRenderer from 'prism-react-renderer'
 
 import * as immutable from 'immutable'
+import lodash from 'lodash'
 
 import * as babel_core from '@babel/core'
 import babel_react from '@babel/preset-react'
@@ -40,6 +41,7 @@ import * as blocks_note from '@resheet/blocks/note'
 import * as blocks_note_note from '@resheet/blocks/note/note'
 import * as blocks_sheet from '@resheet/blocks/sheet'
 import * as blocks_document from '@resheet/blocks/document'
+import * as blocks_document_pages from '@resheet/blocks/document/pages'
 import * as blocks_logic_compute from '@resheet/code/compute'
 // blocks utils
 import * as blocks_utils_ui from '@resheet/blocks/utils/ui'
@@ -83,7 +85,10 @@ const resheet = {
         blockSelector: blocks_blockSelector,
         compute: blocks_logic_compute,
         sheet: blocks_sheet,
-        document: blocks_document,
+        document: {
+            index: blocks_document,
+            pages: blocks_document_pages,
+        },
         jsexpr: blocks_jsexpr,
         note: {
             index: blocks_note,
@@ -129,6 +134,7 @@ export const library = {
     reactInspector,
 
     immutable,
+    lodash,
 
     babel: {
         core: babel_core,

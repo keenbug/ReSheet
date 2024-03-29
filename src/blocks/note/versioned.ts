@@ -4,7 +4,7 @@ import { addRevision, addValidator } from '@resheet/util/serialize'
 import { fieldDispatcher } from '@resheet/util/dispatch'
 
 import { Result, resultFrom } from '@resheet/code/result'
-import { computeExpr } from '@resheet/code/compute'
+import { computeExpr, freeVarsExpr } from '@resheet/code/compute'
 
 import { SafeBlock, safeBlock } from '../component'
 
@@ -35,9 +35,9 @@ interface NoteModelV0 {
 }
 
 type NoteTypeV0 =
-    | { type: 'expr', code: string, result: Result }
-    | { type: 'block', isInstantiated: false, code: string, result: Result, lastState?: any }
-    | { type: 'block', isInstantiated: true, code: string, block: SafeBlock<unknown>, state: unknown }
+    | { type: 'expr', code: string, deps: Set<string>, result: Result }
+    | { type: 'block', isInstantiated: false, code: string, deps: Set<string>, result: Result, lastState?: any }
+    | { type: 'block', isInstantiated: true, code: string, deps: Set<string>, block: SafeBlock<unknown>, state: unknown }
     | { type: 'text', tag: string, text: string }
     | { type: 'checkbox', checked: boolean, text: string }
 
@@ -49,46 +49,53 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
 
     return validatorSwitch<NoteTypeV0>(json,
         [{ type: 'expr', code: string }, ({ code }) => {
+            const deps = freeVarsExpr(code)
             const result = resultFrom(computeExpr(code, env), block.dispatcherToSetter(dispatchExprResult))
-            return { type: 'expr', code, result }
+            return { type: 'expr', code, deps, result }
         }],
 
         [{ type: 'block', isInstantiated: true, code: string, state: any }, ({ code, state: stateJson }) => {
+            const deps = freeVarsExpr(code)
+
             function setBlockFromResult(result: Result) {
                 dispatch(() => {
                     if (result.type === 'immediate' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        const loadedBlock = safeBlock(result.value)
+                        const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
                         return {
-                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                            state: { type: 'block', isInstantiated: true, code, deps, block: loadedBlock, state },
                         }
                     }
 
                     if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
-                        const state = result.value.fromJSON(stateJson, dispatchBlockResult, env)
+                        const loadedBlock = safeBlock(result.value)
+                        const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
                         return {
-                            state: { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state },
+                            state: { type: 'block', isInstantiated: true, code, deps, block: loadedBlock, state },
                         }
                     }
 
                     return {
-                        state: { type: 'block', isInstantiated: false, code, result },
+                        state: { type: 'block', isInstantiated: false, code, deps, result },
                     }
                 })
             }
 
             const result = resultFrom(computeExpr(code, env), setBlockFromResult)
             if (result.type === 'immediate' && block.isBlock(result.value)) {
-                const state = result.value.fromJSON(stateJson, dispatchBlockState, env)
-                return { type: 'block', isInstantiated: true, code, block: safeBlock(result.value), state }
+                const loadedBlock = safeBlock(result.value)
+                const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
+                return { type: 'block', isInstantiated: true, code, deps, block: loadedBlock, state }
             }
             else {
-                return { type: 'block', isInstantiated: false, code, result }
+                return { type: 'block', isInstantiated: false, code, deps, result }
             }
         }],
 
         [{ type: 'block', isInstantiated: false, code: string }, ({ code }) => {
+            const deps = freeVarsExpr(code)
             const result = resultFrom(computeExpr(code, env), block.dispatcherToSetter(dispatchBlockResult))
-            return { type: 'block', isInstantiated: false, code, result }
+            return { type: 'block', isInstantiated: false, code, deps, result }
         }],
 
         [{ type: 'text', tag: string, text: string }, ({ tag, text }) => {

@@ -1,3 +1,5 @@
+import { Set, set } from 'immutable'
+
 import * as block from '@resheet/core/block'
 import { Block } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
@@ -19,6 +21,7 @@ export const init = {
 
 
 export const lineDefaultName = Multiple.entryDefaultName
+export const lineName = Multiple.entryName
 export const lineToEnv = Multiple.entryToEnv
 
 export function nextFreeId(state: SheetBlockState<unknown>) {
@@ -44,17 +47,23 @@ export function updateLineWithId<Inner>(
     env: block.Environment,
     innerBlock: Block<Inner>,
 ) {
+    const lineIndex = state.lines.findIndex(line => line.id === id)
+    if (lineIndex < 0) { return state }
+    const line = state.lines[lineIndex]
+
     return {
         ...state,
         lines: (
             Multiple.recomputeFrom(
-                Multiple.updateBlockWithId(state.lines, id, action),
+                set(state.lines, lineIndex, action(line)),
                 id,
                 env,
+                Set([ lineName(line) ]),
                 innerBlock,
                 fieldDispatcher('lines', dispatch),
                 1,
             )
+                .state
         )
     }
 }
@@ -74,9 +83,11 @@ export function insertLineBefore<Inner>(
                 Multiple.insertEntryBefore(state.lines, id, newLine),
                 id,
                 env,
+                Set([ lineName(newLine) ]),
                 innerBlock,
                 fieldDispatcher('lines', dispatch),
             )
+                .state
         ),
     }
 }
@@ -96,9 +107,11 @@ export function insertLineAfter<Inner>(
                 Multiple.insertEntryAfter(state.lines, id, newLine),
                 newLine.id,
                 env,
+                Set([ lineName(newLine)] ),
                 innerBlock,
                 fieldDispatcher('lines', dispatch),
             )
+                .state
         ),
     }
 }
@@ -114,12 +127,14 @@ export function insertLineEnd<Inner>(
         ...state,
         lines: (
             Multiple.recomputeFrom(
-                [...state.lines, newLine],
-                newLine.id,
-                env,
-                innerBlock,
-                fieldDispatcher('lines', dispatch),
-            )
+                    [...state.lines, newLine],
+                    newLine.id,
+                    env,
+                    Set([ lineName(newLine) ]),
+                    innerBlock,
+                    fieldDispatcher('lines', dispatch),
+                )
+                .state
         ),
     }
 }
@@ -132,6 +147,10 @@ export function deleteLines<Inner>(
     innerBlock: Block<Inner>,
 ): [number, SheetBlockState<Inner>] {
     const index = state.lines.findIndex(line => ids.includes(line.id))
+
+    const deletedLines = state.lines.filter(line => ids.includes(line.id))
+    const changedVars = Set(deletedLines.map(lineName))
+
     const linesWithoutIds = state.lines.filter(line => !ids.includes(line.id))
     const prevIndex = clampTo(0, linesWithoutIds.length, index - 1)
     const prevId = linesWithoutIds[prevIndex]?.id
@@ -144,19 +163,33 @@ export function deleteLines<Inner>(
                 linesWithoutIds,
                 undefined,
                 env,
+                changedVars,
                 innerBlock,
                 fieldDispatcher('lines', dispatch),
                 index,
-            ),
+            )
+                .state,
         },
     ]
 }
 
-export function recompute<State>(state: SheetBlockState<State>, dispatch: block.BlockDispatcher<SheetBlockState<State>>, env: block.Environment, innerBlock: Block<State>) {
+export function recompute<State>(
+    state: SheetBlockState<State>,
+    dispatch: block.BlockDispatcher<SheetBlockState<State>>,
+    env: block.Environment,
+    changedVars: Set<string> | null,
+    innerBlock: Block<State>,
+) {
     const dispatchLines = fieldDispatcher('lines', dispatch)
+
+    const { state: lines, invalidated } = Multiple.recompute(state.lines, dispatchLines, env, changedVars, innerBlock)
+
     return {
-        ...state,
-        lines: Multiple.recompute(state.lines, dispatchLines, env, innerBlock)
+        state: {
+            ...state,
+            lines,
+        },
+        invalidated,
     }
 }
 
@@ -172,7 +205,7 @@ export function getLineResult<State>(line: SheetBlockLine<State>, innerBlock: Bl
 export function updateLineBlock<State>(
     state: SheetBlockState<State>,
     id: number,
-    action: (state: State) => State,
+    action: (state: State, context: block.BlockActionContext) => State,
     innerBlock: Block<State>,
     env: block.Environment,
     dispatch: block.BlockDispatcher<SheetBlockState<State>>,

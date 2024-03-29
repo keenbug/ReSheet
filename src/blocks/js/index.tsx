@@ -10,8 +10,8 @@ import { CodeEditor, CodeEditorHandle } from '@resheet/code/editor'
 import { useCompletionsOverlay } from '@resheet/code/completions'
 import { safeBlock } from '@resheet/blocks/component'
 
-import { computeScript } from '@resheet/code/compute'
-import { Pending, Result, resultFrom } from '@resheet/code/result'
+import { computeScript, freeVarsScript } from '@resheet/code/compute'
+import { Result, getResultValue, resultFrom } from '@resheet/code/result'
 import { ViewResult } from '@resheet/code/value'
 
 import { useShortcuts } from '@resheet/util/shortcuts'
@@ -26,26 +26,19 @@ export const JSExpr = block.create<JSExprModel>({
     view({ env, state, dispatch }, ref) {
         return <JSExprUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
-    recompute(state, dispatch, env) {
-        return updateResult(state, dispatch, env)
+    recompute(state, dispatch, env, changedVars) {
+        const usedVars = freeVarsScript(state.code)
+        if (changedVars && changedVars.intersect(usedVars).isEmpty()) {
+            return { state, invalidated: false }
+        }
+
+        return {
+            state: updateResult(state, dispatch, env),
+            invalidated: true,
+        }
     },
     getResult(state) {
-        switch (state.result.type) {
-            case 'immediate':
-                return state.result.value
-
-            case 'promise':
-                switch (state.result.state) {
-                    case 'pending':
-                        return Pending
-                    
-                    case 'failed':
-                        return state.result.error
-                    
-                    case 'finished':
-                        return state.result.value
-                }
-        }
+        return getResultValue(state.result)
     },
     fromJSON(json, dispatch, env) {
         return updateResult(versioned.fromJSON(json), dispatch, env)
@@ -79,18 +72,27 @@ export const JSExprUi = React.forwardRef(
             })
         )
 
-        function onUpdateCode(code: string) {
-            dispatch(state => ({
-                state: updateResult({ ...state, code }, dispatch, env)
+        const onUpdateCode = React.useCallback(function onUpdateCode(code: string) {
+            dispatch((state, { env }) => ({
+                state: updateResult(
+                    { ...state, code, deps: freeVarsScript(code) },
+                    dispatch,
+                    env,
+                ),
             }))
-        }
+        }, [dispatch])
 
         const shortcutProps = useShortcuts([
             ...completions.shortcuts,
             {
                 description: "jsexpr",
                 bindings: [
-                    [["Alt-Enter"], 'none', 'rerun computation',  () => { dispatch(state => ({ state: updateResult(state, dispatch, env), description: "reran computation" })) }],
+                    [["Alt-Enter"], 'none', 'rerun computation',  () => {
+                        dispatch((state, { env }) => ({
+                            state: updateResult(state, dispatch, env),
+                            description: "reran computation",
+                        }))
+                    }],
                 ]
             },
         ])
@@ -114,7 +116,11 @@ export const JSExprUi = React.forwardRef(
     }
 )
 
-function updateResult(state: JSExprModel, dispatch: block.BlockDispatcher<JSExprModel>, env: block.Environment): JSExprModel {
+function updateResult(
+    state: JSExprModel,
+    dispatch: block.BlockDispatcher<JSExprModel>,
+    env: block.Environment,
+): JSExprModel {
     const dispatchResult = fieldDispatcher('result', dispatch)
     function setResult(result: Result) {
         dispatchResult(() => ({ state: result }))
@@ -179,7 +185,7 @@ export function Example(code: string, env: block.Environment) {
 
     return function Example() {
         const safeJSExpr = React.useMemo(() => safeBlock(JSExpr), [])
-        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null)
+        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null, [{ env }])
 
         React.useEffect(() => {
             dispatch(() => ({ state: updateResult(initWithCode, dispatch, env) }))

@@ -2,6 +2,8 @@ import { addRevision, addValidator } from "@resheet/util/serialize"
 import { string } from "@resheet/util/validate"
 import { Result } from "@resheet/code/result"
 
+import { freeVarsScript } from '@resheet/code/compute'
+
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {
     return {
@@ -24,6 +26,7 @@ function typedTables<Obj extends object>(revision: number, obj: Obj): Obj {
 interface JSExprModelV0 {
     code: string
     result: Result
+    deps: Set<string>
 }
 
 const vPre = addValidator<JSExprModelV0>(
@@ -31,6 +34,7 @@ const vPre = addValidator<JSExprModelV0>(
     code => ({
         code,
         result: { type: 'immediate', value: undefined },
+        deps: freeVarsScript(code),
     }),
 )
 
@@ -40,6 +44,7 @@ const v0 = addRevision(vPre, {
         return {
             code,
             result: { type: 'immediate', value: undefined },
+            deps: freeVarsScript(code),
         }
     },
     upgrade(before) {
@@ -53,6 +58,7 @@ const v1 = addRevision(v0, {
         return {
             code,
             result: { type: 'immediate', value: undefined },
+            deps: freeVarsScript(code),
         }
     },
     upgrade(before) {
@@ -70,6 +76,7 @@ export type {
 export const init: JSExprModelV0 = {
     code: '',
     result: { type: 'immediate', value: undefined },
+    deps: new Set(),
 }
 
 export { v1 as fromJSON }

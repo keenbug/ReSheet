@@ -4,9 +4,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 
-import { Block, BlockAction, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
+import { Set } from 'immutable'
+import _ from 'lodash'
+
+import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
-import { arrayEquals, arrayStartsWith, clampTo } from '@resheet/util'
+import { arrayEquals, arrayStartsWith, clampTo, isEqualDepth } from '@resheet/util'
 
 import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'
@@ -62,6 +65,17 @@ export function getExpandedPaths(pages: PageState<unknown>[], currentPath: PageI
 }
 
 export function getSiblingsOf<State>(
+    id: PageId,
+    pages: Array<PageState<State>>
+): [ PageState<State>[], PageState<State>, PageState<State>[] ] {
+    const selfIndex = Math.min(Number.MAX_SAFE_INTEGER, pages.findIndex(page => page.id === id))
+    const siblingsBefore = pages.slice(0, selfIndex)
+    const siblingsAfter = pages.slice(selfIndex + 1)
+    
+    return [siblingsBefore, pages[selfIndex], siblingsAfter]
+}
+
+export function getSiblingsAt<State>(
     path: PageId[],
     pages: Array<PageState<State>>
 ): [ PageState<State>[], PageState<State>[] ] {
@@ -81,12 +95,12 @@ export function getSiblingsOf<State>(
     return [siblingsBefore, siblingsAfter]
 }
 
-export function getNextPath<State>(
+export function getNextOrPrevPath<State>(
     path: PageId[],
     pages: PageState<State>[],
 ) {
     const parentPath = path.slice(0, -1)
-    const [siblingsBefore, siblingsAfter] = getSiblingsOf(path, pages)
+    const [siblingsBefore, siblingsAfter] = getSiblingsAt(path, pages)
 
     if (siblingsAfter.length > 0) {
         return [ ...parentPath, siblingsAfter[0].id ]
@@ -99,28 +113,27 @@ export function getNextPath<State>(
     }
 }
 
-export function getSiblingsEnv<State>(siblings: PageState<State>[], env: Environment, innerBlock: Block<State>) {
+export function pagesToEnv<State>(pages: PageState<State>[], innerBlock: Block<State>) {
     return Object.assign(
         {},
-        env,
-        ...siblings.map(sibling =>
-            toEnv(sibling, innerBlock)
+        ...pages.map(page =>
+            toEnv(page, innerBlock)
         )
     )
 }
 
-export function getPageEnvAt<State>(
+export function getPageDepsAt<State>(
     path: PageId[],
     pages: PageState<State>[],
-    env: Environment,
-    innerBlock: Block<State>,
 ) {
-    const [siblingsBefore, _siblingsAfter] = getSiblingsOf(path, pages)
-    const page = getPageAt(path, pages)
-    const siblingsEnv = getSiblingsEnv(siblingsBefore, env, innerBlock)
-    const childrenEnv = getSiblingsEnv(page.children, siblingsEnv, innerBlock)
-    
-    return childrenEnv
+    if (path.length === 0) {
+        return pages
+    }
+    const [siblingsBefore, page, _siblingsAfter] = getSiblingsOf(path[0], pages)
+    return [
+        ...siblingsBefore,
+        ...getPageDepsAt(path.slice(1), page.children),
+    ]
 }
 
 
@@ -182,9 +195,11 @@ export function unnestPage<State>(
             recomputePath,
             newPages,
             env,
+            Set([ getName(pageToMove) ]),
             innerBlock,
             dispatchPagesState,
-        ),
+        )
+            .state,
     ]
 }
 
@@ -235,9 +250,11 @@ export function nestPage<State>(
             newPath,
             newPages,
             env,
+            Set([ getName(pageToMove) ]),
             innerBlock,
             dispatchPagesState,
-        ),
+        )
+            .state,
     ]
 }
 
@@ -250,6 +267,8 @@ export function movePage<State>(
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ) {
     if (path.length === 0) { return pages }
+
+    const pageToMove = getPageAt(path, pages)
 
     const parentPath = path.slice(0, -1)
     const childId = path.slice(-1)[0]
@@ -289,9 +308,11 @@ export function movePage<State>(
             siblings => moveSibling(childId, siblings),
         ),
         env,
+        Set([ getName(pageToMove) ]),
         innerBlock,
         dispatchPagesState,
     )
+            .state
 }
 
 export function updatePageSiblings<State>(
@@ -323,16 +344,16 @@ export function updatePageSiblingsAt<State>(
     )
 }
 
-export function updatePages<State>(
+export function mapPages<State>(
     pages: Array<PageState<State>>,
-    update: (path: PageId[], page: PageState<State>) => PageState<State>,
+    update: (page: PageState<State>, path: PageId[]) => PageState<State>,
     currentPath: PageId[] = [],
 ): PageState<State>[] {
     return pages.map(
         page => {
             const pathHere = [...currentPath, page.id]
-            const children = updatePages(page.children, update, pathHere)
-            return update(pathHere, { ...page, children })
+            const children = mapPages(page.children, update, pathHere)
+            return update({ ...page, children }, pathHere)
         }
     )
 }
@@ -341,28 +362,34 @@ export function updatePageStateAt<State>(
     path: PageId[],
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     action: BlockAction<State>,
-    env: Environment,
     innerBlock: Block<State>,
 ) {
-    dispatchPagesState(pages => extractActionDescription(action, pureAction =>
-        recomputePagesFrom(
-            path,
-            updatePageAt(path, pages, page => ({ ...page, state: pureAction(page.state) })),
-            env,
-            innerBlock,
-            dispatchPagesState,
+    dispatchPagesState((pages, context) => extractActionDescription(action, pureAction => {
+        return (
+            updatePageAt(
+                path,
+                pages,
+                (page, context) => ({ ...page, state: pureAction(page.state, context) }),
+                context.env,
+                innerBlock,
+                dispatchPagesState
+            )
         )
-    ))
+    }))
 }
 
 export function recomputePagesFrom<State>(
     pathWithChanges: null | PageId[],
     pages: PageState<State>[],
     env: Environment,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
     dispatchPagesState: BlockDispatcher<PageState<State>[]>,
     currentPath: PageId[] = [],
-): PageState<State>[] {
+): {
+    state: PageState<State>[],
+    changedPages: Set<string>,
+} {
     const recomputeStartIndex = (
         pathWithChanges === null ?
             0
@@ -376,64 +403,141 @@ export function recomputePagesFrom<State>(
             pages.findIndex(page => page.id === pathWithChanges[0])
     )
 
+    let changedSiblings: Set<string>
+    if (pathWithChanges === null) {
+        changedSiblings = Set()
+    }
+    else if (pathWithChanges.length === 1) {
+        const changedPage = pages.find(page => page.id === pathWithChanges[0])
+        changedSiblings = changedPage ? Set([getName(changedPage)]) : Set()
+    }
+    else {
+        changedSiblings = Set()
+    }
+
     const unaffectedPages = pages.slice(0, recomputeStartIndex)
     const affectedPages = pages.slice(recomputeStartIndex)
 
-    const affectedPagesEnv = getSiblingsEnv(unaffectedPages, env, innerBlock)
+    const affectedPagesEnv = { ...env, ...pagesToEnv(unaffectedPages, innerBlock) }
 
-    const updatedPages = mapWithEnv(
-        affectedPages,
-        (page, localEnv) => {
+    const recomputedPages = affectedPages.reduce(
+        ({ recomputed, localEnv, changedSiblings }, page) => {
             function localDispatch(action: BlockAction<State>) {
-                updatePageStateAt(pathHere, dispatchPagesState, action, env, innerBlock)
+                updatePageStateAt(pathHere, dispatchPagesState, action, innerBlock)
             }
 
+            const changedVarsWithSiblings = changedVars?.union(changedSiblings)
+            
             const pathHere = [...currentPath, page.id]
             const children = recomputePagesFrom(
-                pathWithChanges?.slice(1) ?? null,
+                pathWithChanges?.[0] === page.id ? pathWithChanges.slice(1) : null,
                 page.children,
                 localEnv,
+                changedVarsWithSiblings,
                 innerBlock,
                 dispatchPagesState,
                 pathHere,
             )
-            const localEnvWithChildren = getSiblingsEnv(children, localEnv, innerBlock)
-            const state = innerBlock.recompute(page.state, localDispatch, localEnvWithChildren)
+
+            const localEnvWithChildren = { ...localEnv, ...pagesToEnv(children.state, innerBlock) }
+            const changedVarsWithChildren = changedVarsWithSiblings?.union(children.changedPages)
+            const { state, invalidated } = innerBlock.recompute(
+                page.state,
+                localDispatch,
+                localEnvWithChildren,
+                changedVarsWithChildren,
+            )
+            const name = getName(page)
+            const newChangedPages = invalidated ? changedSiblings.add(name) : changedSiblings.remove(name)
 
             const newPage: PageState<State> = {
                 ...page,
-                children,
+                children: children.state,
                 state,
             }
 
             return {
-                out: newPage,
-                env: toEnv(newPage, innerBlock),
+                recomputed: [...recomputed, newPage],
+                localEnv: { ...localEnv, ...toEnv(newPage, innerBlock) },
+                changedSiblings: newChangedPages,
             }
         },
-        affectedPagesEnv,
+        {
+            recomputed: [],
+            localEnv: affectedPagesEnv,
+            changedSiblings,
+        }
     )
 
-    return [...unaffectedPages, ...updatedPages]
+    return {
+        state: [...unaffectedPages, ...recomputedPages.recomputed],
+        changedPages: recomputedPages.changedSiblings,
+    }
+}
+
+export function updatePageAt_NO_RECOMPUTE<State>(
+    path: PageId[],
+    pages: PageState<State>[],
+    action: (state: PageState<State>, context: BlockActionContext) => PageState<State>,
+    env: Environment,
+    innerBlock: Block<State>,
+) {
+    if (path.length === 0) { return pages }
+
+    const [siblingsBefore, page, siblingsAfter] = getSiblingsOf(path[0], pages)
+    const siblingsEnv = pagesToEnv(siblingsBefore, innerBlock)
+
+    if (path.length === 1) {
+        const childrenEnv = pagesToEnv(page.children, innerBlock)
+
+        const newPage = action(page, { env: { ...env, ...siblingsEnv, ...childrenEnv } })
+
+        return [...siblingsBefore, newPage, ...siblingsAfter]
+    }
+    else {
+        const newChildren = updatePageAt_NO_RECOMPUTE(
+            path.slice(1),
+            page.children,
+            action,
+            { ...env, ...siblingsEnv },
+            innerBlock,
+        )
+        const newPage = { ...page, children: newChildren }
+
+        return [...siblingsBefore, newPage, ...siblingsAfter]
+    }
 }
 
 export function updatePageAt<State>(
     path: PageId[],
     pages: PageState<State>[],
-    action: (state: PageState<State>) => PageState<State>,
+    action: (state: PageState<State>, context: BlockActionContext) => PageState<State>,
+    env: Environment,
+    innerBlock: Block<State>,
+    dispatchPagesState: BlockDispatcher<PageState<State>[]>,
 ) {
     if (path.length === 0) { return pages }
 
-    return (
-        updatePages(
+    const updatedPages = (
+        updatePageAt_NO_RECOMPUTE(
+            path,
             pages,
-            (currentPath, page) => {
-                if (arrayEquals(currentPath, path)) {
-                    return action(page)
-                }
-                return page
-            },
+            action,
+            env,
+            innerBlock,
         )
+    )
+
+    return (
+        recomputePagesFrom(
+            path,
+            updatedPages,
+            env,
+            Set(),
+            innerBlock,
+            dispatchPagesState,
+        )
+            .state
     )
 }
 
@@ -449,8 +553,8 @@ export interface PageActions {
     deletePage(path: PageId[]): void
 }
 
-export interface PageEntryProps<State> {
-    page: PageState<State>
+export interface PageEntryProps {
+    page: PageState<unknown>
     path?: PageId[]
     openPage: PageId[]
     actions: PageActions
@@ -467,14 +571,14 @@ const pageStyle = {
     },
 }
 
-export function PageEntry<State>({
+function PageEntryComponent({
     page,
     path = [],
     openPage,
     actions,
     isNameEditing,
     setIsNameEditing,
-}: PageEntryProps<State>) {
+}: PageEntryProps) {
     const depth = path.length
     const pathHere = [ ...path, page.id ]
 
@@ -576,8 +680,47 @@ export function PageEntry<State>({
     )
 }
 
+export const PageEntry = React.memo(
+    PageEntryComponent,
+    (
+        {
+            page: prevPage,
+            path: prevPath,
+            openPage: prevOpenPage,
+            ...prevProps
+        },
+        {
+            page: nextPage,
+            path: nextPath,
+            openPage: nextOpenPage,
+            ...nextProps
+        }
+    ) => (
+        isPageStructureEqual(prevPage, nextPage)
+        && arrayEquals(prevPath, nextPath)
+        && arrayEquals(prevOpenPage, nextOpenPage)
+        && isEqualDepth(prevProps, nextProps, 1)
+    )
+) as typeof PageEntryComponent
 
-export function PageChildren<State>({ page, actions, path, openPage, ...props }: PageEntryProps<State>) {
+
+export function isPageStructureEqual(page1: PageState<unknown>, page2: PageState<unknown>): boolean {
+    if (page1 === page2) { return true }
+    return (
+        page1.name === page2.name
+        && page1.id === page2.id
+        && page1.isCollapsed === page2.isCollapsed
+        && _.zipWith(
+            page1.children,
+            page2.children,
+            isPageStructureEqual,
+        )
+            .every(_.identity)
+    )
+}
+
+
+export function PageChildren({ page, actions, path, openPage, ...props }: PageEntryProps) {
     const keyHere = path.join('.')
     return (
         <>

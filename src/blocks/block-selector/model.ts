@@ -1,3 +1,5 @@
+import { Set } from 'immutable'
+
 import * as block from '@resheet/core/block'
 import { Block, Environment } from '@resheet/core/block'
 import { computeExpr } from '@resheet/code/compute'
@@ -40,10 +42,10 @@ export function chooseBlock(
 
 export function blockDispatcher(dispatch: block.BlockDispatcher<BlockSelectorState>): block.BlockDispatcher<unknown> {
     return function dispatchBlock(action) {
-        dispatch(state => {
+        dispatch((state, context) => {
             if (state.mode === 'loading') { return { state } }
 
-            const result = action(state.innerBlockState)
+            const result = action(state.innerBlockState, context)
 
             return {
                 state: {
@@ -60,28 +62,42 @@ export function recompute(
     state: BlockSelectorState,
     dispatch: block.BlockDispatcher<BlockSelectorState>,
     env: Environment,
+    changedVars: Set<string> | null,
     blockLibrary: Environment,
-): BlockSelectorState {
+): {
+    state: BlockSelectorState,
+    invalidated: boolean,
+ } {
     const dispatchBlock = blockDispatcher(dispatch)
 
     const innerBlock = computeExpr(state.expr, { ...blockLibrary, ...env })
 
     if (!block.isBlock(innerBlock)) {
-        return state
+        return { state, invalidated: false }
     }
+
+    const safeInnerBlock = safeBlock(innerBlock)
 
     if (state.mode === 'loading') {
         return {
-            mode: state.modeAfter,
-            expr: state.expr,
-            innerBlock: safeBlock(innerBlock),
-            innerBlockState: innerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
+            state: {
+                mode: state.modeAfter,
+                expr: state.expr,
+                innerBlock: safeInnerBlock,
+                innerBlockState: safeInnerBlock.fromJSON(state.jsonToLoad, dispatchBlock, env),
+            },
+            invalidated: true,
         }
     }
+
+    const { state: innerBlockState, invalidated } = safeInnerBlock.recompute(state.innerBlockState, dispatchBlock, env, changedVars)
         
     return {
-        ...state,
-        innerBlock: safeBlock(innerBlock),
-        innerBlockState: innerBlock.recompute(state.innerBlockState, dispatchBlock, env)
+        state: {
+            ...state,
+            innerBlock: safeInnerBlock,
+            innerBlockState,
+        },
+        invalidated,
     }
 }

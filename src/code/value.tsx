@@ -70,7 +70,7 @@ export const ValueInspector = React.forwardRef(
                     viewError={error => <ErrorInspector error={error} />}
                     autoReset
                 >
-                    {React.createElement(() => value)}
+                    {value}
                 </ErrorBoundary>
             )
         }

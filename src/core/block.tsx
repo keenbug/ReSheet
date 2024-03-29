@@ -1,7 +1,11 @@
 import * as React from 'react'
 
+import { Set } from 'immutable'
+
 import { Validator, ValidatorObj, validate } from '@resheet/util/validate'
 import { Action, Dispatcher, fieldDispatcher, useDispatcher } from '@resheet/util/dispatch'
+import { isEqualDepth } from '@resheet/util'
+import { useStable } from '@resheet/util/hooks'
 
 export type Environment = { [varName: string]: any }
 export const emptyEnv: Environment = Object.create(null)
@@ -17,18 +21,22 @@ export interface BlockActionOutput {
     description?: string
 }
 
-export type BlockAction<State> = Action<State, [], BlockActionOutput>
+export type BlockActionContext = {
+    env: Environment
+}
 
-export type BlockDispatcher<State> = Dispatcher<State, [], BlockActionOutput>
+export type BlockAction<State> = Action<State, [BlockActionContext], BlockActionOutput>
 
-const DISPATCHER_INPUT = []
+export type BlockDispatcher<State> = Dispatcher<State, [BlockActionContext], BlockActionOutput>
+
 const DUMMY_OUTPUT_HANDLER = () => {}
 
 export function useBlockDispatcher<State>(
     init: State,
+    input: [BlockActionContext],
     handleOutput: (output: BlockActionOutput, oldState: State, newState: State) => void = DUMMY_OUTPUT_HANDLER,
 ) {
-    return useDispatcher(init, DISPATCHER_INPUT, handleOutput)
+    return useDispatcher(init, input, handleOutput)
 }
 
 export interface ViewerProps<State> {
@@ -42,10 +50,27 @@ export type ViewerDesc<State> =
 
 export interface BlockDef<State> {
     init: State
+
     view: ViewerDesc<State>
-    recompute(state: State, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    recompute(
+        state: State,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+        changed: Set<string> | null,
+    ): {
+        state: State,
+        invalidated: boolean,
+    }
+
     getResult(state: State): any
-    fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    fromJSON(
+        json: any,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+    ): State
+
     toJSON(state: State): any
 }
 
@@ -70,11 +95,29 @@ export type Viewer<State> =
 // (That's incidentally the reason why `fromJSON` also needs the Environment.)
 export interface Block<State> {
     [BlockTag]: typeof BlockTag
+
     init: State
+
     view: Viewer<State>
-    recompute(state: State, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    recompute(
+        state: State,
+        dispatch: BlockDispatcher<State>,
+        env: Environment,
+        changed: Set<string> | null,
+    ): {
+        state: State,
+        invalidated: boolean,
+    }
+
     getResult(state: State): any
-    fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment): State
+
+    fromJSON(
+        json: any,
+        dispatch: BlockDispatcher<State>,
+        env: Environment
+    ): State
+
     toJSON(state: State): any
 }
 
@@ -115,14 +158,14 @@ export function dispatcherToSetter<State>(
     }
 }
 
-export function dispatchWhenMatch(
+export function dispatchWhenMatch<State>(
     schema: Validator,
-    dispatch: BlockDispatcher<any>,
-): BlockDispatcher<any> {
-    return function dispatchMatch(action: BlockAction<any>) {
-        dispatch(state => {
+    dispatch: BlockDispatcher<State>,
+): BlockDispatcher<State> {
+    return function dispatchMatch(action: BlockAction<State>) {
+        dispatch((state, context) => {
             if (validate(schema, state)) {
-                return action(state)
+                return action(state, context)
             }
             return { state }
         })
@@ -138,21 +181,21 @@ export function dispatchCaseField<
     fieldName: Field,
     dispatch: BlockDispatcher<State>,
 ): BlockDispatcher<Extract<State, Discriminator>[Field]> {
-    return fieldDispatcher<Extract<State, Discriminator>, Field>(
+    return fieldDispatcher<Extract<State, Discriminator>, Field, [BlockActionContext], BlockActionOutput>(
         fieldName,
-        dispatchWhenMatch(discriminator, dispatch),
+        dispatchWhenMatch(discriminator, dispatch) as BlockDispatcher<Extract<State, Discriminator>>,
     )
 }
 
 
 export function extractActionDescription<InnerState, OuterState>(
     action: BlockAction<InnerState>,
-    fn: (stateAction: (innerState: InnerState) => InnerState) => OuterState,
+    fn: (stateAction: (innerState: InnerState, context: BlockActionContext) => InnerState) => OuterState,
 ): { state: OuterState, description?: string } {
     // Not pretty, but it works
     let description = undefined
-    const outerState = fn(innerState => {
-        const result = action(innerState)
+    const outerState = fn((innerState, context) => {
+        const result = action(innerState, context)
         description = result.description
         return result.state
     })

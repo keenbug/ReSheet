@@ -22,10 +22,9 @@ import { BlockSelectorState } from './versioned'
 
 
 function ACTIONS(
-    dispatch: EffectfulDispatcher<BlockSelectorState>,
+    dispatch: EffectfulDispatcher<BlockSelectorState, [block.BlockActionContext], block.BlockActionOutput>,
     codeEditor: React.RefObject<CodeEditorHandle>,
     innerBlockRef: React.RefObject<BlockHandle>,
-    blockLibrary: Environment
 ) {
     return {
         setExpr(expr: string) {
@@ -111,8 +110,8 @@ export const BlockSelectorUI = React.forwardRef(
         const completions = useCompletionsOverlay(codeEditor, blockExpr, blockEnv)
 
         const actions = React.useMemo(
-            () => ACTIONS(dispatchWithEffect, codeEditor, innerBlockRef, blockLibrary),
-            [dispatchWithEffect, codeEditor, innerBlockRef, blockLibrary],
+            () => ACTIONS(dispatchWithEffect, codeEditor, innerBlockRef),
+            [dispatchWithEffect, codeEditor, innerBlockRef],
         )
 
         React.useImperativeHandle(

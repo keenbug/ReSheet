@@ -16,36 +16,22 @@ export interface HistoryWrapper<State> {
     inner: State
 }
 
-export interface HistoryWrapperJSON<StateJSON> {
-    history: HistoryEntryJSON<StateJSON>[]
-    inner: StateJSON
+export type HistoryEntry<State> = {
+    time: Date
+    state: State
+    prev?: Date
 }
 
-export type HistoryEntry<State> =
-    | {
-        type: 'state'
-        time: Date
-        state: State
-        prev?: Date
-    }
-    | {
-        type: 'json'
-        time: Date
-        stateJSON: any
-        prev?: Date
-    }
-
-export interface HistoryEntryJSON<StateJSON> {
-    time: number
-    state: StateJSON
-    prev?: number
+export interface HistoryWrapperJSON<StateJSON> {
+    history: unknown[] // for backwards compatibility
+    inner: StateJSON
 }
 
 
 export function initHistory<State>(initState: State): HistoryWrapper<State> {
     return {
         mode: { type: 'current' },
-        history: [{ type: 'state', time: new Date(), state: initState }],
+        history: [{ time: new Date(), state: initState }],
         inner: initState,
     }
 }
@@ -56,10 +42,10 @@ export function innerDispatcher<State>(
     fromJSON: (json: any, env: Environment) => State,
 ): BlockDispatcher<State> {
     return function dispatchInner(action: BlockAction<State>) {
-        dispatch(state => extractActionDescription(action, pureAction =>
+        dispatch((state, context) => extractActionDescription(action, pureAction =>
             updateHistoryCurrent(
                 state,
-                pureAction,
+                inner => pureAction(inner, context),
                 env,
                 fromJSON,
             )
@@ -78,7 +64,7 @@ export function updateHistoryCurrent<State>(
             const newInner = action(state.inner)
             return {
                 ...state,
-                history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner, prev: state.history[0]?.time }]),
+                history: reduceHistory([ ...state.history, { time: new Date(), state: newInner, prev: state.history[0]?.time }]),
                 inner: newInner,
             }
         }
@@ -91,7 +77,7 @@ export function updateHistoryCurrent<State>(
             const newInner = action(stateInHistory)
             return {
                 mode: { type: 'current' },
-                history: reduceHistory([ ...state.history, { type: 'state', time: new Date(), state: newInner, prev: entryInHistory.time }]),
+                history: reduceHistory([ ...state.history, { time: new Date(), state: newInner, prev: entryInHistory.time }]),
                 inner: newInner,
             }
         }
@@ -177,12 +163,7 @@ export function getHistoryState<State>(
     env: Environment,
     fromJSON: (state: any, env: Environment) => State,
 ) {
-    switch (entry.type) {
-        case 'state':
-            return entry.state
-        case 'json':
-            return fromJSON(entry.stateJSON, env)
-    }
+    return entry.state
 }
 
 export function historyToJSON<State>(
@@ -190,22 +171,7 @@ export function historyToJSON<State>(
     toJSON: (state: State) => unknown,
 ): HistoryWrapperJSON<unknown> {
     return {
-        history: historyWrapper.history.map(entry => {
-            switch (entry.type) {
-                case 'json':
-                    return {
-                        time: entry.time.getTime(),
-                        state: entry.stateJSON,
-                        prev: entry.prev?.getTime?.(),
-                    }
-                case 'state':
-                    return {
-                        time: entry.time.getTime(),
-                        state: toJSON(entry.state),
-                        prev: entry.prev?.getTime?.(),
-                    }
-            }
-        }),
+        history: [],
         inner: toJSON(historyWrapper.inner),
     }
 }
@@ -215,18 +181,7 @@ export function historyFromJSON<State>(
     env: Environment,
     fromJSON: (json: any, env: Environment) => State,
 ): HistoryWrapper<State> {
-    return {
-        mode: { type: 'current' },
-        history: json.history.map(historyEntryJson => (
-            {
-                type: 'json',
-                time: new Date(historyEntryJson.time),
-                stateJSON: historyEntryJson.state,
-                prev: historyEntryJson.prev !== undefined && new Date(historyEntryJson.prev),
-            }
-        )),
-        inner: fromJSON(json.inner, env),
-    }
+    return initHistory(fromJSON(json.inner, env))
 }
 
 

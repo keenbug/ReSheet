@@ -19,8 +19,8 @@ export function SheetOf<State extends unknown>(innerBlock: block.Block<State>) {
         view({ state, dispatch, env }, ref) {
             return <UI.Sheet ref={ref} state={state} dispatch={dispatch} innerBlock={safeInnerBlock} env={env} />
         },
-        recompute(state, dispatch, env) {
-            return Model.recompute(state, dispatch, env, safeInnerBlock)
+        recompute(state, dispatch, env, changedVars) {
+            return Model.recompute(state, dispatch, env, changedVars, safeInnerBlock)
         },
         getResult(state) {
             return Model.getResult(state, safeInnerBlock)

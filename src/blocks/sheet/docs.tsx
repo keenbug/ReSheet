@@ -45,15 +45,17 @@ export default function gatherDocs(docs: DocsMap) {
 }
 
 
+const exampleEnv = { BlockSelector, Note, JSExpr }
+
 export function Example({ code }: { code: string }) {
     const block = React.useMemo(() => safeBlock(computeExpr(code, { SheetOf, BlockSelector, Note, JSExpr }) as Block<unknown>), [])
-    const [state, setState] = useBlockDispatcher(block.init)
+    const [state, setState] = useBlockDispatcher(block.init, [{ env: exampleEnv }])
 
     return (
         <div className="border rounded border-gray-100 p-1 my-4">
             <CodeView className="block rounded bg-gray-100 px-1" code={code} />
             <div className="border-t-2 border-slate-200 mt-1 pt-1">
-                <block.Component state={state} dispatch={setState} env={{ BlockSelector, Note, JSExpr }} />
+                <block.Component state={state} dispatch={setState} env={exampleEnv} />
             </div>
         </div>
     )

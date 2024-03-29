@@ -6,10 +6,9 @@ import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import * as block from '@resheet/core/block'
 import { BlockDispatcher, BlockHandle, Environment } from '@resheet/core/block'
-import { useRefMap, renderConditionally, WithSkipRender } from '@resheet/util/hooks'
+import { useRefMap, renderConditionally, WithSkipRender, useEffectfulDispatch } from '@resheet/util/hooks'
 
 import { ValueInspector } from '@resheet/code/value'
-import { useEnvDispatcher } from '@resheet/blocks/utils/hooks'
 import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 
 import { TextInput, focusWithKeyboard } from '@resheet/blocks/utils/ui'
@@ -37,7 +36,7 @@ export const Sheet = React.forwardRef(
         const [setLineRef, refMap] = useRefMap<number, SheetLineRef>()
         const lastFocus = React.useRef<number | null>(null)
         const containerRef = React.useRef<HTMLDivElement>()
-        const envDispatch = useEnvDispatcher(dispatch, env)
+        const dispatchFX = useEffectfulDispatch(dispatch)
 
         React.useImperativeHandle(
             ref,
@@ -66,8 +65,8 @@ export const Sheet = React.forwardRef(
         const selectedIds = selectionAnchorIds && lineIds.slice(selectionAnchorIndices[0], selectionAnchorIndices[1] + 1)
 
         const actions = React.useMemo(
-            () => ACTIONS(envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
-            [envDispatch, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
+            () => ACTIONS(dispatchFX, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds),
+            [dispatchFX, containerRef, refMap, innerBlock, selectedIds, setSelectionAnchorIds],
         )
 
         const shortcutProps = useShortcuts([
@@ -193,12 +192,12 @@ export interface SheetLinesProps<InnerState> {
     selection: [number, number] | null
 }
 
-export function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
+export const SheetLinesEnv = React.memo(function SheetLinesEnv<InnerState>({ lines, ...props }: SheetLinesProps<InnerState>) {
     if (lines.length === 0) {
         return null
     }
     return <SheetLinesEnvHelper index={0} lines={lines} siblingsEnv={block.emptyEnv} aboveViewport={true} {...props} />
-}
+})
 
 interface SheetLineHelperProps<InnerState> extends SheetLinesProps<InnerState> {
     index: number
@@ -329,8 +328,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
     const bindingsProps = useShortcuts(bindings)
 
     const subdispatch = React.useCallback(function subdispatch(action: block.BlockAction<Inner>) {
-        actions.dispatchInner(line.id, action, block, env)
-    }, [block, env])
+        actions.dispatchInner(line.id, action, block)
+    }, [block])
 
     const varInputBindings: Keybindings = React.useMemo(
         () => assignmentLineBindings<Inner>(line, innerBlockRef, actions),

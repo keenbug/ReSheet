@@ -1,3 +1,5 @@
+import { Set, set, update } from 'immutable'
+
 import { Validator, ValidatorObj, number, string } from "@resheet/util/validate"
 
 import { Block, Environment } from "./block"
@@ -51,7 +53,7 @@ export function entryToEnv<State>(entry: BlockEntry<State>, innerBlock: Block<St
     }
 }
 
-export function getSiblingEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
+export function entriesToEnv<State>(entries: BlockEntry<State>[], innerBlock: Block<State>) {
     return Object.assign(
         {},
         ...entries.map(entry => entryToEnv(entry, innerBlock)),
@@ -127,12 +129,12 @@ export function updateEntries<State, Entry extends BlockEntry<State>>(
         (entry, siblingEnv) => {
             const localEnv = getLocalEnv(siblingEnv)
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
                     updateEntryState(
                         entries,
                         entry.id,
                         pureAction,
-                        localEnv,
+                        context.env,
                         innerBlock,
                         dispatch,
                     )
@@ -152,9 +154,13 @@ export function recompute<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     dispatch: block.BlockDispatcher<Entry[]>,
     env: Environment,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
-): Entry[] {
-    return recomputeFrom(entries, undefined, env, innerBlock, dispatch)
+): {
+    state: Entry[],
+    invalidated: boolean,
+} {
+    return recomputeFrom(entries, undefined, env, changedVars, innerBlock, dispatch)
 }
 
 
@@ -162,34 +168,67 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number | undefined,
     env: Environment,
+    changedVars: Set<string> | null,
     innerBlock: Block<State>,
     dispatch: block.BlockDispatcher<Entry[]>,
     offset: number = 0,
-): Entry[] {
+): {
+    state: Entry[],
+    invalidated: boolean,
+ } {
     const index = id === undefined ? 0 : entries.findIndex(entry => entry.id === id)
-    if (index < 0) { return entries }
+    if (index < 0) {
+        return { state: entries, invalidated: false }
+    }
 
     const entriesUntilId = entries.slice(0, Math.max(0, index + offset))
     const entriesAfter = entries.slice(Math.max(0, index + offset))
 
-    const siblingsBeforeEnv = getSiblingEnv(entriesUntilId, innerBlock)
+    const siblingsBeforeEnv = entriesToEnv(entriesUntilId, innerBlock)
 
-    const recomputedEntries = updateEntries(
-        entriesAfter,
-        (entry, localEnv, localDispatch) => ({
-            ...entry,
-            state: innerBlock.recompute(entry.state, localDispatch, localEnv),
-        }),
-        dispatch,
-        innerBlock,
-        (siblingsEnv: Environment) => ({
-            ...env,
-            ...siblingsBeforeEnv,
-            ...siblingsEnv,
-            $before: { ...siblingsBeforeEnv, ...siblingsEnv },
-        })
+    const {
+        entries: recomputedEntries,
+        anyInvalidated,
+    } = entriesAfter.reduce(
+        ({ entries, siblingsEnv, changedVars, anyInvalidated }, entry) => {
+            const localEnv = { ...env, ...siblingsEnv, $before: siblingsEnv }
+
+            function localDispatch(localAction: block.BlockAction<State>) {
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
+                    updateEntryState(
+                        entries,
+                        entry.id,
+                        pureAction,
+                        context.env,
+                        innerBlock,
+                        dispatch,
+                    )
+                ))
+            }
+
+            const { state, invalidated } = innerBlock.recompute(entry.state, localDispatch, localEnv, changedVars)
+            const newEntry = { ...entry, state }
+            const name = entryName(entry)
+            const newChangedVars = invalidated ? changedVars?.add(name) : changedVars?.remove(name)
+
+            return {
+                entries: [ ...entries, newEntry ],
+                siblingsEnv: { ...siblingsEnv, ...entryToEnv(newEntry, innerBlock) },
+                changedVars: newChangedVars,
+                anyInvalidated: anyInvalidated || invalidated,
+            }
+        },
+        {
+            entries: [],
+            siblingsEnv: siblingsBeforeEnv,
+            changedVars,
+            anyInvalidated: false,
+        }
     )
-    return [ ...entriesUntilId, ...recomputedEntries ]
+    return {
+        state: [ ...entriesUntilId, ...recomputedEntries ],
+        invalidated: anyInvalidated,
+    }
 }
 
 
@@ -197,40 +236,38 @@ export function recomputeFrom<State, Entry extends BlockEntry<State>>(
 export function updateEntryState<State, Entry extends BlockEntry<State>>(
     entries: Entry[],
     id: number,
-    action: (state: State) => State,
+    action: (state: State, context: block.BlockActionContext) => State,
     env: Environment,
     innerBlock: Block<State>,
     dispatch: block.BlockDispatcher<Entry[]>,
 ): Entry[] {
-    const index = entries.findIndex(entry => entry.id === id)
-    if (index < 0) { return entries }
+    const entryIndex = entries.findIndex(entry => entry.id === id)
+    if (entryIndex < 0) { return entries }
 
-    const entriesBefore = entries.slice(0, index)
-    const entriesFromId = entries.slice(index)
+    const siblings = entries.slice(0, entryIndex)
+    const siblingsEnv = entriesToEnv(siblings, innerBlock)
 
-    const siblingsBeforeEnv = getSiblingEnv(entriesBefore, innerBlock)
-
-    const recomputedEntries = updateEntries(
-        entriesFromId,
-        (entry, localEnv, localDispatch) => ({
-            ...entry,
-            state: (
-                entry.id === id ?
-                    action(entry.state)
-                :
-                    innerBlock.recompute(entry.state, localDispatch, localEnv)
-            ),
-        }),
-        dispatch,
-        innerBlock,
-        (siblingsEnv: Environment) => ({
-            ...env,
-            ...siblingsBeforeEnv,
-            ...siblingsEnv,
-            $before: { ...siblingsBeforeEnv, ...siblingsEnv },
-        })
+    const entry = entries[entryIndex]
+    const updatedEntries = (
+        set(entries, entryIndex, update(entry, 'state', state =>
+            action(
+                state,
+                { env: { ...env, ...siblingsEnv, $before: siblingsEnv } },
+            )
+        ))
     )
-    return [ ...entriesBefore, ...recomputedEntries ]
+    const changedVars = Set([ entryName(entry) ])
+    const { state: recomputedEntries } = recomputeFrom(
+        updatedEntries,
+        id,
+        env,
+        changedVars,
+        innerBlock,
+        dispatch,
+        1,
+    )
+
+    return recomputedEntries
 }
 
 
@@ -256,12 +293,12 @@ export function fromJSON<State, Entry extends BlockEntry<State>>(
             const localEnv = { ...env, ...siblingEnv, $before: siblingEnv }
 
             function localDispatch(localAction: block.BlockAction<State>) {
-                dispatch(entries => block.extractActionDescription(localAction, pureAction =>
+                dispatch((entries, context) => block.extractActionDescription(localAction, pureAction =>
                     updateEntryState(
                         entries,
                         entry.id,
                         pureAction,
-                        env,
+                        context.env,
                         innerBlock,
                         dispatch,
                     )

@@ -1,3 +1,5 @@
+import _ from "lodash"
+
 export function clampBetween(minimumInclusive: number, maximumInclusive: number, value: number) {
     if (value < minimumInclusive) { return minimumInclusive }
     if (value > maximumInclusive) { return maximumInclusive }
@@ -42,6 +44,10 @@ export function arrayEquals<E>(
     arr2: E[],
     eq?: (left: E, right: E) => boolean,
 ): boolean {
+    if (arr1 === arr2) {
+        return true
+    }
+
     if (arr1.length !== arr2.length) {
         return false
     }
@@ -102,21 +108,59 @@ export function filterEntries<V>(
 }
 
 
-// Unfortunately not type-safe. Let's see how this experiment develops.
-export function $update(
-    update: (value: any) => any,
-    obj: any,
-    ...path: Array<string | number>
-) {
-    if (path.length === 0) {
-        return update(obj)
+export function areDisjoint<T>(set1: Set<T>, set2: Set<T>): boolean {
+    const [smallerSet, biggerSet] = set1.size < set2.size ? [set1, set2] : [set2, set1]
+    for (const key of smallerSet.keys()) {
+        if (biggerSet.has(key)) {
+            return false
+        }
     }
+    return true
+}
 
-    const key = path[0]
-    return {
-        ...obj,
-        [key]: $update(update, obj[key], ...path.slice(1)),
+
+export function flatObj(value: any, visited: Set<unknown> = new Set()) {
+    if (visited.has(value)) {
+        return value
     }
+    else if (typeof value === 'object' && value !== null) {
+        visited.add(value)
+        return (
+            Object.fromEntries(
+                Object.entries(value)
+                    .flatMap(([key, field]) => {
+                        const flatField = flatObj(field, visited)
+                        if (typeof flatField === 'object' && flatField !== null) {
+                            return (
+                                Object.entries(flatField)
+                                    .map(([subkey, subfield]) =>
+                                        [`${key}.${subkey}`, subfield]
+                                    )
+                            )
+                        }
+                        else {
+                            return [[key, flatField]]
+                        }
+                    })
+            )
+        )
+    }
+    else {
+        return value
+    }
+}
+
+
+export function isEqualDepth(l: any, r: any, depth: number) {
+    return _.isEqualWith(
+        l,
+        r,
+        (l, r, _key, _objL, _objR, stack) => {
+            if (_.toPath(stack).length >= depth) {
+                return Object.is(l, r)
+            }
+        },
+    )
 }
 
 

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { throttle } from 'throttle-debounce'
+import _ from 'lodash'
 
 import { isPromise } from '.'
 import { Action, Dispatcher } from './dispatch'
@@ -214,7 +215,7 @@ export function renderConditionally<Props>(Component: React.FC<Props>, comparePr
 }
 
 
-export function useSelectionRect() {
+export function useSelectionRect(active: boolean = true) {
     const [rect, setRect] = React.useState<DOMRect | null>(null)
     const rectRef = useSyncRef(rect)
 
@@ -240,13 +241,36 @@ export function useSelectionRect() {
     }
 
     React.useEffect(() => {
+        if (!active) { return }
+
+        updateSelectionRect()
         document.addEventListener('selectionchange', updateSelectionRect)
         return () => {
             document.removeEventListener('selectionchange', updateSelectionRect)
         }
-    }, [])
+    }, [active])
 
     React.useEffect(updateSelectionRect)
 
-    return rect
+    return active ? rect : null
+}
+
+export function useStable<T>(value: T, equal: (l: T, r: T) => boolean = _.isEqual) {
+    const prevRef = React.useRef(value)
+    const prevValue = prevRef.current
+    const stableValue = equal(prevValue, value) ? prevValue : value
+    prevRef.current = stableValue
+    return stableValue
+}
+
+export function useStableCallback<Args extends any[], Return>(
+    func: (...args: Args) => Return,
+): (...args: Args) => Return {
+    const funcRef = React.useRef(func)
+    funcRef.current = func
+
+    return React.useCallback(
+        (...args) => funcRef.current(...args),
+        [],
+    )
 }

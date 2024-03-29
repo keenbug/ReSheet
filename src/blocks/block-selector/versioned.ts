@@ -61,10 +61,10 @@ const vPre = addValidator(
 
 function parseV0({ mode, inner, expr}, dispatch: block.BlockDispatcher<BlockSelectorStateV0>, env: Environment, blockLibrary: Environment): BlockSelectorStateV0 {
     function dispatchBlock(action: block.BlockAction<unknown>) {
-        dispatch(state => {
+        dispatch((state, context) => {
             if (state.mode === 'loading') { return { state } }
 
-            const result = action(state.innerBlockState)
+            const result = action(state.innerBlockState, context)
 
             return {
                 state: {

@@ -69,9 +69,9 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
             }, [])
 
             const safeDispatch = React.useCallback((action: BlockAction<State>) => {
-                dispatch(state => {
+                dispatch((state, context) => {
                     try {
-                        return action(state)
+                        return action(state, context)
                     }
                     catch (error) {
                         reportError("Block: Last action failed", error)
@@ -111,9 +111,9 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
         },
         fromJSON(json: any, dispatch: BlockDispatcher<State>, env: Environment) {
             function safeDispatch(action: BlockAction<State>) {
-                dispatch(state => {
+                dispatch((state, context) => {
                     try {
-                        return action(state)
+                        return action(state, context)
                     }
                     catch (e) {
                         reportError("Block: Could not update after fromJSON", e)
@@ -143,11 +143,11 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                 return e
             }
         },
-        recompute(state, dispatch, env) {
+        recompute(state, dispatch, env, changedVars) {
             function safeDispatch(action: BlockAction<State>) {
-                dispatch(state => {
+                dispatch((state, context) => {
                     try {
-                        return action(state)
+                        return action(state, context)
                     }
                     catch (e) {
                         reportError("Block: Could not update after recompute", e)
@@ -155,10 +155,10 @@ export function safeBlock<State>(block: Block<State>): SafeBlock<State> {
                     }
                 })
             }
-            try { return block.recompute(state, safeDispatch, env) }
+            try { return block.recompute(state, safeDispatch, env, changedVars) }
             catch (e) {
                 reportError("Block: Could not recompute block", e)
-                return state
+                return { state, invalidated: false }
             }
         },
     }

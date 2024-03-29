@@ -49,17 +49,29 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
                 </GatherShortcuts>
             )
         },
-        recompute(state, dispatch, env) {
+        recompute(state, dispatch, env, changedVars) {
             function fromJSON(json: any, env: Environment) {
                 return Model.fromJSON(json, dispatchInner, env, safeInnerBlock)
             }
             const dispatchInner = History.innerDispatcher(dispatch, env, fromJSON)
-            return History.updateHistoryCurrent<Document<State>>(
+
+            // Ugly, as usual. Hopefully this workaround disappears after
+            // properly splitting off History
+            let invalidated = false
+            const newState = History.updateHistoryCurrent<Document<State>>(
                 state,
-                doc => Model.recompute(doc, dispatchInner, env, safeInnerBlock),
+                doc => {
+                    const { state, invalidated: inv } = Model.recompute(doc, dispatchInner, env, changedVars, safeInnerBlock)
+                    invalidated = inv
+                    return state
+                },
                 env,
                 fromJSON,
             )
+            return {
+                state: newState,
+                invalidated,
+            }
         },
         getResult(state) {
             // FIXME: Return the result of the current historic position

@@ -55,7 +55,7 @@ export function Input(parser = str => str) {
             return parser(state)
         },
         recompute(state, dispatch, env) {
-            return state
+            return { state, invalidated: false }
         },
         fromJSON(json) {
             if (typeof json === 'string') {
@@ -73,7 +73,7 @@ export function Input(parser = str => str) {
 
 export type LoadFileState =
     | { state: 'init' }
-    | { state: 'loaded', file: File, buffer: ArrayBuffer }
+    | { state: 'loaded', file: File, content: string }
 
 export const LoadFile = Block.create<LoadFileState>({
     init: { state: 'init' },
@@ -87,8 +87,9 @@ export const LoadFile = Block.create<LoadFileState>({
 
         async function loadFile(file: File) {
             const buffer = await file.arrayBuffer()
+            const content = uint8ArrayToBase64(new Uint8Array(buffer))
             dispatch(() => ({
-                state: { state: 'loaded', file, buffer },
+                state: { state: 'loaded', file, content },
                 description: "loaded file into block",
             }))
         }
@@ -128,7 +129,7 @@ export const LoadFile = Block.create<LoadFileState>({
         }
     },
     recompute(state, dispatch, env) {
-        return state
+        return { state, invalidated: false }
     },
     getResult(state) {
         switch (state.state) {
@@ -139,12 +140,13 @@ export const LoadFile = Block.create<LoadFileState>({
     fromJSON(json, dispatch, env) {
         return validatorSwitch<LoadFileState>(json,
             [is(null), () => ({ state: 'init' })],
-            [string, content => {
-                const uint8Array = new TextEncoder().encode(content)
+            [string, textContent => {
+                const uint8Array = new TextEncoder().encode(textContent)
+                const content = uint8ArrayToBase64(uint8Array)
                 return {
                     state: 'loaded',
                     file: new File([uint8Array], '<unknown>'),
-                    buffer: uint8Array.buffer,
+                    content
                 }
             }],
             [{ state: 'init' }, init => init],
@@ -153,7 +155,7 @@ export const LoadFile = Block.create<LoadFileState>({
                 return {
                     state: 'loaded',
                     file: new File([uint8Array], filename),
-                    buffer: uint8Array.buffer,
+                    content,
                 }
             }],
             [
@@ -176,7 +178,7 @@ export const LoadFile = Block.create<LoadFileState>({
                     return {
                         state: 'loaded',
                         file: new File([uint8Array], name, { type, lastModified }),
-                        buffer: uint8Array.buffer,
+                        content,
                     }
                 },
             ],
@@ -192,7 +194,7 @@ export const LoadFile = Block.create<LoadFileState>({
                 return {
                     state: 'loaded',
                     file: {
-                        content: uint8ArrayToBase64(new Uint8Array(state.buffer)),
+                        content: state.content,
                         name: state.file.name,
                         options: {
                             type: state.file.type,

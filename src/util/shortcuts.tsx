@@ -7,6 +7,8 @@ import { debounce } from 'throttle-debounce'
 
 import { intersperse } from '@resheet/util'
 
+import { useStableCallback } from './hooks'
+
 // Fulfilled by both React.KeyboardEvent and the DOM's KeyboardEvent
 interface KeyboardEvent {
     ctrlKey: boolean
@@ -321,7 +323,8 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
 export function useShortcuts(bindings: Keybindings, active: boolean = true) {
     const id = React.useId()
     const { updateBindings, reportBindings, removeBindings } = React.useContext(ShortcutsReporterContext)
-    const onKeyDown = useKeybindingsHandler(bindings)
+    const onKeyDownUnstable = useKeybindingsHandler(bindings)
+    const onKeyDown = useStableCallback(onKeyDownUnstable)
     const focusRef = React.useRef<{ isSelfFocused: boolean, isAnInputFocused: boolean }>(null)
 
     React.useEffect(() => {
@@ -340,7 +343,7 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
         }
     }, [bindings, active])
 
-    const onFocus = React.useCallback(function onFocus(event: React.FocusEvent) {
+    const onFocus = useStableCallback(function onFocus(event: React.FocusEvent) {
         const isSelfFocused = event.currentTarget === event.target
         const isAnInputFocused = isAnInput(event.target)
         focusRef.current = {
@@ -350,7 +353,7 @@ export function useShortcuts(bindings: Keybindings, active: boolean = true) {
 
         const newActiveBindings = filterBindings(bindings, isSelfFocused, isAnInputFocused)
         active && reportBindings(id, newActiveBindings)
-    }, [bindings, active])
+    })
 
     const onBlur = React.useCallback(function onBlur(event: React.FocusEvent) {
         const isStillFocused = event.currentTarget.contains(event.relatedTarget) // contains the element receiving focus

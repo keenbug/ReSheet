@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { BlockActionOutput, BlockHandle, useBlockDispatcher } from '@resheet/core/block'
+import { BlockActionContext, BlockActionOutput, BlockHandle, useBlockDispatcher } from '@resheet/core/block'
 
 import { DocumentOf, DocumentState } from '@resheet/blocks/document'
 import { BlockSelector, BlockSelectorState } from '@resheet/blocks/block-selector'
@@ -13,7 +13,7 @@ import { PendingState, useThrottlePending } from '@resheet/util/hooks'
 import { getFullKey } from '@resheet/util/shortcuts'
 
 import { library } from './std-library'
-import { storeBackup, db, removeOldBackups } from './backup'
+import { db, removeOldBackups } from './backup'
 import { FocusIndicator } from './focus-indicator'
 import { useActionToast } from './action-toast'
 
@@ -30,6 +30,8 @@ const blocks = library.blocks
 
 type ToplevelBlockState = DocumentState<BlockSelectorState>
 const ToplevelBlock = safeBlock(DocumentOf(BlockSelector('SheetOf(Note)', SheetOf(Note), blocks)))
+
+const ToplevelInput: [BlockActionContext] = [{ env: library }]
 
 
 interface AppProps {
@@ -51,10 +53,10 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     }, [])
     const [actionToastUi, addActionToast] = useActionToast<ToplevelBlockState>(undoState)
 
-    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, handleDispatchOutput)
+    const [toplevelState, dispatch] = useBlockDispatcher<ToplevelBlockState>(ToplevelBlock.init, ToplevelInput, handleDispatchOutput)
     const toplevelBlockRef = React.useRef<BlockHandle>()
 
-    const [backupPendingState, throttledBackup] = useThrottlePending(3000, storeBackup)
+    const [backupPendingState, throttledBackup] = useThrottlePending(3000, execBackup)
 
     // Load initial state
     React.useEffect(() => {
@@ -70,7 +72,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
     React.useEffect(() => {
         // On first render: don't overwrite a backup before it was loaded
         if (toplevelState !== ToplevelBlock.init) {
-            throttledBackup(backupId, ToplevelBlock.toJSON(toplevelState))
+            throttledBackup(backupId, () => ToplevelBlock.toJSON(toplevelState))
         }
     }, [backupId, toplevelState])
 
@@ -214,6 +216,27 @@ function LoadingScreen() {
     )
 }
 
+
+const backupWorker = new Worker(
+    new URL('backup-worker.ts', import.meta.url),
+    { type: 'module' },
+)
+
+function execBackup(id: string, thunk: () => any) {
+    return new Promise<void>(resolve => {
+        const ref = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+
+        backupWorker.addEventListener('message', waitForCompletion)
+        backupWorker.postMessage({ id, ref, document: thunk() })
+
+        function waitForCompletion(event: MessageEvent<{ done: number }>) {
+            if (event.data.done === ref) {
+                backupWorker.removeEventListener('message', waitForCompletion)
+                resolve()
+            }
+        }
+    })
+}
 
 async function loadBackup(id: string) {
     try {
