@@ -72,11 +72,15 @@ export const JSExprUi = React.forwardRef(
             })
         )
 
-        function onUpdateCode(code: string) {
+        const onUpdateCode = React.useCallback(function onUpdateCode(code: string) {
             dispatch((state, { env }) => ({
-                state: updateResult({ ...state, code }, dispatch, env)
+                state: updateResult(
+                    { ...state, code, deps: freeVarsScript(code) },
+                    dispatch,
+                    env,
+                ),
             }))
-        }
+        }, [dispatch])
 
         const shortcutProps = useShortcuts([
             ...completions.shortcuts,
@@ -181,7 +185,7 @@ export function Example(code: string, env: block.Environment) {
 
     return function Example() {
         const safeJSExpr = React.useMemo(() => safeBlock(JSExpr), [])
-        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null, { env })
+        const [state, dispatch] = block.useBlockDispatcher<JSExprModel | null>(null, [{ env }])
 
         React.useEffect(() => {
             dispatch(() => ({ state: updateResult(initWithCode, dispatch, env) }))

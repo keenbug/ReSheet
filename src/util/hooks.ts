@@ -262,3 +262,15 @@ export function useStable<T>(value: T, equal: (l: T, r: T) => boolean = _.isEqua
     prevRef.current = stableValue
     return stableValue
 }
+
+export function useStableCallback<Args extends any[], Return>(
+    func: (...args: Args) => Return,
+): (...args: Args) => Return {
+    const funcRef = React.useRef(func)
+    funcRef.current = func
+
+    return React.useCallback(
+        (...args) => funcRef.current(...args),
+        [],
+    )
+}

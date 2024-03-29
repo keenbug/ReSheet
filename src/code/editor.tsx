@@ -3,6 +3,7 @@ import * as React from 'react'
 import { Highlight } from 'prism-react-renderer'
 
 import { clampBetween } from '@resheet/util'
+import { useStable } from '@resheet/util/hooks'
 import { getFullKey } from '@resheet/util/shortcuts'
 
 import theme from './theme'
@@ -16,7 +17,7 @@ export type CodeViewProps<ContainerType extends React.ComponentType> = React.Com
     language?: string
 }
 
-export const CodeView = React.forwardRef<HTMLElement, CodeViewProps<any>>(
+export const CodeView = React.memo(React.forwardRef<HTMLElement, CodeViewProps<any>>(
     function CodeView(
         {
             code,
@@ -62,7 +63,7 @@ export const CodeView = React.forwardRef<HTMLElement, CodeViewProps<any>>(
             </Highlight>
         )
     }
-)
+))
 
 
 export type CodeEditorProps = CodeViewProps<any> & {
@@ -118,16 +119,17 @@ export const CodeEditor = React.forwardRef(
             :
                 ['0', 'transparent']
         )
+        const defaultStyle = useStable({
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
+            '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
+        })
 
         return (
             <CodeView
                 ref={codeViewRef}
                 code={code}
-                style={style ?? {
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                    boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
-                    '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
-                }}
+                style={style ?? defaultStyle}
                 {...props}
                 className={`
                     focus-within/code-editor:bg-gradient-to-r

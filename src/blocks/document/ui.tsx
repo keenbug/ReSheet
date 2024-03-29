@@ -790,32 +790,6 @@ interface SidebarProps<State> extends ActionProps<State> {
 }
 
 function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
-    function CommandSearchButton() {
-        return (
-            <button
-                className={`
-                    rounded-full mx-2 px-3 py-0.5
-                    flex flex-row items-baseline space-x-2
-                    bg-gray-200 text-gray-400 border border-gray-300 
-                    text-sm cursor-pointer
-                    hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
-                    transition
-                    group
-                `}
-                onPointerDown={ev => { ev.preventDefault(); commandBinding[3]() }} // Not onClick so it fires before the focus changes
-            >
-                <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
-                <span>Commands</span>
-                <div className="flex-1 text-right">
-                    {intersperse<React.ReactNode>(
-                        "/",
-                        commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
-                    )}
-                </div>
-            </button>
-        )
-    }
-
     return (
         <Transition
             show={isVisible}
@@ -861,7 +835,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 
             <div className="h-2" />
 
-            <CommandSearchButton />
+            <CommandSearchButton commandBinding={commandBinding} />
 
             <div className="h-3" />
 
@@ -919,9 +893,37 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
 }
 
 
+const CommandSearchButton = React.memo(function CommandSearchButton({ commandBinding }: { commandBinding: Keybinding }) {
+    return (
+        <button
+            className={`
+                rounded-full mx-2 px-3 py-0.5
+                flex flex-row items-baseline space-x-2
+                bg-gray-200 text-gray-400 border border-gray-300 
+                text-sm cursor-pointer
+                hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400
+                transition
+                group
+            `}
+            onPointerDown={ev => { ev.preventDefault(); commandBinding[3]() }} // Not onClick so it fires before the focus changes
+        >
+            <FontAwesomeIcon className="text-gray-600 self-center" size="sm" icon={solidIcons.faMagnifyingGlass} />
+            <span>Commands</span>
+            <div className="flex-1 text-right">
+                {intersperse<React.ReactNode>(
+                    "/",
+                    commandBinding[0].map(k => <KeyComposition key={k} shortcut={k} Key={KeySymbol} />)
+                )}
+            </div>
+        </button>
+    )
+})
 
 
-function SidebarMenu<State>({ actions }: ActionProps<State>) {
+
+
+
+const SidebarMenu = React.memo(function SidebarMenu<State>({ actions }: ActionProps<State>) {
     type MenuItemProps<Elem extends React.ElementType> =
         React.ComponentPropsWithoutRef<Elem>
         & { as?: Elem }
@@ -976,4 +978,4 @@ function SidebarMenu<State>({ actions }: ActionProps<State>) {
             </Menu.Items>
         </Menu>
     )
-}
+})

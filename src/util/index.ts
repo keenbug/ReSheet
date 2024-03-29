@@ -44,6 +44,10 @@ export function arrayEquals<E>(
     arr2: E[],
     eq?: (left: E, right: E) => boolean,
 ): boolean {
+    if (arr1 === arr2) {
+        return true
+    }
+
     if (arr1.length !== arr2.length) {
         return false
     }
@@ -153,7 +157,7 @@ export function isEqualDepth(l: any, r: any, depth: number) {
         r,
         (l, r, _key, _objL, _objR, stack) => {
             if (_.toPath(stack).length >= depth) {
-                return l === r
+                return Object.is(l, r)
             }
         },
     )

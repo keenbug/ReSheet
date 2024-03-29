@@ -54,14 +54,14 @@ export function evaluateNote(
         case 'expr': {
             const value = computeExpr(parsed.code, env)
             const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
-            return { type: 'expr', code: parsed.code, result }
+            return { type: 'expr', code: parsed.code, deps: parsed.deps, result }
         }
 
         case 'block': {
             const value = computeExpr(parsed.code, env)
             const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
             const lastState = (lastNote as any)?.lastState
-            return { type: 'block', isInstantiated: false, code: parsed.code, result, lastState }
+            return { type: 'block', isInstantiated: false, code: parsed.code, deps: parsed.deps, result, lastState }
         }
 
         case 'checkbox':
@@ -72,20 +72,22 @@ export function evaluateNote(
 
 
 type ParsedNote =
-    | { type: 'expr', code: string }
-    | { type: 'block', code: string }
+    | { type: 'expr', code: string, deps: Set<string> }
+    | { type: 'block', code: string, deps: Set<string> }
     | { type: 'checkbox', checked: boolean, text: string }
     | { type: 'text', tag: string, text: string }
 
 export function parseNote(input: string): ParsedNote {
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
-        return { type: 'expr', code: expr }
+        const deps = freeVarsExpr(expr)
+        return { type: 'expr', code: expr, deps }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
-        return { type: 'block', code: expr }
+        const deps = freeVarsExpr(expr)
+        return { type: 'block', code: expr, deps }
     }
 
     const header = input.match(/^(#{1,6})\s*/)
@@ -108,18 +110,6 @@ export function parseNote(input: string): ParsedNote {
 }
 
 
-export function freeVarsNote(note: NoteType) {
-    switch (note.type) {
-        case 'expr':
-        case 'block':
-            return freeVarsExpr(note.code)
-
-        default:
-            return new Set<string>()
-    }
-}
-
-
 export function recomputeNote(
     input: string,
     note: NoteType,
@@ -133,9 +123,8 @@ export function recomputeNote(
     if (note.type === 'block' && note.isInstantiated === true) {
         const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
-        const usedVarsBlock = freeVarsExpr(note.code)
-        const changedUsedVars = changedVars?.intersect(usedVarsBlock)
-        if (!changedUsedVars || !changedUsedVars.isEmpty()) {
+        const changedDeps = changedVars?.intersect(note.deps)
+        if (!changedDeps || !changedDeps.isEmpty()) {
             const newBlock = computeExpr(note.code, env)
             if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
                 try {
@@ -147,6 +136,7 @@ export function recomputeNote(
                             type: 'block',
                             isInstantiated: true,
                             code: note.code,
+                            deps: note.deps,
                             block: newSafeBlock,
                             state: newState,
                         },
@@ -165,8 +155,17 @@ export function recomputeNote(
         }
     }
 
-    const usedVars = freeVarsNote(note)
-    if (changedVars && changedVars.intersect(usedVars).isEmpty()) {
+    if (note.type === 'text' || note.type === 'checkbox') {
+        if (changedVars === null) {
+            return {
+                state: evaluateNote(input, env, dispatch, note),
+                invalidated: true,
+            }
+        }
+        return { state: note, invalidated: false }
+    }
+
+    if (changedVars && changedVars.intersect(note.deps).isEmpty()) {
         return { state: note, invalidated: false }
     }
 
@@ -189,14 +188,13 @@ export function recomputeNote(
 export interface ViewNoteProps {
     note: NoteType
     env: block.Environment
-    isFocused: boolean
     actions: {
         toggleCheckbox(): void
         instantiateBlock(): void
     }
 }
 
-export function ViewNote({ note, env, isFocused, actions }: ViewNoteProps) {
+export function ViewNote({ note, env, actions }: ViewNoteProps) {
     switch (note.type) {
         case 'text':
             return <ViewText note={note} />
@@ -205,7 +203,7 @@ export function ViewNote({ note, env, isFocused, actions }: ViewNoteProps) {
             return <ViewCheckbox toggleCheckbox={actions.toggleCheckbox} note={note} />
 
         case 'expr':
-            return <ViewExprResult note={note} env={env} isFocused={isFocused} />
+            return <ViewExprResult note={note} />
 
         case 'block':
             return <ViewBlock instantiateBlock={actions.instantiateBlock} note={note} env={env} />
@@ -386,7 +384,10 @@ interface ViewBlockInstantiatedProps {
 export const ViewBlockInstantiated = React.memo(
     React.forwardRef<block.BlockHandle, ViewBlockInstantiatedProps>(
         function ViewBlockInstantiated({ note, dispatch, env }, ref) {
-            const dispatchBlock = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
+            const dispatchBlock = React.useMemo(
+                () => block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch),
+                [dispatch],
+            )
 
             function onChangeBlockType() {
                 dispatch(state => {
@@ -398,6 +399,7 @@ export const ViewBlockInstantiated = React.memo(
                             type: 'block',
                             isInstantiated: false,
                             code: state.code,
+                            deps: state.deps,
                             result: { type: 'immediate', value: state.block },
                             lastState: state.block.toJSON(state.state),
                         }
@@ -455,12 +457,10 @@ export const ViewBlockInstantiated = React.memo(
 
 interface ViewExprResultProps {
     note: Extract<NoteType, { type: 'expr' }>
-    env: block.Environment
-    isFocused: boolean
 }
 
 const ViewExprResult = React.memo(
-    function ViewExprResult({ note, env, isFocused }: ViewExprResultProps) {
+    function ViewExprResult({ note }: ViewExprResultProps) {
         if (isLiteral(note.code)) { return null }
         if (note.result.type === 'immediate' && note.result.value === undefined) { return null }
 
@@ -468,8 +468,6 @@ const ViewExprResult = React.memo(
     },
     (before, after) => (
         before.note.code === after.note.code
-        && before.env === after.env
-        && before.isFocused === after.isFocused
         && before.note.result === after.note.result
     ),
 )

@@ -7,9 +7,9 @@ import * as regularIcons from '@fortawesome/free-regular-svg-icons'
 import { Set } from 'immutable'
 import _ from 'lodash'
 
-import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment, extractActionDescription, mapWithEnv } from '@resheet/core/block'
+import { Block, BlockAction, BlockActionContext, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
 import * as Multiple from '@resheet/core/multiple'
-import { arrayEquals, arrayStartsWith, clampTo } from '@resheet/util'
+import { arrayEquals, arrayStartsWith, clampTo, isEqualDepth } from '@resheet/util'
 
 import { getFullKey } from '../utils/ui'
 import { PageId, PageState, getDefaultName, getName } from './versioned'
@@ -553,8 +553,8 @@ export interface PageActions {
     deletePage(path: PageId[]): void
 }
 
-export interface PageEntryProps<State> {
-    page: PageState<State>
+export interface PageEntryProps {
+    page: PageState<unknown>
     path?: PageId[]
     openPage: PageId[]
     actions: PageActions
@@ -571,14 +571,14 @@ const pageStyle = {
     },
 }
 
-export function PageEntry<State>({
+function PageEntryComponent({
     page,
     path = [],
     openPage,
     actions,
     isNameEditing,
     setIsNameEditing,
-}: PageEntryProps<State>) {
+}: PageEntryProps) {
     const depth = path.length
     const pathHere = [ ...path, page.id ]
 
@@ -680,8 +680,47 @@ export function PageEntry<State>({
     )
 }
 
+export const PageEntry = React.memo(
+    PageEntryComponent,
+    (
+        {
+            page: prevPage,
+            path: prevPath,
+            openPage: prevOpenPage,
+            ...prevProps
+        },
+        {
+            page: nextPage,
+            path: nextPath,
+            openPage: nextOpenPage,
+            ...nextProps
+        }
+    ) => (
+        isPageStructureEqual(prevPage, nextPage)
+        && arrayEquals(prevPath, nextPath)
+        && arrayEquals(prevOpenPage, nextOpenPage)
+        && isEqualDepth(prevProps, nextProps, 1)
+    )
+) as typeof PageEntryComponent
 
-export function PageChildren<State>({ page, actions, path, openPage, ...props }: PageEntryProps<State>) {
+
+export function isPageStructureEqual(page1: PageState<unknown>, page2: PageState<unknown>): boolean {
+    if (page1 === page2) { return true }
+    return (
+        page1.name === page2.name
+        && page1.id === page2.id
+        && page1.isCollapsed === page2.isCollapsed
+        && _.zipWith(
+            page1.children,
+            page2.children,
+            isPageStructureEqual,
+        )
+            .every(_.identity)
+    )
+}
+
+
+export function PageChildren({ page, actions, path, openPage, ...props }: PageEntryProps) {
     const keyHere = path.join('.')
     return (
         <>
