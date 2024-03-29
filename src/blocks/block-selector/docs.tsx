@@ -57,7 +57,7 @@ const exampleEnv = { BlockSelector, JSExpr }
 
 export function Example({ code }: { code: string }) {
     const block = React.useMemo(() => safeBlock(computeExpr(code, { BlockSelector, JSExpr }) as Block<unknown>), [])
-    const [state, dispatch] = useBlockDispatcher(block.init, { env: exampleEnv})
+    const [state, dispatch] = useBlockDispatcher(block.init, [{ env: exampleEnv}])
 
     return (
         <div className="border rounded border-gray-100 p-1 my-4">

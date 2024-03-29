@@ -49,7 +49,7 @@ export const exampleEnv = { JSExpr }
 export function Example({ input }: { input: string }) {
     const initWithInput = { ...Note.init, input }
     const safeNote = safeBlock(Note)
-    const [state, dispatch] = useBlockDispatcher(null, { env: exampleEnv })
+    const [state, dispatch] = useBlockDispatcher(null, [{ env: exampleEnv }])
 
     React.useEffect(() => {
         dispatch(() => ({ state: safeNote.recompute(initWithInput, dispatch, exampleEnv, null) }))
