@@ -706,10 +706,12 @@ export const PageEntry = React.memo(
 
 export function isPageStructureEqual(page1: PageState<unknown>, page2: PageState<unknown>): boolean {
     if (page1 === page2) { return true }
+    if (!page1 !== !page2) { return false }
     return (
         page1.name === page2.name
         && page1.id === page2.id
         && page1.isCollapsed === page2.isCollapsed
+        && page1.children.length === page2.children.length
         && _.zipWith(
             page1.children,
             page2.children,
