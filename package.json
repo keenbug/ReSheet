@@ -9,7 +9,7 @@
     "start": "parcel serve src/web/index.dev.html",
     "build": "parcel build --public-url ./ src/web/index.html",
     "check": "tsc --noEmit --skipLibCheck",
-    "update-introduction": "echo 'export default ' >src/web/resources/introduction.js; node scripts/strip-history examples/introduction.json >>src/web/resources/introduction.js"
+    "update-introduction": "echo 'export default ' >src/web/resources/introduction.js; cat examples/introduction.json >>src/web/resources/introduction.js"
   },
   "devDependencies": {
     "@parcel/config-default": "^2.12.0",
