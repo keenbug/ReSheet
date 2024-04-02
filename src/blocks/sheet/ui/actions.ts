@@ -88,6 +88,7 @@ export function ACTIONS<Inner extends unknown>(
 ) {
     function insertBeforeCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
         const newId = Model.nextFreeId(state);
+        const currentWidth = state.lines.find(line => line.id === id)?.width ?? "narrow"
         return {
             state: Model.insertLineBefore(
                 state,
@@ -96,6 +97,7 @@ export function ACTIONS<Inner extends unknown>(
                     id: newId,
                     name: '',
                     visibility: versioned.VISIBILITY_STATES[0],
+                    width: currentWidth,
                     state: innerBlock.init,
                 },
                 dispatch,
@@ -108,6 +110,7 @@ export function ACTIONS<Inner extends unknown>(
 
     function insertAfterCode(state: SheetBlockState<Inner>, id: number, env: Environment, innerBlock: Block<Inner>, focusTarget: FocusTarget = 'line') {
         const newId = Model.nextFreeId(state)
+        const currentWidth = state.lines.find(line => line.id === id)?.width ?? "narrow"
         return {
             state: Model.insertLineAfter(
                 state,
@@ -116,6 +119,7 @@ export function ACTIONS<Inner extends unknown>(
                     id: newId,
                     name: '',
                     visibility: versioned.VISIBILITY_STATES[0],
+                    width: currentWidth,
                     state: innerBlock.init,
                 },
                 dispatch,
@@ -135,6 +139,7 @@ export function ACTIONS<Inner extends unknown>(
                     id: newId,
                     name: '',
                     visibility: versioned.VISIBILITY_STATES[0],
+                    width: versioned.WIDTH_STATES[0],
                     state: innerBlock.init,
                 },
                 dispatch,
@@ -295,6 +300,15 @@ export function ACTIONS<Inner extends unknown>(
                         line.focus();
                     }
                 },
+            }))
+        },
+
+        switchWidth(id: number) {
+            dispatch(state => ({
+                state: Model.updateLineUiWithId(state, id, line => ({
+                    ...line,
+                    width: Model.nextLineWidth(line.width),
+                }))
             }))
         },
 

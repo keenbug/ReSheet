@@ -336,29 +336,16 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
         [line, innerBlockRef, actions],
     )
 
-    const shouldNameBeHidden = line.name === ''
-    const focusIndicatorColor = {
-        block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
-
-        // yellow-400 is very similar to its neighbors, but this should happen
-        // seldom and there should be another indication (by the result), that
-        // focus is within
-        result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
-    }[line.visibility]
+    const shouldNameBeHidden = line.name === '' && line.width !== 'full'
 
     return (
-        <div
+        <SheetLineLayout
             ref={containerRef}
-            className={`
-                flex flex-row items-baseline space-x-2
-                outline-none
-                ${isSelected && 'bg-blue-100'}
-                group/sheet-line
-            `}
             tabIndex={-1}
             {...bindingsProps}
-        >
-            <div className="flex-1 min-w-32 flex flex-row justify-end">
+            line={line}
+            isSelected={isSelected}
+            assignmentLine={
                 <AssignmentLine
                     key="name"
                     ref={varInputRef}
@@ -368,38 +355,151 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                     style={{ display: undefined }}
                     className={shouldNameBeHidden ? "hidden group-focus-within/sheet-line:inline-block group-hover/sheet-line:inline-block" : "inline-block"}
                     />
-            </div>
-            
-            {/* Focus/Hover Indicator */}
-            <div
-                className={`
-                    border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                    group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
-                    group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
-                `}
-                />
-
-            <div ref={innerContainerRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
-                {line.visibility === 'block' &&
-                    <block.Component
-                        key="block"
-                        ref={innerBlockRef}
-                        state={line.state}
-                        dispatch={subdispatch}
-                        env={env}
-                        />
-                }
-                {line.visibility === 'result' &&
-                    <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
-                }
-            </div>
-
-            <div className="flex-1" />
-        </div>
+            }
+            lineContentRef={innerContainerRef}
+            lineContent={
+                <>
+                    {line.visibility === 'block' &&
+                        <block.Component
+                            key="block"
+                            ref={innerBlockRef}
+                            state={line.state}
+                            dispatch={subdispatch}
+                            env={env}
+                            />
+                    }
+                    {line.visibility === 'result' &&
+                        <ValueInspector key="result" ref={resultRef} value={Model.getLineResult(line, block)} expandLevel={0} />
+                    }
+                </>
+            }
+            />
     )
 }
 
 export const SheetLine = renderConditionally(SheetLineComponent) as WithSkipRender<typeof SheetLineComponent>
+
+
+interface SheetLineLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
+    line: SheetBlockLine<unknown>
+    assignmentLine: React.ReactNode
+    lineContent: React.ReactNode
+    lineContentRef: React.Ref<HTMLDivElement>
+    isSelected: boolean
+}
+
+const SheetLineLayout = React.forwardRef(function SheetLineLayout(
+    { line, assignmentLine, lineContent, lineContentRef, isSelected, ...containerProps }: SheetLineLayoutProps,
+    ref: React.Ref<HTMLDivElement>,
+) {
+    const focusIndicatorColor = {
+        block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
+
+        // yellow-400 is very similar to its neighbors, but this should happen
+        // seldom and there should be another indication (by the result), that
+        // focus is within
+        result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
+    }[line.visibility]
+
+    switch (line.width) {
+        case "narrow":
+            return (
+                <div
+                    ref={ref}
+                    className={`
+                        flex flex-row items-baseline space-x-2
+                        outline-none
+                        ${isSelected && 'bg-blue-100'}
+                        group/sheet-line
+                    `}
+                    {...containerProps}
+                >
+                    <div className="flex-1 min-w-32 flex flex-row justify-end">
+                        {assignmentLine}
+                    </div>
+                    
+                    {/* Focus/Hover Indicator */}
+                    <div
+                        className={`
+                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
+                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
+                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
+                        `}
+                        />
+
+                    <div ref={lineContentRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
+                        {lineContent}
+                    </div>
+
+                    <div className="flex-1" />
+                </div>
+            )
+
+        case "wide":
+            return (
+                <div
+                    ref={ref}
+                    className={`
+                        flex flex-row items-baseline space-x-2
+                        outline-none
+                        ${isSelected && 'bg-blue-100'}
+                        group/sheet-line
+                    `}
+                    {...containerProps}
+                >
+                    <div className="flex-1 min-w-32 flex flex-row justify-end">
+                        {assignmentLine}
+                    </div>
+                    
+                    {/* Focus/Hover Indicator */}
+                    <div
+                        className={`
+                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
+                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
+                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
+                        `}
+                        />
+
+                    <div ref={lineContentRef} className="w-[1280px] flex flex-col space-y-1 overflow-x-auto">
+                        {lineContent}
+                    </div>
+
+                    <div className="flex-1" />
+                </div>
+            )
+
+        case "full":
+            return (
+                <div
+                    ref={ref}
+                    className={`
+                        flex flex-row space-x-2 pr-2
+                        outline-none
+                        ${isSelected && 'bg-blue-100'}
+                        group/sheet-line
+                    `}
+                    {...containerProps}
+                >
+                    {/* Focus/Hover Indicator */}
+                    <div
+                        className={`
+                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
+                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
+                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
+                        `}
+                        />
+                    
+                    <div className="flex-1 flex flex-col items-start">
+                        {assignmentLine}
+
+                        <div ref={lineContentRef} className="self-stretch flex flex-col items-stretch space-y-1 overflow-x-auto">
+                            {lineContent}
+                        </div>
+                    </div>
+                </div>
+            )
+    }
+})
 
 function sheetLineBindings<Inner>(
     actions: Actions<Inner>,
@@ -467,6 +567,7 @@ function sheetLineBindings<Inner>(
             bindings: [
                 [["Z"],                              "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
                 [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
+                [["C-="],                            "none",         "cycle width",      () => actions.switchWidth(line.id)],
                 [["Escape"],                         "!selfFocused", "focus sheet line", () => containerRef.current && focusWithKeyboard(containerRef.current, { preventScroll: true })],
                 [
                     ["Enter"],
@@ -558,7 +659,7 @@ export const AssignmentLine = React.forwardRef(
                     hover:bg-gray-200 hover:text-slate-700
                     focus-within:bg-gray-200 focus-within:text-slate-700
                     outline-none
-                    rounded
+                    rounded -ml-0.5
                     ${className}
                 `}
                 value={line.name}

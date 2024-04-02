@@ -6,12 +6,16 @@ import * as Multiple from '@resheet/core/multiple'
 
 import { clampTo, nextElem } from '@resheet/util'
 
-import { LineVisibility, SheetBlockLine, SheetBlockState, VISIBILITY_STATES } from './versioned'
+import { LineVisibility, LineWidth, SheetBlockLine, SheetBlockState, VISIBILITY_STATES, WIDTH_STATES } from './versioned'
 import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export function nextLineVisibility(visibility: LineVisibility) {
     return nextElem(visibility, VISIBILITY_STATES)
+}
+
+export function nextLineWidth(width: LineWidth) {
+    return nextElem(width, WIDTH_STATES)
 }
 
 
@@ -50,15 +54,16 @@ export function updateLineWithId<Inner>(
     const lineIndex = state.lines.findIndex(line => line.id === id)
     if (lineIndex < 0) { return state }
     const line = state.lines[lineIndex]
+    const newLine = action(line)
 
     return {
         ...state,
         lines: (
             Multiple.recomputeFrom(
-                set(state.lines, lineIndex, action(line)),
+                set(state.lines, lineIndex, newLine),
                 id,
                 env,
-                Set([ lineName(line) ]),
+                Set([ lineName(line), lineName(newLine) ]),
                 innerBlock,
                 fieldDispatcher('lines', dispatch),
                 1,

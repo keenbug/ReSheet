@@ -28,11 +28,11 @@ function typedTables<Obj extends object>(revision: number, obj: Obj): Obj {
 
 // Revisions
 
-interface SheetBlockStateV0<InnerBlockState> {
+export interface SheetBlockStateV0<InnerBlockState> {
     readonly lines: SheetBlockLineV0<InnerBlockState>[]
 }
 
-interface SheetBlockLineV0<InnerBlockState> extends BlockEntry<InnerBlockState> {
+export interface SheetBlockLineV0<InnerBlockState> extends BlockEntry<InnerBlockState> {
     readonly id: number
     readonly name: string
     readonly state: InnerBlockState
@@ -40,11 +40,11 @@ interface SheetBlockLineV0<InnerBlockState> extends BlockEntry<InnerBlockState> 
     readonly visibility: LineVisibilityV0
 }
 
-type LineVisibilityV0 =
+export type LineVisibilityV0 =
     | "block"
     | "result"
 
-const VISIBILITY_STATES_V0: LineVisibilityV0[] = [
+export const VISIBILITY_STATES_V0: LineVisibilityV0[] = [
     "block",
     "result",
 ]
@@ -55,7 +55,13 @@ const sheetSchemaV0 = array(sheetLineSchemaV0)
 
 const vPre = addValidator(sheetSchemaV0, parseV0)
 
-function parseV0(json: any) {
+export type ParseV0 = <State>(
+    dispatch: BlockDispatcher<SheetBlockStateV0<State>>,
+    env: block.Environment,
+    innerBlock: block.Block<State>,
+) => SheetBlockStateV0<State>
+
+function parseV0(json: any): ParseV0 {
     return <State>(dispatch: BlockDispatcher<SheetBlockStateV0<State>>, env: block.Environment, innerBlock: block.Block<State>): SheetBlockStateV0<State> => {
         const dispatchLines = fieldDispatcher('lines', dispatch)
 
@@ -86,7 +92,7 @@ const v0 = addRevision(vPre, {
     },
 })
 
-const v1 = addRevision(v0, {
+export const v1 = addRevision(v0, {
     schema: typed(1, { lines: sheetSchemaV0 }),
     parse({ lines }) {
         return parseV0(lines)
@@ -96,15 +102,18 @@ const v1 = addRevision(v0, {
     },
 })
 
-
-// Export current Revision
-
 export type {
+    SheetBlockStateV0 as SheetBlockStateV1,
+    SheetBlockLineV0 as SheetBlockLineV1,
+    LineVisibilityV0 as LineVisibilityV1,
+    ParseV0 as ParseV1,
+
     SheetBlockStateV0 as SheetBlockState,
     SheetBlockLineV0 as SheetBlockLine,
     LineVisibilityV0 as LineVisibility,
 }
 export {
+    VISIBILITY_STATES_V0 as VISIBILITY_STATES_V1,
     VISIBILITY_STATES_V0 as VISIBILITY_STATES,
     v1 as fromJSON,
 }
