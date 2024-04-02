@@ -54,6 +54,7 @@ export const ValueInspector = React.forwardRef(
         ref: React.ForwardedRef<HTMLElement>,
     ) {
         const { value, expandLevel, table = false } = props
+        const valueFn = React.useCallback(() => value, [value])
 
         if (typeof value?.then === 'function') {
             return <PromiseValueInspector ref={ref} {...props} />
@@ -70,7 +71,8 @@ export const ValueInspector = React.forwardRef(
                     viewError={error => <ErrorInspector error={error} />}
                     autoReset
                 >
-                    {value}
+                    {/* This wrapping is necessary, so the ErrorBoundary correctly catches an error */}
+                    {React.createElement(valueFn)}
                 </ErrorBoundary>
             )
         }
