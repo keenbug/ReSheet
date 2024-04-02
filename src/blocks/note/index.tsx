@@ -124,7 +124,7 @@ export const NoteUi = React.forwardRef(
         ])
 
         const onUpdateCode = React.useCallback(function onUpdateCode(input: string) {
-            dispatch(state => ({
+            dispatch((state, { env }) => ({
                 state: recompute({ ...state, input }, dispatch, env, null).state,
             }))
         }, [dispatch])
