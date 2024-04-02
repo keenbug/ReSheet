@@ -349,7 +349,7 @@ export function ACTIONS<Inner extends unknown>(
 
         paste(json: any, innerBlock: Block<Inner>) {
             const dispatchLines = fieldDispatcher('lines', dispatch)
-            dispatch((state, env) => {
+            dispatch((state, { env }) => {
                 if (state.lines.length === 0) {
                     const newState = versioned.fromJSON(json)(dispatch, env, innerBlock)
                     return {
