@@ -3,6 +3,7 @@ import * as React from 'react'
 import * as Block from '@resheet/core/block'
 
 import { any, is, number, string, validatorSwitch } from '@resheet/util/validate'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@resheet/util'
 
 import { LoadFileButton } from './utils/ui'
@@ -33,6 +34,55 @@ export const Inspect = <State extends any>(block: Block.BlockDef<State>) => Bloc
         }
     },
 })
+
+
+export interface RecordState<Inner> {
+    past: Inner[]
+    now: Inner
+}
+
+export function Record<Inner>(block: Block.Block<Inner>) {
+    return Block.create<RecordState<Inner>>({
+        init: {
+            past: [],
+            now: block.init,
+        },
+        view({ state, dispatch, env }, ref) {
+            const dispatchNow = fieldDispatcher('now', dispatch)
+            return block.view({ state: state.now, dispatch: dispatchNow, env, ref})
+        },
+        fromJSON(json, dispatch, env) {
+            const dispatchNow = fieldDispatcher('now', dispatch)
+            return {
+                past: [],
+                now: block.fromJSON(json, dispatchNow, env),
+            }
+        },
+        toJSON(state) {
+            return block.toJSON(state.now)
+        },
+        recompute(state, dispatch, env, changed) {
+            const dispatchNow = fieldDispatcher('now', dispatch)
+            const {
+                state: newState,
+                invalidated,
+            } = block.recompute(state.now, dispatchNow, env, changed)
+            return {
+                state: {
+                    past: [...state.past, state.now],
+                    now: newState,
+                },
+                invalidated,
+            }
+        },
+        getResult(state) {
+            return {
+                ...state,
+                result: block.getResult(state.now),
+            }
+        }
+    })
+}
 
 export function Input(parser = str => str) {
     return Block.create<string>({
