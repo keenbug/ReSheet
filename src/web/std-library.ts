@@ -137,7 +137,7 @@ const resheet = {
 }
 
 export const library = {
-    $library() { return library },
+    library: {},
 
     React,
     ReactDom,
@@ -164,7 +164,10 @@ export const library = {
     },
 
     blocks,
+    ...blocks,
 
     tables: resheet, /* for compatibility */
     resheet,
 }
+
+library.library = library
