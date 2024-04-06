@@ -35,6 +35,7 @@ import * as code_value from '@resheet/code/value'
 // blocks
 import * as blocks from '@resheet/blocks'
 import * as blocks_component from '@resheet/blocks/component'
+import * as blocks_debug from '@resheet/blocks/component'
 import * as blocks_blockSelector from '@resheet/blocks/block-selector'
 import * as blocks_jsexpr from '@resheet/blocks/js'
 import * as blocks_note from '@resheet/blocks/note'
@@ -42,6 +43,7 @@ import * as blocks_note_note from '@resheet/blocks/note/note'
 import * as blocks_sheet from '@resheet/blocks/sheet'
 import * as blocks_document from '@resheet/blocks/document'
 import * as blocks_document_pages from '@resheet/blocks/document/pages'
+import * as blocks_loadFile from '@resheet/blocks/load-file'
 import * as blocks_logic_compute from '@resheet/code/compute'
 // blocks utils
 import * as blocks_utils_ui from '@resheet/blocks/utils/ui'
@@ -82,6 +84,7 @@ const resheet = {
     },
     blocks: {
         component: blocks_component,
+        debug: blocks_debug,
         blockSelector: blocks_blockSelector,
         compute: blocks_logic_compute,
         sheet: blocks_sheet,
@@ -94,6 +97,7 @@ const resheet = {
             index: blocks_note,
             note: blocks_note_note,
         },
+        loadFile: blocks_loadFile,
         logic: {
             compute: blocks_logic_compute,
         },
