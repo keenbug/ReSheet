@@ -53,7 +53,13 @@ import * as blocks_utils_shortcuts from '@resheet/util/shortcuts'
 import * as blocks_codeEditor from '@resheet/code/editor'
 import * as blocks_codeEditor_useEditable from '@resheet/code/useEditable'
 // utils
-import * as util from '@resheet/util'
+import * as util_index from '@resheet/util'
+import * as util_hooks from '@resheet/util/hooks'
+import * as util_dispatch from '@resheet/util/dispatch'
+import * as util_search from '@resheet/util/search'
+import * as util_serialize from '@resheet/util/serialize'
+import * as util_shortcuts from '@resheet/util/shortcuts'
+import * as util_validate from '@resheet/util/validate'
 // docs
 import docs from '@resheet/docs'
 import * as docs_external from '@resheet/docs/external'
@@ -119,7 +125,15 @@ const resheet = {
             },
         },
     },
-    util: util,
+    util: {
+        index: util_index,
+        hooks: util_hooks,
+        dispatch: util_dispatch,
+        search: util_search,
+        serialize: util_serialize,
+        shortcuts: util_shortcuts,
+        validate: util_validate,
+    }
 }
 
 export const library = {
