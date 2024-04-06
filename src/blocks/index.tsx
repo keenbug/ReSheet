@@ -10,4 +10,5 @@ export const Selector = blocks => BlockSelector('Note', Note, blocks)
 export const Sheet = blocks => SheetOf(Selector(blocks))
 
 export * from './load-file'
-export * as debug from './debug'
+export * as Debug from './debug'
+export * as Util from './util'
