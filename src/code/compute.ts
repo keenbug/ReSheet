@@ -276,6 +276,17 @@ export function freeVars(ast: babel.types.Node) {
     const freeVars = new Set<string>()
     babelTraverse(ast, {
         ReferencedIdentifier(path) {
+            // Collect references like $`name with spaces`
+            const parent = path.getAncestry()[1]
+            if (
+                path.node.name === '$'
+                && parent
+                && parent.isTaggedTemplateExpression()
+                && parent.node.quasi.quasis.length === 1
+            ) {
+                freeVars.add(parent.node.quasi.quasis[0].value.raw)
+            }
+
             const identifier = path.node.name
             if (!path.scope || !path.scope.hasBinding(identifier, true)) {
                 freeVars.add(identifier)
