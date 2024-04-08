@@ -399,7 +399,7 @@ const fullStyle = `
 const narrowClass = css`
     grid-template:
         "name indicator content" auto
-        / 1fr auto max(768px) 1fr
+        / 1fr auto minmax(auto, 768px) 1fr
     ;
     column-gap: 0.5rem;
 
@@ -411,7 +411,7 @@ const narrowClass = css`
 const wideClass = css`
     grid-template:
         "name indicator content" auto
-        / 1fr auto minmax(min-content, 1280px) 1fr
+        / 1fr auto minmax(auto, 1280px) 1fr
     ;
     column-gap: 0.5rem;
 
