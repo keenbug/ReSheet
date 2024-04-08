@@ -101,6 +101,13 @@ export function useSelection(refMap: Map<number, SheetLineRef>) {
         if (!target) { return }
         const [targetId, targetLine] = target
 
+        if (document.getSelection().rangeCount > 0) {
+            const range = document.getSelection().getRangeAt(0)
+            const selectedLine = findLineRefContaining(range.startContainer, refMap)?.[1]
+            if (selectedLine?.getVarInput().contains(range.startContainer)) { return }
+            if (selectedLine?.getInnerContainer().contains(range.startContainer)) { return }
+        }
+
         setSelectionAnchorIds(selection => {
             // Start selecting (selection === null) only when we:
             // - started in some line (mouseStartId.current !== null)

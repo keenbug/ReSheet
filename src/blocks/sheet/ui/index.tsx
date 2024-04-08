@@ -11,7 +11,7 @@ import { useRefMap, renderConditionally, WithSkipRender, useEffectfulDispatch } 
 import { ValueInspector } from '@resheet/code/value'
 import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 
-import { TextInput, focusWithKeyboard } from '@resheet/blocks/utils/ui'
+import { TextInput, focusWithKeyboard, isInsideInput } from '@resheet/blocks/utils/ui'
 import { SafeBlock } from '@resheet/blocks/component'
 
 import * as Model from '../model'
@@ -19,6 +19,7 @@ import { SheetBlockState, SheetBlockLine } from '../versioned'
 
 import { ACTIONS, Actions, SheetLineRef, findFocused } from './actions'
 import { useSelection } from './useSelection'
+import { css } from '@emotion/css'
 
 
 export interface SheetProps<InnerState> {
@@ -111,9 +112,7 @@ export const Sheet = React.forwardRef(
         }
 
         function onCopy(ev: React.ClipboardEvent) {
-            const selection = document.getSelection()
-            const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
-            if (isTextSelected) { return }
+            if (isInsideInput(document.activeElement)) { return }
 
             actions.copy(state, innerBlock, (type, content) => {
                 ev.clipboardData.setData(type, content)
@@ -165,7 +164,7 @@ export const Sheet = React.forwardRef(
                             peer z-10
                             absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2
                             px-1 rounded-full bg-gray-100 border-2 border-gray-100
-                            text-gray-400 text-xs
+                            text-gray-400 ${state.lines.length > 0 ? "text-xs" : "text-sm w-6 h-6"}
                             ${state.lines.length > 0 && "group-focus-within/sheet:opacity-50 hover:group-focus-within/sheet:opacity-100"}
                             transition-[opacity_color] hover:text-blue-600 hover:bg-blue-50 hover:border-blue-500/50
                         `}
@@ -283,7 +282,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                 return innerContainerRef.current
             },
             getVarInput() {
-                return varInputRef.current
+                return varInputRef.current?.parentElement // get the container
             },
             isFocused() {
                 return !!containerRef.current && document.activeElement === containerRef.current
@@ -336,7 +335,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
         [line, innerBlockRef, actions],
     )
 
-    const shouldNameBeHidden = line.name === '' && line.width !== 'full'
+    const shouldNameBeHidden = line.name === ''
 
     return (
         <SheetLineLayout
@@ -353,7 +352,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                     actions={actions}
                     bindings={varInputBindings}
                     style={{ display: undefined }}
-                    className={shouldNameBeHidden ? "hidden group-focus-within/sheet-line:inline-block group-hover/sheet-line:inline-block" : "inline-block"}
+                    className={shouldNameBeHidden && "opacity-0 group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100"}
                     />
             }
             lineContentRef={innerContainerRef}
@@ -388,6 +387,61 @@ interface SheetLineLayoutProps extends React.HTMLAttributes<HTMLDivElement> {
     isSelected: boolean
 }
 
+const fullStyle = `
+    grid-template:
+        "indicator name"    auto
+        "indicator content" auto
+        / auto 1fr
+    ;
+    column-gap: 0.5rem;
+`
+
+const narrowClass = css`
+    grid-template:
+        "name indicator content" auto
+        / 1fr auto max(768px) 1fr
+    ;
+    column-gap: 0.5rem;
+
+    @media (max-width: 767px) {
+        ${fullStyle}
+    }
+`
+
+const wideClass = css`
+    grid-template:
+        "name indicator content" auto
+        / 1fr auto minmax(min-content, 1280px) 1fr
+    ;
+    column-gap: 0.5rem;
+
+    @media (max-width: 767px) {
+        ${fullStyle}
+    }
+`
+
+const fullClass = css`
+    ${fullStyle}
+`
+
+const nonFullNameClass = css`
+    justify-content: end;
+
+    @media (max-width: 767px) {
+        justify-content: start;
+    }
+`
+
+const emptyNameClass = css`
+    @media (max-width: 767px) {
+        &:not(:focus-within) {
+            height: 0;
+            opacity: 0;
+            overflow-y: hidden;
+        }
+    }
+`
+
 const SheetLineLayout = React.forwardRef(function SheetLineLayout(
     { line, assignmentLine, lineContent, lineContentRef, isSelected, ...containerProps }: SheetLineLayoutProps,
     ref: React.Ref<HTMLDivElement>,
@@ -401,104 +455,56 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
         result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
     }[line.visibility]
 
-    switch (line.width) {
-        case "narrow":
-            return (
-                <div
-                    ref={ref}
-                    className={`
-                        flex flex-row items-baseline space-x-2
-                        outline-none
-                        ${isSelected && 'bg-blue-100'}
-                        group/sheet-line
-                    `}
-                    {...containerProps}
-                >
-                    <div className="flex-1 min-w-32 flex flex-row justify-end">
-                        {assignmentLine}
-                    </div>
-                    
-                    {/* Focus/Hover Indicator */}
-                    <div
-                        className={`
-                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
-                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
-                        `}
-                        />
+    const [gridClass, nameClasses] = (
+        line.width === 'narrow' ?
+            [
+                narrowClass,
+                nonFullNameClass,
+            ]
+        : line.width === 'wide' ?
+            [
+                wideClass,
+                nonFullNameClass,
+            ]
+        : line.width === 'full' ?
+            [
+                fullClass,
+                'justify-start',
+            ]
+        : ''
+    )
 
-                    <div ref={lineContentRef} className="w-[768px] flex flex-col space-y-1 overflow-x-auto">
-                        {lineContent}
-                    </div>
+    return (
+        <div
+            ref={ref}
+            className={`
+                grid items-baseline
+                outline-none
+                ${isSelected && 'bg-blue-100'}
+                group/sheet-line
+                ${gridClass}
+            `}
+            {...containerProps}
+        >
+            <div style={{ gridArea: 'name' }} className={`min-w-32 flex flex-row ${nameClasses} ${line.name === '' && emptyNameClass}`}>
+                {assignmentLine}
+            </div>
+            
+            {/* Focus/Hover Indicator */}
+            <div
+                style={{ gridArea: 'indicator' }}
+                className={`
+                    border border-${focusIndicatorColor.hover} self-stretch opacity-0
+                    group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
+                    group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
+                `}
+                />
 
-                    <div className="flex-1" />
-                </div>
-            )
-
-        case "wide":
-            return (
-                <div
-                    ref={ref}
-                    className={`
-                        flex flex-row items-baseline space-x-2
-                        outline-none
-                        ${isSelected && 'bg-blue-100'}
-                        group/sheet-line
-                    `}
-                    {...containerProps}
-                >
-                    <div className="flex-1 min-w-32 flex flex-row justify-end">
-                        {assignmentLine}
-                    </div>
-                    
-                    {/* Focus/Hover Indicator */}
-                    <div
-                        className={`
-                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
-                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
-                        `}
-                        />
-
-                    <div ref={lineContentRef} className="w-[1280px] flex flex-col space-y-1 overflow-x-auto">
-                        {lineContent}
-                    </div>
-
-                    <div className="flex-1" />
-                </div>
-            )
-
-        case "full":
-            return (
-                <div
-                    ref={ref}
-                    className={`
-                        flex flex-row space-x-2 pr-2
-                        outline-none
-                        ${isSelected && 'bg-blue-100'}
-                        group/sheet-line
-                    `}
-                    {...containerProps}
-                >
-                    {/* Focus/Hover Indicator */}
-                    <div
-                        className={`
-                            border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                            group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
-                            group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
-                        `}
-                        />
-                    
-                    <div className="flex-1 flex flex-col items-start">
-                        {assignmentLine}
-
-                        <div ref={lineContentRef} className="self-stretch flex flex-col items-stretch space-y-1 overflow-x-auto">
-                            {lineContent}
-                        </div>
-                    </div>
-                </div>
-            )
-    }
+            <div ref={lineContentRef} style={{ gridArea: 'content' }} className="flex flex-col space-y-1 overflow-x-auto">
+                {lineContent}
+            </div>
+        </div>
+    )
 })
 
 function sheetLineBindings<Inner>(
@@ -590,8 +596,8 @@ function sheetLineBindings<Inner>(
                 [["ArrowDown", "J"],                 "none",          "move down",       moveDown, { noAutoPrevent: true }],
                 [["Shift-ArrowUp", "Shift-K"],       "none",          "select up",       selectUp, { noAutoPrevent: true }],
                 [["Shift-ArrowDown", "Shift-J"],     "none",          "select down",     selectDown, { noAutoPrevent: true }],
-                [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.focusOrCreateNext(line.id, block)],
-                [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.focusOrCreatePrev(line.id, block)],
+                [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.insertAfterCode(line.id, block, 'inner')],
+                [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.insertBeforeCode(line.id, block, 'inner')],
                 [["G"],                              "!inputFocused", "jump top",        () => actions.focusFirst()],
                 [["Shift-G"],                        "!inputFocused", "jump bottom",     () => actions.focusLast()],
             ]
@@ -655,6 +661,7 @@ export const AssignmentLine = React.forwardRef(
             <TextInput
                 ref={ref}
                 className={`
+                    inline-block
                     text-slate-500 font-light text-xs truncate
                     hover:bg-gray-200 hover:text-slate-700
                     focus-within:bg-gray-200 focus-within:text-slate-700

@@ -295,7 +295,7 @@ export function findParent(predicate: (elem: HTMLElement) => boolean, elem: HTML
 }
 
 
-export function isInsideInput(elem: HTMLElement) {
+export function isInsideInput(elem: Element) {
     return (
         elem instanceof HTMLTextAreaElement
         || elem instanceof HTMLInputElement

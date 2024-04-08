@@ -1,7 +1,7 @@
+import { css } from '@emotion/css'
 import Markdown from 'markdown-to-jsx'
-import styled from "styled-components"
 
-export const DocMarkdown = styled(Markdown)`
+export const styleClass = css`
     font-size: 0.75rem;
 
 
@@ -96,3 +96,7 @@ export const DocMarkdown = styled(Markdown)`
         color: rgb(30 64 175); /* blue-800 */
     }
 `
+
+export function DocMarkdown({ className, ...props }: React.ComponentProps<typeof Markdown>) {
+    return <Markdown className={`${styleClass} ${className}`} {...props} />
+}

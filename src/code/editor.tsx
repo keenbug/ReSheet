@@ -40,7 +40,7 @@ export const CodeView = React.memo(React.forwardRef<HTMLElement, CodeViewProps<a
                         ref={ref}
                         tabIndex={-1}
                         spellCheck={false}
-                        className={`whitespace-pre-wrap outline-none ${className}`}
+                        className={`whitespace-pre outline-none ${className}`}
                         style={{
                             ...highlightStyle,
                             ...style,
@@ -134,6 +134,7 @@ export const CodeEditor = React.forwardRef(
                 className={`
                     focus-within/code-editor:bg-gradient-to-r
                     from-transparent from-10%
+                    overflow-x-auto
                     ${props.className}
                 `}
                 onKeyDown={onKeyDown}

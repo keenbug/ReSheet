@@ -201,16 +201,16 @@ function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Key
                     actions.instantiateBlock,
                 ],
                 [
-                    ["Tab"],
+                    [['block', 'expr'].includes(state.note.type) ? "Alt-Tab" : "Tab"],
                     "none",
-                    "indent",
-                    actions.indent,
+                    "indent right",
+                    actions.indentRight,
                 ],
                 [
-                    ["Shift-Tab"],
+                    [['block', 'expr'].includes(state.note.type) ? "Shift-Alt-Tab" : "Shift-Tab"],
                     "none",
-                    "outdent",
-                    actions.outdent,
+                    "indent left",
+                    actions.indentLeft,
                 ]
             ]
         }
@@ -275,23 +275,21 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
             })
         },
 
-        indent() {
+        indentRight() {
             dispatch(state => ({
                 state: {
                     ...state,
                     level: state.level + 1,
                 },
-                description: "indented note",
             }))
         },
 
-        outdent() {
+        indentLeft() {
             dispatch(state => ({
                 state: {
                     ...state,
                     level: Math.max(0, state.level - 1),
                 },
-                description: "outdented note", // I know, "outdent" isn't a word
             }))
         },
     }

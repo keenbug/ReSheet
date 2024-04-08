@@ -99,7 +99,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                     />
                 <div className="overflow-y-auto flex flex-col">
                     {results.length === 0 && (
-                        <div className="text-gray-700 px-5 py-3">No results</div>
+                        <div className="text-gray-700 px-5 py-3">No results for the current focus</div>
                     )}
                     {results.map((result, index) => (
                         <div

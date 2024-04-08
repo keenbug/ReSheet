@@ -35,6 +35,7 @@
     "@babel/parser": "^7.23.2",
     "@babel/preset-react": "^7.23.2",
     "@babel/types": "^7.23.2",
+    "@emotion/css": "^11.11.2",
     "@fortawesome/fontawesome-svg-core": "^6.2.0",
     "@fortawesome/free-brands-svg-icons": "^6.5.1",
     "@fortawesome/free-regular-svg-icons": "^6.2.0",
@@ -50,7 +51,6 @@
     "react-dom": "18",
     "react-inspector": "^6.0.2",
     "react-intersection-observer": "^9.5.3",
-    "styled-components": "^6.1.1",
     "throttle-debounce": "^5.0.0",
     "virtua": "^0.24.0"
   }

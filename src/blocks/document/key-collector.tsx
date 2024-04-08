@@ -29,14 +29,14 @@ function KeymapCollectorBar({ hidden, onChangeUi }: { hidden: boolean, onChangeU
     if (hidden) {
         return (
             <button
-                className="absolute left-0 top-0 right-0 z-10 h-1.5 shadow shadow-amber-200 bg-amber-200 opacity-75 hover:opacity-100"
+                className="absolute left-0 top-0 right-0 z-40 h-1.5 shadow shadow-amber-200 bg-amber-200 opacity-75 hover:opacity-100"
                 onClick={() => onChangeUi('bar')}
                 />
         )
     }
 
     return (
-        <div className="absolute left-0 top-0 right-0 z-10 py-1 px-4 shadow bg-amber-200/75 hover:bg-amber-200 backdrop-blur-sm text-amber-950 text-center">
+        <div className="absolute left-0 top-0 right-0 z-40 py-1 px-4 shadow bg-amber-200/75 hover:bg-amber-200 backdrop-blur-sm text-amber-950 text-center">
             <button onClick={() => onChangeUi('dialog')}>
                 For shortcuts to work properly, please make a quick calibration here.
             </button>
@@ -156,6 +156,11 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
 
                         <KeyCollectorVisualization ref={keyboardVisRef} keyMap={keyMap} />
 
+                        {keyMap.count() < 40 &&
+                            <p>
+                                Only {keyMap.count()} keys collected. Are these all keys?
+                            </p>
+                        }
                         {shiftMissing.length > 0 &&
                             <p>
                                 <FontAwesomeIcon className="text-red-500" icon={regularIcons.faCircleXmark} />{' '}
@@ -176,11 +181,14 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
 
                         <div className="flex flex-col space-y-2 items-stretch">
                             <button
-                                className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-gray-100 text-gray-500"}`}
-                                disabled={!matches}
+                                className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-red-100 text-red-800"}`}
                                 onClick={onDone}
                             >
-                                I have pressed all keys – finish setup
+                                {matches ?
+                                    "I have pressed all keys – finish setup"
+                                :
+                                    "finish setup despite missing keys"
+                                }
                             </button>
                             <button
                                 className="text-xs text-gray-500 hover:text-blue-500"
@@ -209,7 +217,7 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
 
     return (
         <div
-            className="absolute z-10 inset-0 flex justify-center items-center bg-gray-300/50 backdrop-blur-sm"
+            className="absolute z-40 inset-0 flex justify-center items-center bg-gray-300/50 backdrop-blur-sm"
             onClick={onClickDismiss}
             onKeyDown={collectKey}
             onBlur={keepFocusOnBlur}

@@ -461,8 +461,8 @@ interface ViewExprResultProps {
 
 const ViewExprResult = React.memo(
     function ViewExprResult({ note }: ViewExprResultProps) {
+        if (note.code.trim() === '') { return null }
         if (isLiteral(note.code)) { return null }
-        if (note.result.type === 'immediate' && note.result.value === undefined) { return null }
 
         return <ViewResult result={note.result} />
     },

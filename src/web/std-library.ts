@@ -1,7 +1,6 @@
 import * as React from 'react'
 import * as ReactDom from 'react-dom'
 import * as ReactDomServer from 'react-dom/server'
-import styled from 'styled-components'
 import * as headlessui from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as faSolid from '@fortawesome/free-solid-svg-icons'
@@ -145,7 +144,6 @@ export const library = {
     FontAwesomeIcon,
     faSolid,
     faRegular,
-    styled,
     headlessui,
     useEditable: blocks_codeEditor_useEditable,
     prismReactRenderer,

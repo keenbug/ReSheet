@@ -480,9 +480,6 @@ export interface DocumentUiProps<State> {
     blockRef?: React.Ref<BlockHandle> // not using ref because the <State> generic breaks with React.forwardRef
 }
 
-type ShortcutsViewMode = 'hidden' | 'flat' | 'full'
-const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
-
 export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, innerBlock, blockRef }: DocumentUiProps<State>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const mainScrollRef = React.useRef<HTMLDivElement>()
@@ -552,7 +549,7 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
             tabIndex={-1}
             {...bindingProps}
             className="group/document-ui relative h-full w-full overflow-hidden outline-none"
-            >
+        >
             <Sidebar
                 state={state}
                 actions={actions}
@@ -566,7 +563,7 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
             <div
                 className={`
                     h-full
-                    transition-all ${sidebarVisible ? "ml-56" : ""}
+                    transition-[margin-left] ${sidebarVisible ? "md:ml-56" : ""}
                     flex flex-col items-stretch overflow-hidden
                     bg-gray-50
                 `}
@@ -582,45 +579,68 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
                         sidebarVisible={sidebarVisible}
                         />
                 </div>
-                {shortcutsViewMode !== 'hidden' &&
-                    <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
-                        <div
-                            className={`
-                                flex-1 flex flex-row justify-between
-                                ${shortcutsViewMode === 'flat' ? "space-x-8" : "space-x-20"}
-                                px-10 py-1 overflow-x-auto
-                            `}
-                        >
-                            <ShortcutSuggestions flat={shortcutsViewMode === 'flat'} />
-                        </div>
-                        <button
-                            className={`
-                                ${shortcutsViewMode !== 'flat' && 'absolute bottom-0 right-0'}
-                                px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
-                            `}
-                            onClick={localActions.toggleShortcutsVisible}
-                        >
-                            <FontAwesomeIcon icon={solidIcons.faCaretDown} />
-                        </button>
-                    </div>
-                }
-                {shortcutsViewMode === 'hidden' &&
-                    <button
-                        className={`
-                            absolute bottom-3 right-3 w-8 h-8
-                            rounded-full border border-gray-100 shadow
-                            bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
-                            flex justify-center items-center
-                            text-sm
-                        `}
-                        onClick={localActions.toggleShortcutsVisible}
-                    >
-                        ⌘
-                    </button>
-                }
+                <ShortcutsSuggestionsPanel mode={shortcutsViewMode} toggle={localActions.toggleShortcutsVisible} />
                 {search !== undefined && <CommandSearch bindings={search} close={() => setSearch(undefined) } />}
             </div>
         </div>
+    )
+}
+
+
+type ShortcutsViewMode = 'hidden' | 'flat' | 'full'
+const SHORTCUTS_VIEW_MODES: ShortcutsViewMode[] = ['full', 'flat', 'hidden']
+
+interface ShortcutsSuggestionsProps {
+    mode: ShortcutsViewMode
+    toggle(): void
+}
+
+function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) {
+    function onToggle(ev: React.PointerEvent) {
+        // prevent changing focus, so keybindings for previously focused Block are shown
+        ev.preventDefault()
+        toggle()
+    }
+
+    return (
+        <>
+            {mode !== 'hidden' &&
+                <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
+                    <div
+                        className={`
+                            flex-1 flex flex-row justify-between
+                            ${mode === 'flat' ? "space-x-8" : "space-x-20"}
+                            px-10 py-1 overflow-x-auto
+                        `}
+                    >
+                        <ShortcutSuggestions flat={mode === 'flat'} />
+                    </div>
+                    <button
+                        className={`
+                            ${mode !== 'flat' && 'absolute bottom-0 right-0'}
+                            px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
+                        `}
+                        onPointerDown={onToggle}
+                    >
+                        <FontAwesomeIcon icon={solidIcons.faCaretDown} />
+                    </button>
+                </div>
+            }
+            {mode === 'hidden' &&
+                <button
+                    className={`
+                        absolute bottom-3 right-3 w-8 h-8
+                        rounded-full border border-gray-100 shadow
+                        bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
+                        flex justify-center items-center
+                        text-sm
+                    `}
+                    onPointerDown={onToggle}
+                >
+                    ⌘
+                </button>
+            }
+        </>
     )
 }
 
@@ -658,7 +678,7 @@ function MainView<State>({
         }
         return (
             <div className="h-full w-full flex justify-center items-center">
-                <div className="text-center text-lg text-gray-900">
+                <div className="my-20 text-center text-lg text-gray-900">
                     <Link onClick={() => actions.addPage([])}>
                         Add new Page
                     </Link><br />
@@ -676,8 +696,13 @@ function MainView<State>({
     }
 
     return (
-        <div className={`mb-[80cqh] bg-white relative ${sidebarVisible ? "px-1" : "px-10"}`}>
-            <Breadcrumbs openPage={state.viewState.openPage} pages={state.pages} onOpenPage={actions.openPage} />
+        <div className={`mb-[20cqh] bg-white relative px-1 ${!sidebarVisible && "md:px-10"}`}>
+            <Breadcrumbs
+                className={`sticky top-0 inset-x-0 z-30 md:static bg-white ${!sidebarVisible && "pl-8 md:pl-0"}`}
+                openPage={state.viewState.openPage}
+                pages={state.pages}
+                onOpenPage={actions.openPage}
+                />
             <innerBlock.Component
                 ref={innerRef}
                 state={openPage.state}
@@ -689,13 +714,18 @@ function MainView<State>({
 }
 
 interface BreadcrumbsProps {
+    className?: string
     openPage: PageId[]
     pages: PageState<unknown>[]
     onOpenPage(path: PageId[]): void
 }
 
-function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
-    function pathToPages(path: PageId[], pages: PageState<unknown>[], currentPath: PageId[] = []) {
+function Breadcrumbs({ className, openPage, pages, onOpenPage }: BreadcrumbsProps) {
+    function pathToPages(path: PageId[], pages: PageState<unknown>[], currentPath: PageId[] = []): [
+        path: PageId[],
+        page: PageState<unknown>,
+        children: PageState<unknown>[]
+    ][] {
         if (path.length === 0) { return [] }
 
         const page = pages.find(p => p.id === path[0])
@@ -710,7 +740,7 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
     const pathPages = pathToPages(openPage, pages)
 
     return (
-        <div className="flex flex-row py-2 -ml-1 text-gray-800 text-sm">
+        <div className={`flex flex-row items-baseline py-1.5 -ml-1 text-gray-800 ${className}`}>
             {pathPages.map(([path, page, siblings]) => (
                 <React.Fragment key={path.join('.')}>
                     <Menu as="div" className="relative">
@@ -720,12 +750,22 @@ function Breadcrumbs({ openPage, pages, onOpenPage }: BreadcrumbsProps) {
                         {siblingsMenuItems(siblings, path)}
                     </Menu>
                     <button
-                        className="rounded px-1.5 -mx-0.5 hover:bg-gray-200"
+                        className="rounded px-1.5 -mx-0.5 truncate hover:bg-gray-200"
                         onClick={() => { onOpenPage([ ...path, page.id ]) }}
                     >
                         {versioned.getName(page)}
                     </button>
                 </React.Fragment>
+            ))}
+            {pathPages.slice(-1).map(([path, currentPage]) => (
+                currentPage.children.length > 0 && (
+                    <Menu as="div" key={path.join('.') + '.children'} className="relative">
+                        <Menu.Button className="rounded px-1.5 -mx-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200">
+                            <FontAwesomeIcon size="xs" icon={solidIcons.faAngleRight} />
+                        </Menu.Button>
+                        {siblingsMenuItems(currentPage.children, [...path, currentPage.id])}
+                    </Menu>
+                )
             ))}
         </div>
     )
@@ -772,8 +812,8 @@ function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisibl
     }
 
     return (
-        <div className="absolute top-1 left-2 z-10">
-            <button className="text-gray-300 hover:text-gray-500 transition" onClick={toggleSidebar}>
+        <div className="absolute top-1.5 left-2 z-40">
+            <button className="text-gray-300 hover:text-gray-500 transition text-lg" onClick={toggleSidebar}>
                 <FontAwesomeIcon icon={solidIcons.faBars} />
             </button>
         </div>
@@ -791,104 +831,113 @@ interface SidebarProps<State> extends ActionProps<State> {
 
 function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     return (
-        <Transition
-            show={isVisible}
-            className="absolute inset-y-0 h-full left-0 flex flex-col space-y-1 whitespace-nowrap overflow-auto bg-gray-100 w-56"
-            enter="transition-transform"
-            enterFrom="-translate-x-full"
-            enterTo="translate-x-0"
-            leave="transition-transform"
-            leaveFrom="translate-x-0"
-            leaveTo="-translate-x-full"
-        >
-            <button
+        <>
+            {isVisible && <div className="md:hidden absolute z-40 inset-0 w-full h-full bg-gray-700/20" onClick={actions.toggleSidebar} />}
+            <Transition
+                show={isVisible}
                 className={`
-                    absolute top-0 right-0
-                    px-2 py-0.5 text-gray-400
-                    hover:text-gray-800 hover:bg-gray-200
+                    absolute inset-y-0 h-full left-0 z-40
+                    flex flex-col space-y-1
+                    whitespace-nowrap overflow-auto
+                    bg-gray-100 shadow-2xl md:shadow-none
+                    w-56
                 `}
-                onClick={actions.toggleSidebar}
+                enter="transition-transform"
+                enterFrom="-translate-x-full"
+                enterTo="translate-x-0"
+                leave="transition-transform"
+                leaveFrom="translate-x-0"
+                leaveTo="-translate-x-full"
             >
-                <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
-            </button>
-
-            <div className="group/sidebar-header pl-2 flex items-baseline">
-                <img src={logoSmallSvg.toString()} alt="ReSheet Logo" className="inline h-4 mr-1.5 saturate-0 group-hover/sidebar-header:saturate-100 transition-all"/>
-                <span className="text-xl font-bold text-gray-500">
-                    ReSheet <span className="text-xs font-normal">alpha</span>
-                </span>
-                <a
-                    className="ml-2 text-gray-400 hover:text-blue-600"
-                    href="https://github.com/keenbug/ReSheet"
-                    target="_blank"
+                <button
+                    className={`
+                        absolute top-0 right-0
+                        px-2 py-1 text-gray-400
+                        hover:text-gray-800 hover:bg-gray-200
+                    `}
+                    onClick={actions.toggleSidebar}
                 >
-                    <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="ReSheet on GitHub"/>
-                </a>
-                <a
-                    className="ml-1.5 text-gray-400 hover:text-blue-600"
-                    href="https://discord.gg/TQePmKJNQP"
-                    target="_blank"
-                >
-                    <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="ReSheet on Discord"/>
-                </a>
-            </div>
+                    <FontAwesomeIcon icon={solidIcons.faAnglesLeft} />
+                </button>
 
-            <div className="h-2" />
-
-            <CommandSearchButton commandBinding={commandBinding} />
-
-            <div className="h-3" />
-
-            <SidebarMenu state={state} actions={actions} />
-
-            <hr />
-
-            {state.pages.map(page => (
-                <Pages.PageEntry
-                    key={page.id}
-                    page={page}
-                    openPage={state.viewState.openPage}
-                    actions={actions}
-                    isNameEditing={isNameEditing}
-                    setIsNameEditing={setIsNameEditing}
-                    />
-            ))}
-            <button
-                className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
-                onClick={() => actions.addPage([])}
-            >
-                <span className="inline-block px-0.5 w-6">
-                    <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
-                </span>
-                Add Page
-            </button>
-
-            <div className="flex-1" />
-
-            <div className="flex flex-col items-center py-1">
-                {process.env.GITHUB_SHA &&
+                <div className="group/sidebar-header pl-2 flex items-baseline">
+                    <img src={logoSmallSvg.toString()} alt="ReSheet Logo" className="inline h-4 mr-1.5 saturate-0 group-hover/sidebar-header:saturate-100 transition-all"/>
+                    <span className="text-xl font-bold text-gray-500">
+                        ReSheet <span className="text-xs font-normal">alpha</span>
+                    </span>
                     <a
-                        className="font-mono text-xs text-gray-400 hover:text-blue-600"
-                        href={
-                            process.env.GITHUB_RUN_ID ? `https://github.com/keenbug/ReSheet/actions/runs/${process.env.GITHUB_RUN_ID}`
-                            : `https://github.com/keenbug/ReSheet/commit/${process.env.GITHUB_SHA}`
-                        }
+                        className="ml-2 text-gray-400 hover:text-blue-600"
+                        href="https://github.com/keenbug/ReSheet"
                         target="_blank"
                     >
-                        build {process.env.GITHUB_SHA.slice(0, 6)}
+                        <FontAwesomeIcon icon={brandIcons.faGithub} size="sm" title="ReSheet on GitHub"/>
                     </a>
-                }
-                {process.env.LEGAL_NOTICE &&
                     <a
-                        className="font-mono text-xs text-gray-400 hover:text-blue-600"
-                        href={process.env.LEGAL_NOTICE}
+                        className="ml-1.5 text-gray-400 hover:text-blue-600"
+                        href="https://discord.gg/TQePmKJNQP"
                         target="_blank"
                     >
-                        LEGAL NOTICE
+                        <FontAwesomeIcon icon={brandIcons.faDiscord} size="sm" title="ReSheet on Discord"/>
                     </a>
-                }
-            </div>
-        </Transition>
+                </div>
+
+                <div className="h-2" />
+
+                <CommandSearchButton commandBinding={commandBinding} />
+
+                <div className="h-3" />
+
+                <SidebarMenu state={state} actions={actions} />
+
+                <hr />
+
+                {state.pages.map(page => (
+                    <Pages.PageEntry
+                        key={page.id}
+                        page={page}
+                        openPage={state.viewState.openPage}
+                        actions={actions}
+                        isNameEditing={isNameEditing}
+                        setIsNameEditing={setIsNameEditing}
+                        />
+                ))}
+                <button
+                    className="px-2 py-0.5 w-full text-left text-xs text-gray-400 hover:text-blue-700"
+                    onClick={() => actions.addPage([])}
+                >
+                    <span className="inline-block px-0.5 w-6">
+                        <FontAwesomeIcon icon={solidIcons.faPlus} />{' '}
+                    </span>
+                    Add Page
+                </button>
+
+                <div className="flex-1" />
+
+                <div className="flex flex-col items-center py-1">
+                    {process.env.GITHUB_SHA &&
+                        <a
+                            className="font-mono text-xs text-gray-400 hover:text-blue-600"
+                            href={
+                                process.env.GITHUB_RUN_ID ? `https://github.com/keenbug/ReSheet/actions/runs/${process.env.GITHUB_RUN_ID}`
+                                : `https://github.com/keenbug/ReSheet/commit/${process.env.GITHUB_SHA}`
+                            }
+                            target="_blank"
+                        >
+                            build {process.env.GITHUB_SHA.slice(0, 6)}
+                        </a>
+                    }
+                    {process.env.LEGAL_NOTICE &&
+                        <a
+                            className="font-mono text-xs text-gray-400 hover:text-blue-600"
+                            href={process.env.LEGAL_NOTICE}
+                            target="_blank"
+                        >
+                            LEGAL NOTICE
+                        </a>
+                    }
+                </div>
+            </Transition>
+        </>
     )
 }
 

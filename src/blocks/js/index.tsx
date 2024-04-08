@@ -109,7 +109,7 @@ export const JSExprUi = React.forwardRef(
                     onUpdate={onUpdateCode}
                     {...shortcutProps}
                     />
-                <PreviewValue state={state} />
+                <ViewResult result={state.result} />
                 {completions.ui}
             </div>
         )
@@ -139,17 +139,6 @@ function updateResult(
 }
 
 
-
-
-
-export interface PreviewValueProps {
-    state: JSExprModel
-}
-
-export function PreviewValue({ state }: PreviewValueProps) {
-    if (state.result.type === 'immediate' && state.result.value === undefined) { return null }
-    return <ViewResult result={state.result} />
-}
 
 
 

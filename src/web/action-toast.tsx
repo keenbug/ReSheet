@@ -78,7 +78,7 @@ export function useActionToast<State>(
     }, [setToasts])
 
     const ui = (
-        <div className="absolute top-2 right-2 flex flex-col items-end">
+        <div className="absolute top-2 right-2 z-50 flex flex-col items-end">
             {toasts
                 .map(({ id, description, undo }, index) => (
                     <ActionToast

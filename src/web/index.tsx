@@ -263,6 +263,12 @@ async function loadRemoteFile(url: string) {
     }
 }
 
+function fallbackUUID() {
+    return String(Math.trunc(Number.MAX_SAFE_INTEGER * Math.random()))
+}
+
+const genUUID = crypto.randomUUID ? () => crypto.randomUUID() : fallbackUUID
+
 async function loadInit() {
     const params = new URLSearchParams(document.location.search)
     const loadParam = params.get('load')
@@ -273,10 +279,10 @@ async function loadInit() {
     }
 
     if (loadParam !== null) {
-        return [crypto.randomUUID(), await loadRemoteFile(loadParam)]
+        return [genUUID(), await loadRemoteFile(loadParam)]
     }
 
-    return [crypto.randomUUID(), undefined]
+    return [genUUID(), undefined]
 }
 
 
