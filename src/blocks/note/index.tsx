@@ -1,9 +1,9 @@
 import * as React from 'react'
 
-import { Set } from 'immutable'
+import { Set, remove } from 'immutable'
 
 import { BlockHandle } from '@resheet/core/block'
-import * as block from '@resheet/core/block'
+import * as Block from '@resheet/core/block'
 
 import { CodeEditor, CodeEditorProps, CodeEditorHandle } from '@resheet/code/editor'
 import { useCompletionsOverlay } from '@resheet/code/completions'
@@ -12,25 +12,24 @@ import { getResultValue } from '@resheet/code/result'
 
 import { Keybindings, useShortcuts } from '@resheet/util/shortcuts'
 import { useStableCallback } from '@resheet/util/hooks'
+import { fieldDispatcher } from '@resheet/util/dispatch'
 
-import { EnvDispatcher, useEnvDispatcher } from '../utils/hooks'
 import { getFullKey } from '../utils/ui'
 
-import { safeBlock } from '../component'
+import { isSafeBlock, safeBlock } from '../component'
 
 import { ViewBlockInstantiated, ViewNote, evaluateNote, getCode, getPrefix, recomputeNote, textClasses } from './note'
 import { NoteModel, NoteType } from './versioned'
 import * as versioned from './versioned'
-import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 const init: NoteModel = {
     level: 0,
     input: '',
-    note: evaluateNote('', block.emptyEnv, () => {}),
+    note: evaluateNote('', Block.emptyEnv, () => {}),
 }
 
-export const Note = block.create<NoteModel>({
+export const Note = Block.create<NoteModel>({
     init,
     view({ env, state, dispatch }, ref) {
         return <NoteUi ref={ref} state={state} dispatch={dispatch} env={env} />
@@ -75,8 +74,8 @@ export const Note = block.create<NoteModel>({
 
 interface NoteUiProps {
     state: NoteModel
-    dispatch: block.BlockDispatcher<NoteModel>
-    env: block.Environment
+    dispatch: Block.BlockDispatcher<NoteModel>
+    env: Block.Environment
 }
 
 export const NoteUi = React.forwardRef(
@@ -86,7 +85,6 @@ export const NoteUi = React.forwardRef(
     ) {
         const editorRef = React.useRef<CodeEditorHandle>()
         const blockRef = React.useRef<BlockHandle>()
-        const envDispatch = useEnvDispatcher(dispatch, env)
         const [isFocused, setFocused] = React.useState(false)
         const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
 
@@ -117,7 +115,7 @@ export const NoteUi = React.forwardRef(
             || (state.note.type === 'block' && !state.note.isInstantiated)
         )
 
-        const actions = React.useMemo(() => ACTIONS(dispatch, envDispatch, blockRef), [dispatch, envDispatch, blockRef])
+        const actions = React.useMemo(() => ACTIONS(dispatch, blockRef), [dispatch, blockRef])
         const shortcutProps = useShortcuts([
             ...isCode ? completions.shortcuts : [],
             ...keybindings(state, actions),
@@ -217,7 +215,7 @@ function keybindings(state: NoteModel, actions: ReturnType<typeof ACTIONS>): Key
     ]
 }
 
-function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDispatcher<NoteModel>, blockRef: React.RefObject<BlockHandle>) {
+function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.RefObject<BlockHandle>) {
     return {
         toggleCheckbox() {
             dispatch(state => {
@@ -242,17 +240,22 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
         },
 
         instantiateBlock() {
-            envDispatch((state, env) => {
+            dispatch((state, env) => {
                 if (state.note.type !== 'block') { return { state } }
                 if (state.note.isInstantiated === true) { return { state } }
                 if (state.note.result.type !== 'immediate') { return { state } }
-                if (!block.isBlock(state.note.result.value)) { return { state } }
+                if (!Block.isBlock(state.note.result.value)) { return { state } }
 
-                const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
+                const dispatchBlockState = Block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
-                let innerState = state.note.result.value.init
+                const value = state.note.result.value
+                const block = isSafeBlock(value) ? value.$$UNSAFE_BLOCK : value
+
+                let innerState = block.init
                 try {
-                    innerState = state.note.result.value.fromJSON(state.note.lastState, dispatchBlockState, env)
+                    if ('lastState' in state.note) {
+                        innerState = block.fromJSON(state.note.lastState, dispatchBlockState, env)
+                    }
                 }
                 catch (e) { /* do nothing */ }
 
@@ -264,12 +267,26 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
                             isInstantiated: true,
                             code: state.note.code,
                             deps: state.note.deps,
-                            block: safeBlock(state.note.result.value),
+                            block: safeBlock(block),
                             state: innerState,
                         },
                     },
                     effect() {
                         blockRef.current?.focus()
+                    },
+                }
+            })
+        },
+
+        resetBlock() {
+            dispatch(state => {
+                if (state.note.type !== 'block') { return { state } }
+                if (state.note.isInstantiated === true) { return { state } }
+
+                return {
+                    state: {
+                        ...state,
+                        note: remove(state.note, 'lastState'),
                     },
                 }
             })
@@ -299,8 +316,8 @@ function ACTIONS(dispatch: block.BlockDispatcher<NoteModel>, envDispatch: EnvDis
 
 export function recompute(
     state: NoteModel,
-    dispatch: block.BlockDispatcher<NoteModel>,
-    env: block.Environment,
+    dispatch: Block.BlockDispatcher<NoteModel>,
+    env: Block.Environment,
     changedVars: Set<string> | null,
 ): {
     state: NoteModel,

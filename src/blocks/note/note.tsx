@@ -13,8 +13,9 @@ import { resultFrom } from '@resheet/code/result'
 import { computeExpr, freeVarsExpr, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
-import { NoteType } from './versioned'
 import { safeBlock } from '../component'
+
+import { NoteType } from './versioned'
 
 
 export function getCode(note: NoteType) {
@@ -191,6 +192,7 @@ export interface ViewNoteProps {
     actions: {
         toggleCheckbox(): void
         instantiateBlock(): void
+        resetBlock(): void
     }
 }
 
@@ -206,7 +208,14 @@ export function ViewNote({ note, env, actions }: ViewNoteProps) {
             return <ViewExprResult note={note} />
 
         case 'block':
-            return <ViewBlock instantiateBlock={actions.instantiateBlock} note={note} env={env} />
+            return (
+                <ViewBlock
+                    instantiateBlock={actions.instantiateBlock}
+                    resetBlock={actions.resetBlock}
+                    note={note}
+                    env={env}
+                    />
+            )
     }
 }
 
@@ -298,10 +307,11 @@ interface ViewBlockProps {
     note: Extract<NoteType, { type: 'block' }>
     env: block.Environment
     instantiateBlock(): void
+    resetBlock(): void
 }
 
 const ViewBlock = React.memo(
-    function ViewBlock({ note, env, instantiateBlock }: ViewBlockProps) {
+    function ViewBlock({ note, env, instantiateBlock, resetBlock }: ViewBlockProps) {
         if (note.isInstantiated === true) { return null }
 
         if (note.result.type !== 'immediate' || !block.isBlock(note.result.value)) {
@@ -342,10 +352,18 @@ const ViewBlock = React.memo(
                             transition-[backdrop-filter,color] duration-75
                         `}
                         onClick={instantiateBlock}
-                        >
+                    >
                         <div className="text-3xl font-bold tracking-[.3em]">PREVIEW</div>
                         <div className="text-xs">Click to instantiate</div>
                     </button>
+                    {note.lastState &&
+                        <button
+                            className="absolute z-10 top-2 right-2 rounded px-1 bg-gray-100 hover:bg-gray-200 hover:text-blue-700"
+                            onClick={resetBlock}
+                        >
+                            Reset
+                        </button>
+                    }
                 </div>
             </div>
         )
@@ -358,7 +376,7 @@ const ViewBlock = React.memo(
             return false
         }
 
-        if (after.note.isInstantiated) {
+        if (after.note.isInstantiated === true) {
             return (
                 before.note.isInstantiated
                 && before.note.code === after.note.code
@@ -368,8 +386,9 @@ const ViewBlock = React.memo(
         }
         else {
             return (
-                !before.note.isInstantiated
+                before.note.isInstantiated === false
                 && before.note.code === after.note.code
+                && before.note.lastState === after.note.lastState
             )
         }
     },
