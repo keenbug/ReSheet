@@ -1,4 +1,5 @@
 import React from 'react'
+import { set } from 'immutable'
 
 export type Action<State, Input extends any[] = [], Output extends object = {}> =
     (state: State, ...args: Input) => { state: State } & Omit<Output, 'state'>
@@ -89,7 +90,7 @@ export function fieldDispatcher<
 ): Dispatcher<State[Field], Input, Output> {
     return mapDispatcher(
         state => state[fieldName],
-        (newState, oldState) => ({ ...oldState, [fieldName]: newState }),
+        (newFieldState, state) => set(state, fieldName, newFieldState),
         dispatch,
     )
 }
