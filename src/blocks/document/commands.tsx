@@ -85,8 +85,8 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
     }
 
     return (
-        <div className="absolute z-10 inset-0 h-full bg-gray-300/30 py-10 overflow-hidden" onClick={onClickDismiss}>
-            <div className="w-2/3 mx-auto max-h-full overflow-auto shadow-xl border border-gray-200 bg-white rounded-lg min-h-0 flex flex-col items-stretch">
+        <div className="absolute z-50 inset-0 h-full bg-gray-300/30 py-10 px-2 overflow-hidden" onClick={onClickDismiss}>
+            <div className="w-full md:w-2/3 mx-auto max-h-full overflow-auto shadow-xl border border-gray-200 bg-white rounded-lg min-h-0 flex flex-col items-stretch">
                 <input
                     ref={inputRef}
                     type="text"
@@ -129,7 +129,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                         </div>
                     ))}
                 </div>
-                <div className="flex flex-row justify-between space-x-8 px-5 py-1 border-t border-gray-200 bg-gray-100">
+                <div className="flex flex-row items-center justify-between h-8 space-x-6 px-5 py-1 border-t border-gray-200 bg-gray-100 overflow-x-auto">
                     <ShortcutSuggestions flat={true} allbindings={localBindings} />
                 </div>
             </div>

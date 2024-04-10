@@ -40,7 +40,7 @@ export const CodeView = React.memo(React.forwardRef<HTMLElement, CodeViewProps<a
                         ref={ref}
                         tabIndex={-1}
                         spellCheck={false}
-                        className={`whitespace-pre outline-none ${className}`}
+                        className={className || 'whitespace-pre outline-none'}
                         style={{
                             ...highlightStyle,
                             ...style,
@@ -80,7 +80,6 @@ export const CodeEditor = React.forwardRef(
         {
             code,
             onUpdate,
-            style,
             ...props
         }: CodeEditorProps,
         ref: React.Ref<CodeEditorHandle>
@@ -108,35 +107,11 @@ export const CodeEditor = React.forwardRef(
             )
         }, [editable, props.onKeyDown])
 
-        const codeLines = code.split('\n').length
-        const backgroundOpacity = clampBetween(0, 1, (codeLines - 3) / 5)
-        const [indicatorWidth, indicatorColor] = (
-            codeLines > 3 ?
-                [
-                    clampBetween(0, .25, codeLines / 40) + 'rem',
-                    `rgba(125, 211, 252, ${clampBetween(0, 1, (codeLines - 3) / 20 + .4)})`, // = sky-300/[${...}]
-                ]
-            :
-                ['0', 'transparent']
-        )
-        const defaultStyle = useStable({
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
-            '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
-        })
-
         return (
             <CodeView
                 ref={codeViewRef}
                 code={code}
-                style={style ?? defaultStyle}
                 {...props}
-                className={`
-                    focus-within/code-editor:bg-gradient-to-r
-                    from-transparent from-10%
-                    overflow-x-auto
-                    ${props.className}
-                `}
                 onKeyDown={onKeyDown}
                 />
         )

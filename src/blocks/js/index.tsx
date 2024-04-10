@@ -14,11 +14,13 @@ import { computeScript, freeVarsScript } from '@resheet/code/compute'
 import { Result, getResultValue, resultFrom } from '@resheet/code/result'
 import { ViewResult } from '@resheet/code/value'
 
+import { clampBetween } from '@resheet/util'
 import { useShortcuts } from '@resheet/util/shortcuts'
+import { fieldDispatcher } from '@resheet/util/dispatch'
+import { useStable } from '@resheet/util/hooks'
 
 import { JSExprModel } from './versioned'
 import * as versioned from './versioned'
-import { fieldDispatcher } from '@resheet/util/dispatch'
 
 
 export const JSExpr = block.create<JSExprModel>({
@@ -97,6 +99,24 @@ export const JSExprUi = React.forwardRef(
             },
         ])
 
+        const codeLines = state.code.split('\n').length
+        const backgroundOpacity = clampBetween(0, 1, (codeLines - 3) / 5)
+        const [indicatorWidth, indicatorColor] = (
+            codeLines > 3 ?
+                [
+                    clampBetween(0, .25, codeLines / 40) + 'rem',
+                    `rgba(125, 211, 252, ${clampBetween(0, 1, (codeLines - 3) / 20 + .4)})`, // = sky-300/[${...}]
+                ]
+            :
+                ['0', 'transparent']
+        )
+        const style = useStable({
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
+            '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
+        })
+
+
         return (
             <div
                 className="flex flex-col space-y-1 flex-1"
@@ -104,9 +124,16 @@ export const JSExprUi = React.forwardRef(
             >
                 <CodeEditor
                     ref={codeEditor}
-                    className="border-b border-gray-100"
                     code={state.code}
                     onUpdate={onUpdateCode}
+                    style={style}
+                    className={`
+                        whitespace-pre outline-none
+                        border-b border-gray-100
+                        focus-within/code-editor:bg-gradient-to-r
+                        from-transparent from-10%
+                        overflow-x-auto
+                    `}
                     {...shortcutProps}
                     />
                 <ViewResult result={state.result} />

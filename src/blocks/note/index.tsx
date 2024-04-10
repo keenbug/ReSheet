@@ -142,7 +142,7 @@ export const NoteUi = React.forwardRef(
         
         return (
             <div
-                className="flex flex-col py-0.5 space-y-1 flex-1"
+                className="flex flex-col space-y-1"
                 tabIndex={-1}
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 onFocus={event => {
@@ -341,12 +341,12 @@ export const NoteEditor = React.forwardRef(
                     code={code}
                     language={language}
                     container="div"
-                    className={className}
+                    className={`whitespace-pre-wrap outline-none ${className}`}
                     style={style}
                     onKeyDown={ignoreEmptyBackspace}
                     {...props}
                     />
-                <div className="absolute top-1 right-0 flex ">
+                <div className="absolute top-1 right-0">
                     <NoteTypeIndicator noteType={note.type} />
                 </div>
             </div>
@@ -358,14 +358,14 @@ function NoteTypeIndicator({ noteType }: { noteType: NoteType["type"] }) {
     switch (noteType) {
         case 'block':
             return (
-                <div className="text-xs rounded px-1 bg-sky-100 group-focus-within/note-editor:bg-sky-400 text-white cursor-default">
+                <div className="text-xs rounded px-1 bg-sky-100 group-focus-within/note-editor:bg-sky-400 text-white cursor-default overflow-clip">
                     block
                 </div>
             )
 
         case 'expr':
             return (
-                <div className="bg-amber-100 group-focus-within/note-editor:bg-amber-300 text-white w-4 h-4 rounded text-center font-bold cursor-default">
+                <div className="bg-amber-100 group-focus-within/note-editor:bg-amber-300 text-white w-4 h-4 rounded text-center font-bold cursor-default overflow-clip">
                     <span className="inline-block translate-y-[-.34rem]">=</span>
                 </div>
             )

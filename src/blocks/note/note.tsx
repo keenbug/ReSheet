@@ -224,7 +224,7 @@ const ViewText = React.memo(
         return (
             React.createElement(
                 note.tag,
-                { className: textClasses[note.tag] },
+                { className: `cursor-text ${textClasses[note.tag]}` },
                 <Markdown>{content}</Markdown>
             )
         )
@@ -242,7 +242,7 @@ export const textClasses = {
     h4: "text-2xl mt-4 my-2",
     h5: "text-xl mt-4 my-2",
     h6: "text-lg mt-2 my-1",
-    p: "whitespace-pre-wrap"
+    p: "",
 }
 
 
@@ -276,7 +276,7 @@ const ViewCheckbox = React.memo(
                     />
                 <Markdown
                     options={{ wrapper: 'span' }}
-                    className={note.checked ? "text-gray-400 line-through" : ""}
+                    className={`cursor-text ${note.checked ? "text-gray-400 line-through" : ""}`}
                 >
                     {note.text}
                 </Markdown>
@@ -418,7 +418,7 @@ export const ViewBlockInstantiated = React.memo(
                             <FontAwesomeIcon className="text-gray-300 group-hover/note-block-header:text-gray-500" icon={solidIcons.faCog} />
                         </button>
                     </div>
-                    <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto">
+                    <div className="bg-white flex flex-col justify-center items-stretch min-h-8 overflow-x-auto overflow-y-hidden">
                         <note.block.Component
                             ref={ref}
                             state={note.state}

@@ -479,6 +479,7 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
             ref={ref}
             className={`
                 grid items-baseline
+                py-1
                 outline-none
                 ${isSelected && 'bg-blue-100'}
                 group/sheet-line

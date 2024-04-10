@@ -596,10 +596,9 @@ interface ShortcutsSuggestionsProps {
 }
 
 function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) {
-    function onToggle(ev: React.PointerEvent) {
-        // prevent changing focus, so keybindings for previously focused Block are shown
+    // prevent changing focus, so keybindings for previously focused Block are shown
+    function preventDefault(ev: React.UIEvent) {
         ev.preventDefault()
-        toggle()
     }
 
     return (
@@ -620,7 +619,8 @@ function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) 
                             ${mode !== 'flat' && 'absolute bottom-0 right-0'}
                             px-1 bg-gray-100 opacity-50 hover:opacity-100 transition rounded
                         `}
-                        onPointerDown={onToggle}
+                        onPointerDown={preventDefault}
+                        onClick={toggle}
                     >
                         <FontAwesomeIcon icon={solidIcons.faCaretDown} />
                     </button>
@@ -635,7 +635,8 @@ function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) 
                         flex justify-center items-center
                         text-sm
                     `}
-                    onPointerDown={onToggle}
+                    onPointerDown={preventDefault}
+                    onClick={toggle}
                 >
                     ⌘
                 </button>
@@ -671,6 +672,11 @@ function MainView<State>({
         (action: BlockAction<State>) => actions.dispatchPage(state.viewState.openPage, action),
         [state.viewState.openPage],
     )
+    const onFocus = React.useCallback(function onFocus(ev: React.FocusEvent) {
+        if (!ev.currentTarget.contains(ev.relatedTarget) && document.body.clientWidth < 768) {
+            actions.setSidebarOpen(false)
+        }
+    }, [])
 
     if (!openPage) {
         function Link({ onClick, children }) {
@@ -696,7 +702,7 @@ function MainView<State>({
     }
 
     return (
-        <div className={`mb-[20cqh] bg-white relative px-1 ${!sidebarVisible && "md:px-10"}`}>
+        <div className={`mb-[20cqh] bg-white relative px-1 ${!sidebarVisible && "md:px-10"}`} onFocus={onFocus}>
             <Breadcrumbs
                 className={`sticky top-0 inset-x-0 z-30 md:static bg-white ${!sidebarVisible && "pl-8 md:pl-0"}`}
                 openPage={state.viewState.openPage}

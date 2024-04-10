@@ -410,11 +410,10 @@ function KeybindingSuggestion({ binding }: { binding: Keybinding }) {
     return (
         <div
             className="flex flex-row space-x-1 cursor-pointer hover:-translate-y-0.5 transition text-xs"
-            onPointerDown={(event: React.PointerEvent) => {
-                event.stopPropagation()
-                event.preventDefault()
-                action()
-            }}
+
+            // prevent changing focus
+            onPointerDown={ev => ev.preventDefault()}
+            onClick={() => action()}
         >
             {intersperse<React.ReactNode>(
                 <span>/</span>,
@@ -439,11 +438,10 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
                         condition !== 'hidden' &&
                         <tr
                             className="cursor-pointer hover:-translate-x-0.5 transition"
-                            onPointerDown={(event: React.PointerEvent) => {
-                                event.stopPropagation()
-                                event.preventDefault()
-                                action()
-                            }}
+
+                            // prevent changing focus
+                            onPointerDown={ev => ev.preventDefault()}
+                            onClick={() => action()}
                         >
                             <td className="py-0.5 flex flex-row space-x-1 text-xs">
                                 {keys.flatMap((k, index) => [
