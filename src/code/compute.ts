@@ -7,6 +7,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 
 import _ from "lodash"
 
+import { Pending } from './result'
+
 
 export type Environment = { [varName: string]: any }
 
@@ -160,6 +162,10 @@ export const computeExpr = (code: string | null, env: Environment): unknown => {
 export const computeExprUNSAFE = (code: string | null, env: Environment): unknown => {
     if (!code?.trim()) { return }
     const ast = parseJSExpr(code)
+    const deps = freeVars(fileExprAst(ast))
+    if (Array.from(deps).some(dependency => env[dependency] === Pending)) {
+        return Pending
+    }
     return runExprAstUNSAFE(ast, code, env)
 }
 
@@ -220,7 +226,12 @@ export function computeScript(code: string | null, env: Environment) {
     if (!code?.trim()) { return }
     try {
         const cleanEnv = cleanupEnv(env)
-        const { transformedCode, isAsync } = transformJSScript(code)
+        const { transformedCode, isAsync, ast } = transformJSScript(code)
+
+        if (Array.from(freeVars(ast)).some(dependency => env[dependency] === Pending)) {
+            return Pending
+        }
+
         const funcConstructor = isAsync ? AsyncFunction : Function
         const exprFunc = funcConstructor(
             ...Object.keys(cleanEnv),
