@@ -119,7 +119,7 @@ export const JSExprUi = React.forwardRef(
 
         return (
             <div
-                className="flex flex-col space-y-1 flex-1"
+                className="flex flex-col space-y-1"
                 onBlur={completions.onBlur}
             >
                 <CodeEditor

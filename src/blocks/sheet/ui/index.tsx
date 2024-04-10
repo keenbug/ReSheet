@@ -139,6 +139,7 @@ export const Sheet = React.forwardRef(
                 ref={containerRef}
                 tabIndex={-1}
                 className="group/sheet focus:border-b-2 focus:border-blue-300 outline-none"
+                style={{ containerType: "inline-size" }}
                 {...shortcutProps}
                 onBlur={onBlur}
                 onFocus={onFocus}
@@ -403,7 +404,7 @@ const narrowClass = css`
     ;
     column-gap: 0.5rem;
 
-    @media (max-width: 767px) {
+    @container (width < 768px) {
         ${fullStyle}
     }
 `
@@ -415,7 +416,7 @@ const wideClass = css`
     ;
     column-gap: 0.5rem;
 
-    @media (max-width: 767px) {
+    @container (width < 768px) {
         ${fullStyle}
     }
 `
@@ -427,13 +428,13 @@ const fullClass = css`
 const nonFullNameClass = css`
     justify-content: end;
 
-    @media (max-width: 767px) {
+    @container (width < 768px) {
         justify-content: start;
     }
 `
 
 const emptyNameClass = css`
-    @media (max-width: 767px) {
+    @container (width < 768px) {
         &:not(:focus-within) {
             height: 0;
             opacity: 0;
