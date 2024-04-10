@@ -140,7 +140,7 @@ function App({ backupId, initJson=ReSheetIntroduction }: AppProps) {
                 dispatch={dispatch}
                 env={library}
                 />
-            <BackupIndicator className="absolute left-1 bottom-1" pendingState={backupPendingState} />
+            <BackupIndicator className="absolute left-1 bottom-1 z-50" pendingState={backupPendingState} />
             <FocusIndicator />
             {actionToastUi}
         </>
