@@ -10,7 +10,7 @@ import { Set as ISet } from 'immutable'
 import * as block from '@resheet/core/block'
 
 import { resultFrom } from '@resheet/code/result'
-import { computeExpr, freeVarsExpr, parseJSExpr } from '@resheet/code/compute'
+import { Compiled, Environment, compileJSExprSafe, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
 import { safeBlock } from '../component'
@@ -50,19 +50,19 @@ export function evaluateNote(
     const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatchNote)
     const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatchNote)
 
-    const parsed = parseNote(input)
+    const parsed = parseNote(input, env)
     switch (parsed.type) {
         case 'expr': {
-            const value = computeExpr(parsed.code, env)
+            const value = parsed.compiled.run(env)
             const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
-            return { type: 'expr', code: parsed.code, deps: parsed.deps, result }
+            return { type: 'expr', code: parsed.code, compiled: parsed.compiled, result }
         }
 
         case 'block': {
-            const value = computeExpr(parsed.code, env)
+            const value = parsed.compiled.run(env)
             const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
             const lastState = (lastNote as any)?.lastState
-            return { type: 'block', isInstantiated: false, code: parsed.code, deps: parsed.deps, result, lastState }
+            return { type: 'block', isInstantiated: false, code: parsed.code, compiled: parsed.compiled, result, lastState }
         }
 
         case 'checkbox':
@@ -73,22 +73,22 @@ export function evaluateNote(
 
 
 type ParsedNote =
-    | { type: 'expr', code: string, deps: Set<string> }
-    | { type: 'block', code: string, deps: Set<string> }
+    | { type: 'expr', code: string, compiled: Compiled }
+    | { type: 'block', code: string, compiled: Compiled }
     | { type: 'checkbox', checked: boolean, text: string }
     | { type: 'text', tag: string, text: string }
 
-export function parseNote(input: string): ParsedNote {
+export function parseNote(input: string, env: Environment): ParsedNote {
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
-        const deps = freeVarsExpr(expr)
-        return { type: 'expr', code: expr, deps }
+        const compiled = compileJSExprSafe(expr, Object.keys(env))
+        return { type: 'expr', code: expr, compiled }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
-        const deps = freeVarsExpr(expr)
-        return { type: 'block', code: expr, deps }
+        const compiled = compileJSExprSafe(expr, Object.keys(env))
+        return { type: 'block', code: expr, compiled }
     }
 
     const header = input.match(/^(#{1,6})\s*/)
@@ -112,7 +112,6 @@ export function parseNote(input: string): ParsedNote {
 
 
 export function recomputeNote(
-    input: string,
     note: NoteType,
     dispatch: block.BlockDispatcher<NoteType>,
     env: block.Environment,
@@ -121,65 +120,78 @@ export function recomputeNote(
     state: NoteType,
     invalidated: boolean,
 } {
-    if (note.type === 'block' && note.isInstantiated === true) {
-        const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
+    switch (note.type) {
+        case 'block':
+            if (note.isInstantiated === true) {
+                const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
 
-        const changedDeps = changedVars?.intersect(note.deps)
-        if (!changedDeps || !changedDeps.isEmpty()) {
-            const newBlock = computeExpr(note.code, env)
-            if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
-                try {
-                    const jsonState = note.block.toJSON(note.state)
-                    const newSafeBlock = safeBlock(newBlock)
-                    const newState = newSafeBlock.fromJSON(jsonState, dispatchBlockState, env)
-                    return {
-                        state: {
-                            type: 'block',
-                            isInstantiated: true,
-                            code: note.code,
-                            deps: note.deps,
-                            block: newSafeBlock,
-                            state: newState,
-                        },
-                        invalidated: true,
+                const changedDeps = changedVars?.intersect(note.compiled.deps)
+                if (!changedDeps || !changedDeps.isEmpty()) {
+                    const newBlock = note.compiled.run(env)
+                    if (block.isBlock(newBlock) && newBlock !== note.block.$$UNSAFE_BLOCK) {
+                        try {
+                            const jsonState = note.block.toJSON(note.state)
+                            const newSafeBlock = safeBlock(newBlock)
+                            const newState = newSafeBlock.fromJSON(jsonState, dispatchBlockState, env)
+                            return {
+                                state: {
+                                    type: 'block',
+                                    isInstantiated: true,
+                                    code: note.code,
+                                    compiled: note.compiled,
+                                    block: newSafeBlock,
+                                    state: newState,
+                                },
+                                invalidated: true,
+                            }
+                        }
+                        catch (e) { /* do nothing */ }
                     }
                 }
-                catch (e) { /* do nothing */ }
+
+                const { state, invalidated } = note.block.recompute(note.state, dispatchBlockState, env, changedVars)
+
+                return {
+                    state: { ...note, state },
+                    invalidated,
+                }
             }
-        }
+            else {
+                if (changedVars && changedVars.intersect(note.compiled.deps).isEmpty()) {
+                    return { state: note, invalidated: false }
+                }
 
-        const { state, invalidated } = note.block.recompute(note.state, dispatchBlockState, env, changedVars)
+                if (note.result.type === 'promise') { note.result.cancel() }
 
-        return {
-            state: { ...note, state },
-            invalidated,
-        }
-    }
+                const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatch)
+                const value = note.compiled.run(env)
+                const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
 
-    if (note.type === 'text' || note.type === 'checkbox') {
-        if (changedVars === null) {
+                return {
+                    state: { ...note, result },
+                    invalidated: true,
+                }
+            }
+
+        case 'expr':
+            if (changedVars && changedVars.intersect(note.compiled.deps).isEmpty()) {
+                return { state: note, invalidated: false }
+            }
+
+            if (note.result.type === 'promise') { note.result.cancel() }
+
+            const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatch)
+            const value = note.compiled.run(env)
+            const result = resultFrom(value, block.dispatcherToSetter(dispatchExprResult))
+
             return {
-                state: evaluateNote(input, env, dispatch, note),
+                state: { ...note, result },
                 invalidated: true,
             }
-        }
-        return { state: note, invalidated: false }
-    }
 
-    if (changedVars && changedVars.intersect(note.deps).isEmpty()) {
-        return { state: note, invalidated: false }
-    }
-
-    if (note.type === 'expr' && note.result.type === 'promise') {
-        note.result.cancel()
-    }
-    else if (note.type === 'block' && note.isInstantiated === false && note.result.type === 'promise') {
-        note.result.cancel()
-    }
-
-    return {
-        state: evaluateNote(input, env, dispatch, note),
-        invalidated: true,
+        case 'text':
+        case 'checkbox':
+            return { state: note, invalidated: false }
     }
 }
 
@@ -418,7 +430,7 @@ export const ViewBlockInstantiated = React.memo(
                             type: 'block',
                             isInstantiated: false,
                             code: state.code,
-                            deps: state.deps,
+                            compiled: state.compiled,
                             result: { type: 'immediate', value: state.block },
                             lastState: state.block.toJSON(state.state),
                         }

@@ -117,56 +117,92 @@ export const RESERVED_JS_KEYWORDS = new Set([
     "yield",
 ])
 
-export function cleanupEnv(env: Environment) {
-    const cleanEntries = (
-        Object.entries(env).filter(([name]) =>
-            name.match(/^[a-zA-Z_$][\w\$]*$/) && !RESERVED_JS_KEYWORDS.has(name)
-        )
-    )
-    function $([name]) { return env[name] }
-    return Object.fromEntries([["$", $], ...cleanEntries])
+export function isValidJSVarName(name: string) {
+    return name.match(/^[a-zA-Z_$][\w\$]*$/) && !RESERVED_JS_KEYWORDS.has(name)
 }
 
+export type Compiled = {
+    run(env: Environment): any
+    runUNSAFE(env: Environment): any
+    deps: Set<string>
+}
 
-export function runExprAstUNSAFE(exprAst: babel.types.Expression, exprSource: string, env: Environment) {
-    const cleanEnv = cleanupEnv(env)
+export const emptyCompiled: Compiled = {
+    run() {},
+    runUNSAFE() {},
+    deps: new Set<string>(),
+}
+
+export function compileExprAst(exprAst: babel.types.Expression, exprSource: string, envVars: string[]): Compiled {
+    const deps = freeVars(fileExprAst(exprAst))
+
     const programAst = programReturnExprAst(exprAst)
     const isAsync = containsToplevelAsync(babelAst.file(programAst))
     const FuncConstructor = isAsync ? AsyncFunction : Function
+
+    const usedEnvVars = envVars.filter(varName => deps.has(varName))
+
     const exprFunc = FuncConstructor(
-        ...Object.keys(cleanEnv),
+        '$',
+        '{' + usedEnvVars.filter(isValidJSVarName).join(', ') + '}',
         transformJSAst(programAst, exprSource),
     )
-    return exprFunc(...Object.values(cleanEnv))
-}
 
+    function runUNSAFE(env: Environment) {
+        if (usedEnvVars.some(dependency => env[dependency] === Pending)) {
+            return Pending
+        }
 
+        function $([name]) { return env[name] }
+        return exprFunc($, env)
+    }
 
-export const computeExpr = (code: string | null, env: Environment): unknown => {
-    if (!code?.trim()) { return }
-    try {
-        const ast = parseJSExpr(code)
+    function run(env: Environment) {
         try {
-            return runExprAstUNSAFE(ast, code, env)
+            return runUNSAFE(env)
         }
         catch (e) {
             return e
         }
     }
-    catch (e) {
-        annotateCodeFrame(e, code)
-        return e
+
+    return {
+        run,
+        runUNSAFE,
+        deps,
     }
 }
 
-export const computeExprUNSAFE = (code: string | null, env: Environment): unknown => {
-    if (!code?.trim()) { return }
+export function compileJSExpr(code: string, envVars: string[]): Compiled {
+    if (code.trim() === '') { return emptyCompiled }
+
     const ast = parseJSExpr(code)
-    const deps = freeVars(fileExprAst(ast))
-    if (Array.from(deps).some(dependency => env[dependency] === Pending)) {
-        return Pending
+    return compileExprAst(ast, code, envVars)
+}
+
+export function compileJSExprSafe(code: string, envVars: string[]): Compiled {
+    try {
+        return compileJSExpr(code, envVars)
     }
-    return runExprAstUNSAFE(ast, code, env)
+    catch (e) {
+        annotateCodeFrame(e, code)
+        return {
+            run() { return e },
+            runUNSAFE() { throw e },
+            deps: new Set(),
+        }
+    }
+}
+
+
+
+
+export const computeExpr = (code: string, env: Environment): unknown => {
+    return compileJSExprSafe(code, Object.keys(env)).run(env)
+}
+
+export const computeExprUNSAFE = (code: string, env: Environment): unknown => {
+    return compileJSExpr(code, Object.keys(env)).runUNSAFE(env)
 }
 
 export function freeVarsExpr(code: string) {
@@ -220,37 +256,63 @@ export function transformJSScript(sourcecode: string) {
 
 
 
-export const AsyncFunction = (async function(){}).constructor
+export function compileScript(code: string, envVars: string[]): Compiled {
+    if (code.trim() === '') { return emptyCompiled }
 
-export function computeScript(code: string | null, env: Environment) {
-    if (!code?.trim()) { return }
-    try {
-        const cleanEnv = cleanupEnv(env)
-        const { transformedCode, isAsync, ast } = transformJSScript(code)
+    const { transformedCode, isAsync, ast } = transformJSScript(code)
+    const deps = freeVars(ast)
 
-        if (Array.from(freeVars(ast)).some(dependency => env[dependency] === Pending)) {
+    const FuncConstructor = isAsync ? AsyncFunction : Function
+
+    const usedEnvVars = envVars.filter(varName => deps.has(varName))
+
+    const exprFunc = FuncConstructor(
+        '$',
+        '{' + usedEnvVars.filter(isValidJSVarName).join(', ') + '}',
+        transformedCode,
+    )
+
+    function runUNSAFE(env: Environment) {
+        if (usedEnvVars.some(dependency => env[dependency] === Pending)) {
             return Pending
         }
 
-        const funcConstructor = isAsync ? AsyncFunction : Function
-        const exprFunc = funcConstructor(
-            ...Object.keys(cleanEnv),
-            transformedCode,
-        )
+        function $([name]) { return env[name] }
+        return exprFunc($, env)
+    }
 
-        if (isAsync) {
-            const promise = exprFunc(...Object.values(cleanEnv))
-            // so I don't trigger the error overlay in dev mode
-            //  theoretically I do catch the error, but too late
-            promise.catch(e => e)
-            return promise
+    function run(env: Environment) {
+        try {
+            return runUNSAFE(env)
         }
-        return exprFunc(...Object.values(cleanEnv))
+        catch (e) {
+            return e
+        }
+    }
+
+    return {
+        run,
+        runUNSAFE,
+        deps,
+    }
+}
+
+export function compileScriptSafe(code: string, envVars: string[]): Compiled {
+    try {
+        return compileScript(code, envVars)
     }
     catch (e) {
         annotateCodeFrame(e, code)
-        return e
+        return {
+            run() { return e },
+            runUNSAFE() { throw e },
+            deps: new Set(),
+        }
     }
+}
+
+export function computeScript(code: string, env: Environment) {
+    return compileScriptSafe(code, Object.keys(env)).run(env)
 }
 
 export function freeVarsScript(code: string) {
@@ -284,7 +346,7 @@ export function containsToplevelAsync(ast: babel.types.File) {
 }
 
 export function freeVars(ast: babel.types.Node) {
-    const freeVars = new Set<string>()
+    const freeVars = new Set<string>(['React'])
     babelTraverse(ast, {
         ReferencedIdentifier(path) {
             // Collect references like $`name with spaces`
@@ -312,3 +374,5 @@ export function annotateCodeFrame(e: Error, source: string) {
         (e as any).frame = codeFrameColumns(source, { start: (e as any).loc }, {})
     }
 }
+
+export const AsyncFunction = (async function(){}).constructor

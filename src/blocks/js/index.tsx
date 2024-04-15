@@ -10,7 +10,7 @@ import { CodeEditor, CodeEditorHandle } from '@resheet/code/editor'
 import { useCompletionsOverlay } from '@resheet/code/completions'
 import { safeBlock } from '@resheet/blocks/component'
 
-import { computeScript, freeVarsScript } from '@resheet/code/compute'
+import { compileScriptSafe } from '@resheet/code/compute'
 import { Result, getResultValue, resultFrom } from '@resheet/code/result'
 import { ViewResult } from '@resheet/code/value'
 
@@ -29,8 +29,7 @@ export const JSExpr = block.create<JSExprModel>({
         return <JSExprUi ref={ref} state={state} dispatch={dispatch} env={env} />
     },
     recompute(state, dispatch, env, changedVars) {
-        const usedVars = freeVarsScript(state.code)
-        if (changedVars && changedVars.intersect(usedVars).isEmpty()) {
+        if (changedVars && changedVars.intersect(state.compiled.deps).isEmpty()) {
             return { state, invalidated: false }
         }
 
@@ -43,7 +42,7 @@ export const JSExpr = block.create<JSExprModel>({
         return getResultValue(state.result)
     },
     fromJSON(json, dispatch, env) {
-        return updateResult(versioned.fromJSON(json), dispatch, env)
+        return updateResult(versioned.fromJSON(json)(env), dispatch, env)
     },
     toJSON(state) {
         return state.code
@@ -77,7 +76,7 @@ export const JSExprUi = React.forwardRef(
         const onUpdateCode = React.useCallback(function onUpdateCode(code: string) {
             dispatch((state, { env }) => ({
                 state: updateResult(
-                    { ...state, code, deps: freeVarsScript(code) },
+                    { ...state, code, compiled: compileScriptSafe(code, Object.keys(env)) },
                     dispatch,
                     env,
                 ),
@@ -156,7 +155,7 @@ function updateResult(
     if (state.result.type === 'promise') {
         state.result.cancel()
     }
-    const value = computeScript(state.code, env)
+    const value = state.compiled.run(env)
     const result = resultFrom(value, setResult)
 
     return {

@@ -2,7 +2,7 @@ import { addRevision, addValidator } from "@resheet/util/serialize"
 import { string } from "@resheet/util/validate"
 import { Result } from "@resheet/code/result"
 
-import { freeVarsScript } from '@resheet/code/compute'
+import { Compiled, Environment, compileScriptSafe, emptyCompiled } from '@resheet/code/compute'
 
 
 function typed<Obj extends object>(revision: number, obj: Obj): Obj {
@@ -26,40 +26,42 @@ function typedTables<Obj extends object>(revision: number, obj: Obj): Obj {
 interface JSExprModelV0 {
     code: string
     result: Result
-    deps: Set<string>
+    compiled: Compiled
 }
 
-const vPre = addValidator<JSExprModelV0>(
+type ParseV0 = (env: Environment) => JSExprModelV0
+
+const vPre = addValidator<ParseV0>(
     string,
-    code => ({
+    code => env => ({
         code,
         result: { type: 'immediate', value: undefined },
-        deps: freeVarsScript(code),
+        compiled: compileScriptSafe(code, Object.keys(env)),
     }),
 )
 
-const v0 = addRevision(vPre, {
+const v0 = addRevision<ParseV0, ParseV0>(vPre, {
     schema: typedTables(0, { code: string }),
-    parse({ code }): JSExprModelV0 {
-        return {
+    parse({ code }) {
+        return env => ({
             code,
             result: { type: 'immediate', value: undefined },
-            deps: freeVarsScript(code),
-        }
+            compiled: compileScriptSafe(code, Object.keys(env)),
+        })
     },
     upgrade(before) {
         return before
     },
 })
 
-const v1 = addRevision(v0, {
+const v1 = addRevision<ParseV0, ParseV0>(v0, {
     schema: typed(1, { code: string }),
-    parse({ code }): JSExprModelV0 {
-        return {
+    parse({ code }) {
+        return env => ({
             code,
             result: { type: 'immediate', value: undefined },
-            deps: freeVarsScript(code),
-        }
+            compiled: compileScriptSafe(code, Object.keys(env)),
+        })
     },
     upgrade(before) {
         return before
@@ -76,7 +78,7 @@ export type {
 export const init: JSExprModelV0 = {
     code: '',
     result: { type: 'immediate', value: undefined },
-    deps: new Set(),
+    compiled: emptyCompiled,
 }
 
 export { v1 as fromJSON }

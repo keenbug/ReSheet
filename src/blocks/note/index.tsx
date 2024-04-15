@@ -61,7 +61,7 @@ export const Note = Block.create<NoteModel>({
             modelFromInput(level, input) {
                 const dispatchNote = fieldDispatcher('note', dispatch)
                 const note = evaluateNote(input, env, dispatchNote)
-                return recompute({ level, input, note }, dispatch, env, null).state
+                return { level, input, note }
             },
         })
     },
@@ -121,9 +121,9 @@ export const NoteUi = React.forwardRef(
             ...keybindings(state, actions),
         ])
 
-        const onUpdateCode = React.useCallback(function onUpdateCode(input: string) {
+        const onUpdateInput = React.useCallback(function onUpdateInput(input: string) {
             dispatch((state, { env }) => ({
-                state: recompute({ ...state, input }, dispatch, env, null).state,
+                state: updateNote(input, state, dispatch, env),
             }))
         }, [dispatch])
 
@@ -160,7 +160,7 @@ export const NoteUi = React.forwardRef(
                         ref={editorRef}
                         note={state.note}
                         code={state.input}
-                        onUpdate={onUpdateCode}
+                        onUpdate={onUpdateInput}
                         {...shortcutProps}
                         onKeyDown={preventEnter}
                         spellCheck={!isCode}
@@ -266,7 +266,7 @@ function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.Ref
                             type: 'block',
                             isInstantiated: true,
                             code: state.note.code,
-                            deps: state.note.deps,
+                            compiled: state.note.compiled,
                             block: safeBlock(block),
                             state: innerState,
                         },
@@ -314,6 +314,20 @@ function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.Ref
 
 
 
+export function updateNote(
+    input: string,
+    state: NoteModel,
+    dispatch: Block.BlockDispatcher<NoteModel>,
+    env: Block.Environment,
+): NoteModel {
+    const note = evaluateNote(input, env, fieldDispatcher('note', dispatch), state.note)
+    return {
+        ...state,
+        input,
+        note,
+    }
+}
+
 export function recompute(
     state: NoteModel,
     dispatch: Block.BlockDispatcher<NoteModel>,
@@ -323,7 +337,7 @@ export function recompute(
     state: NoteModel,
     invalidated: boolean,
 } {
-    const { state: note, invalidated } = recomputeNote(state.input, state.note, fieldDispatcher('note', dispatch), env, changedVars)
+    const { state: note, invalidated } = recomputeNote(state.note, fieldDispatcher('note', dispatch), env, changedVars)
     return {
         state: { ...state, note },
         invalidated,
