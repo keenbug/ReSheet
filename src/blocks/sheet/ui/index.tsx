@@ -468,19 +468,20 @@ const tailwindColors = {
     'yellow-500': 'rgb(234 179 8)',
 }
 
-function indicatorCSS(colors) {
+function indicatorCSS(colors: { hover: string, focus: string, focusWithin: string }) {
     return `
         border-width: 1px;
-        border-color: ${colors.hover};
+        border-color: ${tailwindColors[colors.hover]};
         opacity: 0;
         align-self: stretch;
 
         .group\\/sheet-line:focus > & {
-            border-color: ${colors.focus};
+            border-color: ${tailwindColors[colors.focus]};
+            opacity: 1;
         }
 
-        .group\\/sheet-line:focus-within > & {
-            border-color: ${colors.focusWithin};
+        .group\\/sheet-line:not(:focus):focus-within > & {
+            border-color: ${tailwindColors[colors.focusWithin]};
             opacity: 1;
         }
 
@@ -490,22 +491,14 @@ function indicatorCSS(colors) {
     `
 }
 
-const focusIndicatorColor = {
-    block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
+const indicatorClass = {
+    block: css`${indicatorCSS({ hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' })}`,
 
     // yellow-400 is very similar to its neighbors, but this should happen
     // seldom and there should be another indication (by the result), that
     // focus is within
-    result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
+    result: css`${indicatorCSS({ hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' })}`,
 }
-
-const indicatorClass = _.mapValues(focusIndicatorColor, twColors => (
-    css`
-        ${indicatorCSS(
-            _.mapValues(twColors, twColor => tailwindColors[twColor])
-        )}
-    `
-))
 
 const SheetLineLayout = React.forwardRef(function SheetLineLayout(
     { line, assignmentLine, lineContent, lineContentRef, isSelected, ...containerProps }: SheetLineLayoutProps,
@@ -550,10 +543,7 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
             </div>
             
             {/* Focus/Hover Indicator */}
-            <div
-                style={{ gridArea: 'indicator' }}
-                className={focusIndicatorClass}
-                />
+            <div style={{ gridArea: 'indicator' }} className={focusIndicatorClass} />
 
             <div ref={lineContentRef} style={{ gridArea: 'content' }} className="flex flex-col space-y-1 overflow-x-auto">
                 {lineContent}
