@@ -3,6 +3,9 @@ import * as React from 'react'
 import { useInView } from 'react-intersection-observer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
+import { css } from '@emotion/css'
+
+import _ from 'lodash'
 
 import * as block from '@resheet/core/block'
 import { BlockDispatcher, BlockHandle, Environment } from '@resheet/core/block'
@@ -19,7 +22,6 @@ import { SheetBlockState, SheetBlockLine } from '../versioned'
 
 import { ACTIONS, Actions, SheetLineRef, findFocused } from './actions'
 import { useSelection } from './useSelection'
-import { css } from '@emotion/css'
 
 
 export interface SheetProps<InnerState> {
@@ -263,6 +265,18 @@ export interface SheetLineProps<InnerState> {
     inViewRef: React.Ref<HTMLElement>
 }
 
+const hiddenNameClass = css`
+    opacity: 0;
+
+    .group\\/sheet-line:focus-within > * > & {
+        opacity: 1;
+    }
+    
+    .group\\/sheet-line:hover > * > & {
+        opacity: 1;
+    }
+`
+
 function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setLineRef, inViewRef }: SheetLineProps<Inner>) {
     const containerRef = React.useRef<HTMLDivElement>()
     const varInputRef = React.useRef<HTMLElement>()
@@ -353,7 +367,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                     actions={actions}
                     bindings={varInputBindings}
                     style={{ display: undefined }}
-                    className={shouldNameBeHidden && "opacity-0 group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100"}
+                    className={shouldNameBeHidden && hiddenNameClass}
                     />
             }
             lineContentRef={innerContainerRef}
@@ -443,18 +457,61 @@ const emptyNameClass = css`
     }
 `
 
+const tailwindColors = {
+    'gray-300': 'rgb(209 213 219)',
+
+    'blue-300': 'rgb(147 197 253)',
+    'blue-500': 'rgb(59 130 246)',
+
+    'yellow-300': 'rgb(253 224 71)',
+    'yellow-400': 'rgb(250 204 21)',
+    'yellow-500': 'rgb(234 179 8)',
+}
+
+function indicatorCSS(colors) {
+    return `
+        border-width: 1px;
+        border-color: ${colors.hover};
+        opacity: 0;
+        align-self: stretch;
+
+        .group\\/sheet-line:focus > & {
+            border-color: ${colors.focus};
+        }
+
+        .group\\/sheet-line:focus-within > & {
+            border-color: ${colors.focusWithin};
+            opacity: 1;
+        }
+
+        .group\\/sheet-line:hover > & {
+            opacity: 1;
+        }
+    `
+}
+
+const focusIndicatorColor = {
+    block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
+
+    // yellow-400 is very similar to its neighbors, but this should happen
+    // seldom and there should be another indication (by the result), that
+    // focus is within
+    result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
+}
+
+const indicatorClass = _.mapValues(focusIndicatorColor, twColors => (
+    css`
+        ${indicatorCSS(
+            _.mapValues(twColors, twColor => tailwindColors[twColor])
+        )}
+    `
+))
+
 const SheetLineLayout = React.forwardRef(function SheetLineLayout(
     { line, assignmentLine, lineContent, lineContentRef, isSelected, ...containerProps }: SheetLineLayoutProps,
     ref: React.Ref<HTMLDivElement>,
 ) {
-    const focusIndicatorColor = {
-        block: { hover: 'gray-300', focus: 'blue-500', focusWithin: 'blue-300' },
-
-        // yellow-400 is very similar to its neighbors, but this should happen
-        // seldom and there should be another indication (by the result), that
-        // focus is within
-        result: { hover: 'yellow-300', focus: 'yellow-500', focusWithin: 'yellow-400' },
-    }[line.visibility]
+    const focusIndicatorClass = indicatorClass[line.visibility]
 
     const [gridClass, nameClasses] = (
         line.width === 'narrow' ?
@@ -495,11 +552,7 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
             {/* Focus/Hover Indicator */}
             <div
                 style={{ gridArea: 'indicator' }}
-                className={`
-                    border border-${focusIndicatorColor.hover} self-stretch opacity-0
-                    group-focus/sheet-line:border-${focusIndicatorColor.focus} group-focus-within/sheet-line:border-${focusIndicatorColor.focusWithin}
-                    group-focus-within/sheet-line:opacity-100 group-hover/sheet-line:opacity-100
-                `}
+                className={focusIndicatorClass}
                 />
 
             <div ref={lineContentRef} style={{ gridArea: 'content' }} className="flex flex-col space-y-1 overflow-x-auto">
