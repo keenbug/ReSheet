@@ -76,7 +76,7 @@ export const JSExprUi = React.forwardRef(
         const onUpdateCode = React.useCallback(function onUpdateCode(code: string) {
             dispatch((state, { env }) => ({
                 state: updateResult(
-                    { ...state, code, compiled: compileScriptSafe(code, Object.keys(env)) },
+                    { ...state, code, compiled: compileScriptSafe(code) },
                     dispatch,
                     env,
                 ),

@@ -36,7 +36,7 @@ const vPre = addValidator<ParseV0>(
     code => env => ({
         code,
         result: { type: 'immediate', value: undefined },
-        compiled: compileScriptSafe(code, Object.keys(env)),
+        compiled: compileScriptSafe(code),
     }),
 )
 
@@ -46,7 +46,7 @@ const v0 = addRevision<ParseV0, ParseV0>(vPre, {
         return env => ({
             code,
             result: { type: 'immediate', value: undefined },
-            compiled: compileScriptSafe(code, Object.keys(env)),
+            compiled: compileScriptSafe(code),
         })
     },
     upgrade(before) {
@@ -60,7 +60,7 @@ const v1 = addRevision<ParseV0, ParseV0>(v0, {
         return env => ({
             code,
             result: { type: 'immediate', value: undefined },
-            compiled: compileScriptSafe(code, Object.keys(env)),
+            compiled: compileScriptSafe(code),
         })
     },
     upgrade(before) {

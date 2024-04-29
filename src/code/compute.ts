@@ -133,28 +133,26 @@ export const emptyCompiled: Compiled = {
     deps: new Set<string>(),
 }
 
-export function compileExprAst(exprAst: babel.types.Expression, exprSource: string, envVars: string[]): Compiled {
+export function compileExprAst(exprAst: babel.types.Expression, exprSource: string): Compiled {
     const deps = freeVars(fileExprAst(exprAst))
+    const args = Array.from(deps).filter(isValidJSVarName)
 
     const programAst = programReturnExprAst(exprAst)
     const isAsync = containsToplevelAsync(babelAst.file(programAst))
     const FuncConstructor = isAsync ? AsyncFunction : Function
 
-    const usedEnvVars = envVars.filter(varName => deps.has(varName))
-
     const exprFunc = FuncConstructor(
-        '$',
-        '{' + usedEnvVars.filter(isValidJSVarName).join(', ') + '}',
+        ...args,
         transformJSAst(programAst, exprSource),
     )
 
     function runUNSAFE(env: Environment) {
-        if (usedEnvVars.some(dependency => env[dependency] === Pending)) {
+        if (Array.from(deps).some(dependency => env[dependency] === Pending)) {
             return Pending
         }
 
         function $([name]) { return env[name] }
-        return exprFunc($, env)
+        return exprFunc(...args.map(name => findVarIn(name, env, {$}, globalThis)))
     }
 
     function run(env: Environment) {
@@ -173,16 +171,16 @@ export function compileExprAst(exprAst: babel.types.Expression, exprSource: stri
     }
 }
 
-export function compileJSExpr(code: string, envVars: string[]): Compiled {
+export function compileJSExpr(code: string): Compiled {
     if (code.trim() === '') { return emptyCompiled }
 
     const ast = parseJSExpr(code)
-    return compileExprAst(ast, code, envVars)
+    return compileExprAst(ast, code)
 }
 
-export function compileJSExprSafe(code: string, envVars: string[]): Compiled {
+export function compileJSExprSafe(code: string): Compiled {
     try {
-        return compileJSExpr(code, envVars)
+        return compileJSExpr(code)
     }
     catch (e) {
         annotateCodeFrame(e, code)
@@ -198,11 +196,11 @@ export function compileJSExprSafe(code: string, envVars: string[]): Compiled {
 
 
 export const computeExpr = (code: string, env: Environment): unknown => {
-    return compileJSExprSafe(code, Object.keys(env)).run(env)
+    return compileJSExprSafe(code).run(env)
 }
 
 export const computeExprUNSAFE = (code: string, env: Environment): unknown => {
-    return compileJSExpr(code, Object.keys(env)).runUNSAFE(env)
+    return compileJSExpr(code).runUNSAFE(env)
 }
 
 export function freeVarsExpr(code: string) {
@@ -255,30 +253,36 @@ export function transformJSScript(sourcecode: string) {
 }
 
 
+export function findVarIn(name: string, ...envChain: Environment[]) {
+    for (const env of envChain) {
+        if (name in env) {
+            return env[name]
+        }
+    }
+    throw new ReferenceError(name + ' is not defined')
+}
 
-export function compileScript(code: string, envVars: string[]): Compiled {
+export function compileScript(code: string): Compiled {
     if (code.trim() === '') { return emptyCompiled }
 
     const { transformedCode, isAsync, ast } = transformJSScript(code)
     const deps = freeVars(ast)
+    const args = Array.from(deps).filter(isValidJSVarName)
 
     const FuncConstructor = isAsync ? AsyncFunction : Function
 
-    const usedEnvVars = envVars.filter(varName => deps.has(varName))
-
     const exprFunc = FuncConstructor(
-        '$',
-        '{' + usedEnvVars.filter(isValidJSVarName).join(', ') + '}',
+        ...args,
         transformedCode,
     )
 
     function runUNSAFE(env: Environment) {
-        if (usedEnvVars.some(dependency => env[dependency] === Pending)) {
+        if (Array.from(deps).some(dependency => env[dependency] === Pending)) {
             return Pending
         }
 
         function $([name]) { return env[name] }
-        return exprFunc($, env)
+        return exprFunc(...args.map(name => findVarIn(name, env, {$}, globalThis)))
     }
 
     function run(env: Environment) {
@@ -297,9 +301,9 @@ export function compileScript(code: string, envVars: string[]): Compiled {
     }
 }
 
-export function compileScriptSafe(code: string, envVars: string[]): Compiled {
+export function compileScriptSafe(code: string): Compiled {
     try {
-        return compileScript(code, envVars)
+        return compileScript(code)
     }
     catch (e) {
         annotateCodeFrame(e, code)
@@ -312,7 +316,7 @@ export function compileScriptSafe(code: string, envVars: string[]): Compiled {
 }
 
 export function computeScript(code: string, env: Environment) {
-    return compileScriptSafe(code, Object.keys(env)).run(env)
+    return compileScriptSafe(code).run(env)
 }
 
 export function freeVarsScript(code: string) {

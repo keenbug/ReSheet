@@ -81,13 +81,13 @@ type ParsedNote =
 export function parseNote(input: string, env: Environment): ParsedNote {
     if (input.startsWith(EXPR_PREFIX)) {
         const expr = input.slice(EXPR_PREFIX.length)
-        const compiled = compileJSExprSafe(expr, Object.keys(env))
+        const compiled = compileJSExprSafe(expr)
         return { type: 'expr', code: expr, compiled }
     }
 
     if (input.startsWith(BLOCK_PREFIX)) {
         const expr = input.slice(BLOCK_PREFIX.length)
-        const compiled = compileJSExprSafe(expr, Object.keys(env))
+        const compiled = compileJSExprSafe(expr)
         return { type: 'block', code: expr, compiled }
     }
 

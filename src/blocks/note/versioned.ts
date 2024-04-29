@@ -49,13 +49,13 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
 
     return validatorSwitch<NoteTypeV0>(json,
         [{ type: 'expr', code: string }, ({ code }) => {
-            const compiled = compileJSExprSafe(code, Object.keys(env))
+            const compiled = compileJSExprSafe(code)
             const result = resultFrom(compiled.run(env), block.dispatcherToSetter(dispatchExprResult))
             return { type: 'expr', code, compiled, result }
         }],
 
         [{ type: 'block', isInstantiated: true, code: string, state: any }, ({ code, state: stateJson }) => {
-            const compiled = compileJSExprSafe(code, Object.keys(env))
+            const compiled = compileJSExprSafe(code)
 
             function setBlockFromResult(result: Result) {
                 dispatch(() => {
@@ -93,7 +93,7 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
         }],
 
         [{ type: 'block', isInstantiated: false, code: string }, ({ code }) => {
-            const compiled = compileJSExprSafe(code, Object.keys(env))
+            const compiled = compileJSExprSafe(code)
             const result = resultFrom(compiled.run(env), block.dispatcherToSetter(dispatchBlockResult))
             return { type: 'block', isInstantiated: false, code, compiled, result }
         }],
