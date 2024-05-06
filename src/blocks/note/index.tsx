@@ -259,6 +259,11 @@ function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.Ref
                 }
                 catch (e) { /* do nothing */ }
 
+                // Focus the block after React rendered it
+                setTimeout(() => {
+                    blockRef.current?.focus()
+                })
+
                 return {
                     state: {
                         ...state,
@@ -270,9 +275,6 @@ function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.Ref
                             block: safeBlock(block),
                             state: innerState,
                         },
-                    },
-                    effect() {
-                        blockRef.current?.focus()
                     },
                 }
             })
