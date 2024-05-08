@@ -16,7 +16,7 @@ export function ErrorView({ title, error, children, className }: ErrorViewProps)
     const toggleStackVisible = () => setStackVisible(isExpanded => !isExpanded)
 
     return (
-        <div className={`bg-red-50 px-1 flex flex-col space-y-1 ${className}`}>
+        <div className={`bg-red-50 px-1 space-y-1 ${className}`}>
             <button
                 className="w-full text-red-900 flex flex-row justify-start items-baseline space-x-1"
                 onClick={() => setExpanded(e => !e)}

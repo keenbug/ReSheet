@@ -356,15 +356,15 @@ export const RenderCompletions = React.forwardRef(function RenderCompletions(
 
     return (
         <div className="flex flex-row items-stretch" onPointerDown={event => event.preventDefault()}>
-            <VList ref={vlistRef} style={{ height: "12rem", width: "12rem" }} className="flex flex-col items-stretch overflow-auto">
+            <VList ref={vlistRef} style={{ height: "12rem", width: "12rem" }} className="overflow-auto">
                 {results.length === 0 &&
-                    <div className="italic text-gray-700 text-xs text-center">No completions</div>
+                    <div className="w-full italic text-gray-700 text-xs text-center">No completions</div>
                 }
                 {results.map((result, index) => (
                     <div
                         ref={setRef(result.id)}
                         key={result.id}
-                        className={`cursor-pointer px-1 ${index === selected && 'bg-gray-200'}`}
+                        className={`w-full cursor-pointer px-1 ${index === selected && 'bg-gray-200'}`}
                         onPointerDown={() => {
                             if (selected === index) { onSelectSearchResult(results[index], offset) }
                             else { select(index, false) }

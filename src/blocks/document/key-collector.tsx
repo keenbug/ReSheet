@@ -125,15 +125,15 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
 
                         <KeyCollectorVisualization ref={keyboardVisRef} keyMap={keyMap} />
 
-                        <div className="flex flex-col space-y-2 items-stretch">
+                        <div className="space-y-2">
                             <button
-                                className="rounded px-2 py-1 border border-blue-500 text-blue-700 hover:bg-blue-100"
+                                className="block w-full rounded px-2 py-1 border border-blue-500 text-blue-700 hover:bg-blue-100"
                                 onClick={() => setStep('shift')}
                             >
                                 Next {'>'}
                             </button>
                             <button
-                                className="text-xs text-gray-500 hover:text-blue-500"
+                                className="block w-full text-xs text-gray-500 hover:text-blue-500"
                                 onClick={() => setStep('explain')}
                             >
                                 {'<'} Back
@@ -179,9 +179,9 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
                             </p>
                         }
 
-                        <div className="flex flex-col space-y-2 items-stretch">
+                        <div className="space-y-2">
                             <button
-                                className={`rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-red-100 text-red-800"}`}
+                                className={`block w-full rounded px-2 py-1 ${matches ? "border border-green-500 text-green-700" : "bg-red-100 text-red-800"}`}
                                 onClick={onDone}
                             >
                                 {matches ?
@@ -191,7 +191,7 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
                                 }
                             </button>
                             <button
-                                className="text-xs text-gray-500 hover:text-blue-500"
+                                className="block w-full text-xs text-gray-500 hover:text-blue-500"
                                 onClick={() => setStep('noshift')}
                             >
                                 {'<'} Back
@@ -217,17 +217,17 @@ function KeymapCollectorDialog({ keyMap, onCollectKey, onDone, onCancel }: Colle
 
     return (
         <div
-            className="absolute z-40 inset-0 flex justify-center items-center bg-gray-300/50 backdrop-blur-sm"
+            className="absolute z-40 inset-0 bg-gray-300/50 backdrop-blur-sm"
             onClick={onClickDismiss}
             onKeyDown={collectKey}
             onBlur={keepFocusOnBlur}
         >
             <div
-                className="max-w-screen-sm w-full h-full flex justify-center items-center"
+                className="max-w-screen-sm w-full h-full mx-auto flex items-center"
                 style={{ containerType: 'size' }}
             >
                 <div
-                    className="relative rounded-xl border border-gray-200 px-10 py-8 w-full flex flex-col space-y-5 bg-white"
+                    className="relative rounded-xl border border-gray-200 px-10 py-8 w-full space-y-5 bg-white"
                 >
                     <button className="absolute top-3 right-4 text-gray-500 hover:text-blue-500" onClick={onCancel}>
                         <FontAwesomeIcon icon={solidIcons.faXmark} />

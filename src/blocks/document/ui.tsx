@@ -865,7 +865,7 @@ function Breadcrumbs({ className, openPage, pages, onOpenPage }: BreadcrumbsProp
             <Menu.Items
                 className={`
                     absolute -top-1 -right-1 translate-x-full z-10
-                    flex flex-col items-stretch whitespace-nowrap
+                    whitespace-nowrap
                     rounded bg-white shadow
                     focus:outline-none overflow-hidden
                 `}
@@ -878,6 +878,7 @@ function Breadcrumbs({ className, openPage, pages, onOpenPage }: BreadcrumbsProp
                             return (
                                 <button
                                     className={`
+                                        block w-full
                                         px-2 py-1 hover:bg-gray-200
                                         ${isOpen && "bg-gray-100"} ${active && "bg-gray-200"}
                                         text-left
@@ -1075,7 +1076,7 @@ const SidebarMenu = React.memo(function SidebarMenu<State>({ actions }: ActionPr
         return (
             <Menu.Item>
                 {({ active }) => (
-                    <Element className={`px-2 py-1 text-left ${active && "bg-blue-200"}`} {...restProps}>
+                    <Element className={`block w-full px-2 py-1 text-left ${active && "bg-blue-200"}`} {...restProps}>
                         {children}
                     </Element>
                 )}
@@ -1102,7 +1103,7 @@ const SidebarMenu = React.memo(function SidebarMenu<State>({ actions }: ActionPr
                 )}
             </Menu.Button>
 
-            <Menu.Items className="w-full flex flex-col bg-gray-200 text-sm">
+            <Menu.Items className="w-full bg-gray-200 text-sm">
                 <MenuItem onClick={actions.reset}>
                     New File
                 </MenuItem>

@@ -546,7 +546,7 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
             {/* Focus/Hover Indicator */}
             <div style={{ gridArea: 'indicator' }} className={`${focusIndicatorClass} print:hidden`} />
 
-            <div ref={lineContentRef} style={{ gridArea: 'content' }} className="flex flex-col space-y-1 overflow-x-auto">
+            <div ref={lineContentRef} style={{ gridArea: 'content' }} className="overflow-x-auto">
                 {lineContent}
             </div>
         </div>

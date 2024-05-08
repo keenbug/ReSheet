@@ -348,7 +348,7 @@ const ViewBlock = React.memo(
         catch (e) { /* do nothing */ }
 
         return (
-            <div className="flex flex-col item-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
+            <div className="flex flex-col items-stretch rounded py-1 border border-t border-b border-gray-200 bg-gray-100">
                 <div className="bg-white flex flex-col justify-center items-stretch min-h-14 overflow-x-auto relative">
                     <innerBlock.Component
                         state={state}

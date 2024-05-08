@@ -97,7 +97,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                     onChange={ev => setSearchText(ev.target.value)}
                     onKeyDown={handleKeybindings}
                     />
-                <div className="overflow-y-auto flex flex-col">
+                <div className="overflow-y-auto divide-y divide-gray-200">
                     {results.length === 0 && (
                         <div className="text-gray-700 px-5 py-3">No results for the current focus</div>
                     )}
@@ -106,7 +106,7 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                             ref={setRef(result.id)}
                             key={result.id}
                             className={`
-                                flex flex-row space-x-3 justify-start items-baseline px-5 py-3 border-b border-gray-300
+                                space-x-3 px-5 py-3
                                 cursor-pointer text-left ${index === selected && "bg-gray-200"}
                             `}
                             onPointerEnter={() => select(index)}
@@ -120,12 +120,12 @@ export function CommandSearch({ bindings, close }: { bindings: Keybindings, clos
                             </span>
                             {index === selected && <KeyButton className="text-sm" keyName="Enter" />}
 
-                            <div className="flex-1 flex flex-row justify-end space-x-1 text-sm">
+                            <span className="space-x-1 text-sm float-end">
                                 {intersperse(
                                     <span>/</span>,
                                     result.candidate.keys.map(k => <KeyButtonContainer><KeyComposition shortcut={k} /></KeyButtonContainer>)
                                 )}
-                            </div>
+                            </span>
                         </div>
                     ))}
                 </div>

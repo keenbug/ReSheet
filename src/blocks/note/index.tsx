@@ -140,7 +140,7 @@ export const NoteUi = React.forwardRef(
         
         return (
             <div
-                className="flex flex-col space-y-1"
+                className="space-y-1"
                 tabIndex={-1}
                 style={{ paddingLeft: (1.5 * state.level) + 'rem' }}
                 onFocus={event => {

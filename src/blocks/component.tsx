@@ -2,8 +2,7 @@ import * as React from 'react'
 
 import { Block, BlockHandle, BlockDispatcher, ViewerProps, Environment, BlockAction } from '@resheet/core/block'
 import { ErrorBoundary, ErrorInspector } from '@resheet/code/value'
-
-import { ErrorView } from './utils/ui'
+import { ErrorView } from '@resheet/code/ui'
 
 export type BlockComponent<State> = React.FC<ViewerProps<State> & React.RefAttributes<BlockHandle>>
 

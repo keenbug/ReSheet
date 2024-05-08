@@ -175,7 +175,7 @@ export const PromiseView = React.forwardRef(
         ref: React.ForwardedRef<HTMLElement>,
     ) {
         return (
-            <div className="group/promise-inspect flex flex-col">
+            <div className="group/promise-inspect">
                 <PromiseIndicator promiseResult={promiseResult} />
                 <PromiseViewValue ref={ref} promiseResult={promiseResult} />
             </div>
@@ -187,10 +187,10 @@ function PromiseIndicator({ promiseResult }: { promiseResult: PromiseResult }) {
     switch (promiseResult.state) {
         case 'pending':
             return (
-                <div>
+                <span>
                     <FontAwesomeIcon className="mr-2" icon={solidIcons.faSpinner} spinPulse />
                     Promise pending...
-                </div>
+                </span>
             )
 
         case 'failed':

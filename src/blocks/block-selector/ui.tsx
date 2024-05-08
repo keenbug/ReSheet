@@ -184,10 +184,9 @@ export const BlockSelectorUI = React.forwardRef(
 
             case 'run':
                 return (
-                    <div className="flex flex-col space-y-1 flex-1" {...runBindingProps}>
+                    <div className="space-y-1" {...runBindingProps}>
                         <button
                             className={`
-                                self-start
                                 text-xs text-gray-400 rounded-full
                                 hover:text-gray-700 hover:bg-gray-200 hover:px-1
                                 transition-all duration-100
@@ -213,7 +212,7 @@ export const BlockSelectorUI = React.forwardRef(
                     chooseBindingProps.onBlur(event)
                 }
                 return (
-                    <div className="flex flex-col space-y-1 flex-1" {...chooseBindingProps} onBlur={onBlur}>
+                    <div className="space-y-1" {...chooseBindingProps} onBlur={onBlur}>
                         <CodeEditor ref={codeEditor} code={blockExpr} onUpdate={setBlockExpr} />
                         {block.isBlock(blockCmdResult) ?
                             <BlockPreview
@@ -251,7 +250,7 @@ export function BlockPreview({ env, block, onChooseBlock }: BlockPreviewProps) {
     return (
         <div
             className={`
-                flex flex-col space-y-2 p-2 rounded shadow
+                space-y-2 p-2 rounded shadow
                 hover:shadow-lg hover:-translate-y-px transition
             `}
         >

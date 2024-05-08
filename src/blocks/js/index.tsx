@@ -118,16 +118,14 @@ export const JSExprUi = React.forwardRef(
 
 
         return (
-            <div
-                className="flex flex-col space-y-1"
-                onBlur={completions.onBlur}
-            >
+            <div onBlur={completions.onBlur}>
                 <CodeEditor
                     ref={codeEditor}
                     code={state.code}
                     onUpdate={onUpdateCode}
                     style={style}
                     className={`
+                        block
                         whitespace-pre outline-none
                         border-b border-gray-100
                         focus-within/code-editor:bg-gradient-to-r
