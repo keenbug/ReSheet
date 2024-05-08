@@ -135,6 +135,8 @@ export const TextInput: React.FC<any> = React.forwardRef(
                     aria-hidden="true"
                     style={{
                         ...textInputChildStyle,
+                        textOverflow: "clip",
+                        textWrap: "nowrap",
                         position: "relative",
                         pointerEvents: "none",
                         color: "transparent",
