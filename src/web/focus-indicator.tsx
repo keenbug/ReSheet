@@ -26,7 +26,7 @@ export function FocusIndicator() {
     const visible = animationRunning && showFocusChange
     return (
         <div
-            className="border-4 border-blue-500/20 pointer-events-none"
+            className="border-4 border-blue-500/20 pointer-events-none print:hidden"
             style={{
                 opacity: visible ? 1 : 0,
                 transition: [

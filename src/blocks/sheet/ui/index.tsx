@@ -161,7 +161,7 @@ export const Sheet = React.forwardRef(
                     />
 
                 {/* Add line button */}
-                <div className="relative">
+                <div className="relative print:hidden">
                     <button
                         className={`
                             peer z-10
@@ -366,8 +366,8 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                     line={line}
                     actions={actions}
                     bindings={varInputBindings}
-                    style={{ display: undefined }}
-                    className={shouldNameBeHidden && hiddenNameClass}
+                    style={{ display: undefined, breakAfter: "avoid-page" }}
+                    className={shouldNameBeHidden && `print:hidden ${hiddenNameClass}`}
                     />
             }
             lineContentRef={innerContainerRef}
@@ -543,7 +543,7 @@ const SheetLineLayout = React.forwardRef(function SheetLineLayout(
             </div>
             
             {/* Focus/Hover Indicator */}
-            <div style={{ gridArea: 'indicator' }} className={focusIndicatorClass} />
+            <div style={{ gridArea: 'indicator' }} className={`${focusIndicatorClass} print:hidden`} />
 
             <div ref={lineContentRef} style={{ gridArea: 'content' }} className="flex flex-col space-y-1 overflow-x-auto">
                 {lineContent}

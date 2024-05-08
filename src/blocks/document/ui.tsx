@@ -548,7 +548,7 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
             ref={containerRef}
             tabIndex={-1}
             {...bindingProps}
-            className="group/document-ui relative h-full w-full overflow-hidden outline-none"
+            className="group/document-ui relative h-full w-full overflow-hidden outline-none print:h-fit print:overflow-visible"
         >
             <Sidebar
                 state={state}
@@ -566,9 +566,10 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
                     transition-[margin-left] ${sidebarVisible ? "md:ml-56" : ""}
                     flex flex-col items-stretch overflow-hidden
                     bg-gray-50
+                    print:h-fit print:ml-0 print:bg-white
                 `}
             >
-                <div ref={mainScrollRef} className="flex-1 overflow-y-auto transition-all">
+                <div ref={mainScrollRef} className="flex-1 overflow-y-auto transition-all print:h-fit">
                     <MainView
                         key={state.viewState.openPage.join('.')}
                         innerRef={innerRef}
@@ -604,7 +605,7 @@ function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) 
     return (
         <>
             {mode !== 'hidden' &&
-                <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100">
+                <div className="flex flex-row w-full overflow-hidden items-end space-x-1 border-t-2 border-gray-100 print:hidden">
                     <div
                         className={`
                             flex-1 flex flex-row justify-between
@@ -634,6 +635,7 @@ function ShortcutsSuggestionsPanel({ mode, toggle }: ShortcutsSuggestionsProps) 
                         bg-transparent opacity-50 hover:opacity-100 hover:bg-white transition
                         flex justify-center items-center
                         text-sm
+                        print:hidden
                     `}
                     onPointerDown={preventDefault}
                     onClick={toggle}
@@ -702,9 +704,9 @@ function MainView<State>({
     }
 
     return (
-        <div className={`mb-[20cqh] bg-white relative px-1 ${!sidebarVisible && "md:px-10"}`} onFocus={onFocus}>
+        <div className={`mb-[20cqh] bg-white relative px-1 ${!sidebarVisible && "md:px-10"} print:px-10 print:mb-0`} onFocus={onFocus}>
             <Breadcrumbs
-                className={`sticky top-0 inset-x-0 z-30 md:static bg-white ${!sidebarVisible && "pl-8 md:pl-0"}`}
+                className={`sticky top-0 inset-x-0 z-30 md:static bg-white ${!sidebarVisible && "pl-8 md:pl-0"} print:hidden`}
                 openPage={state.viewState.openPage}
                 pages={state.pages}
                 onOpenPage={actions.openPage}
@@ -818,7 +820,7 @@ function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisibl
     }
 
     return (
-        <div className="absolute top-1.5 left-2 z-40">
+        <div className="absolute top-1.5 left-2 z-40 print:hidden">
             <button className="text-gray-300 hover:text-gray-500 transition text-lg" onClick={toggleSidebar}>
                 <FontAwesomeIcon icon={solidIcons.faBars} />
             </button>
@@ -838,7 +840,7 @@ interface SidebarProps<State> extends ActionProps<State> {
 function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
     return (
         <>
-            {isVisible && <div className="md:hidden absolute z-40 inset-0 w-full h-full bg-gray-700/20" onClick={actions.toggleSidebar} />}
+            {isVisible && <div className="md:hidden absolute z-40 inset-0 w-full h-full bg-gray-700/20 print:hidden" onClick={actions.toggleSidebar} />}
             <Transition
                 show={isVisible}
                 className={`
@@ -847,6 +849,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                     whitespace-nowrap overflow-auto
                     bg-gray-100 shadow-2xl md:shadow-none
                     w-56
+                    print:hidden
                 `}
                 enter="transition-transform"
                 enterFrom="-translate-x-full"

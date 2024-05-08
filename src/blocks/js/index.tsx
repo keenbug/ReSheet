@@ -111,7 +111,8 @@ export const JSExprUi = React.forwardRef(
         )
         const style = useStable({
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            boxShadow: `inset -${indicatorWidth} 0 0 0 ${indicatorColor}`,
+            '--resheet-jsexpr-indicator-width': '-' + indicatorWidth,
+            '--resheet-jsexpr-indicator-color': indicatorColor,
             '--tw-gradient-to': `rgb(240, 249, 255, ${backgroundOpacity}) var(--tw-gradient-to-position)`, // = to-sky-50/[${backgroundOpacity}]
         })
 
@@ -131,7 +132,9 @@ export const JSExprUi = React.forwardRef(
                         border-b border-gray-100
                         focus-within/code-editor:bg-gradient-to-r
                         from-transparent from-10%
+                        shadow-[inset_var(--resheet-jsexpr-indicator-width)_0_0_0_var(--resheet-jsexpr-indicator-color)]
                         overflow-x-auto
+                        print:shadow-none print:bg-none print:whitespace-pre-wrap
                     `}
                     {...shortcutProps}
                     />

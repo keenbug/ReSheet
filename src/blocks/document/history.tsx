@@ -275,7 +275,7 @@ export function HistoryView<Inner>({ state, dispatch, children: viewInner, env, 
     switch (state.mode.type) {
         case 'current':
             return (
-                <div className="h-full w-full" onKeyDownCapture={onKeyDownCurrent}>
+                <div className="h-full w-full print:h-fit" onKeyDownCapture={onKeyDownCurrent}>
                     {viewInner({ state: state.inner, dispatch: dispatchInner, dispatchHistory: dispatch })}
                 </div>
             )
@@ -286,7 +286,7 @@ export function HistoryView<Inner>({ state, dispatch, children: viewInner, env, 
 
             const stateInHistory = getHistoryState(entryInHistory, env, fromJSON)
             return (
-                <div className="h-full w-full" onKeyDownCapture={onKeyDownHistory}>
+                <div className="h-full w-full print:h-fit" onKeyDownCapture={onKeyDownHistory}>
                     {viewInner({ state: stateInHistory, dispatch: dispatchInner, dispatchHistory: dispatch })}
                 </div>
             )
