@@ -9,12 +9,13 @@ import { setIn, updateIn } from 'immutable'
 import _ from 'lodash'
 
 import { Block, BlockHandle, BlockAction, BlockDispatcher, Environment, extractActionDescription } from '@resheet/core/block'
+import * as Multiple from '@resheet/core/multiple'
 import { arrayEquals, arrayStartsWith, clampTo, intersperse, isEqualDepth, nextElem } from '@resheet/util'
 import { KeySymbol, KeyComposition, Keybinding, Keybindings, ShortcutSuggestions, useShortcuts, useBindingNotifications } from '@resheet/util/shortcuts'
 import { fieldDispatcher } from '@resheet/util/dispatch'
 import { useStable } from '@resheet/util/hooks'
 
-import { LoadFileButton, saveFile, selectFile } from '../utils/ui'
+import { LoadFileButton, isInsideInput, saveFile, selectFile } from '../utils/ui'
 
 import { SafeBlock } from '../component'
 
@@ -277,7 +278,47 @@ function ACTIONS<State extends unknown>(
             dispatch(state => ({
                 state: setIn(state, ['viewState', 'sidebarOpen'], open)
             }))
-        }
+        },
+
+        copy(page: PageState<State>, innerBlock: Block<State>, putIntoClipboard: (type: string, content: string) => void) {
+            putIntoClipboard(
+                'application/x.resheet-page',
+                JSON.stringify(
+                    versioned.pageToJSON(
+                        page,
+                        innerBlock,
+                    ),
+                ),
+            )
+        },
+
+        paste(json: any, innerBlock: Block<State>) {
+            const dispatchPages = fieldDispatcher('pages', dispatch)
+
+            dispatch((state, { env }) => {
+                try {
+                    const openPage = Model.getOpenPage(state)
+                    const newId = Multiple.nextFreeId(openPage.children)
+
+                    function updateInsertedPageState(path: PageId[], action: BlockAction<State>) {
+                        // monkey-patch the path to use the new assigned `newId` instead of the id from the loaded json
+                        const fullPath = [...state.viewState.openPage, newId, ...path.slice(1)]
+                        Pages.updatePageStateAt(fullPath, dispatchPages, action, innerBlock)
+                    }
+
+                    const loadedPage = versioned.parsePage(json, updateInsertedPageState, env, innerBlock, [])
+                    const page: PageState<State> = { ...loadedPage, id: newId }
+
+                    return {
+                        state: Model.addPageAt(state.viewState.openPage, state, page)
+                    }
+                }
+                catch (error) {
+                    console.error('Could not paste Page', { error, state })
+                    return { state }
+                }
+            })
+        },
 
     }
 }
@@ -515,6 +556,41 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         },
     }), [])
 
+    function onPaste(ev: React.ClipboardEvent) {
+        if (ev.clipboardData.types.includes('application/x.resheet-page')) {
+            const json = JSON.parse(ev.clipboardData.getData('application/x.resheet-page'))
+            actions.paste(json, innerBlock)
+            ev.stopPropagation()
+            ev.preventDefault()
+        }
+    }
+
+    function onCopy(ev: React.ClipboardEvent) {
+        if (isInsideInput(document.activeElement)) { return }
+
+        const page = Model.getOpenPage(state)
+
+        actions.copy(page, innerBlock, (type, content) => {
+            ev.clipboardData.setData(type, content)
+            dispatch(state => ({ state, description: `Copied page "${page.name}" to the clipboard` }))
+            ev.stopPropagation()
+            ev.preventDefault()
+        })
+    }
+
+    function onCut(ev: React.ClipboardEvent) {
+        if (isInsideInput(document.activeElement)) { return }
+
+        const page = Model.getOpenPage(state)
+
+        actions.copy(page, innerBlock, (type, content) => {
+            ev.clipboardData.setData(type, content)
+            actions.deletePage(state.viewState.openPage)
+            ev.stopPropagation()
+            ev.preventDefault()
+        })
+    }
+
     const queryRecompute = React.useMemo(
         () => _.debounce(
             path => dispatch((state, { env }) => ({
@@ -547,7 +623,13 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         <div
             ref={containerRef}
             tabIndex={-1}
+
             {...bindingProps}
+
+            onCopy={onCopy}
+            onPaste={onPaste}
+            onCut={onCut}
+
             className="group/document-ui relative h-full w-full overflow-hidden outline-none print:h-fit print:overflow-visible"
         >
             <Sidebar

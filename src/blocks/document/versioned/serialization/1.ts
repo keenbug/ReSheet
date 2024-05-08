@@ -57,7 +57,7 @@ function parse<Inner>(
 }
 
 
-function parsePage<Inner>(
+export function parsePage<Inner>(
     json: any,
     updatePageStateAt: (path: PageId[], action: block.BlockAction<Inner>) => void,
     env: Environment,
@@ -140,7 +140,7 @@ function pagesToJSON<Inner>(pages: PageState<Inner>[], innerBlock: Block<Inner>)
     return pages.map(page => pageToJSON(page, innerBlock))
 }
 
-function pageToJSON<Inner>(page: PageState<Inner>, innerBlock: Block<Inner>) {
+export function pageToJSON<Inner>(page: PageState<Inner>, innerBlock: Block<Inner>) {
     return {
         id: page.id,
         name: page.name,

@@ -150,17 +150,17 @@ export function deletePageAt<Inner>(
 export function addPageAt<Inner>(
     path: PageId[],
     state: Document<Inner>,
+    newPage?: PageState<Inner>,
 ): Document<Inner> {
     function addSibling(siblings: PageState<Inner>[]): [ PageId, PageState<Inner>[] ] {
-        const newId = Multiple.nextFreeId(siblings)
-        const newPage = {
+        const page = newPage ?? {
             ...state.template,
-            id: newId,
+            id: Multiple.nextFreeId(siblings),
             name: '',
         }
         return [
-            newId,
-            [ ...siblings, newPage ],
+            page.id,
+            [ ...siblings, page ],
         ]
     }
 

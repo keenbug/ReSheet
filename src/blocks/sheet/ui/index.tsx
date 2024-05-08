@@ -116,8 +116,9 @@ export const Sheet = React.forwardRef(
         function onCopy(ev: React.ClipboardEvent) {
             if (isInsideInput(document.activeElement)) { return }
 
-            actions.copy(state, innerBlock, (type, content) => {
+            actions.copy(state, innerBlock, (type, content, copiedLines) => {
                 ev.clipboardData.setData(type, content)
+                dispatch(state => ({ state, description: `Copied ${copiedLines.length} line(s) to the clipboard` }))
                 ev.stopPropagation()
                 ev.preventDefault()
             })

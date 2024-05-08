@@ -10,7 +10,7 @@ import { EffectfulDispatcher } from '@resheet/util/hooks'
 import { findScrollableAncestor } from '../../utils/ui'
 
 import * as Model from '../model'
-import { SheetBlockState } from '../versioned'
+import { SheetBlockState, SheetBlockLine } from '../versioned'
 import * as versioned from '../versioned'
 
 
@@ -322,8 +322,8 @@ export function ACTIONS<Inner extends unknown>(
             ))
         },
 
-        copy(state: SheetBlockState<Inner>, innerBlock: Block<Inner>, putIntoClipboard: (type: string, content: string) => void) {
-            let selectedLines: versioned.SheetBlockLine<Inner>[]
+        copy(state: SheetBlockState<Inner>, innerBlock: Block<Inner>, putIntoClipboard: (type: string, content: string, copiedLines: SheetBlockLine<Inner>[]) => void) {
+            let selectedLines: SheetBlockLine<Inner>[]
             if (selectedIds) {
                 selectedLines = selectedIds.map(id => state.lines.find(line => line.id === id))
             }
@@ -343,6 +343,7 @@ export function ACTIONS<Inner extends unknown>(
                             innerBlock,
                         ),
                     ),
+                    selectedLines,
                 )
             }
         },
