@@ -23,7 +23,7 @@ export const CodeView = React.memo(React.forwardRef<HTMLElement, CodeViewProps<a
             code,
             container: Container = 'code',
             language = 'jsx',
-            className = '',
+            className = 'whitespace-pre outline-none',
             style = {},
             ...props
         },
@@ -40,7 +40,7 @@ export const CodeView = React.memo(React.forwardRef<HTMLElement, CodeViewProps<a
                         ref={ref}
                         tabIndex={-1}
                         spellCheck={false}
-                        className={className || 'whitespace-pre outline-none'}
+                        className={className}
                         style={{
                             ...highlightStyle,
                             ...style,

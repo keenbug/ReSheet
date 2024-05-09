@@ -164,6 +164,7 @@ export const NoteUi = React.forwardRef(
                         {...shortcutProps}
                         onKeyDown={preventEnter}
                         spellCheck={!isCode}
+                        className={isCode && "break-all"}
                         />
                 }
                 {(!isFocused || isCode) &&
@@ -355,10 +356,10 @@ type NodeEditorProps = Omit<CodeEditorProps, 'language' | 'container' | 'classNa
 
 export const NoteEditor = React.forwardRef(
     function NoteEditor(
-        { note, code, onKeyDown, ...props }: NodeEditorProps,
+        { note, code, onKeyDown, className, ...props }: NodeEditorProps,
         ref: React.Ref<CodeEditorHandle>
     ) {
-        const [style, className, language] = editorStyle(note)
+        const [style, editorClassName, language] = editorStyle(note)
 
         const ignoreEmptyBackspace = useStableCallback(function ignoreEmptyBackspace(event: KeyboardEvent) {
             if (event.key === 'Backspace' && code.length === 0) {
@@ -374,7 +375,7 @@ export const NoteEditor = React.forwardRef(
                     code={code}
                     language={language}
                     container="div"
-                    className={`whitespace-pre-wrap outline-none ${className}`}
+                    className={`whitespace-pre-wrap outline-none ${editorClassName} ${className}`}
                     style={style}
                     onKeyDown={ignoreEmptyBackspace}
                     {...props}
