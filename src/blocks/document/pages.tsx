@@ -518,6 +518,11 @@ export function updatePageAt<State>(
 ) {
     if (path.length === 0) { return pages }
 
+    const pageBefore = getPageAt(path, pages)
+    if (!pageBefore) { return pages }
+
+    const nameBefore = getName(pageBefore)
+
     const updatedPages = (
         updatePageAt_NO_RECOMPUTE(
             path,
@@ -533,7 +538,7 @@ export function updatePageAt<State>(
             path,
             updatedPages,
             env,
-            Set(),
+            Set([ nameBefore ]),
             innerBlock,
             dispatchPagesState,
         )
