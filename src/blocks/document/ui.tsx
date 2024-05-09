@@ -904,7 +904,7 @@ function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisibl
 
     return (
         <div className="absolute top-1.5 left-2 z-40 print:hidden">
-            <button className="text-gray-300 hover:text-gray-500 transition text-lg" onClick={toggleSidebar}>
+            <button className="text-gray-900/25 hover:text-gray-900/75 transition text-lg" onClick={toggleSidebar}>
                 <FontAwesomeIcon icon={solidIcons.faBars} />
             </button>
         </div>
