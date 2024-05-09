@@ -346,6 +346,14 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
         actions.dispatchInner(line.id, action, block)
     }, [block])
 
+    function onDoubleClick(event: React.MouseEvent) {
+        if (event.target instanceof Element && isInsideInput(event.target)) { return }
+
+        actions.switchCollapse(line.id)
+        event.stopPropagation()
+        event.preventDefault()
+    }
+
     const varInputBindings: Keybindings = React.useMemo(
         () => assignmentLineBindings<Inner>(line, innerBlockRef, actions),
         [line, innerBlockRef, actions],
@@ -357,9 +365,13 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
         <SheetLineLayout
             ref={containerRef}
             tabIndex={-1}
+
             {...bindingsProps}
+            onDoubleClick={onDoubleClick}
+
             line={line}
             isSelected={isSelected}
+
             assignmentLine={
                 <AssignmentLine
                     key="name"
@@ -371,6 +383,7 @@ function SheetLineComponent<Inner>({ block, line, env, actions, isSelected, setL
                     className={shouldNameBeHidden && `print:hidden ${hiddenNameClass}`}
                     />
             }
+
             lineContentRef={innerContainerRef}
             lineContent={
                 <>
