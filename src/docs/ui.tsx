@@ -67,7 +67,7 @@ export const styleClass = css`
     }
 
 
-    /* ReSheet */
+    /* Tables */
 
     & table {
         margin: 1rem 0;

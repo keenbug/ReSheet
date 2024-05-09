@@ -3,7 +3,6 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 import * as regularIcons from '@fortawesome/free-regular-svg-icons'
-import Markdown from 'markdown-to-jsx'
 
 import { Set as ISet } from 'immutable'
 
@@ -16,6 +15,8 @@ import { ViewResult } from '@resheet/code/value'
 import { safeBlock } from '../component'
 
 import { NoteType } from './versioned'
+
+import { EditableMarkdown, compileMarkdown } from './markdown'
 
 
 export function getCode(note: NoteType) {
@@ -246,7 +247,7 @@ const ViewText = React.memo(
             React.createElement(
                 note.tag,
                 { className: `cursor-text whitespace-pre-wrap ${textClasses[note.tag]}` },
-                <Markdown>{content}</Markdown>
+                compileMarkdown(content),
             )
         )
     },
@@ -295,12 +296,12 @@ const ViewCheckbox = React.memo(
                     className={`mr-2 cursor-pointer ${note.checked && "text-blue-400"}`}
                     icon={note.checked ? solidIcons.faSquareCheck : regularIcons.faSquare}
                     />
-                <Markdown
+                <EditableMarkdown
                     options={{ wrapper: 'span' }}
                     className={`cursor-text ${note.checked ? "text-gray-400 line-through" : ""}`}
                 >
                     {note.text}
-                </Markdown>
+                </EditableMarkdown>
             </div>
         )
     },
