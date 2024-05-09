@@ -151,7 +151,10 @@ export function compileExprAst(exprAst: babel.types.Expression, exprSource: stri
             return Pending
         }
 
-        function $([name]) { return env[name] }
+        function $([name]) {
+            if (!(name in env)) { throw new ReferenceError(`"${name}" is not defined`) }
+            return env[name]
+        }
         return exprFunc(...args.map(name => findVarIn(name, env, {$}, globalThis)))
     }
 
@@ -281,7 +284,10 @@ export function compileScript(code: string): Compiled {
             return Pending
         }
 
-        function $([name]) { return env[name] }
+        function $([name]) {
+            if (!(name in env)) { throw new ReferenceError(`"${name}" is not defined`) }
+            return env[name]
+        }
         return exprFunc(...args.map(name => findVarIn(name, env, {$}, globalThis)))
     }
 
