@@ -245,7 +245,7 @@ const ViewText = React.memo(
         return (
             React.createElement(
                 note.tag,
-                { className: `cursor-text ${textClasses[note.tag]}` },
+                { className: `cursor-text whitespace-pre-wrap ${textClasses[note.tag]}` },
                 <Markdown>{content}</Markdown>
             )
         )
