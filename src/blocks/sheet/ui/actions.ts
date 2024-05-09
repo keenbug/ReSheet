@@ -274,12 +274,7 @@ export function ACTIONS<Inner extends unknown>(
 
         rename(id: number) {
             setSelectionAnchorIds(null)
-            dispatch(state => ({
-                state,
-                effect() {
-                    refMap.get(id)?.focusVar()
-                },
-            }))
+            refMap.get(id)?.focusVar()
         },
 
         setName(id: number, name: string) {

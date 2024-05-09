@@ -83,13 +83,7 @@ export function useAutoretrigger<Args extends Array<any> = []>(
 
 export function useEffectQueue() {
     const effect = React.useRef<() => void>()
-
-    React.useEffect(() => {
-        if (typeof effect.current === 'function') {
-            effect.current()
-            effect.current = undefined
-        }
-    })
+    const timeout = React.useRef<number>()
 
     const queueEffect = React.useCallback(function queueEffect(newEffect: () => void) {
         if (typeof effect.current !== 'function') {
@@ -101,6 +95,13 @@ export function useEffectQueue() {
                 previousEffect()
                 newEffect()
             }
+        }
+        if (timeout.current === undefined) {
+            timeout.current = setTimeout(() => {
+                timeout.current = undefined
+                effect.current?.()
+                effect.current = undefined
+            })
         }
     }, [effect])
 
