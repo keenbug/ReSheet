@@ -241,7 +241,7 @@ function ACTIONS(dispatch: Block.BlockDispatcher<NoteModel>, blockRef: React.Ref
         },
 
         instantiateBlock() {
-            dispatch((state, env) => {
+            dispatch((state, { env }) => {
                 if (state.note.type !== 'block') { return { state } }
                 if (state.note.isInstantiated === true) { return { state } }
                 if (state.note.result.type !== 'immediate') { return { state } }
@@ -370,6 +370,9 @@ export const NoteEditor = React.forwardRef(
 
         return (
             <div className="relative group/note-editor">
+                <div className="float-end mt-1">
+                    <NoteTypeIndicator noteType={note.type} />
+                </div>
                 <CodeEditor
                     ref={ref}
                     code={code}
@@ -380,9 +383,6 @@ export const NoteEditor = React.forwardRef(
                     onKeyDown={ignoreEmptyBackspace}
                     {...props}
                     />
-                <div className="absolute top-1 right-0">
-                    <NoteTypeIndicator noteType={note.type} />
-                </div>
             </div>
         )
     }
@@ -392,14 +392,14 @@ function NoteTypeIndicator({ noteType }: { noteType: NoteType["type"] }) {
     switch (noteType) {
         case 'block':
             return (
-                <div className="text-xs rounded px-1 bg-sky-100 group-focus-within/note-editor:bg-sky-400 text-white cursor-default overflow-clip">
+                <div className="text-xs rounded px-1 bg-sky-400 opacity-25 group-focus-within/note-editor:opacity-100 text-white cursor-default overflow-clip">
                     block
                 </div>
             )
 
         case 'expr':
             return (
-                <div className="bg-amber-100 group-focus-within/note-editor:bg-amber-300 text-white w-4 h-4 rounded text-center font-bold cursor-default overflow-clip">
+                <div className="bg-amber-300 opacity-25 group-focus-within/note-editor:opacity-100 text-white w-4 h-4 rounded text-center font-bold cursor-default overflow-clip">
                     <span className="inline-block translate-y-[-.34rem]">=</span>
                 </div>
             )
