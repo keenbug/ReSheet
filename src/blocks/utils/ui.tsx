@@ -65,7 +65,9 @@ export function findScrollableAncestor(element: HTMLElement): HTMLElement | null
     if (!element) { return null }
 
     const isScrollable = element.scrollHeight > element.clientHeight
-    if (isScrollable) { return element }
+    const style = window.getComputedStyle(element)
+    const overflowScroll = style.overflowY === 'auto' || style.overflowY === 'scroll'
+    if (isScrollable && overflowScroll) { return element }
 
     return findScrollableAncestor(element.parentElement)
 }

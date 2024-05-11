@@ -153,18 +153,13 @@ export function ACTIONS<Inner extends unknown>(
 
     return {
         scroll(amount: number) {
-            dispatch(state => ({
-                state,
-                effect() {
-                    const scrollableContainer = findScrollableAncestor(container.current)
-                    if (scrollableContainer) {
-                        scrollableContainer.scrollBy({
-                            top: amount * scrollableContainer.clientHeight,
-                            behavior: 'smooth',
-                        })
-                    }
-                },
-            }))
+            const scrollableContainer = findScrollableAncestor(container.current)
+            if (scrollableContainer) {
+                scrollableContainer.scrollBy({
+                    top: amount * scrollableContainer.clientHeight,
+                    behavior: 'smooth',
+                })
+            }
         },
 
 
