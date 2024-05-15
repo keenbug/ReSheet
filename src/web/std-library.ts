@@ -7,6 +7,7 @@ import * as faSolid from '@fortawesome/free-solid-svg-icons'
 import * as faRegular from '@fortawesome/free-regular-svg-icons'
 import * as reactInspector from 'react-inspector'
 import * as prismReactRenderer from 'prism-react-renderer'
+import * as reactIntersectionObserver from 'react-intersection-observer'
 
 import * as immutable from 'immutable'
 import lodash from 'lodash'
@@ -148,6 +149,7 @@ export const library = {
     useEditable: blocks_codeEditor_useEditable,
     prismReactRenderer,
     reactInspector,
+    reactIntersectionObserver,
 
     immutable,
     lodash,

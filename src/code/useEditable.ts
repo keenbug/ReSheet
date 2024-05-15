@@ -142,7 +142,7 @@ export function splitByPosition(text: string, position: SelRange<number>): Split
     }
 }
 
-function getPosition(element: HTMLElement): SelRange<number> {
+export function getPosition(element: HTMLElement): SelRange<number> {
     // Firefox Quirk: Since plaintext-only is unsupported the position
     // of the text here is retrieved via a range, rather than traversal
     // as seen in makeRange()
@@ -162,7 +162,7 @@ function getPosition(element: HTMLElement): SelRange<number> {
     return { start, end }
 }
 
-function makeRange(
+export function makeRange(
     element: HTMLElement,
     start: number,
     end?: number,
@@ -214,7 +214,7 @@ function lastTextDescendant(node: Node): Text | null {
 }
 
 
-function findPositionInNodes(
+export function findPositionInNodes(
     position: number,
     container: Node,
 ): null | [Node, number] {
