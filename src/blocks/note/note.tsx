@@ -167,6 +167,24 @@ export function recomputeNote(
                 const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatch)
                 const value = note.compiled.run(env)
                 const result = resultFrom(value, block.dispatcherToSetter(dispatchBlockResult))
+                
+                if ('loading' in note && block.isBlock(value)) {
+                    const dispatchBlockState = block.dispatchCaseField({ type: 'block', isInstantiated: true }, 'state', dispatch)
+
+                    const loadedBlock = safeBlock(value)
+                    const state = loadedBlock.fromJSON(note.loading, dispatchBlockState, env)
+                    return {
+                        state: {
+                            type: 'block',
+                            isInstantiated: true,
+                            code: note.code,
+                            compiled: note.compiled,
+                            block: loadedBlock,
+                            state
+                        },
+                        invalidated: true,
+                    }
+                }
 
                 return {
                     state: { ...note, result },

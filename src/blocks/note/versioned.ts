@@ -3,7 +3,7 @@ import { any, boolean, defined, number, string, validatorSwitch } from '@resheet
 import { addRevision, addValidator } from '@resheet/util/serialize'
 import { fieldDispatcher } from '@resheet/util/dispatch'
 
-import { Result, resultFrom } from '@resheet/code/result'
+import { Result, getResultValue, resultFrom } from '@resheet/code/result'
 import { Compiled, compileJSExprSafe } from '@resheet/code/compute'
 
 import { SafeBlock, safeBlock } from '../component'
@@ -36,7 +36,7 @@ interface NoteModelV0 {
 
 type NoteTypeV0 =
     | { type: 'expr', code: string, compiled: Compiled, result: Result }
-    | { type: 'block', isInstantiated: false, code: string, compiled: Compiled, result: Result, lastState?: any }
+    | { type: 'block', isInstantiated: false, code: string, compiled: Compiled, result: Result, lastState?: any, loading?: any }
     | { type: 'block', isInstantiated: true, code: string, compiled: Compiled, block: SafeBlock<unknown>, state: unknown }
     | { type: 'text', tag: string, text: string }
     | { type: 'checkbox', checked: boolean, text: string }
@@ -59,16 +59,9 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
 
             function setBlockFromResult(result: Result) {
                 dispatch(() => {
-                    if (result.type === 'immediate' && block.isBlock(result.value)) {
-                        const loadedBlock = safeBlock(result.value)
-                        const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
-                        return {
-                            state: { type: 'block', isInstantiated: true, code, compiled, block: loadedBlock, state },
-                        }
-                    }
-
-                    if (result.type === 'promise' && result.state === 'finished' && block.isBlock(result.value)) {
-                        const loadedBlock = safeBlock(result.value)
+                    const value = getResultValue(result)
+                    if (block.isBlock(value)) {
+                        const loadedBlock = safeBlock(value)
                         const state = loadedBlock.fromJSON(stateJson, dispatchBlockState, env)
                         return {
                             state: { type: 'block', isInstantiated: true, code, compiled, block: loadedBlock, state },
@@ -88,7 +81,7 @@ export function noteFromJSONV0(json: any, dispatch: block.BlockDispatcher<NoteTy
                 return { type: 'block', isInstantiated: true, code, compiled, block: loadedBlock, state }
             }
             else {
-                return { type: 'block', isInstantiated: false, code, compiled, result }
+                return { type: 'block', isInstantiated: false, code, compiled, result, loading: stateJson }
             }
         }],
 
