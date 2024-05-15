@@ -21,6 +21,35 @@ export function Inspect<State>(block: Block.BlockDef<State>) {
 }
 
 
+export function InterceptDispatch<State>(block: Block.Block<State>, intercept: (state: State, context: Block.BlockActionContext, newState: State) => State) {
+    function interceptedDispatcher(dispatch: Block.BlockDispatcher<State>) {
+        return function interceptedDispatch(action) {
+            dispatch((state, context) => {
+                const { state: newState, ...output } = action(state, context)
+                return ({
+                    state: intercept(state, context, newState),
+                    ...output
+                })
+            })
+        }
+    }
+    return Block.create<State>({
+        init: block.init,
+        view({ state, dispatch, env }, ref) {
+            return block.view({ ref, state, dispatch: interceptedDispatcher(dispatch), env })
+        },
+        fromJSON(json, dispatch, env) {
+            return block.fromJSON(json, interceptedDispatcher(dispatch), env)
+        },
+        toJSON: block.toJSON,
+        recompute(state, dispatch, env, changed) {
+            return block.recompute(state, interceptedDispatcher(dispatch), env, changed)
+        },
+        getResult: block.getResult,
+    })
+}
+
+
 export interface RecordState<Inner> {
     past: Inner[]
     now: Inner
