@@ -564,7 +564,8 @@ export interface PageEntryProps {
     openPage: PageId[]
     actions: PageActions
     isNameEditing: boolean
-    setIsNameEditing: (editing: boolean) => void
+    setIsNameEditing(editing: boolean): void
+    onFinishEditingName(): void
 }
 
 const pageStyle = {
@@ -583,6 +584,7 @@ function PageEntryComponent({
     actions,
     isNameEditing,
     setIsNameEditing,
+    onFinishEditingName,
 }: PageEntryProps) {
     const depth = path.length
     const pathHere = [ ...path, page.id ]
@@ -598,6 +600,7 @@ function PageEntryComponent({
             case "Enter":
             case "Escape":
                 onCommitName()
+                onFinishEditingName()
                 event.stopPropagation()
                 event.preventDefault()
                 return
@@ -687,6 +690,7 @@ function PageEntryComponent({
                     openPage={openPage}
                     isNameEditing={isNameEditing}
                     setIsNameEditing={setIsNameEditing}
+                    onFinishEditingName={onFinishEditingName}
                     />
             }
         </>

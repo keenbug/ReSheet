@@ -591,6 +591,10 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
         })
     }
 
+    function onFinishEditingName() {
+        containerRef.current.focus()
+    }
+
     const queryRecompute = React.useMemo(
         () => _.debounce(
             path => dispatch((state, { env }) => ({
@@ -639,6 +643,7 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
                 isNameEditing={isNameEditing}
                 setIsNameEditing={setIsNameEditing}
                 commandBinding={commandSearchBinding(localActions)}
+                onFinishEditingName={onFinishEditingName}
                 />
             <SidebarButton sidebarVisible={sidebarVisible} toggleSidebar={actions.toggleSidebar} />
 
@@ -916,11 +921,12 @@ function SidebarButton<State>({ sidebarVisible, toggleSidebar }: { sidebarVisibl
 interface SidebarProps<State> extends ActionProps<State> {
     isVisible: boolean
     isNameEditing: boolean
-    setIsNameEditing: (editing: boolean) => void
+    setIsNameEditing(editing: boolean): void
+    onFinishEditingName(): void
     commandBinding: Keybinding
 }
 
-function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, commandBinding }: SidebarProps<State>) {
+function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEditing, onFinishEditingName, commandBinding }: SidebarProps<State>) {
     return (
         <>
             {isVisible && <div className="md:hidden absolute z-40 inset-0 w-full h-full bg-gray-700/20 print:hidden" onClick={actions.toggleSidebar} />}
@@ -991,6 +997,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                         actions={actions}
                         isNameEditing={isNameEditing}
                         setIsNameEditing={setIsNameEditing}
+                        onFinishEditingName={onFinishEditingName}
                         />
                 ))}
                 <button
