@@ -14,7 +14,15 @@ export type LoadFileState =
 
 export const LoadFile = Block.create<LoadFileState>({
     init: { state: 'init' },
-    view({ state, dispatch }) {
+    view({ state, dispatch }, ref) {
+        const loadRef = React.useRef<HTMLButtonElement>()
+
+        React.useImperativeHandle(ref, () => ({
+            focus(options) {
+                loadRef.current?.focus(options)
+            }
+        }), [loadRef])
+
         const loadFileButtonStyle = `
             m-0.5 px-1
             rounded border border-gray-200
@@ -42,6 +50,7 @@ export const LoadFile = Block.create<LoadFileState>({
             case 'init':
                 return (
                     <LoadFileButton
+                        ref={loadRef}
                         className={loadFileButtonStyle}
                         onLoad={loadFile}
                     >
@@ -54,7 +63,7 @@ export const LoadFile = Block.create<LoadFileState>({
                     <div>
                         File <code className="px-1 bg-gray-100 rounded-sm">{state.file.name}</code> loaded {}
                         <span className="text-sm text-gray-700">({state.file.size} bytes)</span> {}
-                        <LoadFileButton className={loadFileButtonStyle} onLoad={loadFile}>change</LoadFileButton>
+                        <LoadFileButton ref={loadRef} className={loadFileButtonStyle} onLoad={loadFile}>change</LoadFileButton>
                         <button
                             className="m-0.5 px-1 rounded border border-red-100 text-red-700 hover:bg-red-100"
                             onClick={clear}
