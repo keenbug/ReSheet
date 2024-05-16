@@ -632,7 +632,15 @@ function PageEntryComponent({
                 onClick={() => actions.openPage(pathHere)}
             >
                 {page.children.length > 0 ?
-                    <button onClick={() => actions.toggleCollapsed(pathHere)}>
+                    <button
+                        onClick={ev => {
+                            ev.stopPropagation()
+                            if (!page.isCollapsed && pageInOpenPath) {
+                                actions.openPage(pathHere)
+                            }
+                            actions.toggleCollapsed(pathHere)
+                        }}
+                    >
                         <FontAwesomeIcon
                             className="text-gray-500 w-4"
                             icon={pageCollapsed ? solidIcons.faAngleRight : solidIcons.faAngleDown}
