@@ -114,7 +114,9 @@ export const Sheet = React.forwardRef(
         }
 
         function onCopy(ev: React.ClipboardEvent) {
-            if (isInsideInput(document.activeElement)) { return }
+            const selection = document.getSelection()
+            const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
+            if (isTextSelected) { return }
 
             actions.copy(state, innerBlock, (type, content, copiedLines) => {
                 ev.clipboardData.setData(type, content)

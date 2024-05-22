@@ -566,7 +566,9 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     }
 
     function onCopy(ev: React.ClipboardEvent) {
-        if (isInsideInput(document.activeElement)) { return }
+        const selection = document.getSelection()
+        const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
+        if (isTextSelected) { return }
 
         const page = Model.getOpenPage(state)
 
@@ -579,7 +581,9 @@ export function DocumentUi<State>({ state, dispatch, env, dispatchHistory, inner
     }
 
     function onCut(ev: React.ClipboardEvent) {
-        if (isInsideInput(document.activeElement)) { return }
+        const selection = document.getSelection()
+        const isTextSelected = selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed
+        if (isTextSelected) { return }
 
         const page = Model.getOpenPage(state)
 
