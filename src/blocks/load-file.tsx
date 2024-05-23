@@ -5,7 +5,7 @@ import * as Block from '@resheet/core/block'
 import { any, is, number, string, validatorSwitch } from '@resheet/util/validate'
 import { base64ToUint8Array, uint8ArrayToBase64 } from '@resheet/util'
 
-import { LoadFileButton } from './utils/ui'
+import { LoadFileButton, saveFile } from './utils/ui'
 
 
 export type LoadFileState =
@@ -39,6 +39,10 @@ export const LoadFile = Block.create<LoadFileState>({
             }))
         }
 
+        function downloadFile(file: File) {
+            saveFile(file.name, file)
+        }
+
         function clear() {
             dispatch(() => ({
                 state: { state: 'init' },
@@ -61,7 +65,14 @@ export const LoadFile = Block.create<LoadFileState>({
             case 'loaded':
                 return (
                     <div>
-                        File <code className="px-1 bg-gray-100 rounded-sm">{state.file.name}</code> loaded {}
+                        File {}
+                        <button
+                            className="px-1 bg-gray-100 rounded-sm"
+                            onClick={() => downloadFile(state.file)}
+                        >
+                            {state.file.name}
+                        </button> {}
+                        loaded {}
                         <span className="text-sm text-gray-700">({state.file.size} bytes)</span> {}
                         <LoadFileButton ref={loadRef} className={loadFileButtonStyle} onLoad={loadFile}>change</LoadFileButton>
                         <button

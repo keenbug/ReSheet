@@ -69,8 +69,7 @@ function ACTIONS<State extends unknown>(
                 const content = JSON.stringify(History.historyToJSON(state, doc => Model.toJSON(doc, innerBlock)))
                 saveFile(
                     'ReSheet.json',
-                    'application/json',
-                    content,
+                    new Blob([content], { type: 'application/json' }),
                 )
                 return { state, description: "saved file" }
             })
