@@ -73,12 +73,12 @@ const observerSettings = {
     subtree: true,
 }
 
-function getCurrentRange() {
+export function getCurrentRange() {
     if (window.getSelection().rangeCount === 0) { return null }
     return window.getSelection().getRangeAt(0)
 }
 
-function setCurrentRange(range: Range) {
+export function setCurrentRange(range: Range) {
     const selection = window.getSelection()
     selection.empty()
     selection.addRange(range)

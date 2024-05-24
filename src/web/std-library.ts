@@ -109,7 +109,7 @@ const resheet = {
         },
         codeEditor: blocks_codeEditor,
         utils: {
-            utils: blocks_utils_ui,
+            ui: blocks_utils_ui,
             value: blocks_utils_value,
             shortcuts: blocks_utils_shortcuts,
         },
