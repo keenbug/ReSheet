@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { throttle } from 'throttle-debounce'
 import _ from 'lodash'
 
 import { isPromise } from '.'
@@ -19,7 +18,7 @@ export type PendingState =
 export function useThrottlePending<Args extends unknown[], Callback extends (...args: Args) => any>(
     delay: number,
     callback: Callback,
-    options?: ThrottleOptions,
+    options?: _.ThrottleSettings,
 ): [PendingState, (...args: Args) => void] {
     const [pendingState, setPendingState] = React.useState<PendingState>({ state: 'finished' })
 
@@ -41,7 +40,7 @@ export function useThrottlePending<Args extends unknown[], Callback extends (...
         }
     }, [callback])
 
-    const throttledCallback = React.useMemo(() => throttle(delay, callbackAndUpdate, options), [callbackAndUpdate])
+    const throttledCallback = React.useMemo(() => _.throttle(callbackAndUpdate, delay, options), [callbackAndUpdate])
 
     const callbackWithPending = React.useCallback((...args: Args) => {
         setPendingState({ state: 'pending' })
