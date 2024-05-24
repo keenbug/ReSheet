@@ -273,6 +273,16 @@ export interface Editable {
     getState(): { text: string, position: SelRange<number> }
 }
 
+// How does useEditable work?
+//   It observes changes to the DOM inside the contenteditable
+//   Upon a change it reads the new content and caret position
+//   It then rewinds the changes, so the DOM is as before the change, so it is in the change React knows and expects
+//   Then it calls the onChange handler with the new content and caret position
+//   The onChange handler usually updates some state to the new content and renders the content to the virtual DOM
+//   React sees the new content in the virtual DOM and wants to render it to the real DOM (now at the state before the input/change):
+//     It calls the LayoutEffect cleanup handlers, one of which stops observing the changes to the DOM
+//     It renders the new content to the (real) DOM
+//     It calls the LayoutEffects itself, one of which reenables observing changes and restores the caret position to the state when the original (user) edit happened
 export function useEditable(
     elementRef: { current: HTMLElement | undefined | null },
     onChange: (text: string, position: SelRange<number>) => void,
