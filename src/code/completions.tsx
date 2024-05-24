@@ -36,12 +36,12 @@ export function useCompletionsOverlay(codeEditor: React.RefObject<CodeEditorHand
             description: "completions",
             bindings: [
                 [["C-Space"],   'none', 'toggle', () => { setCompletionVisibility(visibility => visibility !== 'value' ? 'value' : null) }],
-                [["C-D"],       'none', 'docs',   () => { setCompletionVisibility(visibility => visibility !== 'docs' ? 'docs' : null) }],
+                [["C-KeyD"],    'none', 'docs',   () => { setCompletionVisibility(visibility => visibility !== 'docs' ? 'docs' : null) }],
                 ...(completionVisibilty ? [
-                    [["ArrowUp", "C-P"],   'none', 'previous',       () => { completionsRef.current?.moveSelection(-1) }],
-                    [["ArrowDown", "C-N"], 'none', 'next',           () => { completionsRef.current?.moveSelection(1) }],
-                    [["Tab"],              'none', 'complete',       () => { completionsRef.current && onComplete(completionsRef.current.selected, completionsRef.current.offset) }],
-                    [["Enter"],            'none', 'use completion', () => {
+                    [["ArrowUp", "C-KeyP"],   'none', 'previous',       () => { completionsRef.current?.moveSelection(-1) }],
+                    [["ArrowDown", "C-KeyN"], 'none', 'next',           () => { completionsRef.current?.moveSelection(1) }],
+                    [["Tab"],                 'none', 'complete',       () => { completionsRef.current && onComplete(completionsRef.current.selected, completionsRef.current.offset) }],
+                    [["Enter"],               'none', 'use completion', () => {
                         if (completionsRef.current) {
                             onComplete(completionsRef.current.selected, completionsRef.current.offset)
                             setCompletionVisibility(null)

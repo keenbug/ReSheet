@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as solidIcons from '@fortawesome/free-solid-svg-icons'
 
 import { Map, OrderedMap, List, Set } from 'immutable'
-import { debounce } from 'throttle-debounce'
+import _ from 'lodash'
 
 import { intersperse } from '@resheet/util'
 
@@ -37,21 +37,12 @@ export const shiftStableKeysWithoutAlphaRegex = new RegExp("^(" + shiftStableKey
 export const shiftStableKeys = [ "[A-Z]", ...shiftStableKeysWithoutAlpha ]
 export const shiftStableKeysRegex = new RegExp("^(" + shiftStableKeys.join('|') + ")$")
 
-export function getFullKey(event: KeyboardEvent, keymap?: KeyMap) {
-    const keyRemapped = (
-        keymap === undefined ?
-            event.key
-        :
-            remapKey(keymap, event.code, event.shiftKey, event.key)
-    )
-
-    const keyName = keyRemapped.length > 1 ? keyRemapped : keyRemapped.toUpperCase()
-    const shiftStable = shiftStableKeysRegex.test(keyName)
+export function getFullKey(event: KeyboardEvent) {
     return [
         (event.ctrlKey || event.metaKey) ? "C-" : "",
-        shiftStable && event.shiftKey ? "Shift-" : "",
+        event.shiftKey ? "Shift-" : "",
         event.altKey ? "Alt-" : "",
-        keyName === ' ' ? 'Space' : keyName,
+        event.code,
     ].join('')
 }
 
@@ -101,11 +92,10 @@ export function onFullKey(
     keys: string[],
     condition: Condition,
     action: (event: KeyboardEvent) => void,
-    keymap?: KeyMap,
     options: KeybindingOptions = {},
 ) {
     if (event.isPropagationStopped()) { return }
-    if (!keys.includes(getFullKey(event, keymap))) { return }
+    if (!keys.includes(getFullKey(event))) { return }
     if (!checkCondition(condition, event.currentTarget === event.target, isAnInput(event.target))) { return }
 
     action(event)
@@ -134,7 +124,7 @@ export function keybindingsHandler(
         Map<string, List<Keybinding>>(),
     )
     return function onKeyDown(event: React.KeyboardEvent) {
-        const bindings = bindingMap.get(getFullKey(event, keymap))
+        const bindings = bindingMap.get(getFullKey(event))
         if (bindings !== undefined) {
             for (const binding of bindings) {
                 if (checkCondition(binding[1], event.currentTarget === event.target, isAnInput(event.target))) {
@@ -275,9 +265,9 @@ export function GatherShortcuts({ children }: GatherShortcutsProps) {
     const activeBindings = React.useRef<OrderedMap<ReporterId, Keybindings>>(OrderedMap())
     const bindingUpdateNotificationConsumers = React.useRef<Map<NotificationConsumerId, NotificationConsumer>>(Map())
 
-    const notifyUpdate = React.useMemo(() => debounce(100, () => {
+    const notifyUpdate = React.useMemo(() => _.debounce(() => {
         bindingUpdateNotificationConsumers.current.valueSeq().forEach(consumer => consumer())
-    }), [])
+    }, 100), [])
 
     const reporters = React.useMemo(() => ({
         updateBindings(id: ReporterId, bindings: Keybindings) {
@@ -460,14 +450,18 @@ function GroupSuggestion({ group }: { group: KeybindingGroup }) {
 
 
 export function KeyComposition({ shortcut, Key = KeySymbol }: { shortcut: string, Key?: React.FC<{ keyName: string }> }) {
+    const keyMap = useKeymap()
+
     const parts = shortcut.split('-')
     const modifiers = parts.slice(0, -1)
-    const char = parts.slice(-1)[0]
+    const code = parts.slice(-1)[0]
+
+    const key = keyMap.get(code, code)
 
     return (
         <>
             {modifiers.map(k => <kbd key={k} className="font-sans"><Key keyName={k === "C" ? "Cmd" : k} /></kbd>)}
-            <kbd className="font-sans"><Key keyName={char} /></kbd>
+            <kbd className="font-sans"><Key keyName={key} /></kbd>
         </>
     )
 }
@@ -501,7 +495,7 @@ export function KeyButtonContainer({ children, className = "" }: { children: Rea
 }
 
 
-export function KeySymbol({ keyName }) {
+export function KeySymbol({ keyName }: { keyName: string }) {
     switch (keyName) {
         case "Shift":
             return "⇧"
@@ -537,37 +531,37 @@ export function KeySymbol({ keyName }) {
             return "space"
 
         default:
-            return keyName
+            return keyName.length === 1 ? keyName.toUpperCase() : keyName
     }
 }
 
 
 
-export type KeyMap = Map<string, { shift: string, noshift: string }>
+export type KeyCode = string
+export type KeyName = string
+export type KeyMap = Map<KeyCode, KeyName>
 
-export function remapKey(keymap: KeyMap, code: string, isShiftPressed: boolean, fallbackKey: string) {
-    if (!keymap.has(code)) {
-        return fallbackKey
-    }
-
-    if (isShiftPressed) {
-        return keymap.get(code).shift
-    }
-    else {
-        return keymap.get(code).noshift
-    }
+export function remapKey(keymap: KeyMap, code: KeyCode, fallbackKey: KeyName) {
+    return keymap.get(code) ?? fallbackKey
 }
 
-function loadSavedKeymap(): [KeyMap, boolean] {
+function loadSavedKeymap(): KeyMap {
     try {
         const keyMapJson = localStorage.getItem("keyMap")
         if (keyMapJson === null) {
-            return [Map(), false]
+            return Map()
         }
-        return [Map(JSON.parse(keyMapJson)) as KeyMap, true]
+        const map = JSON.parse(keyMapJson)
+        
+        // is old version of keyMap?
+        if (typeof Object.values(map)[0] === 'object') {
+            return Map(_.mapValues(map, obj => obj.noshift)) as KeyMap
+        }
+
+        return Map(map) as KeyMap
     }
     catch (e) {
-        return [Map(), false]
+        return Map()
     }
 }
 
@@ -585,7 +579,6 @@ export interface CollectorUiProps {
 
 export interface CollectKeymapProps {
     children: React.ReactNode
-    collectorUi: React.FC<CollectorUiProps>
 }
 
 const IGNORE_KEYS_COLLECT = [
@@ -595,51 +588,31 @@ const IGNORE_KEYS_COLLECT = [
     "Control",
 ]
 
-export function CollectKeymap({ children, collectorUi: CollectorUi }: CollectKeymapProps) {
-    const [[keyMap, isComplete], setKeyMap] = React.useState<[KeyMap, boolean]>(loadSavedKeymap)
+export function CollectKeymap({ children }: CollectKeymapProps) {
+    const [keyMap, setKeyMap] = React.useState<KeyMap>(loadSavedKeymap)
 
-    if (isComplete) {
-        return (
-            <KeymapContext.Provider value={keyMap}>
-                {children}
-            </KeymapContext.Provider>
-        )
-    }
+    React.useEffect(() => {
+        localStorage.setItem('keyMap', JSON.stringify(keyMap.toObject()))
+    }, [keyMap])
 
     function onCollectKey(event: React.KeyboardEvent) {
         if (IGNORE_KEYS_COLLECT.includes(event.key) || shiftStableKeysWithoutAlphaRegex.test(event.key)) {
             return
         }
-        if (event.altKey || event.metaKey || event.ctrlKey) {
+        if (!event.ctrlKey && (event.altKey || event.metaKey || event.shiftKey)) {
             return
         }
 
-        event.stopPropagation()
-        event.preventDefault()
-
-        setKeyMap(([keyMap]) => [
-            keyMap.update(
-                event.code,
-                ({ shift, noshift } = { shift: undefined, noshift: undefined }) => ({
-                    shift: event.shiftKey ? event.key : shift,
-                    noshift: event.shiftKey ? noshift : event.key,
-                }),
-            ),
-            false,
-        ])
-    }
-
-    function onDone() {
-        setKeyMap(([keyMap]) => {
-            localStorage.setItem('keyMap', JSON.stringify(keyMap.toObject()))
-            return [keyMap, true]
-        })
+        if (keyMap.get(event.code) !== event.key) {
+            setKeyMap(keyMap => keyMap.set(event.code, event.key))
+        }
     }
 
     return (
-        <>
-            {children}
-            <CollectorUi keyMap={keyMap} onCollectKey={onCollectKey} onDone={onDone} />
-        </>
+        <div className="w-full h-full min-h-fit" onKeyDownCapture={onCollectKey}>
+            <KeymapContext.Provider value={keyMap}>
+                {children}
+            </KeymapContext.Provider>
+        </div>
     )
 }

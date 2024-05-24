@@ -10,7 +10,6 @@ import * as UI from './ui'
 import * as History from './history'
 import { HistoryWrapper, HistoryView } from './history'
 import { Document } from './versioned'
-import { KeymapCollector } from './key-collector'
 import { safeBlock } from '../component'
 
 export { Model, UI }
@@ -32,7 +31,7 @@ export function DocumentOf<State>(innerBlock: Block<State>) {
             )
             return (
                 <GatherShortcuts>
-                    <CollectKeymap collectorUi={KeymapCollector}>
+                    <CollectKeymap>
                         <HistoryView state={state} dispatch={dispatch} env={env} fromJSON={fromJSON}>
                             {({ state, dispatch, dispatchHistory }) => (
                                 <UI.DocumentUi

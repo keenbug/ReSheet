@@ -621,8 +621,8 @@ function sheetLineBindings<Inner>(
         {
             description: "change lines",
             bindings: [
-                [["C-Enter", "O"],                   "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
-                [["C-Shift-Enter", "Shift-O"],       "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
+                [["C-Enter", "KeyO"],               "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
+                [["C-Shift-Enter", "Shift-KeyO"],   "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
                 [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
                 [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
                 [["C-Backspace", "Backspace"],       "hidden",       "delete line",      deleteByBackspace, { noAutoPrevent: true }],
@@ -632,9 +632,9 @@ function sheetLineBindings<Inner>(
         {
             description: "line view",
             bindings: [
-                [["Z"],                              "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
-                [["C-M"],                            "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
-                [["C-="],                            "none",         "cycle width",      () => actions.switchWidth(line.id)],
+                [["KeyZ"],                           "selfFocused",  "scroll into view", () => containerRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })],
+                [["C-KeyM"],                         "none",         "cycle visibility", () => actions.switchCollapse(line.id)],
+                [["C-Equal"],                        "none",         "cycle width",      () => actions.switchWidth(line.id)],
                 [["Escape"],                         "!selfFocused", "focus sheet line", () => containerRef.current && focusWithKeyboard(containerRef.current, { preventScroll: true })],
                 [
                     ["Enter"],
@@ -653,23 +653,23 @@ function sheetLineBindings<Inner>(
         {
             description: "move between lines",
             bindings: [
-                [["ArrowUp", "K"],                   "none",          "move up",         moveUp, { noAutoPrevent: true }],
-                [["ArrowDown", "J"],                 "none",          "move down",       moveDown, { noAutoPrevent: true }],
-                [["Shift-ArrowUp", "Shift-K"],       "none",          "select up",       selectUp, { noAutoPrevent: true }],
-                [["Shift-ArrowDown", "Shift-J"],     "none",          "select down",     selectDown, { noAutoPrevent: true }],
+                [["ArrowUp", "KeyK"],                "none",          "move up",         moveUp, { noAutoPrevent: true }],
+                [["ArrowDown", "KeyJ"],              "none",          "move down",       moveDown, { noAutoPrevent: true }],
+                [["Shift-ArrowUp", "Shift-KeyK"],    "none",          "select up",       selectUp, { noAutoPrevent: true }],
+                [["Shift-ArrowDown", "Shift-KeyJ"],  "none",          "select down",     selectDown, { noAutoPrevent: true }],
                 [["C-Enter"],                        "!selfFocused",  "jump next",       () => actions.insertAfterCode(line.id, block, 'inner')],
                 [["C-Shift-Enter"],                  "!selfFocused",  "jump prev",       () => actions.insertBeforeCode(line.id, block, 'inner')],
-                [["G"],                              "!inputFocused", "jump top",        () => actions.focusFirst()],
-                [["Shift-G"],                        "!inputFocused", "jump bottom",     () => actions.focusLast()],
+                [["KeyG"],                           "!inputFocused", "jump top",        () => actions.focusFirst()],
+                [["Shift-KeyG"],                     "!inputFocused", "jump bottom",     () => actions.focusLast()],
             ]
         },
         {
             description: "scroll sheet",
             bindings: [
-                [["C-Alt-ArrowUp", "C-Alt-K"],               "none",         "scroll UP",        () => actions.scroll(-0.5)],
-                [["C-Alt-ArrowDown", "C-Alt-J"],             "none",         "scroll DOWN",      () => actions.scroll(0.5)],
-                [["C-Shift-Alt-ArrowUp", "C-Shift-Alt-K"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
-                [["C-Shift-Alt-ArrowDown", "C-Shift-Alt-J"], "none",         "scroll down",      () => actions.scroll(0.1)],
+                [["C-Alt-ArrowUp", "C-Alt-KeyK"],               "none",         "scroll UP",        () => actions.scroll(-0.5)],
+                [["C-Alt-ArrowDown", "C-Alt-KeyJ"],             "none",         "scroll DOWN",      () => actions.scroll(0.5)],
+                [["C-Shift-Alt-ArrowUp", "C-Shift-Alt-KeyK"],   "none",         "scroll up",        () => actions.scroll(-0.1)],
+                [["C-Shift-Alt-ArrowDown", "C-Shift-Alt-KeyJ"], "none",         "scroll down",      () => actions.scroll(0.1)],
             ]
         },
     ]

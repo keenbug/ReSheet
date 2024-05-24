@@ -349,7 +349,7 @@ function DocumentKeyBindings<State>(
             bindings: [
                 [
                     // not sure about capturing this...
-                    ["C-N"],
+                    ["C-KeyN"],
                     "!inputFocused",
                     "new page",
                     () => {
@@ -358,7 +358,7 @@ function DocumentKeyBindings<State>(
                     },
                 ],
                 [
-                    ["C-Shift-N"],
+                    ["C-Shift-KeyN"],
                     "none",
                     "new child page",
                     () => {
@@ -378,25 +378,25 @@ function DocumentKeyBindings<State>(
             description: "move pages",
             bindings: [
                 [
-                    ["C-Shift-K", "C-Shift-ArrowUp"],
+                    ["C-Shift-KeyK", "C-Shift-ArrowUp"],
                     "selfFocused",
                     "move page up",
                     () => { actions.movePage(-1, state.viewState.openPage) },
                 ],
                 [
-                    ["C-Shift-J", "C-Shift-ArrowDown"],
+                    ["C-Shift-KeyJ", "C-Shift-ArrowDown"],
                     "selfFocused",
                     "move page down",
                     () => { actions.movePage(1, state.viewState.openPage) },
                 ],
                 [
-                    ["C-Shift-H", "C-Shift-ArrowLeft"],
+                    ["C-Shift-KeyH", "C-Shift-ArrowLeft"],
                     "selfFocused",
                     "move page one level up",
                     () => { actions.unnestPage(state.viewState.openPage) },
                 ],
                 [
-                    ["C-Shift-L", "C-Shift-ArrowRight"],
+                    ["C-Shift-KeyL", "C-Shift-ArrowRight"],
                     "selfFocused",
                     "move page one level down",
                     () => { actions.nestPage(state.viewState.openPage) },
@@ -407,25 +407,25 @@ function DocumentKeyBindings<State>(
             description: "move between pages",
             bindings: [
                 [
-                    ["K", "ArrowUp"],
+                    ["KeyK", "ArrowUp"],
                     "selfFocused",
                     "open prev page",
                     () => { actions.openPrevPage(state.viewState.openPage) },
                 ],
                 [
-                    ["J", "ArrowDown"],
+                    ["KeyJ", "ArrowDown"],
                     "selfFocused",
                     "open next page",
                     () => { actions.openNextPage(state.viewState.openPage) },
                 ],
                 [
-                    ["L", "ArrowRight"],
+                    ["KeyL", "ArrowRight"],
                     "selfFocused",
                     "open first child page",
                     () => { actions.openFirstChild(state.viewState.openPage) },
                 ],
                 [
-                    ["H", "ArrowLeft"],
+                    ["KeyH", "ArrowLeft"],
                     "selfFocused",
                     "open parent page",
                     () => { actions.openParent(state.viewState.openPage) },
@@ -436,7 +436,7 @@ function DocumentKeyBindings<State>(
             description: "change page",
             bindings: [
                 [
-                    ["C-Shift-R"],
+                    ["C-Shift-KeyR"],
                     "selfFocused",
                     "edit page name",
                     () => { localActions.setIsNameEditing(true) },
@@ -448,7 +448,7 @@ function DocumentKeyBindings<State>(
                     () => { actions.toggleCollapsed(state.viewState.openPage) },
                 ],
                 [
-                    ["C-Shift-D"],
+                    ["C-Shift-KeyD"],
                     "none",
                     "safe as default template",
                     () => { actions.useAsTempate(state.viewState.openPage) },
@@ -459,13 +459,13 @@ function DocumentKeyBindings<State>(
             description: "files",
             bindings: [
                 [
-                    ["C-O"],
+                    ["C-KeyO"],
                     "none",
                     "open local file",
                     async () => { actions.loadLocalFile(await selectFile()) },
                 ],
                 [
-                    ["C-S"],
+                    ["C-KeyS"],
                     "none",
                     "save file",
                     () => { actions.save() },
@@ -477,7 +477,7 @@ function DocumentKeyBindings<State>(
             bindings: [
                 commandSearchBinding(localActions),
                 [
-                    ["C-B"],
+                    ["C-KeyB"],
                     "none",
                     "toggle sidebar",
                     () => { actions.toggleSidebar() },
@@ -500,7 +500,7 @@ function DocumentKeyBindings<State>(
             description: "help",
             bindings: [
                 [
-                    ["C-?"],
+                    ["C-Shift-Slash"],
                     "none",
                     "toggle shortcut suggestions",
                     () => { localActions.toggleShortcutsVisible() },

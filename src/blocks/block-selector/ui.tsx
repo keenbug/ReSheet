@@ -153,7 +153,7 @@ export const BlockSelectorUI = React.forwardRef(
                 {
                     description: "selector",
                     bindings: [
-                        [["C-/"], 'none', 'switch block', () => { setBlockExpr(state.expr); actions.setChooseMode() }],
+                        [["C-Slash"], 'none', 'switch block', () => { setBlockExpr(state.expr); actions.setChooseMode() }],
                     ]
                 }
             ],
