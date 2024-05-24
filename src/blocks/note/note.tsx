@@ -8,7 +8,7 @@ import { Set as ISet } from 'immutable'
 
 import * as block from '@resheet/core/block'
 
-import { resultFrom } from '@resheet/code/result'
+import { getResultValue, resultFrom } from '@resheet/code/result'
 import { Compiled, Environment, compileJSExprSafe, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
@@ -345,7 +345,8 @@ const ViewBlock = React.memo(
     function ViewBlock({ note, env, instantiateBlock, resetBlock }: ViewBlockProps) {
         if (note.isInstantiated === true) { return null }
 
-        if (note.result.type !== 'immediate' || !block.isBlock(note.result.value)) {
+        const value = getResultValue(note.result)
+        if (!block.isBlock(value)) {
             return (
                 <div>
                     <div className="bg-blue-100 px-1">
@@ -357,11 +358,13 @@ const ViewBlock = React.memo(
             )
         }
 
-        const innerBlock = safeBlock(note.result.value)
+        const innerBlock = safeBlock(value)
         let state = innerBlock.init
         try {
             if (note.lastState !== undefined) {
-                state = innerBlock.fromJSON(note.lastState, () => {}, env)
+                // don't use innerBlock (a safeBlock), because we want to
+                // handle errors ourselves here
+                state = value.fromJSON(note.lastState, () => {}, env)
             }
         }
         catch (e) { /* do nothing */ }
