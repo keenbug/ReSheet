@@ -623,7 +623,7 @@ function sheetLineBindings<Inner>(
             bindings: [
                 [["C-Enter", "KeyO"],               "selfFocused",  "insert below",     () => actions.insertAfterCode(line.id, block, 'inner')],
                 [["C-Shift-Enter", "Shift-KeyO"],   "selfFocused",  "insert above",     () => actions.insertBeforeCode(line.id, block, 'inner')],
-                [["C-Shift-R"],                      "none",         "rename",           () => actions.rename(line.id)],
+                [["C-Shift-KeyR"],                  "none",         "rename",           () => actions.rename(line.id)],
                 [["C-Backspace", "Backspace"],       "selfFocused",  "delete line",      () => actions.deleteCode(line.id)],
                 [["C-Backspace", "Backspace"],       "hidden",       "delete line",      deleteByBackspace, { noAutoPrevent: true }],
                 [["Enter"],                          "!selfFocused", "insert below",     insertBelowByEnter, { noAutoPrevent: true }],
