@@ -964,7 +964,7 @@ function Sidebar<State>({ state, actions, isVisible, isNameEditing, setIsNameEdi
                 <div className="group/sidebar-header pl-2 flex items-baseline">
                     <img src={logoSmallSvg.toString()} alt="ReSheet Logo" className="inline h-4 mr-1.5 saturate-0 group-hover/sidebar-header:saturate-100 transition-all"/>
                     <span className="text-xl font-bold text-gray-500">
-                        ReSheet <span className="text-xs font-normal">alpha</span>
+                        ReSheet <span className="text-xs font-normal">beta</span>
                     </span>
                     <a
                         className="ml-2 text-gray-400 hover:text-blue-600"

@@ -1,7 +1,7 @@
 <h1>
   <img src="assets/images/logo.svg" alt="ReSheet logo" height="28">
   ReSheet
-  <sub>alpha</sub>
+  <sub>beta</sub>
 </h1>
 
 [Try it](https://resheet.dev/)
@@ -24,43 +24,12 @@ interested, please share!) join the ReSheet Discord Server:
 
 ## Roadmap
 
-ReSheet is currently in alpha stage. This means I'm currently testing it with
-users and changing it according to their feedback. There still are open issues
-and missing features I'm actively working on. There may occur some bigger
-changes, but I'll try to make them as unobtrusive as possible.
+ReSheet is currently in beta stage. This means it may be missing important
+features and may have some bugs. There are no bigger changes coming and it is
+already productively usable.
 
-Once known limitations and missing features are adressed I'll transition it into
-beta, where I'll try to squash any remaining bugs.
-
-After that ReSheet will be ready for the first stable release.
-
-### Limitations
-
-- [x] React interop: External libs depending on react may not work under some
-      circumstances
-- [ ] Inspector: Improve perfomance and design; make it customizable
-- [ ] Performance: Don't block UI by computations
-
-
-### Features
-
-- [ ] Simple Block: Easily turn React code into a Block
-- [ ] ListOf/RecordOf Block: Blocks explicitly for lists and tables
-
-
-## Sustainability
-
-In the last months I have put all my available time into developing ReSheet. I'd
-love for it to become a stable and mature tool for developers seeking a powerful
-notebook/spreadsheet hybrid. Therefore everything I develop is going to be open
-source.
-
-My favourite option to continue developing this is (unsurprisingly) to make it
-into my full-time job. For that I thought about developing some extra (premium)
-Blocks, that don't get bundled with ReSheet. They will still be open source and
-on GitHub, but not openly packaged anywhere (npm). If you'd like to support the
-development of ReSheet, you can then pay to get access to the packaged Blocks
-hosted by me. I hope this sounds fair.
+After these issues are adressed, ReSheet will be ready for the first stable
+release.
 
 
 ## Development
