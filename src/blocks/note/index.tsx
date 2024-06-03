@@ -86,7 +86,7 @@ export const NoteUi = React.forwardRef(
         const editorRef = React.useRef<CodeEditorHandle>()
         const blockRef = React.useRef<BlockHandle>()
         const [isFocused, setFocused] = React.useState(false)
-        const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note).length)
+        const completions = useCompletionsOverlay(editorRef, getCode(state.note) ?? '', env, getPrefix(state.note.type, state.input).length)
 
         React.useEffect(() => {
             if (isFocused) {

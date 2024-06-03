@@ -9,7 +9,7 @@ import { Set as ISet } from 'immutable'
 import * as block from '@resheet/core/block'
 
 import { getResultValue, resultFrom } from '@resheet/code/result'
-import { Compiled, Environment, compileJSExprSafe, parseJSExpr } from '@resheet/code/compute'
+import { Compiled, compileJSExprSafe, parseJSExpr } from '@resheet/code/compute'
 import { ViewResult } from '@resheet/code/value'
 
 import { safeBlock } from '../component'
@@ -30,17 +30,17 @@ export function getCode(note: NoteType) {
     }
 }
 
-export function getPrefix(note: NoteType) {
-    switch (note.type) {
-        case 'expr': return EXPR_PREFIX
-        case 'block': return BLOCK_PREFIX
+export function getPrefix(type: NoteType['type'], input: string) {
+    switch (type) {
+        case 'expr': return input.match(EXPR_REGEX)[0]
+        case 'block': return input.match(BLOCK_REGEX)[0]
         default: return ''
     }
 }
 
 
-export const EXPR_PREFIX = '='
-export const BLOCK_PREFIX = '/'
+export const EXPR_REGEX = /^\s*=/
+export const BLOCK_REGEX = /^\s*\//
 
 export function evaluateNote(
     input: string,
@@ -51,7 +51,7 @@ export function evaluateNote(
     const dispatchExprResult = block.dispatchCaseField({ type: 'expr' }, 'result', dispatchNote)
     const dispatchBlockResult = block.dispatchCaseField({ type: 'block', isInstantiated: false}, 'result', dispatchNote)
 
-    const parsed = parseNote(input, env)
+    const parsed = parseNote(input)
     switch (parsed.type) {
         case 'expr': {
             const value = parsed.compiled.run(env)
@@ -79,33 +79,35 @@ type ParsedNote =
     | { type: 'checkbox', checked: boolean, text: string }
     | { type: 'text', tag: string, text: string }
 
-export function parseNote(input: string, env: Environment): ParsedNote {
-    if (input.startsWith(EXPR_PREFIX)) {
-        const expr = input.slice(EXPR_PREFIX.length)
+export function parseNote(input: string): ParsedNote {
+    const exprMatch = input.match(EXPR_REGEX)
+    if (exprMatch) {
+        const expr = input.slice(exprMatch[0].length)
         const compiled = compileJSExprSafe(expr)
         return { type: 'expr', code: expr, compiled }
     }
 
-    if (input.startsWith(BLOCK_PREFIX)) {
-        const expr = input.slice(BLOCK_PREFIX.length)
+    const blockMatch = input.match(BLOCK_REGEX)
+    if (blockMatch) {
+        const expr = input.slice(blockMatch[0].length)
         const compiled = compileJSExprSafe(expr)
         return { type: 'block', code: expr, compiled }
     }
 
-    const header = input.match(/^(#{1,6})\s*/)
-    if (header) {
-        const level = header[1].length
-        return { type: 'text', tag: `h${level}`, text: input.slice(header[0].length) }
+    const headerMatch = input.match(/^(#{1,6})\s*/)
+    if (headerMatch) {
+        const level = headerMatch[1].length
+        return { type: 'text', tag: `h${level}`, text: input.slice(headerMatch[0].length) }
     }
 
-    const list = input.match(/^[-*]\s+/)
-    if (list) {
-        return { type: 'text', tag: 'li', text: input.slice(list[0].length) }
+    const listMatch = input.match(/^[-*]\s+/)
+    if (listMatch) {
+        return { type: 'text', tag: 'li', text: input.slice(listMatch[0].length) }
     }
 
-    const checkbox = input.match(/^\[[ xX]?\]\s+/)
-    if (checkbox) {
-        return { type: 'checkbox', checked: /^\[[xX]\]/.test(input), text: input.slice(checkbox[0].length) }
+    const checkboxMatch = input.match(/^\[[ xX]?\]\s+/)
+    if (checkboxMatch) {
+        return { type: 'checkbox', checked: /^\[[xX]\]/.test(input), text: input.slice(checkboxMatch[0].length) }
     }
 
     return { type: 'text', tag: 'p', text: input }
