@@ -19,7 +19,7 @@ export class BackupDb extends Dexie {
 
 export const db = new BackupDb()
 
-export const MAX_BACKUP_AGE = 7 /* days */ * 24 /* hours */ * 60 /* min */ * 60 /* sec */ * 1000 /* milli */
+export const MAX_BACKUP_AGE = 30 /* days */ * 24 /* hours */ * 60 /* min */ * 60 /* sec */ * 1000 /* milli */
 
 export async function removeOldBackups() {
     const oldest = Date.now() - MAX_BACKUP_AGE
