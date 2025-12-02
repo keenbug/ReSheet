@@ -35,7 +35,7 @@ import * as code_value from '@resheet/code/value'
 // blocks
 import * as blocks from '@resheet/blocks'
 import * as blocks_component from '@resheet/blocks/component'
-import * as blocks_debug from '@resheet/blocks/component'
+import * as blocks_debug from '@resheet/blocks/debug'
 import * as blocks_blockSelector from '@resheet/blocks/block-selector'
 import * as blocks_jsexpr from '@resheet/blocks/js'
 import * as blocks_note from '@resheet/blocks/note'
